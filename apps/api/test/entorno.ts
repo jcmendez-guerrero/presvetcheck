@@ -9,7 +9,7 @@ import { loadConfig, normalizeText, type RecetaConfirmadaInput } from '@mmx/shar
 import { loadRules } from '@mmx/shared/node';
 import { buildApp } from '../src/app';
 import type { AppDeps } from '../src/deps';
-import { MemoryBlobStore } from '../src/puertos/blob';
+import { MemoryBlobStore } from '@mmx/reports';
 import type { StockPort } from '../src/puertos/stock';
 
 export const ROOT = resolve(__dirname, '../../..');

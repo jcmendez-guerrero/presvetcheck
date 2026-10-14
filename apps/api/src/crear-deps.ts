@@ -5,7 +5,7 @@ import { hoy, type Clock } from '@mmx/domain';
 import { Temporal } from '@js-temporal/polyfill';
 import { crearExtractor } from '@mmx/extraction';
 import type { AppConfig } from '@mmx/shared';
-import { findUp, loadRules } from '@mmx/shared/node';
+import { findUp, loadRules, secretoKeyVault } from '@mmx/shared/node';
 import {
   BandejaSiweb,
   OutboxService,
@@ -17,21 +17,11 @@ import {
   resolverAlmacen,
 } from '@mmx/siweb';
 import { politica, type AppDeps } from './deps';
-import { AzureBlobStore, MemoryBlobStore } from './puertos/blob';
+import { AzureBlobStore, MemoryBlobStore } from '@mmx/reports';
 import { DemoStockPort, SiwebStockPort } from './puertos/stock';
 import { procedimientoVigente } from './servicios/sustituciones';
 
 export const relojSistema: Clock = { now: () => Temporal.Now.instant() };
-
-/** Lee un secreto de Key Vault con identidad gestionada (sin claves en la configuración). */
-async function secretoKeyVault(url: string, nombre: string): Promise<string> {
-  const { DefaultAzureCredential } = await import('@azure/identity');
-  const cred = new DefaultAzureCredential();
-  const token = await cred.getToken('https://vault.azure.net/.default');
-  const res = await fetch(`${url.replace(/\/$/, '')}/secrets/${nombre}?api-version=7.4`, { headers: { Authorization: `Bearer ${token?.token}` } });
-  if (!res.ok) throw new Error(`No se pudo leer el secreto ${nombre} de Key Vault (${res.status})`);
-  return ((await res.json()) as { value: string }).value;
-}
 
 /**
  * Construye las dependencias reales desde la configuración y comprueba los requisitos de arranque
@@ -100,7 +90,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
         ? new MemoryBlobStore()
         : await AzureBlobStore.crear({ connectionString: config.BLOB_CONNECTION_STRING, accountUrl: config.BLOB_ACCOUNT_URL }),
     cipher: new ColumnCipher(claveCifrado),
-    telefonoFarmacia: process.env.FARMACIA_TELEFONO ?? '(teléfono de la farmacia)',
+    telefonoFarmacia: config.FARMACIA_TELEFONO,
     nombreFarmacia: 'Mundo Mascotix · Medicamentos Veterinarios',
   };
   return { deps, handle };

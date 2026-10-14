@@ -28,7 +28,7 @@ import { borradorDesdeExtraccion } from '@mmx/extraction';
 import type { ExtractionResult} from '@mmx/shared';
 import { DomainError, RecetaConfirmada, type RecetaConfirmadaInput } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
-import { sha256 } from '../puertos/blob';
+import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
 import { MedicamentosService } from './medicamentos';
 

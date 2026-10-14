@@ -5,7 +5,7 @@ import { hoy } from '@mmx/domain';
 import type { AppConfig, RulesBundle } from '@mmx/shared';
 import type { LoadedRuleFile } from '@mmx/shared/node';
 import type { BandejaSiweb, OutboxService, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
-import type { BlobStore } from './puertos/blob';
+import type { BlobStore } from '@mmx/reports';
 import type { StockPort } from './puertos/stock';
 
 /** Dependencias de la API (inyectadas: los tests usan PGlite, stock de demo y extractor falso). */

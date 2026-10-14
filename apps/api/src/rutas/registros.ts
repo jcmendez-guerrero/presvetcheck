@@ -3,7 +3,7 @@ import type { AppDeps } from '../deps';
 import { ROLES, requiereRol, usuario } from '../plugins/auth';
 import { RegistrosQuery, RevisionDto } from '../schemas';
 import { GaranteService } from '../servicios/garante';
-import { RegistrosService } from '../servicios/registros';
+import { RegistrosService } from '@mmx/reports';
 import { ctx, enviarFichero, type App } from './comun';
 
 export async function rutasRegistros(app: App, d: AppDeps) {

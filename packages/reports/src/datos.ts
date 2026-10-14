@@ -12,8 +12,9 @@ import {
   sustitucion,
   veterinario,
 } from '@mmx/db';
-import type { Entrada, MovimientoPsicotropo, Salida } from '@mmx/reports';
-import type { AppDeps } from '../deps';
+import type { ColumnCipher, Db } from '@mmx/db';
+import type { Entrada, MovimientoPsicotropo } from './entradas';
+import type { Salida } from './salidas';
 
 /** Rango [desde 00:00, hasta+1 00:00) en Europe/Madrid → instantes UTC. */
 export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
@@ -29,8 +30,9 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
   return [aUtc(desde), aUtc(fin.toISOString().slice(0, 10))];
 }
 
+/** Consultas de los registros de entradas y salidas (API y reportes semanales). */
 export class RegistrosService {
-  constructor(private readonly d: AppDeps) {}
+  constructor(private readonly d: { db: Db; cipher: ColumnCipher }) {}
 
   /** Salidas del periodo, con anulaciones marcadas. Datos del propietario solo si se piden. */
   async salidas(desde: string, hasta: string, opts: { incluirPropietario: boolean; dniCompleto: boolean }): Promise<Salida[]> {
