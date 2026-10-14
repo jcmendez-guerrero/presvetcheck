@@ -1,0 +1,356 @@
+{
+  "receta": {
+    "tipo": {
+      "valor": "electronica",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "electronica",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "plataforma": {
+      "valor": "Recevet",
+      "confianza": 0.86,
+      "evidencia": {
+        "texto": "Recevet",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "idPlataforma": {
+      "valor": "DEMO-CSV-0003",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "DEMO-CSV-0003",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "numero": {
+      "valor": "DEMO-0003",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "DEMO-0003",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "fechaEmision": {
+      "valor": "@HOY-0",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "@HOY-0",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "tipoDispensacion": {
+      "valor": "dispensacion",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "dispensacion",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "clasePrescripcion": {
+      "valor": "ordinaria",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "ordinaria",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "tipoTratamiento": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "titularNombre": {
+      "valor": "Explotación de demostración",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "Explotación de demostración",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "titularTelefono": {
+      "valor": "600 000 002",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "600 000 002",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "rega": {
+      "valor": "ES000000000000",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "ES000000000000",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "especie": {
+      "valor": "Bovino",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "Bovino",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "animalIdentificacion": {
+      "valor": "Lote 1",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "Lote 1",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "numAnimales": {
+      "valor": 12,
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "12",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "veterinarioNombre": {
+      "valor": "Veterinaria rural de demostración",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "Veterinaria rural de demostración",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "veterinarioTelefono": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "veterinarioEmail": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "veterinarioNumColegiado": {
+      "valor": "45/0000",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "45/0000",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "veterinarioColegio": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "veterinarioClinica": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "veterinarioDireccion": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "indicacion": {
+      "valor": "Infecciones cutáneas",
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "Infecciones cutáneas",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "plazoValidez": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "advertencias": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "firmaDetectada": {
+      "valor": true,
+      "confianza": 0.99,
+      "evidencia": {
+        "texto": "True",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "selloDetectado": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": null,
+      "fuente": "llm"
+    },
+    "qrDetectado": {
+      "valor": true,
+      "confianza": 0.97,
+      "evidencia": {
+        "texto": "True",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    }
+  },
+  "lineas": [
+    {
+      "medicamento": {
+        "valor": "Aerofar 20 mg/g suspensión para pulverización cutánea",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "Aerofar 20 mg/g suspensión para pulverización cutánea",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "principioActivo": {
+        "valor": "clortetraciclina",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "clortetraciclina",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "forma": {
+        "valor": "suspensión para pulverización cutánea",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "suspensión para pulverización cutánea",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "concentracion": {
+        "valor": "20 mg/g",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "20 mg/g",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "cantidadEnvases": {
+        "valor": 2,
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "2",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "formato": {
+        "valor": "envase pulverizador 250 ml",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "envase pulverizador 250 ml",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "via": {
+        "valor": "uso cutáneo",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "uso cutáneo",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "dosis": {
+        "valor": "pulverizar la zona afectada",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "pulverizar la zona afectada",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "duracionDias": {
+        "valor": 5,
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "5",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "tiempoEspera": {
+        "valor": "Carne: 0 días",
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "Carne: 0 días",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      },
+      "declaracionAntimicrobiano": {
+        "valor": true,
+        "confianza": 0.97,
+        "evidencia": {
+          "texto": "True",
+          "pagina": 1,
+          "region": null
+        },
+        "fuente": "llm"
+      }
+    }
+  ],
+  "proveedor": "fake",
+  "modelo": "fixture",
+  "promptVersion": "receta.v1",
+  "ocrTexto": null
+}

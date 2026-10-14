@@ -50,8 +50,11 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ AUTH_MODE: 'dev' })).toThrow(/DATABASE_URL/);
   });
 
-  it('exige configuración de Azure si EXTRACTOR=azure', () => {
-    expect(() => loadConfig({ ...base, EXTRACTOR: 'azure' })).toThrow(/DOCINTEL_ENDPOINT/);
+  it('EXTRACTOR=azure sin configuración: desactivado en local, error en producción', () => {
+    expect(loadConfig({ ...base, EXTRACTOR: 'azure' }).EXTRACTOR).toBe('azure');
+    expect(() =>
+      loadConfig({ DATABASE_URL: 'x', NODE_ENV: 'production', AUTH_MODE: 'entra', ENTRA_TENANT_ID: 't', ENTRA_CLIENT_ID: 'c', BLOB_ACCOUNT_URL: 'https://b', KEY_VAULT_URL: 'https://k', EXTRACTOR: 'azure' }),
+    ).toThrow(/DOCINTEL_ENDPOINT/);
   });
 
   it('valida la clave de cifrado, el regex y el sustituto de GS', () => {
