@@ -165,3 +165,16 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Implementado:** sin recetas reales todavía; `pnpm eval:extraction` lo indica y termina sin error. Para que
   la UI sea navegable con `EXTRACTOR=fake` se han añadido 3 fixtures `demo-*.expected.json` **sintéticas**
   (sin imagen ni datos reales), marcadas como tales en `fixtures/recetas/README.md`.
+
+## DUDA-21 · Autenticación de la PWA con Entra sin MSAL
+- **Spec:** ADR-06 usa la autenticación integrada de Container Apps + validación del token en la API.
+- **Implementado:** la PWA no incluye MSAL: en modo `entra` obtiene el `id_token` de `/.auth/me` (token store de la
+  autenticación integrada) y lo envía como `Bearer`; la API lo valida contra el JWKS de Entra (audiencia = client id,
+  `roles` = app roles, `amr` = MFA). Requiere activar el token store en la app de Container Apps (infra/).
+- **Confirmar:** JC (alternativa: MSAL en la PWA si se quiere renovación de tokens en el cliente).
+
+## DUDA-22 · Normalización de páginas y PDF
+- **Spec:** normalizar a PNG por página, corregir orientación, SHA-256 y pHash (§4.1.1).
+- **Implementado:** en el navegador (canvas): orientación EXIF, PNG, dHash de 64 bits y aviso de calidad; el
+  servidor calcula los SHA-256. Los **PDF y HEIC** se guardan tal cual (una "página") sin pHash: rasterizar PDF
+  exigiría una dependencia pesada (pdf.js o binarios nativos). Queda pendiente decidir si se añade.

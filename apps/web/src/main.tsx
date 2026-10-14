@@ -1,0 +1,59 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import './estilos.css';
+import { ProveedorAuth } from './lib/auth';
+import { Layout } from './componentes/layout';
+import { Inicio } from './paginas/inicio';
+import { NuevaReceta } from './paginas/nueva-receta';
+import { Revision } from './paginas/revision';
+import { Resultado } from './paginas/resultado';
+import { Dispensacion } from './paginas/dispensacion';
+import { Sustitucion } from './paginas/sustitucion';
+import { Venta } from './paginas/venta';
+import { RecepcionDetalle, Recepciones } from './paginas/recepciones';
+import { Garante } from './paginas/garante';
+import { Registros } from './paginas/registros';
+import { Admin } from './paginas/admin';
+
+const raiz = createRootRoute({ component: Layout });
+const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
+const r1 = createRoute({ getParentRoute: () => raiz, path: '/recetas/nueva', component: NuevaReceta });
+const r2 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/revision', component: Revision });
+const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resultado', component: Resultado });
+const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
+const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
+const r6 = createRoute({ getParentRoute: () => raiz, path: '/recepciones/$id', component: RecepcionDetalle });
+const r7 = createRoute({ getParentRoute: () => raiz, path: '/garante', component: Garante });
+const r8 = createRoute({ getParentRoute: () => raiz, path: '/registros', component: Registros });
+const r9 = createRoute({ getParentRoute: () => raiz, path: '/admin', component: Admin });
+const rDisp = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recetas/$id/dispensar/$linea',
+  component: Dispensacion,
+  validateSearch: (s: Record<string, unknown>): { pendientes?: string; forzado?: string; sustitucion?: string } => ({
+    ...(typeof s.pendientes === 'string' ? { pendientes: s.pendientes } : {}),
+    ...(s.forzado ? { forzado: String(s.forzado) } : {}),
+    ...(typeof s.sustitucion === 'string' ? { sustitucion: s.sustitucion } : {}),
+  }),
+});
+const rVenta = createRoute({ getParentRoute: () => raiz, path: '/venta', component: Venta, validateSearch: (s: Record<string, unknown>) => ({ canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const) }) });
+const rutas = [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta];
+const router = createRouter({ routeTree: raiz.addChildren(rutas) });
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } });
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <QueryClientProvider client={qc}>
+      <ProveedorAuth>
+        <RouterProvider router={router} />
+      </ProveedorAuth>
+    </QueryClientProvider>
+  </StrictMode>,
+);

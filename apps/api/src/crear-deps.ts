@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
-import { CimavetClient, CimavetRepository, verificarEnVivo } from '@mmx/cimavet';
-import { ColumnCipher, createDb, type DbHandle } from '@mmx/db';
+import { CimavetClient, CimavetRepository, jobNomenclatorImport, verificarEnVivo } from '@mmx/cimavet';
+import { ColumnCipher, createDb, runMigrations, seed, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
 import { hoy, type Clock } from '@mmx/domain';
 import { Temporal } from '@js-temporal/polyfill';
 import { crearExtractor } from '@mmx/extraction';
@@ -17,7 +17,7 @@ import {
   resolverAlmacen,
 } from '@mmx/siweb';
 import { politica, type AppDeps } from './deps';
-import { AzureBlobStore } from './puertos/blob';
+import { AzureBlobStore, MemoryBlobStore } from './puertos/blob';
 import { DemoStockPort, SiwebStockPort } from './puertos/stock';
 import { procedimientoVigente } from './servicios/sustituciones';
 
@@ -42,6 +42,10 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
   const handle = await createDb(config.DATABASE_URL);
   const db = handle.db;
   const rules = loadRules();
+  if (process.env.DEV_BOOTSTRAP === '1') {
+    if (prod) throw new Error('DEV_BOOTSTRAP no se admite en producción');
+    await arranqueDesarrollo(handle, rules, log);
+  }
   const clock = relojSistema;
   const claveCifrado = config.COLUMN_ENCRYPTION_KEY ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, 'column-encryption-key') : undefined);
   if (!claveCifrado) throw new Error('Falta la clave de cifrado de columnas (COLUMN_ENCRYPTION_KEY o Key Vault)');
@@ -91,10 +95,31 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     stock,
     siweb,
     extractor: await crearExtractor(config, { fixturesDir: fixturesRecetas, hoy: () => hoy(clock) }),
-    blob: await AzureBlobStore.crear({ connectionString: config.BLOB_CONNECTION_STRING, accountUrl: config.BLOB_ACCOUNT_URL }),
+    blob:
+      !prod && config.BLOB_CONNECTION_STRING === 'memory'
+        ? new MemoryBlobStore()
+        : await AzureBlobStore.crear({ connectionString: config.BLOB_CONNECTION_STRING, accountUrl: config.BLOB_ACCOUNT_URL }),
     cipher: new ColumnCipher(claveCifrado),
     telefonoFarmacia: process.env.FARMACIA_TELEFONO ?? '(teléfono de la farmacia)',
     nombreFarmacia: 'Mundo Mascotix · Medicamentos Veterinarios',
   };
   return { deps, handle };
+}
+
+/**
+ * Solo desarrollo y test de humo (DEV_BOOTSTRAP=1): migraciones, seed de maestros y muestra real del
+ * Nomenclátor si la caché está vacía. Permite arrancar con DATABASE_URL=pglite://memory sin Docker.
+ */
+async function arranqueDesarrollo(handle: DbHandle, rules: ReturnType<typeof loadRules>, log: (m: string) => void) {
+  await runMigrations(handle);
+  const repo = new CimavetRepository(handle.db);
+  if ((await repo.buscar('clavubay')).length) return;
+  const fixtures = findUp('fixtures/nomenclator', process.cwd());
+  if (!fixtures) throw new Error('No se encuentra fixtures/nomenclator');
+  await seed(handle.db, { fixturesDir: resolve('/nonexistent'), rules, demo: true });
+  await importarMaestras(handle.db, fixtures, {
+    solo: [MAESTRA.FORMAS, MAESTRA.VIAS, MAESTRA.ESPECIES, MAESTRA.UNIDADES, MAESTRA.SITUACION_REGISTRO, MAESTRA.LABORATORIOS, MAESTRA.INDICACIONES, MAESTRA.PRINCIPIOS_ACTIVOS],
+  });
+  const informe = await jobNomenclatorImport({ repo, path: resolve(fixtures, 'PrescripcionVET.sample.xml') });
+  log(`DEV_BOOTSTRAP: muestra del Nomenclátor cargada (${informe.nuevos} presentaciones)`);
 }
