@@ -5,7 +5,8 @@ import type { Clock } from '@mmx/domain';
 import { AcsMailer, AzureBlobStore, ConsoleMailer, MemoryBlobStore, SmtpMailer, type BlobStore, type Mailer } from '@mmx/reports';
 import type { AppConfig, RulesBundle } from '@mmx/shared';
 import { loadRules, secretoKeyVault } from '@mmx/shared/node';
-import { NotConfiguredSalesMovementsSource, OutboxService, SiwebClient, StockService, VariantResolver, resolverAlmacen, type SalesMovementsSource } from '@mmx/siweb';
+import { NotConfiguredSalesMovementsSource,
+  TicketsSalesMovementsSource, OutboxService, SiwebClient, StockService, VariantResolver, resolverAlmacen, type SalesMovementsSource } from '@mmx/siweb';
 
 export type Log = (mensaje: string, datos?: Record<string, unknown>) => void;
 
@@ -66,8 +67,11 @@ export async function crearContexto(config: AppConfig, log: Log = logJson): Prom
       cipher: new ColumnCipher(clave),
       cimavet: { client: new CimavetClient({ baseUrl: config.CIMAVET_BASE_URL, rps: config.CIMAVET_RPS }), repo: new CimavetRepository(handle.db) },
       siweb,
-      // TODO(decision D-02b): adaptador real cuando haya documentación de la API de movimientos.
-      ventas: new NotConfiguredSalesMovementsSource(),
+      // TODO(decision D-02b): validar con tickets reales que las líneas llevan el CN en el nombre.
+      ventas:
+        siweb && config.SIWEB_SALES_SOURCE === 'tickets'
+          ? new TicketsSalesMovementsSource(siweb.client, config.SIWEB_TICKET_CN_REGEX)
+          : new NotConfiguredSalesMovementsSource(),
       blob,
       mailer,
       log,

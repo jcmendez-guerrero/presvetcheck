@@ -13,7 +13,7 @@ import { StockService } from '../src/stock';
 import { VariantResolver, similitudNombre } from '../src/mapeo';
 import { BandejaSiweb, ManualTaskCatalogWriter, SkuReservas, crearCatalogWriter } from '../src/tareas';
 import { OutboxService, claveEntrada, exigirEntrada } from '../src/outbox';
-import { NotConfiguredSalesMovementsSource } from '../src/ventas';
+import { LecturaTicketsIncompleta, NotConfiguredSalesMovementsSource, TicketsSalesMovementsSource } from '../src/ventas';
 import { leerNivel } from '../src/schemas';
 
 const BASE = 'https://siweb.test/api/public/';
@@ -53,14 +53,27 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
     expect((await c.products())[0]).toMatchObject({ id: 3120, code: 'CAM-001', variants_count: 6 });
     expect(auth).toBe('Bearer tok-test');
     expect((await c.product(3120)).name).toBe('Camiseta básica');
-    expect(await c.variant(8812)).toMatchObject({ sku: 'CAM-AZ-M', product_code: 'CAM-001' });
+    expect(await c.variant(8812)).toMatchObject({ sku: 'CAM-AZ-M', product_code: 'CAM-001', stock_levels: [{ batch_number: 'L-2026-09', available: 40 }] });
     expect(await c.stock(8812)).toMatchObject({ total_available: 40, is_infinite_stock: false });
     expect((await c.lots(8812))[0]).toMatchObject({ lot_code: 'L-2026-09', expiry_date: '2027-03-31' });
     expect((await c.warehouses()).map((w) => w.name)).toEqual(['Almacén central', 'Tienda Centro']);
     expect((await c.lowStock(14))[0]).toMatchObject({ sku: 'CAM-AZ-L' });
   });
 
-  it('pagina con page/limit hasta una página incompleta', async () => {
+  it('pagina según pagination.pages (documentado)', async () => {
+    const paginas: string[] = [];
+    server.use(
+      http.get(`${BASE}inventory/products`, ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get('page'));
+        paginas.push(String(page));
+        return HttpResponse.json({ success: true, data: [{ id: page }], pagination: { page, limit: 200, total: 3, pages: 3 } });
+      }),
+    );
+    expect((await client().products()).map((p) => p.id)).toEqual([1, 2, 3]);
+    expect(paginas).toEqual(['1', '2', '3']);
+  });
+
+  it('sin metadatos de paginación, pagina con page/limit hasta una página incompleta', async () => {
     const paginas: string[] = [];
     server.use(
       http.get(`${BASE}inventory/variants`, ({ request }) => {
@@ -109,12 +122,10 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
     expect((await client({ token: async () => 'kv' }).warehouses())[0]?.name).toBe('Farmacia');
   });
 
-  it('leerNivel tolera nombres alternativos y devuelve null si no hay datos', () => {
-    expect(leerNivel({ warehouse_id: 1, location_id: null, batch_number: 'X', quantity_available: '3' } as never)).toEqual({ lote: 'X', disponible: 3 });
-    expect(leerNivel({ warehouse_id: 1, location_id: null } as never)).toEqual({ lote: null, disponible: null });
+  it('leerNivel usa batch_number/available/expiry_date y devuelve null si faltan', () => {
+    expect(leerNivel({ warehouse_id: 1, location_id: null, batch_number: ' X ', available: 3, expiry_date: '2027-01-31T00:00:00Z' } as never)).toEqual({ lote: 'X', disponible: 3, caducidad: '2027-01-31' });
+    expect(leerNivel({ warehouse_id: 1, location_id: null } as never)).toEqual({ lote: null, disponible: null, caducidad: null });
   });
-
-  it.todo('confirmar los campos de levels[] (lote y disponible por lote) con una respuesta real de GET inventory/variants/:id (fixtures/siweb/README.md)');
 });
 
 describe('almacén Farmacia (D-12)', () => {
@@ -181,7 +192,7 @@ describe('stock por lote (SPEC §5.2.3) y FEFO', () => {
     server.use(http.get(`${BASE}inventory/variants/:id`, () => new HttpResponse(null, { status: 503 })), http.get(`${BASE}inventory/variants/:id/lots`, () => HttpResponse.json(fx('doc-lots.json'))));
     expect((await new StockService(client({ maxRetries: 0 }), async () => 21, { log: () => {} }).lotesDeVariantes('y', [1])).estado).toBe('NO_DISPONIBLE');
     const sinLote = fx('farmacia-variant-9001.json');
-    sinLote.data.levels = [{ warehouse_id: 21, location_id: null }];
+    sinLote.data.stock_levels = [{ warehouse_id: 21, location_id: null, available: 2 }];
     server.use(http.get(`${BASE}inventory/variants/:id`, () => HttpResponse.json(sinLote)));
     expect((await new StockService(client(), async () => 21).lotesDeVariantes('z', [1])).estado).toBe('NO_DISPONIBLE');
   });
@@ -408,10 +419,34 @@ describe('outbox de entradas (SPEC §5.2.4–5.2.5)', () => {
   });
 });
 
-describe('conciliación de ventas (D-02b)', () => {
-  it('sin documentación de movimientos el adaptador queda inactivo', async () => {
+describe('conciliación de ventas: tickets de Siweb360 (D-02b)', () => {
+  it('desactivada → el adaptador queda inactivo', async () => {
     const s = new NotConfiguredSalesMovementsSource();
     expect(s.configurado).toBe(false);
-    await expect(s.movimientos()).rejects.toThrow(/D-02b/);
+    await expect(s.movimientos()).rejects.toThrow(/desactivada/);
+  });
+
+  it('lee los tickets Pagado del día y saca el CN del nombre de cada línea (sin lote); ignora líneas sin CN', async () => {
+    let query = '';
+    server.use(
+      http.get(`${BASE}tickets/:id`, ({ params }) => HttpResponse.json(fx(`doc-ticket-${String(params.id)}.json`))),
+      http.get(`${BASE}tickets`, ({ request }) => {
+        query = new URL(request.url).search;
+        return HttpResponse.json(fx('doc-tickets.json'));
+      }),
+    );
+    const s = new TicketsSalesMovementsSource(client(), 'CN\\s?(\\d{6,7})');
+    const m = await s.movimientos('2026-10-14', '2026-10-14');
+    expect(query).toContain('fecha_desde=2026-10-14');
+    expect(query).toContain('estado=Pagado');
+    expect(m).toEqual([
+      { id: '7001:1', variantId: null, cn: '570016', lote: null, unidades: 1, fecha: '2026-10-14', ticket: 'T-2026-000101' },
+      { id: '7002:3', variantId: null, cn: '570004', lote: null, unidades: 2, fecha: '2026-10-14', ticket: 'T-2026-000102' },
+    ]);
+  });
+
+  it('si la API devuelve tantos tickets como el límite, la lectura se considera incompleta', async () => {
+    server.use(http.get(`${BASE}tickets`, () => HttpResponse.json({ success: true, data: Array.from({ length: 1000 }, (_, i) => ({ id: i + 1 })) })));
+    await expect(new TicketsSalesMovementsSource(client(), 'CN(\\d{6})').movimientos('2026-10-14', '2026-10-14')).rejects.toBeInstanceOf(LecturaTicketsIncompleta);
   });
 });

@@ -62,7 +62,7 @@ describe('conciliación ticket ↔ dispensación (SPEC §5.2.4)', () => {
         { id: 'm5', variantId: 9, cn: null, lote: null, unidades: 1, fecha: HOY },
       ],
     );
-    expect(r.conciliadas).toEqual([{ dispensacionId: 'd1', movimientoId: 'm1' }]);
+    expect(r.conciliadas).toEqual([{ dispensacionId: 'd1', movimientoId: 'm1', loteVerificado: true }]);
     expect(r.discrepancias.map((d) => [d.tipo, d.dispensacionId, d.movimientoId])).toEqual([
       ['UNIDADES_DISTINTAS', 'd2', 'm2'],
       ['LOTE_DISTINTO', 'd3', 'm3'],
@@ -70,6 +70,23 @@ describe('conciliación ticket ↔ dispensación (SPEC §5.2.4)', () => {
       ['TICKET_SIN_DISPENSACION', null, 'm4'],
     ]);
     expect(r.discrepancias[1]).toMatchObject({ loteDispensacion: 'C', loteTicket: 'Z', cn: '580001' });
+  });
+
+  it('tickets sin lote (Siweb360): concilia por CN + unidades con el lote sin verificar', () => {
+    const r = conciliar(
+      [
+        { id: 'd1', cn: '570016', lote: 'A', unidades: 1, fecha: HOY },
+        { id: 'd2', cn: '570004', lote: 'B', unidades: 1, fecha: HOY },
+      ],
+      [
+        { id: 't1', variantId: null, cn: '570016', lote: null, unidades: 1, fecha: HOY, ticket: 'T-1' },
+        { id: 't2', variantId: null, cn: '570004', lote: null, unidades: 2, fecha: HOY, ticket: 'T-2' },
+      ],
+    );
+    expect(r.conciliadas).toEqual([{ dispensacionId: 'd1', movimientoId: 't1', loteVerificado: false }]);
+    expect(r.discrepancias).toEqual([
+      expect.objectContaining({ tipo: 'UNIDADES_DISTINTAS', dispensacionId: 'd2', movimientoId: 't2', loteTicket: null, ticket: 'T-2', unidadesTicket: 2 }),
+    ]);
   });
 });
 

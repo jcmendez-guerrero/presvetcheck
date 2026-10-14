@@ -1,1 +1,42 @@
-{ "success": true, "data": { "id": 8812, "product_id": 3120, "sku": "CAM-AZ-M", "name": "Azul / M", "attributes": { "Color": "Azul", "Talla": "M" }, "product_name": "Camiseta básica", "product_code": "CAM-001" } }
+{
+ "success": true,
+ "data": {
+  "id": 8812,
+  "product_id": 3120,
+  "sku": "CAM-AZ-M",
+  "name": "Azul / M",
+  "attributes": {
+   "Color": "Azul",
+   "Talla": "M"
+  },
+  "product_name": "Camiseta básica",
+  "product_code": "CAM-001",
+  "category": "Ropa",
+  "brand": "Acme",
+  "is_active": true,
+  "status": "active",
+  "price_cents": 1299,
+  "reorder_point": 5,
+  "total_on_hand": 42,
+  "total_reserved": 2,
+  "total_allocated": 0,
+  "total_available": 40,
+  "is_infinite_stock": false,
+  "stock_levels": [
+   {
+    "warehouse_id": 14,
+    "warehouse_name": "Principal",
+    "warehouse_code": "MAIN",
+    "location_id": null,
+    "location_name": null,
+    "location_code": null,
+    "batch_number": "L-2026-09",
+    "expiry_date": "2027-03-31",
+    "on_hand": 42,
+    "reserved": 2,
+    "allocated": 0,
+    "available": 40
+   }
+  ]
+ }
+}

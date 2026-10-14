@@ -99,10 +99,10 @@ describe('worker', () => {
     expect(mailer.enviados.at(-1)!.asunto).toMatch(/ALERTA/);
   });
 
-  it('sales-reconciliation inactivo sin la API de movimientos (D-02b); activo con un origen configurado', async () => {
-    expect(await JOBS['sales-reconciliation']!(ctx, {})).toEqual({ inactivo: 'D-02b' });
+  it('sales-reconciliation inactivo sin fuente de ventas; activo con un origen configurado', async () => {
+    expect(await JOBS['sales-reconciliation']!(ctx, {})).toEqual({ inactivo: true });
     const conVentas = { ...ctx, clock: fixedClock('2026-10-14T20:00:00Z'), ventas: { configurado: true, movimientos: async () => [{ id: 'm1', variantId: 1, cn: '570025', lote: 'OTRO', unidades: 1, fecha: '2026-10-14' }] } };
-    expect(await JOBS['sales-reconciliation']!(conVentas, {})).toEqual({ conciliadas: 0, discrepancias: 1 });
+    expect(await JOBS['sales-reconciliation']!(conVentas, {})).toEqual({ conciliadas: 0, loteSinVerificar: 0, discrepancias: 1 });
     expect((await h.db.select().from(discrepancia))[0]?.tipo).toBe('LOTE_DISTINTO');
   });
 

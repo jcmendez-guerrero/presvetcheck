@@ -39,7 +39,7 @@ export async function ejecutarSpike(d: DepsSpike): Promise<ResultadoSpike> {
     return {
       infinito: v.is_infinite_stock ?? false,
       total: v.total_on_hand,
-      niveles: (v.levels ?? []).filter((l) => l.warehouse_id === almacen.id).map((l) => ({ ...leerNivel(l), raw: l })),
+      niveles: (v.stock_levels ?? []).filter((l) => l.warehouse_id === almacen.id).map((l) => ({ ...leerNivel(l), raw: l })),
       lotes: lots,
     };
   };
