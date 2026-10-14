@@ -1,0 +1,2930 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mundo Mascotix · Recetas veterinarias",
+    "version": "0.1.0",
+    "description": "API de verificación de recetas, dispensación y registro de entradas/salidas (SPEC §7)."
+  },
+  "components": {
+    "securitySchemes": {
+      "entra": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Sonda de vida",
+        "tags": [
+          "sistema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "summary": "Sonda de disponibilidad (BD)",
+        "tags": [
+          "sistema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/config/publica": {
+      "get": {
+        "summary": "Configuración que necesita la PWA",
+        "tags": [
+          "sistema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "summary": "Usuario actual",
+        "tags": [
+          "sistema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/inicio": {
+      "get": {
+        "summary": "Contadores de Inicio",
+        "tags": [
+          "sistema"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas": {
+      "post": {
+        "summary": "Crea una receta, sube sus páginas y lanza la extracción (multipart)",
+        "tags": [
+          "recetas"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}": {
+      "get": {
+        "tags": [
+          "recetas"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/imagenes/{pagina}": {
+      "get": {
+        "tags": [
+          "recetas"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "path",
+            "name": "pagina",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/confirmacion": {
+      "put": {
+        "summary": "Guarda los campos confirmados por la persona",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "papel",
+                      "electronica"
+                    ]
+                  },
+                  "plataformaId": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "idPlataforma": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "numero": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "fechaEmision": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "tipoDispensacion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "dispensacion",
+                      "botiquin",
+                      "no_dispensacion"
+                    ],
+                    "nullable": true
+                  },
+                  "clasePrescripcion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "ordinaria",
+                      "excepcional"
+                    ],
+                    "nullable": true
+                  },
+                  "tipoTratamiento": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "agudo",
+                      "cronico",
+                      "preventivo"
+                    ],
+                    "nullable": true
+                  },
+                  "titular": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "rega": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "especie": {
+                    "default": {
+                      "texto": null,
+                      "especieId": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "texto": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "especieId": {
+                        "default": null,
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "especieProduccion": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "animalIdentificacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "numAnimales": {
+                    "default": null,
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "veterinario": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null,
+                      "email": null,
+                      "numColegiado": null,
+                      "colegio": null,
+                      "clinica": null,
+                      "direccion": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "email": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "numColegiado": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "colegio": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "clinica": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "talonarioColegial": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "firmaConfirmada": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "indicacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "plazoValidezDeclarado": {
+                    "default": null,
+                    "type": "object",
+                    "properties": {
+                      "cantidad": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "unidad": {
+                        "type": "string",
+                        "enum": [
+                          "dias",
+                          "meses"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "cantidad",
+                      "unidad"
+                    ],
+                    "nullable": true
+                  },
+                  "advertencias": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "lineas": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orden": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "medicamentoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "principioActivoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "formaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "concentracionTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "cantidadEnvases": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "formatoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "posologia": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "via": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "dosis": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "duracionDias": {
+                              "default": null,
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "nullable": true
+                            },
+                            "porcentajeEnvase": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "tiempoEsperaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "declaracionAntimicrobiano": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "declarada": {
+                              "type": "boolean"
+                            },
+                            "finalidad": {
+                              "default": null,
+                              "type": "string",
+                              "enum": [
+                                "tratamiento",
+                                "metafilactico",
+                                "profilactico"
+                              ],
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "declarada"
+                          ],
+                          "nullable": true
+                        },
+                        "nregistro": {
+                          "default": null,
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cn": {
+                          "default": null,
+                          "type": "string",
+                          "pattern": "^\\d{6}$",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "orden"
+                      ]
+                    }
+                  },
+                  "comprobadoConOriginal": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "lineas"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/evaluar": {
+      "post": {
+        "summary": "Reglas + resolución + stock → decisión por línea",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "forzados": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "codigos": {
+                          "minItems": 1,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "RECETA_NUMERO_FALTA",
+                              "TIPO_DISPENSACION_FALTA",
+                              "TIPO_DISPENSACION_NO_DISPENSABLE",
+                              "TITULAR_NOMBRE_FALTA",
+                              "TITULAR_TELEFONO_FALTA",
+                              "REGA_FALTA",
+                              "ESPECIE_FALTA",
+                              "ANIMAL_ID_FALTA",
+                              "NUM_ANIMALES_FALTA",
+                              "FECHA_EMISION_FALTA",
+                              "FECHA_EMISION_FUTURA",
+                              "VETERINARIO_NOMBRE_FALTA",
+                              "VETERINARIO_TELEFONO_FALTA",
+                              "VETERINARIO_EMAIL_FALTA",
+                              "VETERINARIO_COLEGIADO_FALTA",
+                              "FIRMA_FALTA",
+                              "MEDICAMENTO_NOMBRE_FALTA",
+                              "PRESCRIPCION_SOLO_PA",
+                              "PRINCIPIO_ACTIVO_FALTA",
+                              "CLASE_PRESCRIPCION_FALTA",
+                              "INDICACION_FALTA",
+                              "DECLARACION_ANTIMICROBIANO_FALTA",
+                              "FORMA_CONCENTRACION_FALTA",
+                              "CANTIDAD_FALTA",
+                              "POSOLOGIA_FALTA",
+                              "TIEMPO_ESPERA_FALTA",
+                              "DATOS_NO_COMPROBADOS",
+                              "RECETA_CADUCADA",
+                              "PLAZO_DECLARADO_SUPERIOR",
+                              "RECETA_YA_DISPENSADA",
+                              "RECETA_POSIBLE_DUPLICADO",
+                              "PLATAFORMA_NO_RECONOCIDA",
+                              "PLATAFORMA_PENDIENTE_VERIFICAR",
+                              "PLATAFORMA_DESCONOCIDA",
+                              "ESTUPEFACIENTE_NO_DISPENSABLE",
+                              "PSICOTROPO_MAS_DE_UN_ENVASE",
+                              "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                              "ONLINE_CON_RECETA",
+                              "RECETA_REQUERIDA",
+                              "MEDICAMENTO_NO_SELECCIONADO",
+                              "MEDICAMENTO_SUSPENDIDO",
+                              "MEDICAMENTO_REVOCADO",
+                              "MEDICAMENTO_NO_COMERCIALIZADO",
+                              "PROBLEMA_SUMINISTRO",
+                              "NOTAS_SEGURIDAD",
+                              "CIMAVET_NO_DISPONIBLE",
+                              "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
+                              "ENVASE_CADUCADO",
+                              "CN_ESCANEADO_DISTINTO",
+                              "LOTE_NO_FEFO",
+                              "UNIDADES_SUPERAN_PRESCRITAS",
+                              "SERIE_YA_DISPENSADA",
+                              "LOTE_CADUCA_ANTES_FIN_TRATAMIENTO",
+                              "LOTE_SIN_CADUCIDAD",
+                              "STOCK_ILIMITADO_CONFIGURACION",
+                              "STOCK_NO_DISPONIBLE",
+                              "STOCK_INSUFICIENTE",
+                              "CAMBIO_FORMATO",
+                              "CAMBIO_CONCENTRACION",
+                              "DOSIS_NO_AJUSTABLE",
+                              "CONCENTRACION_SUPERIOR",
+                              "CANTIDAD_SUPERIOR",
+                              "SUSTITUCION_PROHIBIDA_EXCEPCIONAL",
+                              "SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA",
+                              "SUSTITUCION_PROHIBIDA_INMUNOLOGICO",
+                              "SUSTITUCION_PROHIBIDA_BIOLOGICO",
+                              "SUSTITUCION_PROHIBIDA_EXCLUSION",
+                              "SUSTITUCION_PROHIBIDA_USO_HUMANO",
+                              "SUSTITUCION",
+                              "SUSTITUTO_NO_EQUIVALENTE",
+                              "CADUCIDAD_PROXIMA_ENTRADA"
+                            ]
+                          }
+                        },
+                        "motivo": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        "aceptaRiesgos": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "codigos",
+                        "motivo",
+                        "aceptaRiesgos"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/medicamentos/buscar": {
+      "get": {
+        "summary": "Candidatos desde la caché (trigramas)",
+        "tags": [
+          "medicamentos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "in": "query",
+            "name": "q",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "especie",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "forma",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/medicamentos/{nregistro}": {
+      "get": {
+        "tags": [
+          "medicamentos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "vivo",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "nregistro",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/medicamentos/{nregistro}/equivalentes": {
+      "get": {
+        "tags": [
+          "medicamentos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "especie",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "indicacion",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "produccion",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "nregistro",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/stock/{cn}/fefo": {
+      "get": {
+        "summary": "Propuesta de lote(s) FEFO",
+        "tags": [
+          "stock"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "unidades",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "duracionDias",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            },
+            "in": "path",
+            "name": "cn",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/scan/parse": {
+      "post": {
+        "summary": "Parsea un código GS1/EAN → GTIN, CN, lote, caducidad, serie",
+        "tags": [
+          "stock"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "raw": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "raw"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/venta/comprobar": {
+      "get": {
+        "summary": "Comprueba si un CN se puede vender sin receta",
+        "tags": [
+          "dispensaciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            },
+            "in": "query",
+            "name": "cn",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "presencial",
+                "online"
+              ]
+            },
+            "in": "query",
+            "name": "canal",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/dispensaciones": {
+      "post": {
+        "summary": "Confirma una dispensación (con o sin receta). El forzado se valida aquí.",
+        "tags": [
+          "dispensaciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "conReceta": {
+                        "type": "boolean",
+                        "enum": [
+                          true
+                        ]
+                      },
+                      "recetaId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "lineaOrden": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "cn": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "envases": {
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "lote": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            "caducidad": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                              "nullable": true
+                            },
+                            "unidades": {
+                              "default": 1,
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 1000,
+                              "minimum": 0
+                            },
+                            "gtin": {
+                              "default": null,
+                              "type": "string",
+                              "pattern": "^\\d{8,14}$",
+                              "nullable": true
+                            },
+                            "cnEscaneado": {
+                              "default": null,
+                              "type": "string",
+                              "pattern": "^\\d{6}$",
+                              "nullable": true
+                            },
+                            "serie": {
+                              "default": null,
+                              "type": "string",
+                              "maxLength": 40,
+                              "nullable": true
+                            },
+                            "metodoCaptura": {
+                              "type": "string",
+                              "enum": [
+                                "scanner",
+                                "camara",
+                                "manual"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "lote",
+                            "caducidad",
+                            "metodoCaptura"
+                          ]
+                        }
+                      },
+                      "motivoLoteDistinto": {
+                        "default": null,
+                        "type": "string",
+                        "maxLength": 500,
+                        "nullable": true
+                      },
+                      "forzado": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "codigos": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "RECETA_NUMERO_FALTA",
+                                "TIPO_DISPENSACION_FALTA",
+                                "TIPO_DISPENSACION_NO_DISPENSABLE",
+                                "TITULAR_NOMBRE_FALTA",
+                                "TITULAR_TELEFONO_FALTA",
+                                "REGA_FALTA",
+                                "ESPECIE_FALTA",
+                                "ANIMAL_ID_FALTA",
+                                "NUM_ANIMALES_FALTA",
+                                "FECHA_EMISION_FALTA",
+                                "FECHA_EMISION_FUTURA",
+                                "VETERINARIO_NOMBRE_FALTA",
+                                "VETERINARIO_TELEFONO_FALTA",
+                                "VETERINARIO_EMAIL_FALTA",
+                                "VETERINARIO_COLEGIADO_FALTA",
+                                "FIRMA_FALTA",
+                                "MEDICAMENTO_NOMBRE_FALTA",
+                                "PRESCRIPCION_SOLO_PA",
+                                "PRINCIPIO_ACTIVO_FALTA",
+                                "CLASE_PRESCRIPCION_FALTA",
+                                "INDICACION_FALTA",
+                                "DECLARACION_ANTIMICROBIANO_FALTA",
+                                "FORMA_CONCENTRACION_FALTA",
+                                "CANTIDAD_FALTA",
+                                "POSOLOGIA_FALTA",
+                                "TIEMPO_ESPERA_FALTA",
+                                "DATOS_NO_COMPROBADOS",
+                                "RECETA_CADUCADA",
+                                "PLAZO_DECLARADO_SUPERIOR",
+                                "RECETA_YA_DISPENSADA",
+                                "RECETA_POSIBLE_DUPLICADO",
+                                "PLATAFORMA_NO_RECONOCIDA",
+                                "PLATAFORMA_PENDIENTE_VERIFICAR",
+                                "PLATAFORMA_DESCONOCIDA",
+                                "ESTUPEFACIENTE_NO_DISPENSABLE",
+                                "PSICOTROPO_MAS_DE_UN_ENVASE",
+                                "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                                "ONLINE_CON_RECETA",
+                                "RECETA_REQUERIDA",
+                                "MEDICAMENTO_NO_SELECCIONADO",
+                                "MEDICAMENTO_SUSPENDIDO",
+                                "MEDICAMENTO_REVOCADO",
+                                "MEDICAMENTO_NO_COMERCIALIZADO",
+                                "PROBLEMA_SUMINISTRO",
+                                "NOTAS_SEGURIDAD",
+                                "CIMAVET_NO_DISPONIBLE",
+                                "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
+                                "ENVASE_CADUCADO",
+                                "CN_ESCANEADO_DISTINTO",
+                                "LOTE_NO_FEFO",
+                                "UNIDADES_SUPERAN_PRESCRITAS",
+                                "SERIE_YA_DISPENSADA",
+                                "LOTE_CADUCA_ANTES_FIN_TRATAMIENTO",
+                                "LOTE_SIN_CADUCIDAD",
+                                "STOCK_ILIMITADO_CONFIGURACION",
+                                "STOCK_NO_DISPONIBLE",
+                                "STOCK_INSUFICIENTE",
+                                "CAMBIO_FORMATO",
+                                "CAMBIO_CONCENTRACION",
+                                "DOSIS_NO_AJUSTABLE",
+                                "CONCENTRACION_SUPERIOR",
+                                "CANTIDAD_SUPERIOR",
+                                "SUSTITUCION_PROHIBIDA_EXCEPCIONAL",
+                                "SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA",
+                                "SUSTITUCION_PROHIBIDA_INMUNOLOGICO",
+                                "SUSTITUCION_PROHIBIDA_BIOLOGICO",
+                                "SUSTITUCION_PROHIBIDA_EXCLUSION",
+                                "SUSTITUCION_PROHIBIDA_USO_HUMANO",
+                                "SUSTITUCION",
+                                "SUSTITUTO_NO_EQUIVALENTE",
+                                "CADUCIDAD_PROXIMA_ENTRADA"
+                              ]
+                            }
+                          },
+                          "motivo": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "aceptaRiesgos": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "codigos",
+                          "motivo",
+                          "aceptaRiesgos"
+                        ],
+                        "nullable": true
+                      },
+                      "sustitucionId": {
+                        "default": null,
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "nullable": true
+                      },
+                      "confirmaCambioFormato": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "notaEntregadaTutor": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "confirmaDosisNoAjustable": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "propietario": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "nombre": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "movil": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "direccion": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "dni": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          }
+                        },
+                        "nullable": true
+                      },
+                      "pendientes": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "lineas": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0
+                            }
+                          },
+                          "contactoTutor": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 200,
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "lineas"
+                        ],
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "conReceta",
+                      "recetaId",
+                      "lineaOrden",
+                      "cn",
+                      "envases"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "conReceta": {
+                        "type": "boolean",
+                        "enum": [
+                          false
+                        ]
+                      },
+                      "canal": {
+                        "type": "string",
+                        "enum": [
+                          "presencial",
+                          "online"
+                        ]
+                      },
+                      "cn": {
+                        "type": "string",
+                        "pattern": "^\\d{6}$"
+                      },
+                      "envases": {
+                        "minItems": 1,
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "lote": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            "caducidad": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                              "nullable": true
+                            },
+                            "unidades": {
+                              "default": 1,
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 1000,
+                              "minimum": 0
+                            },
+                            "gtin": {
+                              "default": null,
+                              "type": "string",
+                              "pattern": "^\\d{8,14}$",
+                              "nullable": true
+                            },
+                            "cnEscaneado": {
+                              "default": null,
+                              "type": "string",
+                              "pattern": "^\\d{6}$",
+                              "nullable": true
+                            },
+                            "serie": {
+                              "default": null,
+                              "type": "string",
+                              "maxLength": 40,
+                              "nullable": true
+                            },
+                            "metodoCaptura": {
+                              "type": "string",
+                              "enum": [
+                                "scanner",
+                                "camara",
+                                "manual"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "lote",
+                            "caducidad",
+                            "metodoCaptura"
+                          ]
+                        }
+                      },
+                      "motivoLoteDistinto": {
+                        "default": null,
+                        "type": "string",
+                        "maxLength": 500,
+                        "nullable": true
+                      },
+                      "forzado": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "codigos": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "RECETA_NUMERO_FALTA",
+                                "TIPO_DISPENSACION_FALTA",
+                                "TIPO_DISPENSACION_NO_DISPENSABLE",
+                                "TITULAR_NOMBRE_FALTA",
+                                "TITULAR_TELEFONO_FALTA",
+                                "REGA_FALTA",
+                                "ESPECIE_FALTA",
+                                "ANIMAL_ID_FALTA",
+                                "NUM_ANIMALES_FALTA",
+                                "FECHA_EMISION_FALTA",
+                                "FECHA_EMISION_FUTURA",
+                                "VETERINARIO_NOMBRE_FALTA",
+                                "VETERINARIO_TELEFONO_FALTA",
+                                "VETERINARIO_EMAIL_FALTA",
+                                "VETERINARIO_COLEGIADO_FALTA",
+                                "FIRMA_FALTA",
+                                "MEDICAMENTO_NOMBRE_FALTA",
+                                "PRESCRIPCION_SOLO_PA",
+                                "PRINCIPIO_ACTIVO_FALTA",
+                                "CLASE_PRESCRIPCION_FALTA",
+                                "INDICACION_FALTA",
+                                "DECLARACION_ANTIMICROBIANO_FALTA",
+                                "FORMA_CONCENTRACION_FALTA",
+                                "CANTIDAD_FALTA",
+                                "POSOLOGIA_FALTA",
+                                "TIEMPO_ESPERA_FALTA",
+                                "DATOS_NO_COMPROBADOS",
+                                "RECETA_CADUCADA",
+                                "PLAZO_DECLARADO_SUPERIOR",
+                                "RECETA_YA_DISPENSADA",
+                                "RECETA_POSIBLE_DUPLICADO",
+                                "PLATAFORMA_NO_RECONOCIDA",
+                                "PLATAFORMA_PENDIENTE_VERIFICAR",
+                                "PLATAFORMA_DESCONOCIDA",
+                                "ESTUPEFACIENTE_NO_DISPENSABLE",
+                                "PSICOTROPO_MAS_DE_UN_ENVASE",
+                                "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                                "ONLINE_CON_RECETA",
+                                "RECETA_REQUERIDA",
+                                "MEDICAMENTO_NO_SELECCIONADO",
+                                "MEDICAMENTO_SUSPENDIDO",
+                                "MEDICAMENTO_REVOCADO",
+                                "MEDICAMENTO_NO_COMERCIALIZADO",
+                                "PROBLEMA_SUMINISTRO",
+                                "NOTAS_SEGURIDAD",
+                                "CIMAVET_NO_DISPONIBLE",
+                                "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
+                                "ENVASE_CADUCADO",
+                                "CN_ESCANEADO_DISTINTO",
+                                "LOTE_NO_FEFO",
+                                "UNIDADES_SUPERAN_PRESCRITAS",
+                                "SERIE_YA_DISPENSADA",
+                                "LOTE_CADUCA_ANTES_FIN_TRATAMIENTO",
+                                "LOTE_SIN_CADUCIDAD",
+                                "STOCK_ILIMITADO_CONFIGURACION",
+                                "STOCK_NO_DISPONIBLE",
+                                "STOCK_INSUFICIENTE",
+                                "CAMBIO_FORMATO",
+                                "CAMBIO_CONCENTRACION",
+                                "DOSIS_NO_AJUSTABLE",
+                                "CONCENTRACION_SUPERIOR",
+                                "CANTIDAD_SUPERIOR",
+                                "SUSTITUCION_PROHIBIDA_EXCEPCIONAL",
+                                "SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA",
+                                "SUSTITUCION_PROHIBIDA_INMUNOLOGICO",
+                                "SUSTITUCION_PROHIBIDA_BIOLOGICO",
+                                "SUSTITUCION_PROHIBIDA_EXCLUSION",
+                                "SUSTITUCION_PROHIBIDA_USO_HUMANO",
+                                "SUSTITUCION",
+                                "SUSTITUTO_NO_EQUIVALENTE",
+                                "CADUCIDAD_PROXIMA_ENTRADA"
+                              ]
+                            }
+                          },
+                          "motivo": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "aceptaRiesgos": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "codigos",
+                          "motivo",
+                          "aceptaRiesgos"
+                        ],
+                        "nullable": true
+                      },
+                      "especie": {
+                        "default": null,
+                        "type": "string",
+                        "maxLength": 100,
+                        "nullable": true
+                      },
+                      "propietario": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "nombre": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "movil": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "direccion": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          },
+                          "dni": {
+                            "default": null,
+                            "type": "string",
+                            "maxLength": 300,
+                            "nullable": true
+                          }
+                        },
+                        "nullable": true
+                      },
+                      "referenciaPedido": {
+                        "default": null,
+                        "type": "string",
+                        "maxLength": 100,
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "conReceta",
+                      "canal",
+                      "cn",
+                      "envases"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/dispensaciones/{id}/anular": {
+      "post": {
+        "summary": "Anulación con motivo (contramovimiento)",
+        "tags": [
+          "dispensaciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/sustituciones": {
+      "post": {
+        "summary": "Inicia la sustitución con un sustituto propuesto",
+        "tags": [
+          "sustituciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recetaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "lineaOrden": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  },
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": [
+                  "recetaId",
+                  "lineaOrden",
+                  "cn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/sustituciones/{id}": {
+      "get": {
+        "tags": [
+          "sustituciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/sustituciones/{id}/{accion}": {
+      "post": {
+        "summary": "Transiciones: consentimiento, aviso-veterinario, autorizar, rechazar, anotacion, validar",
+        "tags": [
+          "sustituciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "consiente": {
+                    "type": "boolean"
+                  },
+                  "medio": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "resultado": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "urgencia": {
+                    "type": "boolean"
+                  },
+                  "justificacion": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "confirmaIndicacionProbable": {
+                    "type": "boolean"
+                  },
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "consentimiento",
+                "aviso-veterinario",
+                "autorizar",
+                "rechazar",
+                "anotacion",
+                "validar"
+              ]
+            },
+            "in": "path",
+            "name": "accion",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones": {
+      "post": {
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "distribuidorId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "albaran": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 60,
+                    "nullable": true
+                  },
+                  "fechaCompra": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "distribuidorId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "recepciones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}": {
+      "get": {
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/lineas": {
+      "post": {
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "default": "medicamento",
+                    "type": "string",
+                    "enum": [
+                      "medicamento",
+                      "producto"
+                    ]
+                  },
+                  "cn": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$",
+                    "nullable": true
+                  },
+                  "nombre": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "lote": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 40,
+                    "nullable": true
+                  },
+                  "caducidad": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "unidades": {
+                    "default": 1,
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 10000,
+                    "minimum": 0
+                  },
+                  "serie": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 40,
+                    "nullable": true
+                  },
+                  "gtin": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{8,14}$",
+                    "nullable": true
+                  },
+                  "cnEscaneado": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$",
+                    "nullable": true
+                  },
+                  "precioNetoCompra": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,4})?$",
+                    "nullable": true
+                  },
+                  "ivaPct": {
+                    "default": null,
+                    "type": "number",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/lineas/{lineaId}": {
+      "delete": {
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "lineaId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/finalizar": {
+      "post": {
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/pedidos": {
+      "get": {
+        "tags": [
+          "pedidos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "estado",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "pedidos"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "nregistro": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "unidades": {
+                    "default": 1,
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  },
+                  "motivo": {
+                    "default": "Añadido desde la decisión PEDIR",
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "recetaLineaId": {
+                    "default": null,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "nullable": true
+                  },
+                  "contactoTutor": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 200,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "cn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/{estado}": {
+      "post": {
+        "tags": [
+          "pedidos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recibido",
+                "entregado",
+                "cancelado"
+              ]
+            },
+            "in": "path",
+            "name": "estado",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/registros/salidas": {
+      "get": {
+        "summary": "Exportación de salidas (plantillas A/B/C de SPEC §4.8)",
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/registros/entradas": {
+      "get": {
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/registros/psicotropos": {
+      "get": {
+        "summary": "Registro de psicótropos (TODO D-06b: formato oficial)",
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/garante/bandeja": {
+      "get": {
+        "tags": [
+          "garante"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/garante/revisiones": {
+      "post": {
+        "tags": [
+          "garante"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entidad": {
+                    "type": "string",
+                    "enum": [
+                      "dispensacion",
+                      "receta",
+                      "sustitucion",
+                      "discrepancia"
+                    ]
+                  },
+                  "entidadId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "resultado": {
+                    "type": "string",
+                    "enum": [
+                      "conforme",
+                      "no_conforme"
+                    ]
+                  },
+                  "comentario": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 1000,
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "entidad",
+                  "entidadId",
+                  "resultado"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/distribuidores": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "cif": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 20,
+                    "nullable": true
+                  },
+                  "activo": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/distribuidores/{id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  },
+                  "cif": {
+                    "default": null,
+                    "type": "string",
+                    "maxLength": 20,
+                    "nullable": true
+                  },
+                  "activo": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/reglas": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/reglas/{id}/aprobar": {
+      "post": {
+        "summary": "Aprobación de una versión de reglas por el garante (MFA)",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/exclusiones": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nregistro": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "paId": {
+                    "default": null,
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "nullable": true
+                  },
+                  "motivo": {
+                    "type": "string",
+                    "minLength": 5
+                  },
+                  "fuente": {
+                    "type": "string",
+                    "minLength": 3
+                  }
+                },
+                "required": [
+                  "motivo",
+                  "fuente"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/plataformas": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/plataformas/{id}": {
+      "put": {
+        "summary": "Marca si la plataforma figura en el listado del MAPA",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reconocidaMapa": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "urlVerificacion": {
+                    "default": null,
+                    "type": "string",
+                    "format": "uri",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "reconocidaMapa"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/mapeo-siweb": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Mapeo manual: por candidato (variantId) o por SKU",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$"
+                  },
+                  "variantId": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "sku": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "cn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/mapeo-siweb/resolver": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$"
+                  }
+                },
+                "required": [
+                  "cn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/mapeo-siweb/tareas": {
+      "post": {
+        "summary": "Crea una tarea de alta o renombrado en Siweb360 con propuesta de SKU (correlativo reservado)",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "crear",
+                      "renombrar"
+                    ]
+                  },
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$"
+                  },
+                  "variantId": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "prefijoConfirmado": {
+                    "type": "string"
+                  },
+                  "origen": {
+                    "default": "mapeo",
+                    "type": "string",
+                    "enum": [
+                      "recepcion_linea",
+                      "mapeo",
+                      "dispensacion"
+                    ]
+                  },
+                  "origenId": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "cn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/mapeo-siweb/tareas/{id}/hecha": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/mapeo-siweb/tareas/{id}/descartar": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "minLength": 3
+                  }
+                },
+                "required": [
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/outbox": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "estado",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/outbox/{id}/resolver": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accion": {
+                    "type": "string",
+                    "enum": [
+                      "confirmar_aplicada",
+                      "reenviar",
+                      "descartar"
+                    ]
+                  },
+                  "nota": {
+                    "type": "string",
+                    "minLength": 5
+                  }
+                },
+                "required": [
+                  "accion",
+                  "nota"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/cimavet": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/tareas-siweb": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "entra": []
+    }
+  ]
+}

@@ -1,0 +1,382 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { auditEvent, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
+import { api, confirmar, crearReceta, entorno, recetaCorrecta, type Entorno } from './entorno';
+
+let E: Entorno;
+beforeAll(async () => {
+  E = await entorno();
+}, 180_000);
+afterAll(async () => {
+  await E.app.close();
+});
+
+const envase = (o: Record<string, unknown> = {}) => ({ lote: 'CLV-2611', caducidad: '2026-11-30', unidades: 1, metodoCaptura: 'camara', cnEscaneado: '570016', ...o });
+const dispensar = (u: Parameters<typeof api>[1], body: Record<string, unknown>, mfa = false) => api(E.app, u, 'POST', '/api/dispensaciones', { conReceta: true, lineaOrden: 1, cn: '570016', envases: [envase()], ...body }, { mfa });
+
+describe('sondas, autenticación y roles', () => {
+  it('health/ready públicos; sin x-dev-user → 401; rol insuficiente → 403', async () => {
+    expect((await api(E.app, null, 'GET', '/api/health')).json).toEqual({ status: 'ok' });
+    expect((await api(E.app, null, 'GET', '/api/ready')).status).toBe(200);
+    expect((await api(E.app, null, 'GET', '/api/config/publica')).json).toMatchObject({ authMode: 'dev', extractor: 'fake', modoSustitucion: 'POST' });
+    expect((await api(E.app, null, 'GET', '/api/inicio')).status).toBe(401);
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/me')).json).toMatchObject({ id: 'dev-empleado', roles: ['empleado'] });
+    // El admin no participa en la operativa ni autoriza sustituciones (SPEC §9.1).
+    expect((await api(E.app, 'dev-admin', 'POST', '/api/dispensaciones', { conReceta: false, canal: 'presencial', cn: '570025', envases: [envase()] })).status).toBe(403);
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2026-10-01&hasta=2026-10-31')).status).toBe(403);
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/garante/bandeja')).status).toBe(403);
+  });
+
+  it('OpenAPI generado con las rutas de SPEC §7', async () => {
+    const o = (await api(E.app, null, 'GET', '/api/openapi.json')).json as { paths: Record<string, unknown> };
+    for (const p of ['/api/recetas', '/api/recetas/{id}/confirmacion', '/api/recetas/{id}/evaluar', '/api/medicamentos/buscar', '/api/stock/{cn}/fefo', '/api/scan/parse', '/api/dispensaciones', '/api/dispensaciones/{id}/anular', '/api/recepciones', '/api/registros/salidas']) {
+      expect(o.paths).toHaveProperty(p);
+    }
+  });
+
+  it('errores de validación sin eco de los datos enviados', async () => {
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/dispensaciones', { conReceta: false, canal: 'online', cn: 'abc', envases: [], propietario: { dni: '12345678Z' } });
+    expect(r.status).toBe(400);
+    expect(JSON.stringify(r.json)).not.toContain('12345678Z');
+  });
+});
+
+describe('receta → revisión → resultado → dispensación', () => {
+  let id: string;
+
+  it('crea la receta, guarda la imagen y prellena el borrador sin marcar firma ni comprobación', async () => {
+    id = await crearReceta(E.app);
+    const r = await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`);
+    expect(r.json.estado).toBe('EXTRAIDA');
+    expect(r.json.confirmacion.firmaConfirmada).toBe(false);
+    expect(r.json.confirmacion.comprobadoConOriginal).toBe(false);
+    expect(r.json.dudosos).toContain('receta.titularTelefono');
+    expect(r.json.imagenes).toHaveLength(1);
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}/imagenes/1`)).res.headers['content-type']).toBe('image/png');
+    // Titular y extracción cifrados en la BD (SPEC §9.2).
+    const [row] = await E.h.db.select().from(receta).where(eq(receta.id, id));
+    expect(JSON.stringify(row!.extraccion)).not.toContain('Titular de demostración');
+    expect(JSON.stringify(row!.confirmacion)).not.toContain('Titular de demostración');
+  });
+
+  it('sin confirmar datos → NO_CONFORME con DATOS_NO_COMPROBADOS (no forzable)', async () => {
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('NO_CONFORME');
+    expect(ev.json.lineas[0].resultado.evidencias.forzable).toBe(false);
+  });
+
+  it('receta de compañía completa con stock → DISPENSAR con el lote FEFO', async () => {
+    await confirmar(E.app, id, recetaCorrecta('R-COMPLETA'));
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.status).toBe(200);
+    const l = ev.json.lineas[0];
+    expect(l.resultado.decision).toBe('DISPENSAR');
+    expect(l.resultado.evidencias.lotes.recomendado.lote).toBe('CLV-2611');
+    expect(ev.json.validez).toMatchObject({ caso: 'antimicrobiano', efectiva: '2026-10-18' });
+    expect(ev.json.reglaVersion).toMatch(/^receta-campos\.v1@/);
+  });
+
+  it('lote distinto al FEFO sin motivo → 422; escaneo con CN distinto → bloqueo forzable', async () => {
+    const sinMotivo = await dispensar('dev-empleado', { recetaId: id, envases: [envase({ lote: 'CLV-2705', caducidad: '2027-05-31' })] });
+    expect(sinMotivo.status).toBe(422);
+    expect(sinMotivo.json.error.code).toBe('MOTIVO_LOTE_OBLIGATORIO');
+    const cnMal = await dispensar('dev-empleado', { recetaId: id, envases: [envase({ cnEscaneado: '570017' })] });
+    expect(cnMal.status).toBe(422);
+    expect(cnMal.json.error).toMatchObject({ code: 'DISPENSACION_BLOQUEADA', detalles: { forzables: ['CN_ESCANEADO_DISTINTO'] } });
+  });
+
+  it('dispensa, registra la salida inmutable y recuerda el lote para el TPV', async () => {
+    const r = await dispensar('dev-empleado', { recetaId: id, envases: [envase({ lote: 'CLV-2705', caducidad: '2027-05-31', gtin: '08470005700168' })], motivoLoteDistinto: 'El otro lote está en reserva' });
+    expect(r.status).toBe(201);
+    expect(r.json.recordatorioTpv).toEqual([{ cn: '570016', lote: 'CLV-2705', unidades: 1, texto: 'Cobrar en el TPV seleccionando el lote CLV-2705' }]);
+    expect(r.json.avisos).toContain('LOTE_NO_FEFO');
+    const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, r.json.dispensaciones[0]));
+    expect(d).toMatchObject({ cn: '570016', lote: 'CLV-2705', loteFefoRecomendado: 'CLV-2611', motivoLoteDistinto: 'El otro lote está en reserva', forzado: false, conReceta: true, metodoCaptura: 'camara' });
+    expect(d!.principioActivoTxt).toBe('amoxicilina trihidrato 459 mg; clavulanato potasio 119 mg');
+    const g = await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`);
+    expect(g.json.estado).toBe('DISPENSADA');
+  });
+
+  it('unidades escaneadas > prescritas → bloqueo no forzable', async () => {
+    const r = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['UNIDADES_SUPERAN_PRESCRITAS'], motivo: 'Lo pide el cliente por teléfono', aceptaRiesgos: true } });
+    expect(r.status).toBe(422);
+    expect(JSON.stringify(r.json.error)).toMatch(/UNIDADES_SUPERAN_PRESCRITAS|FORZADO/);
+  });
+
+  it('duplicado en papel (mismo nº y colegiado ya dispensado) → NO_CONFORME; forzar un BLOQUEANTE_DURO lo rechaza la API', async () => {
+    const id2 = await crearReceta(E.app);
+    await confirmar(E.app, id2, recetaCorrecta('R-COMPLETA'));
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id2}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('NO_CONFORME');
+    expect(ev.json.lineas[0].resultado.motivos.map((m: { code: string }) => m.code)).toContain('RECETA_YA_DISPENSADA');
+    const r = await dispensar('dev-empleado', { recetaId: id2, forzado: { codigos: ['RECETA_YA_DISPENSADA'], motivo: 'La UI lo envía igualmente', aceptaRiesgos: true } });
+    expect(r.status).toBe(422);
+    expect(r.json.error.code).toBe('FORZADO_NO_PERMITIDO');
+    const previa = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id2}/evaluar`, { forzados: { '1': { codigos: ['RECETA_YA_DISPENSADA'], motivo: 'La UI lo envía igualmente', aceptaRiesgos: true } } });
+    expect(previa.json.error.code).toBe('FORZADO_NO_PERMITIDO');
+  });
+
+  it('auditoría encadenada de todo el flujo', async () => {
+    const eventos = await E.h.db.select().from(auditEvent);
+    expect(eventos.map((e) => e.accion)).toEqual(expect.arrayContaining(['receta_crear', 'receta_confirmar', 'receta_evaluar', 'dispensar']));
+    expect((await verifyAuditChain(E.h.db)).ok).toBe(true);
+  });
+});
+
+describe('defectos de forma, corrección manual y forzado', () => {
+  it('campo mal leído corregido a mano → reevaluación sin forzado y con traza extraído/corregido', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), veterinario: { ...r.veterinario!, numColegiado: null } }));
+    const antes = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(antes.json.lineas[0].resultado).toMatchObject({ decision: 'NO_CONFORME', evidencias: { forzable: true } });
+    await confirmar(E.app, id, (r) => ({ ...r, veterinario: { ...r.veterinario!, numColegiado: '28/0000' } }));
+    const despues = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(despues.json.lineas[0].resultado.decision).toBe('DISPENSAR');
+    const g = await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`);
+    expect(g.json.correcciones).toEqual(expect.arrayContaining([expect.objectContaining({ campo: 'veterinario.numColegiado', extraido: '28/0000', corregido: '28/0000', por: 'dev-empleado' })]));
+  });
+
+  it('defecto de forma forzado → dispensación con forzado=true, motivo obligatorio y entrada en la bandeja del garante', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), veterinario: { ...r.veterinario!, numColegiado: null } }));
+    const corto = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['VETERINARIO_COLEGIADO_FALTA'], motivo: 'corto', aceptaRiesgos: true } });
+    expect(corto.json.error.code).toBe('FORZADO_MOTIVO_CORTO');
+    const sinAceptar = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['VETERINARIO_COLEGIADO_FALTA'], motivo: 'El veterinario lo confirma por teléfono', aceptaRiesgos: false } });
+    expect(sinAceptar.json.error.code).toBe('FORZADO_SIN_ACEPTACION');
+    const ok = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['VETERINARIO_COLEGIADO_FALTA'], motivo: 'El veterinario lo confirma por teléfono', aceptaRiesgos: true } });
+    expect(ok.status).toBe(201);
+    expect(ok.json.forzado).toEqual(['VETERINARIO_COLEGIADO_FALTA']);
+    expect(ok.json.apartarReceta.motivo).toMatch(/defecto forzado/);
+    const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, ok.json.dispensaciones[0]));
+    expect(d).toMatchObject({ forzado: true, defectosForzados: ['VETERINARIO_COLEGIADO_FALTA'], motivoForzado: 'El veterinario lo confirma por teléfono' });
+    const b = await api(E.app, 'dev-garante', 'GET', '/api/garante/bandeja');
+    expect(b.json.dispensacionesARevisar.map((x: { id: string }) => x.id)).toContain(d!.id);
+    // Revisión del garante con MFA (append-only)
+    expect((await api(E.app, 'dev-garante', 'POST', '/api/garante/revisiones', { entidad: 'dispensacion', entidadId: d!.id, resultado: 'conforme' })).status).toBe(403);
+    expect((await api(E.app, 'dev-garante', 'POST', '/api/garante/revisiones', { entidad: 'dispensacion', entidadId: d!.id, resultado: 'conforme' }, { mfa: true })).status).toBe(201);
+    const b2 = await api(E.app, 'dev-garante', 'GET', '/api/garante/bandeja');
+    expect(b2.json.dispensacionesARevisar.map((x: { id: string }) => x.id)).not.toContain(d!.id);
+  });
+
+  it('envase caducado: forzable con PRODUCT_VALIDITY_HARD_BLOCK=false; rechazado con true', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, recetaCorrecta());
+    const caducado = envase({ lote: 'CLV-2611', caducidad: '2026-10-01' });
+    const sinForzar = await dispensar('dev-empleado', { recetaId: id, envases: [caducado] });
+    expect(sinForzar.json.error).toMatchObject({ code: 'DISPENSACION_BLOQUEADA', detalles: { forzables: ['ENVASE_CADUCADO'] } });
+    const duro = await entorno({ config: { PRODUCT_VALIDITY_HARD_BLOCK: 'true' } });
+    const rechazado = await api(duro.app, 'dev-empleado', 'POST', '/api/dispensaciones', {
+      conReceta: true,
+      recetaId: id,
+      lineaOrden: 1,
+      cn: '570016',
+      envases: [caducado],
+      forzado: { codigos: ['ENVASE_CADUCADO'], motivo: 'Forzado con bloqueo duro activado', aceptaRiesgos: true },
+    });
+    expect(rechazado.json.error.code).toBe('DISPENSACION_BLOQUEADA');
+    await duro.app.close();
+    const forzado = await dispensar('dev-empleado', { recetaId: id, envases: [caducado], forzado: { codigos: ['ENVASE_CADUCADO'], motivo: 'Normalización de catálogo pendiente', aceptaRiesgos: true } });
+    expect(forzado.status).toBe(201);
+    expect(forzado.json.forzado).toEqual(['ENVASE_CADUCADO']);
+  });
+
+  it('solo principio activo → NO_CONFORME forzable con opciones; elegir un no equivalente al forzar → rechazado', async () => {
+    const id = await crearReceta(E.app, 'demo-solo-principio-activo');
+    await confirmar(E.app, id, (r) => ({
+      ...r,
+      firmaConfirmada: true,
+      comprobadoConOriginal: true,
+      especie: { texto: 'Perro', especieId: 14 },
+      veterinario: { ...r.veterinario!, numColegiado: '28/0001' },
+      lineas: (r.lineas ?? []).map((l) => ({ ...l, cn: '570016', nregistro: '1868 ESP' })),
+    }));
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    const l = ev.json.lineas[0];
+    expect(l.resultado).toMatchObject({ decision: 'NO_CONFORME', evidencias: { forzable: true } });
+    expect(l.opcionesSoloPA.map((o: { cn: string }) => o.cn)).toContain('570016');
+    // La receta dice amoxicilina 250 mg: CLAVUBAY (amoxicilina + clavulánico) no es equivalente.
+    const r = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['PRESCRIPCION_SOLO_PA'], motivo: 'El veterinario no contesta y es urgente', aceptaRiesgos: true } });
+    expect(r.json.error.code).toBe('FORZADO_ELECCION_NO_EQUIVALENTE');
+  });
+});
+
+describe('PEDIR, PENDIENTE_STOCK y sustitución', () => {
+  it('Siweb360 sin respuesta → PENDIENTE_STOCK; sin stock y sin equivalentes con stock → PEDIR y lista de pedido', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, recetaCorrecta());
+    E.stock.noDisponible.add('570016');
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {})).json.lineas[0].resultado.decision).toBe('PENDIENTE_STOCK');
+    E.stock.noDisponible.clear();
+    const datos = E.stock.datos;
+    E.stock.datos = {};
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('PEDIR');
+    expect(ev.json.lineas[0].resultado.evidencias.pedido.equivalentes.map((e: { cn: string }) => e.cn)).toContain('999901');
+    const p = await api(E.app, 'dev-empleado', 'POST', '/api/pedidos', { cn: '570016', unidades: 1 });
+    expect(p.status).toBe(201);
+    E.stock.datos = datos;
+  });
+
+  it('sin stock del prescrito ni de otros formatos y equivalente con stock → SUSTITUIR → consentimiento → aviso → dispensar → apartar → firmar (MFA) → validar', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, recetaCorrecta());
+    const datos = E.stock.datos;
+    E.stock.datos = { '999901': [{ lote: 'GEN-1', caducidad: '2027-09-30', disponible: 3 }] };
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('SUSTITUIR');
+    expect(ev.json.lineas[0].resultado.evidencias.sustitutos[0]).toMatchObject({ cn: '999901', modo: 'POST' });
+    const s = await api(E.app, 'dev-empleado', 'POST', '/api/sustituciones', { recetaId: id, lineaOrden: 1, cn: '999901' });
+    expect(s.status).toBe(201);
+    const sid = s.json.id;
+    // Sin consentimiento ni aviso no se puede dispensar.
+    const pronto = await api(E.app, 'dev-empleado', 'POST', '/api/dispensaciones', { conReceta: true, recetaId: id, lineaOrden: 1, cn: '999901', sustitucionId: sid, envases: [envase({ lote: 'GEN-1', caducidad: '2027-09-30', cnEscaneado: '999901' })] });
+    expect(pronto.json.error.code).toBe('SUSTITUCION_REQUISITOS');
+    await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/consentimiento`, { consiente: true, medio: 'presencial' });
+    const det = await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/aviso-veterinario`, { medio: 'teléfono', resultado: 'conforme' });
+    expect(det.json).toMatchObject({ estado: 'AVISO_VETERINARIO', puedeDispensar: true });
+    expect(det.json.plantillaAvisoVeterinario).toMatch(/CN 999901/);
+    const d = await api(E.app, 'dev-empleado', 'POST', '/api/dispensaciones', { conReceta: true, recetaId: id, lineaOrden: 1, cn: '999901', sustitucionId: sid, envases: [envase({ lote: 'GEN-1', caducidad: '2027-09-30', cnEscaneado: '999901' })] });
+    expect(d.status).toBe(201);
+    expect(d.json.apartarReceta.motivo).toMatch(/bandeja de sustituciones/);
+    expect(d.json.apartarReceta.etiqueta).toMatch(/CN: 999901/);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/anotacion`, {})).json.estado).toBe('RECETA_APARTADA');
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/sustituciones/${sid}/autorizar`, {})).status).toBe(403);
+    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/autorizar`, {})).status).toBe(403); // sin MFA
+    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/autorizar`, {}, { mfa: true })).json.estado).toBe('FIRMADA_GARANTE');
+    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/validar`, {}, { mfa: true })).json.estado).toBe('VALIDADA');
+    const [row] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, d.json.dispensaciones[0]));
+    expect(row).toMatchObject({ esSustitucion: true, cnPrescrito: '570016', sustitucionId: sid, procedimientoVersion: 'SUSTITUCION@0-dev' });
+    E.stock.datos = datos;
+  });
+
+  it('sin stock del envase de 10 pero sí del de 20 → el de 20 se descarta por CANTIDAD_SUPERIOR', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, recetaCorrecta());
+    const datos = E.stock.datos;
+    E.stock.datos = { '570017': [{ lote: 'X20', disponible: 1 }] };
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.evidencias.alternativasDescartadas).toEqual(expect.arrayContaining([expect.objectContaining({ cn: '570017', motivos: ['CANTIDAD_SUPERIOR'] })]));
+    E.stock.datos = datos;
+  });
+});
+
+describe('venta sin receta y pedidos online (SPEC §4.7)', () => {
+  const sinReceta = (body: Record<string, unknown>) =>
+    api(E.app, 'dev-empleado', 'POST', '/api/dispensaciones', { conReceta: false, canal: 'online', cn: '570025', envases: [envase({ lote: 'ADQ-1', caducidad: '2027-03-31', cnEscaneado: '570025' })], ...body });
+
+  it('pedido online con medicamento sujeto a receta → bloqueo, incluso si se intenta forzar', async () => {
+    const r = await sinReceta({ cn: '570016', envases: [envase()], propietario: { nombre: 'C', movil: '600', direccion: 'Calle', dni: '12345678Z' }, forzado: { codigos: ['ONLINE_CON_RECETA'], motivo: 'Lo intento forzar igualmente', aceptaRiesgos: true } });
+    expect(r.status).toBe(422);
+    expect(r.json.error).toMatchObject({ code: 'DISPENSACION_BLOQUEADA', detalles: { codigos: ['ONLINE_CON_RECETA'] } });
+  });
+
+  it('online sin DNI o con letra de control incorrecta → no se puede confirmar', async () => {
+    expect((await sinReceta({ propietario: { nombre: 'C', movil: '600', direccion: 'Calle', dni: null } })).json.error.code).toBe('DATOS_PROPIETARIO_ONLINE');
+    expect((await sinReceta({ propietario: { nombre: 'C', movil: '600', direccion: 'Calle', dni: '12345678A' } })).json.error.code).toBe('DNI_INVALIDO');
+  });
+
+  it('online correcto: DNI cifrado en BD; exportación C sin datos por defecto y enmascarados salvo garante', async () => {
+    const r = await sinReceta({ propietario: { nombre: 'Cliente Online', movil: '600111222', direccion: 'Calle 1', dni: '12345678Z' }, referenciaPedido: 'WEB-1', especie: 'Perro' });
+    expect(r.status).toBe(201);
+    const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, r.json.dispensaciones[0]));
+    const [p] = await E.h.db.select().from(propietario).where(eq(propietario.id, d!.propietarioId!));
+    expect(p!.dniEnc).not.toContain('12345678Z');
+    const q = '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=C';
+    const sinDatos = await api(E.app, 'dev-garante', 'GET', q);
+    expect(sinDatos.json.tablas[0].filas[0].slice(9, 13)).toEqual(['', '', '', '']);
+    const garante = await api(E.app, 'dev-garante', 'GET', `${q}&incluirPropietario=1`);
+    expect(garante.json.tablas[0].filas[0].slice(9, 13)).toEqual(['Cliente Online', '600111222', '12345678Z', 'Calle 1']);
+    const vet = await api(E.app, 'dev-veterinaria', 'GET', `${q}&incluirPropietario=1`);
+    expect(vet.json.tablas[0].filas[0][11]).toBe('****5678Z');
+  });
+
+  it('presencial con medicamento sujeto a receta → redirección al flujo de receta', async () => {
+    const r = await api(E.app, 'dev-empleado', 'GET', '/api/venta/comprobar?cn=570016&canal=presencial');
+    expect(r.json).toMatchObject({ permitido: false });
+    expect(r.json.incidencias[0].code).toBe('RECETA_REQUERIDA');
+  });
+});
+
+describe('registros, exportaciones y anulación', () => {
+  it('exporta A en XLSX y CSV; la anulación exige garante con MFA y no se repite', async () => {
+    const xlsx = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=xlsx');
+    expect(xlsx.res.headers['content-type']).toContain('spreadsheetml');
+    const csv = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=csv');
+    expect(csv.res.body.startsWith('﻿NOMBRE DEL FÁRMACO;PRINCIPIO ACTIVO;FORMA FARMACÉUTICA;ESPECIE;FECHA VENTA')).toBe(true);
+    const [d] = await E.h.db.select().from(dispensacion).limit(1);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' })).status).toBe(403);
+    expect((await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' })).status).toBe(403);
+    const ok = await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' }, { mfa: true });
+    expect(ok.status).toBe(200);
+    const dup = await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' }, { mfa: true });
+    expect(dup.json.error.code).toBe('ANULACION_DUPLICADA');
+    const json = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A');
+    const fila = json.json.tablas[0].filas.find((f: string[]) => f[15] === d!.id);
+    expect(fila.at(-1)).toBe('S');
+  });
+
+  it('registro de psicótropos y de entradas', async () => {
+    expect((await api(E.app, 'dev-garante', 'GET', '/api/registros/psicotropos?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
+    expect((await api(E.app, 'dev-veterinaria', 'GET', '/api/registros/entradas?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
+  });
+});
+
+describe('recepción de mercancía (SPEC §4.9)', () => {
+  it('autocompleta desde CIMAVet, suma escaneos del mismo lote, calcula el coste y bloquea la edición al finalizar', async () => {
+    const dist = (await api(E.app, 'dev-empleado', 'GET', '/api/admin/distribuidores')).json[0];
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidorId: dist.id, albaran: 'ALB-1' });
+    expect(r.status).toBe(201);
+    const rid = r.json.id;
+    const l1 = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'E1', caducidad: '2027-12-31', unidades: 1, serie: 'S1', precioNetoCompra: '10.00', ivaPct: 10 });
+    expect(l1.json.linea).toMatchObject({ origenDatos: 'cimavet', principioActivoTxt: 'amoxicilina trihidrato 459 mg; clavulanato potasio 119 mg', formaTxt: 'COMPRIMIDO', precioCoste: '10.1400' });
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'E1', caducidad: '2027-12-31', serie: 'S2' })).json.linea.unidades).toBe(2);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'E1', caducidad: '2027-12-31', serie: 'S2' })).json.duplicado).toBe(true);
+    const mal = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', cnEscaneado: '570017', lote: 'E2', caducidad: '2027-12-31' });
+    expect(mal.status).toBe(400);
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'E3', caducidad: '2026-12-01' });
+    const det = await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${rid}`);
+    expect(det.json.lineas.find((l: { lote: string }) => l.lote === 'E3').avisos[0].code).toBe('CADUCIDAD_PROXIMA_ENTRADA');
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { tipo: 'producto', nombre: 'Collar antiparasitario', unidades: 2 });
+    const fin = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/finalizar`);
+    expect(fin.json).toMatchObject({ escrituraDesactivada: true });
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'X' })).json.error.code).toBe('RECEPCION_NO_EDITABLE');
+  });
+
+  it('no finaliza con datos obligatorios incompletos', async () => {
+    const dist = (await api(E.app, 'dev-empleado', 'GET', '/api/admin/distribuidores')).json[0];
+    const rid = (await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidorId: dist.id })).json.id;
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: null, caducidad: null });
+    const fin = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/finalizar`);
+    expect(fin.json.error).toMatchObject({ code: 'RECEPCION_INCOMPLETA', detalles: { lineas: [{ numero: 1, faltan: ['caducidad', 'lote'] }] } });
+  });
+});
+
+describe('medicamentos, FEFO y escaneo', () => {
+  it('búsqueda, detalle, FEFO y parseo GS1 con heurística de CN', async () => {
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/buscar?q=clavubay')).json[0].cn).toBe('570016');
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/1868%20ESP')).json.especies).toEqual(['Perros']);
+    const f = await api(E.app, 'dev-empleado', 'GET', '/api/stock/570016/fefo?unidades=3&duracionDias=60');
+    expect(f.json.propuesta.recomendado.lote).toBe('CLV-2611');
+    expect(f.json.propuesta.avisos.map((a: { code: string }) => a.code)).toContain('LOTE_CADUCA_ANTES_FIN_TRATAMIENTO');
+    const s = await api(E.app, 'dev-empleado', 'POST', '/api/scan/parse', { raw: '010847000570016817271130' + '10LOTE1' });
+    expect(s.json).toMatchObject({ ok: true, cn: '570016', cnEnCimavet: true, caducidad: '2027-11-30' });
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/1868%20ESP/equivalentes?especie=14&indicacion=Infecci%C3%B3n%20cut%C3%A1nea')).status).toBe(200);
+  });
+
+  it('Inicio muestra contadores', async () => {
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/inicio')).json).toHaveProperty('sustitucionesPendientes');
+  });
+});
+
+describe('administración', () => {
+  it('reglas activas y su aprobación por el garante con MFA; plataformas verificables', async () => {
+    const r = await api(E.app, 'dev-admin', 'GET', '/api/admin/reglas');
+    expect(r.json.ficheros).toHaveLength(5);
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`)).status).toBe(403);
+    expect((await api(E.app, 'dev-garante', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`, undefined, { mfa: true })).json.aprobadaPor).toBe('dev-garante');
+    const p = await api(E.app, 'dev-garante', 'PUT', '/api/admin/plataformas/recevet', { reconocidaMapa: true, urlVerificacion: null });
+    expect(p.json.reconocidaMapa).toBe(true);
+    expect((await api(E.app, 'dev-admin', 'GET', '/api/admin/outbox')).json.error.code).toBe('SIWEB_NO_DISPONIBLE');
+    expect((await api(E.app, 'dev-garante', 'POST', '/api/admin/exclusiones', { nregistro: '1077 ESP', motivo: 'Prueba', fuente: 'Test' })).status).toBe(201);
+  });
+});

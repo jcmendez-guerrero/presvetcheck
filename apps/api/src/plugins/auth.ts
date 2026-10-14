@@ -1,0 +1,117 @@
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { DomainError, Rol, type AppConfig } from '@mmx/shared';
+
+/** Usuario autenticado (Microsoft Entra ID con app roles, SPEC §9.1). */
+export interface Usuario {
+  id: string;
+  nombre: string;
+  roles: Rol[];
+  /** Autenticación multifactor en la sesión (claim `amr`). */
+  mfa: boolean;
+}
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    usuario: Usuario | null;
+  }
+}
+
+/** Usuarios del modo dev (selector de usuario/rol en la UI y cabecera `x-dev-user`). */
+export const USUARIOS_DEV: Record<string, { nombre: string; roles: Rol[] }> = {
+  'dev-empleado': { nombre: 'Empleada de prueba', roles: ['empleado'] },
+  'dev-garante': { nombre: 'Farmacéutico garante de prueba', roles: ['farmaceutico_garante'] },
+  'dev-veterinaria': { nombre: 'Veterinaria responsable de prueba', roles: ['veterinaria_responsable'] },
+  'dev-admin': { nombre: 'Administración de prueba', roles: ['admin'] },
+};
+
+const PUBLICAS = ['/api/health', '/api/ready', '/api/openapi.json', '/api/docs', '/api/config/publica'];
+
+export interface OpcionesAuth {
+  config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'>;
+  /** Verificador inyectable (tests). Por defecto, JWKS de Entra. */
+  verificar?: (token: string) => Promise<JWTPayload>;
+}
+
+export function verificadorEntra(tenant: string, clientId: string) {
+  const jwks = createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${tenant}/discovery/v2.0/keys`));
+  return async (token: string) =>
+    (
+      await jwtVerify(token, jwks, {
+        issuer: `https://login.microsoftonline.com/${tenant}/v2.0`,
+        audience: [clientId, `api://${clientId}`],
+      })
+    ).payload;
+}
+
+export function usuarioDesdeClaims(p: JWTPayload): Usuario {
+  const roles = (Array.isArray(p.roles) ? p.roles : []).filter((r): r is Rol => Rol.safeParse(r).success);
+  const amr = Array.isArray(p.amr) ? (p.amr as string[]) : [];
+  return {
+    id: String(p.oid ?? p.sub ?? ''),
+    nombre: String(p.name ?? p.preferred_username ?? 'Usuario'),
+    roles,
+    mfa: amr.includes('mfa'),
+  };
+}
+
+export async function registrarAuth(app: FastifyInstance, o: OpcionesAuth) {
+  // Doble comprobación (además de la validación de configuración): el modo dev nunca en producción.
+  if (o.config.AUTH_MODE === 'dev' && o.config.NODE_ENV === 'production') {
+    throw new Error('AUTH_MODE=dev está prohibido con NODE_ENV=production');
+  }
+  const verificar =
+    o.verificar ??
+    (o.config.AUTH_MODE === 'entra' && o.config.ENTRA_TENANT_ID && o.config.ENTRA_CLIENT_ID
+      ? verificadorEntra(o.config.ENTRA_TENANT_ID, o.config.ENTRA_CLIENT_ID)
+      : null);
+
+  app.decorateRequest('usuario', null);
+  app.addHook('onRequest', async (req) => {
+    const ruta = req.url.split('?')[0] ?? '';
+    if (!ruta.startsWith('/api/') || PUBLICAS.some((p) => ruta === p || ruta.startsWith(`${p}/`))) return;
+    if (o.config.AUTH_MODE === 'dev') {
+      const id = String(req.headers['x-dev-user'] ?? '');
+      const u = USUARIOS_DEV[id];
+      if (!u) throw new DomainError('NO_AUTORIZADO', 'Cabecera x-dev-user ausente o desconocida');
+      req.usuario = { id, nombre: u.nombre, roles: u.roles, mfa: req.headers['x-dev-mfa'] === '1' };
+      return;
+    }
+    const auth = req.headers.authorization ?? '';
+    if (!auth.startsWith('Bearer ') || !verificar) throw new DomainError('NO_AUTORIZADO');
+    try {
+      req.usuario = usuarioDesdeClaims(await verificar(auth.slice(7)));
+    } catch {
+      throw new DomainError('NO_AUTORIZADO', 'Token no válido');
+    }
+    if (!req.usuario.id) throw new DomainError('NO_AUTORIZADO');
+  });
+}
+
+/** preHandler: exige alguno de los roles. */
+export function requiereRol(...roles: Rol[]) {
+  return async (req: FastifyRequest) => {
+    const u = req.usuario;
+    if (!u) throw new DomainError('NO_AUTORIZADO');
+    if (!u.roles.some((r) => roles.includes(r))) throw new DomainError('PROHIBIDO', `Requiere rol: ${roles.join(' o ')}`);
+  };
+}
+
+/** Acciones del garante que exigen MFA (firma de sustituciones, revisiones, anulaciones). */
+export function exigirMfa(req: FastifyRequest) {
+  if (!req.usuario?.mfa) throw new DomainError('PROHIBIDO', 'Esta acción exige autenticación multifactor (MFA)');
+}
+
+export function usuario(req: FastifyRequest): Usuario {
+  if (!req.usuario) throw new DomainError('NO_AUTORIZADO');
+  return req.usuario;
+}
+
+/** Grupos de roles (SPEC §9.1). El admin no participa en la operativa ni autoriza sustituciones. */
+export const ROLES = {
+  operativa: ['empleado', 'veterinaria_responsable', 'farmaceutico_garante'] as Rol[],
+  lecturaRegistros: ['farmaceutico_garante', 'veterinaria_responsable'] as Rol[],
+  garante: ['farmaceutico_garante'] as Rol[],
+  admin: ['admin'] as Rol[],
+  adminOGarante: ['admin', 'farmaceutico_garante'] as Rol[],
+};
