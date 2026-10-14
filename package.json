@@ -1,0 +1,39 @@
+{
+  "name": "mmx-recetas",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": ">=9 <10"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "docker compose up -d --wait && pnpm db:migrate && pnpm db:seed && turbo run dev --filter=@mmx/api --filter=@mmx/web",
+    "build": "turbo run build",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:int": "turbo run test:int --concurrency=1",
+    "test:e2e": "pnpm --filter @mmx/web test:e2e",
+    "db:generate": "pnpm --filter @mmx/db generate",
+    "db:migrate": "pnpm --filter @mmx/db migrate",
+    "db:seed": "pnpm --filter @mmx/db seed",
+    "worker": "pnpm --filter @mmx/worker start",
+    "eval:extraction": "pnpm --filter @mmx/extraction eval"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^22.15.0",
+    "@vitest/coverage-v8": "^3.2.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.0",
+    "globals": "^16.2.0",
+    "prettier": "^3.5.0",
+    "tsx": "^4.20.0",
+    "turbo": "^2.5.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.34.0",
+    "vitest": "^3.2.0"
+  }
+}
