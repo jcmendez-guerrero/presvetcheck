@@ -1,0 +1,1 @@
+{ "success": true, "data": [ { "id": 21, "name": "Farmacia", "code": "FAR", "is_active": true, "is_default": false }, { "id": 22, "name": "Tienda", "code": "TIE", "is_active": true, "is_default": true } ] }

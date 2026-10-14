@@ -1,0 +1,1 @@
+{ "success": true, "message": "Stock increased by 8 units", "data": { "variant_id": 8812, "warehouse_id": 14, "location_id": null, "on_hand": 50, "movement": { "id": 77120, "variant_id": 8812, "warehouse_id": 14, "quantity": 8 } } }
