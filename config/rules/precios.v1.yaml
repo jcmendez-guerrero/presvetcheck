@@ -1,0 +1,10 @@
+# Precio de coste (SPEC §4.10, D-11): precio_coste = precio_neto_compra × (1 + RE%).
+# Recargo de equivalencia según el tipo de IVA del producto (editable).
+version: precios.v1
+iva_por_defecto_medicamento: 10
+recargo_equivalencia:
+  "10": 1.4
+  "21": 5.2
+  "4": 0.5
+decimales_almacen: 4
+decimales_pantalla: 2

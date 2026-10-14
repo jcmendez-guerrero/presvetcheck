@@ -1,0 +1,9 @@
+# Plazos máximos de validez desde la fecha de emisión (SPEC §4.1.3, Anexo A).
+# "mes" = mes natural (emisión + 1 mes, ajustando a fin de mes). Zona Europe/Madrid.
+version: validez.v1
+general: { meses: 1 }
+antimicrobiano: { dias: 5 }           # dentro de los cuales debe iniciarse el tratamiento
+cronico_no_productora: { meses: 3 }   # sin antimicrobianos, estupefacientes, psicótropos, gases medicinales, autovacunas, magistrales ni oficinales
+preventivo_no_productora: { meses: 6 }
+estupefaciente: { dias: 10 }          # en v1, además, bloqueo y derivación
+psicotropo: { meses: 1 }              # nunca crónico ni preventivo (SPEC §4.1.5)

@@ -1,0 +1,105 @@
+# Severidad por campo y contexto de la receta (SPEC §4.1.2, §4.1.6).
+# La aprueba el farmacéutico garante: cualquier cambio exige una nueva versión del fichero
+# y su aprobación en Administración → Reglas (tabla regla_version).
+#
+# Severidades: AVISO | BLOQUEANTE_FORMA (forzable) | BLOQUEANTE_DURO (no forzable)
+#              NO_APLICA | OPCIONAL
+version: receta-campos.v1
+
+campos:
+  numero_receta:        { codigo: RECETA_NUMERO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Clave de duplicados junto con nº de colegiado" }
+  tipo_dispensacion:    { codigo: TIPO_DISPENSACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Solo se dispensa si es 'de dispensación'" }
+  titular_nombre:       { codigo: TITULAR_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  titular_telefono:     { codigo: TITULAR_TELEFONO_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  rega:                 { codigo: REGA_FALTA, compania: NO_APLICA, produccion: BLOQUEANTE_FORMA }
+  especie:              { codigo: ESPECIE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  animal_identificacion: { codigo: ANIMAL_ID_FALTA, compania: AVISO, compania_id_individual: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Individual o lote en producción" }
+  num_animales:         { codigo: NUM_ANIMALES_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  fecha_emision:        { codigo: FECHA_EMISION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  veterinario_nombre:   { codigo: VETERINARIO_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  veterinario_telefono: { codigo: VETERINARIO_TELEFONO_FALTA, compania: AVISO, produccion: AVISO }
+  veterinario_email:    { codigo: VETERINARIO_EMAIL_FALTA, compania: AVISO, produccion: AVISO }
+  num_colegiado:        { codigo: VETERINARIO_COLEGIADO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Exento si talonario_colegial=true" }
+  firma:                { codigo: FIRMA_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  medicamento_nombre:   { codigo: MEDICAMENTO_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Si hay principio activo sin nombre → PRESCRIPCION_SOLO_PA" }
+  principio_activo:     { codigo: PRINCIPIO_ACTIVO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  clase_prescripcion:   { codigo: CLASE_PRESCRIPCION_FALTA, compania: AVISO, produccion: AVISO, nota: "Si falta se asume ordinaria y se bloquea la sustitución" }
+  indicacion:           { codigo: INDICACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  declaracion_antimicrobiano: { codigo: DECLARACION_ANTIMICROBIANO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, solo_si_antimicrobiano: true }
+  forma_concentracion:  { codigo: FORMA_CONCENTRACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  cantidad:             { codigo: CANTIDAD_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  posologia:            { codigo: POSOLOGIA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  tiempo_espera:        { codigo: TIEMPO_ESPERA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  plazo_validez:        { codigo: PLAZO_DECLARADO_SUPERIOR, compania: OPCIONAL, produccion: OPCIONAL }
+  advertencias:         { codigo: DATOS_NO_COMPROBADOS, compania: OPCIONAL, produccion: OPCIONAL }
+
+# Especies (id de la maestra de especies de CIMAVet) con identificación individual
+# obligatoria (microchip): perros, gatos y hurones y sus subcategorías del diccionario.
+especies_id_individual: [14, 15, 119, 55, 56, 57, 79, 80, 243, 244, 246, 247, 248, 249, 323, 324, 326, 327, 328, 329, 330, 331, 332]
+
+# Antimicrobiano = antibiotico=true en CIMAVet o ATC con alguno de estos prefijos.
+antimicrobianos_atc_prefijos: [QJ01, QJ02, QJ04, QJ05, QP51]
+
+# ATC que impiden aplicar la validez de crónico/preventivo (gases medicinales).
+# Autovacunas, fórmulas magistrales y preparados oficinales no están en CIMAVet: una línea
+# no resuelta contra CIMAVet nunca obtiene la validez ampliada.
+excluidos_cronico_atc_prefijos: [QV03AN]
+
+# Severidad de las incidencias que no dependen de un campo concreto.
+incidencias:
+  DATOS_NO_COMPROBADOS: BLOQUEANTE_DURO
+  TIPO_DISPENSACION_NO_DISPENSABLE: BLOQUEANTE_FORMA
+  FECHA_EMISION_FUTURA: BLOQUEANTE_FORMA
+  PRESCRIPCION_SOLO_PA: BLOQUEANTE_FORMA
+  RECETA_CADUCADA: BLOQUEANTE_FORMA
+  PLAZO_DECLARADO_SUPERIOR: AVISO
+  RECETA_YA_DISPENSADA: BLOQUEANTE_DURO
+  RECETA_POSIBLE_DUPLICADO: AVISO
+  PLATAFORMA_NO_RECONOCIDA: AVISO
+  PLATAFORMA_PENDIENTE_VERIFICAR: AVISO
+  PLATAFORMA_DESCONOCIDA: AVISO
+  ESTUPEFACIENTE_NO_DISPENSABLE: BLOQUEANTE_DURO
+  PSICOTROPO_MAS_DE_UN_ENVASE: BLOQUEANTE_DURO
+  # Decisión conservadora documentada en docs/dudas.md (DUDA-03): la prescripción de un
+  # medicamento de uso humano no es un defecto de forma; requiere revisión del garante.
+  MEDICAMENTO_USO_HUMANO_REVISION_GARANTE: BLOQUEANTE_DURO
+  ONLINE_CON_RECETA: BLOQUEANTE_DURO
+  RECETA_REQUERIDA: BLOQUEANTE_DURO
+  MEDICAMENTO_NO_SELECCIONADO: BLOQUEANTE_DURO
+  MEDICAMENTO_SUSPENDIDO: BLOQUEANTE_FORMA
+  MEDICAMENTO_REVOCADO: BLOQUEANTE_FORMA
+  MEDICAMENTO_NO_COMERCIALIZADO: AVISO
+  PROBLEMA_SUMINISTRO: AVISO
+  NOTAS_SEGURIDAD: AVISO
+  CIMAVET_NO_DISPONIBLE: AVISO
+  MEDICAMENTO_ESPECIE_NO_AUTORIZADA: AVISO
+  ENVASE_CADUCADO: BLOQUEANTE_FORMA
+  CN_ESCANEADO_DISTINTO: BLOQUEANTE_FORMA
+  LOTE_NO_FEFO: AVISO
+  # Decisión conservadora documentada en docs/dudas.md (DUDA-02): dispensar más de lo
+  # prescrito no es un defecto de la receta y no se puede forzar.
+  UNIDADES_SUPERAN_PRESCRITAS: BLOQUEANTE_DURO
+  SERIE_YA_DISPENSADA: AVISO
+  LOTE_CADUCA_ANTES_FIN_TRATAMIENTO: AVISO
+  LOTE_SIN_CADUCIDAD: AVISO
+  STOCK_ILIMITADO_CONFIGURACION: AVISO
+  STOCK_NO_DISPONIBLE: AVISO
+  STOCK_INSUFICIENTE: AVISO
+  CAMBIO_FORMATO: AVISO
+  CAMBIO_CONCENTRACION: AVISO
+  DOSIS_NO_AJUSTABLE: AVISO
+  CONCENTRACION_SUPERIOR: BLOQUEANTE_DURO
+  CANTIDAD_SUPERIOR: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_EXCEPCIONAL: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_INMUNOLOGICO: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_BIOLOGICO: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_EXCLUSION: BLOQUEANTE_DURO
+  SUSTITUCION_PROHIBIDA_USO_HUMANO: BLOQUEANTE_DURO
+  SUSTITUCION: AVISO
+  SUSTITUTO_NO_EQUIVALENTE: BLOQUEANTE_DURO
+  CADUCIDAD_PROXIMA_ENTRADA: AVISO
+
+# Grupo "producto no válido" (SPEC §4.1.6): forzable de forma temporal mientras
+# PRODUCT_VALIDITY_HARD_BLOCK=false. TODO(decision D-05c)
+producto_no_valido: [MEDICAMENTO_SUSPENDIDO, MEDICAMENTO_REVOCADO, ENVASE_CADUCADO, CN_ESCANEADO_DISTINTO]
