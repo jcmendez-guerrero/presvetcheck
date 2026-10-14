@@ -1,0 +1,40 @@
+{
+ "success": true,
+ "data": {
+  "id": 7002,
+  "numero": "T-2026-000102",
+  "fecha": "2026-10-14",
+  "hora": "11:05",
+  "estado": "Pagado",
+  "metodo_pago": "Tarjeta",
+  "subtotal": 0,
+  "impuestos": 0,
+  "total": 0,
+  "observaciones": "",
+  "company_nombre": "Mundo Mascotix",
+  "company_cif": "B00000000",
+  "serie_nombre": null,
+  "serie_prefijo": null,
+  "qr_code_data": null,
+  "items": [
+   {
+    "id": 3,
+    "nombre": "AEROFAR 100 microgramos CN 570004",
+    "tipo": "producto",
+    "cantidad": 2,
+    "precio_unitario": 4.0,
+    "subtotal": 8.0,
+    "impuesto": "10%",
+    "porcentaje_impuesto": 10,
+    "descuento_porcentaje": 0,
+    "descuento_valor": 0
+   }
+  ],
+  "items_count": 1,
+  "verifactu": null,
+  "descuento_global_porcentaje": 0,
+  "descuento_global_valor": 0,
+  "created_at": "2026-10-14T09:05:00.000Z",
+  "updated_at": "2026-10-14T09:05:00.000Z"
+ }
+}

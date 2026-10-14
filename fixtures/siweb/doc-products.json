@@ -1,1 +1,22 @@
-{ "success": true, "data": [ { "id": 3120, "code": "CAM-001", "name": "Camiseta básica", "brand": "Acme", "product_type": "physical", "unit_of_measure": "ud", "is_active": true, "category": "Ropa", "variants_count": 6 } ] }
+{
+ "success": true,
+ "data": [
+  {
+   "id": 3120,
+   "code": "CAM-001",
+   "name": "Camiseta básica",
+   "brand": "Acme",
+   "product_type": "physical",
+   "unit_of_measure": "ud",
+   "is_active": true,
+   "category": "Ropa",
+   "variants_count": 6
+  }
+ ],
+ "pagination": {
+  "page": 1,
+  "limit": 200,
+  "total": 1,
+  "pages": 1
+ }
+}

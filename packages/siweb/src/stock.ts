@@ -48,18 +48,20 @@ export class StockService {
           out.ilimitadas.push({ variantId: id, sku: v.sku ?? null });
           continue;
         }
-        const caducidad = new Map(lots.map((l) => [l.lot_code, l]));
-        for (const nivel of v.levels ?? []) {
+        // `stock_levels[]` trae lote, caducidad y disponible; `/lots` aporta la fecha de creación (desempate FEFO).
+        const porLote = new Map(lots.map((l) => [l.lot_code, l]));
+        for (const nivel of v.stock_levels ?? []) {
           if (nivel.warehouse_id !== almacen) continue;
-          const { lote, disponible } = leerNivel(nivel);
+          const { lote, disponible, caducidad } = leerNivel(nivel);
           if (lote === null || disponible === null) {
             out.ilegibles.push(id);
             continue;
           }
-          const l = caducidad.get(lote);
+          if (disponible <= 0) continue;
+          const l = porLote.get(lote);
           out.lotes.push({
             lote,
-            caducidad: l?.expiry_date ? l.expiry_date.slice(0, 10) : null,
+            caducidad: caducidad ?? (l?.expiry_date ? l.expiry_date.slice(0, 10) : null),
             disponible,
             creadoAt: l?.created_at ?? null,
             variantId: id,

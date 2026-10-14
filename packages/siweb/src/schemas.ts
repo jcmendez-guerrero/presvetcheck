@@ -1,13 +1,19 @@
 import { z } from 'zod';
 
 /**
- * Esquemas de la API de Inventario de Siweb360 (docs/ref, ejemplos parcialmente truncados).
- * Envoltorio documentado: `{ success, message?, data }`. Tolerantes a campos nuevos.
+ * Esquemas de la API pública de Siweb360 (docs/ref/siweb360-openapi.json, OpenAPI 3.0.3 generado de la
+ * documentación pública). Envoltorio `{ success, message?, data, pagination? }`; errores
+ * `{ success: false, error, code, message }`. Tolerantes a campos nuevos.
  */
 const num = z.union([z.number(), z.string()]).transform((v) => Number(v));
 const numN = z.union([z.number(), z.string()]).nullish().transform((v) => (v === null || v === undefined || v === '' ? null : Number(v)));
 
-export const Envelope = <T extends z.ZodTypeAny>(data: T) => z.looseObject({ success: z.boolean().optional(), message: z.string().optional(), data });
+export const PaginationSchema = z.looseObject({ page: numN, limit: numN, total: numN, pages: numN });
+export const Envelope = <T extends z.ZodTypeAny>(data: T) =>
+  z.looseObject({ success: z.boolean().optional(), message: z.string().optional(), data, pagination: PaginationSchema.nullish() });
+
+/** Cuerpo de error documentado. */
+export const ErrorSchema = z.looseObject({ success: z.literal(false).optional(), error: z.string().nullish(), code: z.string().nullish(), message: z.string().nullish() });
 
 export const ProductSchema = z.looseObject({
   id: num,
@@ -21,10 +27,20 @@ export const ProductSchema = z.looseObject({
   variants_count: z.number().nullish(),
 });
 
-/** Fila de desglose por almacén/ubicación/lote. Solo `warehouse_id` está documentado (ver fixtures/siweb/README.md). */
+/** Fila de desglose por almacén/ubicación/lote (`stock_levels[]` en la variante, `levels[]` en /stock). */
 export const LevelSchema = z.looseObject({
   warehouse_id: numN,
+  warehouse_name: z.string().nullish(),
+  warehouse_code: z.string().nullish(),
   location_id: numN,
+  location_name: z.string().nullish(),
+  location_code: z.string().nullish(),
+  batch_number: z.string().nullish(),
+  expiry_date: z.string().nullish(),
+  on_hand: numN,
+  reserved: numN,
+  allocated: numN,
+  available: numN,
 });
 
 export const VariantSchema = z.looseObject({
@@ -40,7 +56,10 @@ export const VariantSchema = z.looseObject({
   total_allocated: numN,
   total_available: numN,
   is_infinite_stock: z.boolean().nullish(),
-  levels: z.array(LevelSchema).nullish(),
+  status: z.string().nullish(),
+  is_active: z.boolean().nullish(),
+  /** Solo en `GET inventory/variants/{id}`. */
+  stock_levels: z.array(LevelSchema).nullish(),
 });
 
 export const StockSchema = z.looseObject({
@@ -74,7 +93,27 @@ export const AdjustmentResultSchema = z.looseObject({
   warehouse_id: numN,
   location_id: numN,
   on_hand: numN,
-  movement: z.looseObject({ id: numN, variant_id: numN, warehouse_id: numN, quantity: numN }).nullish(),
+  movement: z.looseObject({ id: numN, variant_id: numN, warehouse_id: numN, quantity: numN, movement_type: z.string().nullish(), reason: z.string().nullish() }).nullish(),
+});
+
+/** `GET tickets` (resumen) y `GET tickets/{id}` (con líneas). Estados: Pagado, Pendiente, Cancelado. */
+export const TicketItemSchema = z.looseObject({
+  id: numN,
+  nombre: z.string().nullish(),
+  tipo: z.string().nullish(),
+  cantidad: numN,
+  precio_unitario: numN,
+  subtotal: numN,
+});
+export const TicketSchema = z.looseObject({
+  id: num,
+  numero: z.string().nullish(),
+  fecha: z.string().nullish(),
+  hora: z.string().nullish(),
+  estado: z.string().nullish(),
+  observaciones: z.string().nullish(),
+  items_count: numN,
+  items: z.array(TicketItemSchema).nullish(),
 });
 
 export type Product = z.infer<typeof ProductSchema>;
@@ -84,6 +123,7 @@ export type Lot = z.infer<typeof LotSchema>;
 export type Warehouse = z.infer<typeof WarehouseSchema>;
 export type Level = z.infer<typeof LevelSchema>;
 export type AdjustmentResult = z.infer<typeof AdjustmentResultSchema>;
+export type Ticket = z.infer<typeof TicketSchema>;
 
 /** Motivos admitidos por `POST inventory/stock/adjustments` (doc). */
 export const ADJUSTMENT_REASONS = [
@@ -125,13 +165,9 @@ export interface TransferRequest {
   notes?: string;
 }
 
-/**
- * Lectura tolerante del lote y del disponible de una fila de `levels[]` (HIPÓTESIS documentada en
- * fixtures/siweb/README.md). Devuelve null si no hay datos suficientes: entonces no se recomienda dispensar.
- */
-export function leerNivel(l: Level): { lote: string | null; disponible: number | null } {
-  const r = l as Record<string, unknown>;
-  const lote = ['lot_code', 'batch_number', 'lot'].map((k) => r[k]).find((v) => typeof v === 'string' && v !== '') as string | undefined;
-  const disp = ['available', 'quantity_available'].map((k) => r[k]).find((v) => typeof v === 'number' || (typeof v === 'string' && v !== ''));
-  return { lote: lote ?? null, disponible: disp === undefined ? null : Number(disp) };
+/** Lote y disponible de una fila del desglose. null si faltan: entonces no se recomienda dispensar. */
+export function leerNivel(l: Level): { lote: string | null; disponible: number | null; caducidad: string | null } {
+  const lote = l.batch_number?.trim() || null;
+  const disponible = l.available === null || l.available === undefined || Number.isNaN(l.available) ? null : l.available;
+  return { lote, disponible, caducidad: l.expiry_date ? l.expiry_date.slice(0, 10) : null };
 }

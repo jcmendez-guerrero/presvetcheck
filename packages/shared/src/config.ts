@@ -51,6 +51,9 @@ export const envSchema = z
     SIWEB_TOKEN: optStr,
     SIWEB_STOCK_WRITE_MODE: z.enum(['off', 'entries_only']).default('off'),
     SIWEB_SKU_CN_REGEX: z.string().default('CN(\\d{6,7})$'),
+    // TODO(decision D-02b): confirmar con tickets reales que la línea conserva el nombre con el CN.
+    SIWEB_SALES_SOURCE: z.enum(['off', 'tickets']).default('tickets'),
+    SIWEB_TICKET_CN_REGEX: z.string().default('CN\\s?(\\d{6,7})'),
     // TODO(decision D-04b): alta/edición de productos por API. Por defecto tareas manuales.
     SIWEB_CATALOG_WRITE: bool(false),
     SIWEB_PRICE_WRITE: bool(false),
@@ -171,6 +174,7 @@ export const envSchema = z
     }
     try {
       new RegExp(env.SIWEB_SKU_CN_REGEX);
+      new RegExp(env.SIWEB_TICKET_CN_REGEX);
     } catch {
       ctx.addIssue({ code: 'custom', path: ['SIWEB_SKU_CN_REGEX'], message: 'Expresión regular no válida' });
     }

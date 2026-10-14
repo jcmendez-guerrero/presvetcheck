@@ -6,6 +6,7 @@ import {
   LotSchema,
   ProductSchema,
   StockSchema,
+  TicketSchema,
   VariantSchema,
   WarehouseSchema,
   type AdjustmentRequest,
@@ -13,6 +14,7 @@ import {
   type Lot,
   type Product,
   type Stock,
+  type Ticket,
   type TransferRequest,
   type Variant,
   type Warehouse,
@@ -87,18 +89,26 @@ export class SiwebClient {
     return (r.data as { data: z.output<S> }).data;
   }
 
-  private async get<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined> = {}) {
+  private async getConMeta<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined> = {}) {
     const { json } = await this.http.request(this.url(path, params), { headers: await this.headers() });
-    return this.parse(schema, json, path);
+    const r = Envelope(schema).safeParse(json);
+    if (!r.success) throw new SiwebValidationError(path, r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`));
+    const d = r.data as { data: z.output<S>; pagination?: { pages?: number | null } | null };
+    return { data: d.data, paginas: d.pagination?.pages ?? null };
   }
 
-  /** Recorre páginas (`page`, `limit ≤ 200`) hasta una página incompleta o vacía. */
+  private async get<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined> = {}) {
+    return (await this.getConMeta(schema, path, params)).data;
+  }
+
+  /** Recorre páginas (`page`, `limit ≤ 200`) según `pagination.pages`; sin metadatos, hasta una página incompleta. */
   private async paginado<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined>): Promise<z.output<S>[]> {
     const out: z.output<S>[] = [];
     for (let page = 1; page <= this.maxPaginas; page++) {
-      const items = (await this.get(schema.array(), path, { ...params, page, limit: this.limit })) as z.output<S>[];
+      const { data, paginas } = await this.getConMeta(schema.array(), path, { ...params, page, limit: this.limit });
+      const items = data as z.output<S>[];
       out.push(...items);
-      if (items.length < this.limit) break;
+      if (paginas !== null ? page >= paginas : items.length < this.limit) break;
     }
     return out;
   }
@@ -112,7 +122,7 @@ export class SiwebClient {
   variants(f: FiltrosVariantes = {}): Promise<Variant[]> {
     return this.paginado(VariantSchema, 'inventory/variants', f);
   }
-  /** Variante con desglose de stock por almacén/ubicación/lote. */
+  /** Variante con desglose de stock por almacén/ubicación/lote (`stock_levels[]`). */
   variant(id: number): Promise<Variant> {
     return this.get(VariantSchema, `inventory/variants/${id}`);
   }
@@ -128,6 +138,21 @@ export class SiwebClient {
   }
   warehouses(search?: string): Promise<Warehouse[]> {
     return this.get(WarehouseSchema.array(), 'inventory/warehouses', { search });
+  }
+
+  /**
+   * `GET tickets` (solo lectura: la app nunca crea, cambia ni borra tickets). Sin paginación: `limit`
+   * (por defecto 100 en la API). Si se devuelven `limit` tickets puede haber más: el llamante lo trata
+   * como lectura incompleta.
+   */
+  async tickets(f: { fecha_desde: string; fecha_hasta: string; estado?: 'Pagado' | 'Pendiente' | 'Cancelado'; limit?: number }): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
+    const limit = f.limit ?? 1000;
+    const tickets = await this.get(TicketSchema.array(), 'tickets', { ...f, limit });
+    return { tickets, posiblementeIncompleto: tickets.length >= limit };
+  }
+  /** Ticket con sus líneas (`items[]`: nombre, cantidad…; sin variante ni lote). */
+  ticket(id: number): Promise<Ticket> {
+    return this.get(TicketSchema, `tickets/${id}`);
   }
 
   /**

@@ -2,8 +2,9 @@ import type { FechaIso } from './fechas';
 
 /**
  * Conciliación ticket ↔ dispensación (SPEC §5.2.4, job sales-reconciliation). Compara las
- * dispensaciones del día con los movimientos de salida de Siweb360 por CN (variante) + lote +
- * unidades. El adaptador real de movimientos depende de D-02b.
+ * dispensaciones del día con las ventas de Siweb360 por CN + lote + unidades. Las líneas de ticket de
+ * Siweb360 no traen lote (`lote: null`): entonces se concilia por CN + unidades y la conciliación se
+ * marca con el lote sin verificar.
  */
 export interface DispensacionConciliar {
   id: string;
@@ -15,10 +16,14 @@ export interface DispensacionConciliar {
 
 export interface MovimientoVenta {
   id: string;
-  variantId: number;
-  /** CN de la variante según siweb_variant_map; null si la variante no es un medicamento mapeado. */
+  /** Variante de Siweb360 si la fuente la da (las líneas de ticket no la traen). */
+  variantId: number | null;
+  /** CN (de la línea o de siweb_variant_map); null si no es un medicamento identificable. */
   cn: string | null;
+  /** null = la fuente no informa el lote (no verificable). */
   lote: string | null;
+  /** Número de ticket, si se conoce (para mostrarlo en la discrepancia). */
+  ticket?: string;
   unidades: number;
   fecha: FechaIso;
 }
@@ -34,10 +39,11 @@ export interface Discrepancia {
   loteTicket: string | null;
   unidadesDispensacion: number | null;
   unidadesTicket: number | null;
+  ticket: string | null;
 }
 
 export interface ResultadoConciliacion {
-  conciliadas: { dispensacionId: string; movimientoId: string }[];
+  conciliadas: { dispensacionId: string; movimientoId: string; loteVerificado: boolean }[];
   discrepancias: Discrepancia[];
 }
 
@@ -57,21 +63,30 @@ export function conciliar(dispensaciones: DispensacionConciliar[], movimientos: 
     cn: d?.cn ?? m?.cn ?? null,
     loteDispensacion: d?.lote ?? null,
     loteTicket: m?.lote ?? null,
+    ticket: m?.ticket ?? null,
     unidadesDispensacion: d?.unidades ?? null,
     unidadesTicket: m?.unidades ?? null,
   });
 
-  // 1. Coincidencia exacta
+  // 1. Coincidencia exacta (con lote informado)
   for (const d of [...pendD]) {
     const m = take(pendM, (x) => x.cn === d.cn && x.lote === d.lote && x.unidades === d.unidades);
     if (m) {
-      conciliadas.push({ dispensacionId: d.id, movimientoId: m.id });
+      conciliadas.push({ dispensacionId: d.id, movimientoId: m.id, loteVerificado: true });
       pendD.splice(pendD.indexOf(d), 1);
     }
   }
-  // 2. Mismo CN y lote, unidades distintas
+  // 1b. Fuente sin lote: CN + unidades, lote sin verificar
   for (const d of [...pendD]) {
-    const m = take(pendM, (x) => x.cn === d.cn && x.lote === d.lote);
+    const m = take(pendM, (x) => x.lote === null && x.cn === d.cn && x.unidades === d.unidades);
+    if (m) {
+      conciliadas.push({ dispensacionId: d.id, movimientoId: m.id, loteVerificado: false });
+      pendD.splice(pendD.indexOf(d), 1);
+    }
+  }
+  // 2. Mismo CN y lote (o lote no informado), unidades distintas
+  for (const d of [...pendD]) {
+    const m = take(pendM, (x) => x.cn === d.cn && (x.lote === d.lote || x.lote === null));
     if (m) {
       discrepancias.push(disc('UNIDADES_DISTINTAS', d, m));
       pendD.splice(pendD.indexOf(d), 1);

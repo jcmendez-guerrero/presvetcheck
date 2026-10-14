@@ -24,7 +24,7 @@ function stockHandlers(conLote: boolean) {
     http.get(`${BASE}inventory/variants/:id`, () =>
       HttpResponse.json({
         success: true,
-        data: { id: 5, sku: 'TEST-0000-CN000000', is_infinite_stock: false, levels: conLote ? [{ warehouse_id: 21, lot_code: 'TEST-20261014', available: 1 }] : [] },
+        data: { id: 5, sku: 'TEST-0000-CN000000', is_infinite_stock: false, stock_levels: conLote ? [{ warehouse_id: 21, batch_number: 'TEST-20261014', expiry_date: '2027-10-14', available: 1 }] : [] },
       }),
     ),
     http.post(`${BASE}inventory/stock/adjustments`, async ({ request }) => {

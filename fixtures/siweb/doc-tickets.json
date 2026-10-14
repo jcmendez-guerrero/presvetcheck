@@ -1,0 +1,48 @@
+{
+ "success": true,
+ "data": [
+  {
+   "id": 7001,
+   "numero": "T-2026-000101",
+   "fecha": "2026-10-14",
+   "hora": "11:05",
+   "estado": "Pagado",
+   "metodo_pago": "Tarjeta",
+   "subtotal": 16.53,
+   "impuestos": 3.47,
+   "total": 20.0,
+   "observaciones": "",
+   "items_count": 2,
+   "serie_nombre": null,
+   "serie_prefijo": null,
+   "verifactu": null,
+   "created_at": "2026-10-14T09:05:00.000Z",
+   "updated_at": "2026-10-14T09:05:00.000Z"
+  },
+  {
+   "id": 7002,
+   "numero": "T-2026-000102",
+   "fecha": "2026-10-14",
+   "hora": "12:40",
+   "estado": "Pagado",
+   "metodo_pago": "Efectivo",
+   "subtotal": 8.0,
+   "impuestos": 0.8,
+   "total": 8.8,
+   "observaciones": "",
+   "items_count": 1,
+   "serie_nombre": null,
+   "serie_prefijo": null,
+   "verifactu": null,
+   "created_at": "2026-10-14T10:40:00.000Z",
+   "updated_at": "2026-10-14T10:40:00.000Z"
+  }
+ ],
+ "totales": {
+  "total_vendido": 28.8,
+  "pagados": 2,
+  "pendientes": 0,
+  "cancelados": 0
+ },
+ "total": 2
+}
