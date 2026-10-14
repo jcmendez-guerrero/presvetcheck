@@ -1,0 +1,357 @@
+{
+  "RECETA_NUMERO_FALTA": {
+    "titulo": "Falta el número de la receta",
+    "donde": "Cabecera de la receta, normalmente arriba a la derecha",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "TIPO_DISPENSACION_FALTA": {
+    "titulo": "No consta el tipo de receta (de dispensación, de botiquín o de no dispensación)",
+    "donde": "Cabecera de la receta",
+    "accion": "Comprueba en el original qué casilla está marcada"
+  },
+  "TIPO_DISPENSACION_NO_DISPENSABLE": {
+    "titulo": "Esta receta es «{tipo}»: no es una receta de dispensación",
+    "donde": "Casilla de tipo de receta",
+    "accion": "No se puede dispensar en la tienda. Indica al cliente que la receta no es válida para dispensar"
+  },
+  "TITULAR_NOMBRE_FALTA": {
+    "titulo": "Falta el nombre completo del titular del animal",
+    "donde": "Bloque del titular o propietario",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "TITULAR_TELEFONO_FALTA": {
+    "titulo": "Falta el teléfono del titular del animal",
+    "donde": "Bloque del titular o propietario",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "REGA_FALTA": {
+    "titulo": "Falta el código REGA de la explotación",
+    "donde": "Bloque del titular o de la explotación",
+    "accion": "Obligatorio en animales de producción. Pide al veterinario que lo complete"
+  },
+  "ESPECIE_FALTA": {
+    "titulo": "Falta la especie del animal",
+    "donde": "Bloque del animal",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "ANIMAL_ID_FALTA": {
+    "titulo": "Falta la identificación del animal (microchip o lote)",
+    "donde": "Bloque del animal",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "NUM_ANIMALES_FALTA": {
+    "titulo": "Falta el número de animales",
+    "donde": "Bloque del animal",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "FECHA_EMISION_FALTA": {
+    "titulo": "Falta la fecha de emisión de la receta",
+    "donde": "Pie o cabecera de la receta",
+    "accion": "Sin fecha no se puede comprobar la validez. Pide al veterinario que la complete"
+  },
+  "FECHA_EMISION_FUTURA": {
+    "titulo": "La fecha de emisión ({fecha}) es posterior a hoy",
+    "donde": "Fecha de la receta",
+    "accion": "Comprueba la fecha en el original; si se ha leído mal, corrígela"
+  },
+  "VETERINARIO_NOMBRE_FALTA": {
+    "titulo": "Falta el nombre del veterinario",
+    "donde": "Bloque del veterinario prescriptor",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "VETERINARIO_TELEFONO_FALTA": {
+    "titulo": "Falta el teléfono del veterinario",
+    "donde": "Bloque del veterinario prescriptor",
+    "accion": "Conviene tenerlo para avisos de sustitución"
+  },
+  "VETERINARIO_EMAIL_FALTA": {
+    "titulo": "Falta el correo del veterinario",
+    "donde": "Bloque del veterinario prescriptor",
+    "accion": "Conviene tenerlo para avisos de sustitución"
+  },
+  "VETERINARIO_COLEGIADO_FALTA": {
+    "titulo": "Falta el número de colegiado del veterinario",
+    "donde": "Bloque del veterinario, junto a la firma o el sello",
+    "accion": "Pide al veterinario que lo complete. Si es un talonario colegial con numeración que lo incluye, márcalo"
+  },
+  "FIRMA_FALTA": {
+    "titulo": "No se ha confirmado la firma del veterinario",
+    "donde": "Pie de la receta",
+    "accion": "En papel, comprueba que hay firma manuscrita en el original (no una copia)"
+  },
+  "MEDICAMENTO_NOMBRE_FALTA": {
+    "titulo": "Falta el nombre del medicamento en la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "PRESCRIPCION_SOLO_PA": {
+    "titulo": "No se puede dispensar: la receta indica solo el principio activo, falta el nombre del medicamento (línea {linea})",
+    "donde": "Línea del medicamento",
+    "accion": "Llama al veterinario para que corrija la receta. Se muestran las opciones disponibles"
+  },
+  "PRINCIPIO_ACTIVO_FALTA": {
+    "titulo": "Falta el principio activo en la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "CLASE_PRESCRIPCION_FALTA": {
+    "titulo": "No consta si la prescripción es ordinaria o excepcional: se asume ordinaria y no se permite sustituir",
+    "donde": "Bloque de la prescripción",
+    "accion": "Si consta en el original, corrige el dato"
+  },
+  "INDICACION_FALTA": {
+    "titulo": "Falta la indicación (para qué se prescribe)",
+    "donde": "Bloque de la prescripción",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "DECLARACION_ANTIMICROBIANO_FALTA": {
+    "titulo": "Falta la declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6 para el antimicrobiano de la línea {linea}",
+    "donde": "Junto al antimicrobiano o al pie de la receta",
+    "accion": "Pide al veterinario que la complete (incluido el fin metafiláctico o profiláctico si aplica)"
+  },
+  "FORMA_CONCENTRACION_FALTA": {
+    "titulo": "Falta la forma farmacéutica o la concentración en la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "CANTIDAD_FALTA": {
+    "titulo": "Falta la cantidad o el número de envases en la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "POSOLOGIA_FALTA": {
+    "titulo": "Falta la posología (vía, dosis o duración) en la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "TIEMPO_ESPERA_FALTA": {
+    "titulo": "Falta el tiempo de espera en la línea {linea} (aunque sea cero)",
+    "donde": "Línea del medicamento",
+    "accion": "Pide al veterinario que lo complete. Si está en la receta, corrige el dato"
+  },
+  "DATOS_NO_COMPROBADOS": {
+    "titulo": "No se ha marcado «He comprobado los datos con el original»",
+    "donde": "Pantalla de revisión",
+    "accion": "Revisa los datos con la receta original y marca la casilla"
+  },
+  "RECETA_CADUCADA": {
+    "titulo": "La receta caducó el {fecha}",
+    "donde": "Fecha de emisión",
+    "accion": "No se puede dispensar. El cliente necesita una receta nueva"
+  },
+  "PLAZO_DECLARADO_SUPERIOR": {
+    "titulo": "El plazo declarado en la receta supera el máximo legal; se aplica {maximo} (hasta el {fecha})",
+    "donde": "Plazo de validez",
+    "accion": "Informativo"
+  },
+  "RECETA_YA_DISPENSADA": {
+    "titulo": "Esta receta en papel ya fue dispensada",
+    "donde": "Número de receta y de colegiado",
+    "accion": "Una receta en papel solo admite una dispensación"
+  },
+  "RECETA_POSIBLE_DUPLICADO": {
+    "titulo": "La imagen se parece mucho a otra receta ya registrada",
+    "donde": "Toda la receta",
+    "accion": "Comprueba que no es la misma receta presentada dos veces"
+  },
+  "PLATAFORMA_NO_RECONOCIDA": {
+    "titulo": "La plataforma de receta electrónica «{plataforma}» NO figura como reconocida por el MAPA",
+    "donde": "Cabecera o código de la receta electrónica",
+    "accion": "Consulta al farmacéutico garante antes de dispensar"
+  },
+  "PLATAFORMA_PENDIENTE_VERIFICAR": {
+    "titulo": "Plataforma de receta electrónica «{plataforma}» pendiente de verificar en el listado del MAPA",
+    "donde": "Cabecera o código de la receta electrónica",
+    "accion": "Informativo. El garante o un administrador debe verificarla"
+  },
+  "PLATAFORMA_DESCONOCIDA": {
+    "titulo": "La plataforma de receta electrónica no está en la lista",
+    "donde": "Cabecera o código de la receta electrónica",
+    "accion": "Consulta al farmacéutico garante"
+  },
+  "ESTUPEFACIENTE_NO_DISPENSABLE": {
+    "titulo": "{medicamento} es un estupefaciente: este establecimiento no los dispensa",
+    "donde": "Línea del medicamento",
+    "accion": "Deriva al cliente a una farmacia"
+  },
+  "PSICOTROPO_MAS_DE_UN_ENVASE": {
+    "titulo": "{medicamento} es psicótropo: solo se puede dispensar un envase por receta",
+    "donde": "Cantidad de la línea",
+    "accion": "No se puede dispensar más de un envase con esta receta"
+  },
+  "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE": {
+    "titulo": "El medicamento de la línea {linea} es de uso humano",
+    "donde": "Línea del medicamento",
+    "accion": "Requiere prescripción excepcional y revisión del farmacéutico garante"
+  },
+  "ONLINE_CON_RECETA": {
+    "titulo": "{medicamento} necesita receta: no se puede vender a distancia",
+    "donde": "Pedido online",
+    "accion": "Los medicamentos sujetos a prescripción no se venden online"
+  },
+  "RECETA_REQUERIDA": {
+    "titulo": "{medicamento} necesita receta veterinaria",
+    "donde": "Venta sin receta",
+    "accion": "Usa el flujo de «Receta»"
+  },
+  "MEDICAMENTO_NO_SELECCIONADO": {
+    "titulo": "No se ha elegido el medicamento de la línea {linea}",
+    "donde": "Línea del medicamento",
+    "accion": "Elige el medicamento entre los candidatos o búscalo"
+  },
+  "MEDICAMENTO_SUSPENDIDO": {
+    "titulo": "{medicamento} está SUSPENDIDO en CIMAVet",
+    "donde": "Ficha del medicamento",
+    "accion": "No se debe dispensar. Consulta al farmacéutico garante"
+  },
+  "MEDICAMENTO_REVOCADO": {
+    "titulo": "{medicamento} está REVOCADO (anulado) en CIMAVet",
+    "donde": "Ficha del medicamento",
+    "accion": "No se debe dispensar. Consulta al farmacéutico garante"
+  },
+  "MEDICAMENTO_NO_COMERCIALIZADO": {
+    "titulo": "{medicamento} no consta como comercializado",
+    "donde": "Ficha del medicamento",
+    "accion": "El farmacéutico garante decide si se dispensa desde existencias"
+  },
+  "PROBLEMA_SUMINISTRO": {
+    "titulo": "{medicamento} tiene problemas de suministro",
+    "donde": "Ficha del medicamento",
+    "accion": "Valora sustituir o pedir"
+  },
+  "NOTAS_SEGURIDAD": {
+    "titulo": "{medicamento} tiene notas de seguridad publicadas",
+    "donde": "Ficha del medicamento",
+    "accion": "Revisa las notas antes de dispensar"
+  },
+  "CIMAVET_NO_DISPONIBLE": {
+    "titulo": "CIMAVet no responde: se usan los datos guardados el {fecha}",
+    "donde": "Verificación en vivo",
+    "accion": "Informativo"
+  },
+  "MEDICAMENTO_ESPECIE_NO_AUTORIZADA": {
+    "titulo": "{medicamento} no está autorizado para la especie de la receta (uso excepcional)",
+    "donde": "Ficha del medicamento",
+    "accion": "Comprueba que la prescripción es excepcional"
+  },
+  "ENVASE_CADUCADO": {
+    "titulo": "El envase escaneado está CADUCADO desde el {fecha}",
+    "donde": "Envase",
+    "accion": "Retira el envase y escanea otro"
+  },
+  "CN_ESCANEADO_DISTINTO": {
+    "titulo": "El código nacional escaneado ({cnEscaneado}) no coincide con el seleccionado ({cnSeleccionado})",
+    "donde": "Envase",
+    "accion": "Comprueba que has cogido el medicamento correcto"
+  },
+  "LOTE_NO_FEFO": {
+    "titulo": "El lote {lote} no es el recomendado ({loteRecomendado}, caduca antes)",
+    "donde": "Envase",
+    "accion": "Indica el motivo para dispensar este lote"
+  },
+  "UNIDADES_SUPERAN_PRESCRITAS": {
+    "titulo": "Las unidades a dispensar ({unidades}) superan lo prescrito ({maximo})",
+    "donde": "Cantidad",
+    "accion": "No se puede dispensar más de lo prescrito"
+  },
+  "SERIE_YA_DISPENSADA": {
+    "titulo": "El número de serie {serie} ya se dispensó antes",
+    "donde": "Envase",
+    "accion": "Comprueba el envase"
+  },
+  "LOTE_CADUCA_ANTES_FIN_TRATAMIENTO": {
+    "titulo": "El lote {lote} caduca el {fecha}, antes de terminar el tratamiento",
+    "donde": "Lote recomendado",
+    "accion": "Se propone otro lote que cubre el tratamiento"
+  },
+  "LOTE_SIN_CADUCIDAD": {
+    "titulo": "El lote {lote} no tiene caducidad registrada en Siweb360",
+    "donde": "Lote",
+    "accion": "Comprueba la caducidad en el envase"
+  },
+  "STOCK_ILIMITADO_CONFIGURACION": {
+    "titulo": "La variante {sku} tiene stock ilimitado en Siweb360",
+    "donde": "Configuración de Siweb360",
+    "accion": "Corrige la configuración en Siweb360; no participa en la propuesta de lote"
+  },
+  "STOCK_NO_DISPONIBLE": {
+    "titulo": "No se ha podido consultar el stock en Siweb360",
+    "donde": "Stock",
+    "accion": "Reintenta. Nunca se recomienda dispensar sin confirmar stock"
+  },
+  "STOCK_INSUFICIENTE": {
+    "titulo": "No hay stock suficiente para {unidades} unidades",
+    "donde": "Stock",
+    "accion": "Se propone dispensación parcial o pedido"
+  },
+  "CAMBIO_FORMATO": {
+    "titulo": "Se dispensa otro tamaño de envase del mismo medicamento",
+    "donde": "Presentación",
+    "accion": "Confirma con el cliente; queda para revisión del garante"
+  },
+  "CAMBIO_CONCENTRACION": {
+    "titulo": "Se dispensa una presentación de menor concentración",
+    "donde": "Presentación",
+    "accion": "Entrega la nota de administración al tutor y avisa al veterinario"
+  },
+  "DOSIS_NO_AJUSTABLE": {
+    "titulo": "La dosis no se puede ajustar con unidades enteras",
+    "donde": "Presentación",
+    "accion": "Requiere confirmación expresa"
+  },
+  "CONCENTRACION_SUPERIOR": {
+    "titulo": "La presentación tiene más concentración que la prescrita",
+    "donde": "Presentación",
+    "accion": "Descartada"
+  },
+  "CANTIDAD_SUPERIOR": {
+    "titulo": "La cantidad total de principio activo supera la prescrita",
+    "donde": "Presentación",
+    "accion": "Descartada"
+  },
+  "SUSTITUCION_PROHIBIDA_EXCEPCIONAL": {
+    "titulo": "No se puede sustituir: prescripción excepcional",
+    "donde": "Clase de prescripción",
+    "accion": "Pide el medicamento prescrito"
+  },
+  "SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA": {
+    "titulo": "No se puede sustituir: no consta la clase de prescripción",
+    "donde": "Clase de prescripción",
+    "accion": "Pide el medicamento prescrito"
+  },
+  "SUSTITUCION_PROHIBIDA_INMUNOLOGICO": {
+    "titulo": "No se puede sustituir: medicamento inmunológico",
+    "donde": "Ficha del medicamento",
+    "accion": "Pide el medicamento prescrito"
+  },
+  "SUSTITUCION_PROHIBIDA_BIOLOGICO": {
+    "titulo": "No se puede sustituir: medicamento biológico",
+    "donde": "Ficha del medicamento",
+    "accion": "Pide el medicamento prescrito"
+  },
+  "SUSTITUCION_PROHIBIDA_EXCLUSION": {
+    "titulo": "No se puede sustituir: está en la lista de no sustituibles (biodisponibilidad o estrecho margen)",
+    "donde": "Lista de exclusiones",
+    "accion": "Pide el medicamento prescrito"
+  },
+  "SUSTITUCION_PROHIBIDA_USO_HUMANO": {
+    "titulo": "No se puede sustituir por un medicamento de uso humano",
+    "donde": "Sustituto",
+    "accion": "Elige otro sustituto o pide el prescrito"
+  },
+  "SUSTITUCION": {
+    "titulo": "SUSTITUCIÓN — avisar al tutor y al veterinario prescriptor",
+    "donde": "Línea",
+    "accion": "Registra el consentimiento del tutor y el aviso al veterinario"
+  },
+  "SUSTITUTO_NO_EQUIVALENTE": {
+    "titulo": "El medicamento elegido no es equivalente a lo prescrito",
+    "donde": "Medicamento elegido",
+    "accion": "Elige un medicamento equivalente"
+  },
+  "CADUCIDAD_PROXIMA_ENTRADA": {
+    "titulo": "El lote {lote} caduca el {fecha} (menos de {dias} días)",
+    "donde": "Línea de entrada",
+    "accion": "Informativo"
+  }
+}

@@ -1,0 +1,11 @@
+# Medicamentos no sustituibles por biodisponibilidad o estrecho margen terapéutico
+# (SPEC §4.4.1). La lista la determina la AEMPS con el MAPA y NO está en la API de CIMAVet:
+# la mantiene el farmacéutico garante. Cada entrada identifica un medicamento (nregistro)
+# o un principio activo (pa_id de la maestra de CIMAVet).
+#
+# Formato de cada entrada:
+#   - { nregistro: "1234 ESP", pa_id: null, motivo: "...", fuente: "Nota AEMPS/MAPA de dd/mm/aaaa" }
+#
+# TODO(garante): cargar la lista oficial. Vacía por defecto: no se inventan entradas.
+version: sustitucion-exclusiones.v1
+exclusiones: []

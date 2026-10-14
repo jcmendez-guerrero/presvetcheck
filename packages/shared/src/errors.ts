@@ -1,0 +1,49 @@
+/**
+ * Errores de dominio tipados con `code` estable. La UI traduce el `code` a un mensaje
+ * (`i18n/errores.es.json`); el `message` técnico no se muestra al usuario ni contiene datos personales.
+ */
+export const CODIGOS_ERROR = [
+  'VALIDACION',
+  'NO_ENCONTRADO',
+  'NO_AUTORIZADO',
+  'PROHIBIDO',
+  'CONFLICTO',
+  'FORZADO_NO_PERMITIDO',
+  'FORZADO_PSICOTROPO_NO_PERMITIDO',
+  'FORZADO_SIN_ACEPTACION',
+  'FORZADO_MOTIVO_CORTO',
+  'FORZADO_CODIGOS_NO_COINCIDEN',
+  'FORZADO_ELECCION_NO_EQUIVALENTE',
+  'DISPENSACION_BLOQUEADA',
+  'MOTIVO_LOTE_OBLIGATORIO',
+  'DATOS_NO_COMPROBADOS',
+  'DNI_INVALIDO',
+  'DATOS_PROPIETARIO_ONLINE',
+  'RECEPCION_NO_EDITABLE',
+  'RECEPCION_INCOMPLETA',
+  'TRANSICION_NO_PERMITIDA',
+  'SUSTITUCION_REQUISITOS',
+  'SIWEB_NO_DISPONIBLE',
+  'SIWEB_ESCRITURA_DESACTIVADA',
+  'SIWEB_SALIDAS_PROHIBIDAS',
+  'CIMAVET_NO_DISPONIBLE',
+  'EXTRACTOR_NO_CONFIGURADO',
+  'PROCEDIMIENTO_NO_APROBADO',
+  'ANULACION_DUPLICADA',
+] as const;
+export type CodigoError = (typeof CODIGOS_ERROR)[number];
+
+export class DomainError extends Error {
+  constructor(
+    public readonly code: CodigoError,
+    message?: string,
+    public readonly details?: Record<string, unknown>,
+  ) {
+    super(message ?? code);
+    this.name = 'DomainError';
+  }
+}
+
+export function isDomainError(e: unknown): e is DomainError {
+  return e instanceof DomainError;
+}
