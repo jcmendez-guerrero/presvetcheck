@@ -103,3 +103,23 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Implementado (conservador):** si falta el dato de algún tejido/especie en el prescrito o en el candidato, el
   candidato **no** es equivalente (`TIEMPO_ESPERA_DESCONOCIDO`). Lo mismo al forzar una prescripción solo por
   principio activo en especie productora (no hay tiempo de referencia).
+
+## DUDA-13 · Respuestas JSON de CIMAVet no documentadas
+- **Spec/ref:** `docs/ref/CIMAVet_REST_API.md` solo describe campos y tipos; no hay ejemplos JSON ni el
+  envoltorio de las listas paginadas; la tabla de "Tiempo de espera" no incluye el tejido; las fechas se
+  describen como "Fecha" o "Unix timestamp" sin más detalle.
+- **Implementado:** cliente tolerante: claves normalizadas a minúsculas, listas como array directo o primer
+  campo array de un objeto, paginación hasta página vacía o repetida, fechas en timestamp (s o ms),
+  `dd/mm/aaaa` o ISO. Fixtures construidas con los nombres de campo de la doc y valores reales del
+  Nomenclátor (`fixtures/cimavet/README.md`). Queda un `it.todo` hasta tener respuestas reales.
+- **Conservador:** la API no da la base de la concentración (`cantidad_concentracion`): un refresco por API
+  **no** sustituye una composición normalizable del Nomenclátor, y una composición solo de API se marca no
+  normalizable (no se proponen formatos ni sustitutos automáticamente).
+- **Pendiente:** JC — guardar respuestas reales en `fixtures/cimavet/`.
+
+## DUDA-14 · Estados del Nomenclátor y unidades de tiempo de espera
+- **Hallazgo:** `cod_estado_registro_*` usa el diccionario de situación de registro (1 Autorizado, 3 Anulado,
+  4 Suspenso, 5 Suspenso CN). Los tiempos de espera vienen en Días, Horas, Semanas, Meses y Grados-día.
+- **Implementado (conservador):** cualquier código distinto de 1 o 3 se trata como suspendido. Conversión a
+  días redondeando hacia arriba (horas/24, semanas×7, meses×31); los grados-día no se convierten (el
+  candidato no se considera equivalente en especies productoras).

@@ -1,0 +1,201 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import { eq } from 'drizzle-orm';
+import { cimavetMedicamento, cimavetSyncRun, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
+import { createTestDb } from '@mmx/db/testing';
+import { CimavetClient } from '../src/client';
+import { jobCimavetDelta, jobCimavetFull, jobNomenclatorImport, verificarEnVivo } from '../src/jobs';
+import { diasEspera } from '../src/normalizar';
+import { estadoNomenclator, registroDesdeNomenclator } from '../src/nomenclator';
+import { CimavetRepository } from '../src/repo';
+
+const ROOT = resolve(__dirname, '../../..');
+const MUESTRA = resolve(ROOT, 'fixtures/nomenclator/PrescripcionVET.sample.xml');
+const BASE = 'https://cimavet.test/cimavet/rest/';
+const fx = (f: string) => JSON.parse(readFileSync(resolve(ROOT, 'fixtures/cimavet', f), 'utf8'));
+
+let h: DbHandle;
+let repo: CimavetRepository;
+const server = setupServer();
+const client = new CimavetClient({ baseUrl: BASE, rps: 1000, sleep: async () => {}, random: () => 0, baseDelayMs: 1, maxRetries: 1 });
+
+beforeAll(async () => {
+  server.listen({ onUnhandledRequest: 'error' });
+  h = await createTestDb({ seed: true });
+  await importarMaestras(h.db, resolve(ROOT, 'fixtures/nomenclator'), {
+    solo: [MAESTRA.PRINCIPIOS_ACTIVOS, MAESTRA.LABORATORIOS, MAESTRA.INDICACIONES],
+  });
+  repo = new CimavetRepository(h.db);
+}, 120_000);
+afterEach(() => server.resetHandlers());
+afterAll(async () => {
+  server.close();
+  await h.close();
+});
+
+describe('importador del Nomenclátor (muestra real, streaming)', () => {
+  it('carga la muestra con informe de nuevos/actualizados/descartados', async () => {
+    const informe = await jobNomenclatorImport({ repo, path: MUESTRA, now: () => new Date('2026-10-08T06:00:00Z') });
+    expect(informe).toMatchObject({ leidos: 34, nuevos: 34, actualizados: 0, descartados: 0, listado: '2026-10-08' });
+  });
+
+  it('es idempotente: la segunda carga actualiza sin duplicar', async () => {
+    const informe = await jobNomenclatorImport({ repo, path: MUESTRA });
+    expect(informe).toMatchObject({ leidos: 34, nuevos: 0, actualizados: 34 });
+    const runs = await h.db.select().from(cimavetSyncRun).where(eq(cimavetSyncRun.tipo, 'nomenclator'));
+    expect(runs).toHaveLength(2);
+  });
+
+  it('CLAVUBAY (1868 ESP): composición normalizable, contenido del envase, especie, vía, ATC y laboratorio', async () => {
+    const m = await repo.medicamento('1868 ESP');
+    expect(m).toMatchObject({
+      nombre: expect.stringContaining('CLAVUBAY'),
+      labtitular: 'NORBROOK LABORATORIES (IRELAND) LIMITED',
+      antibiotico: true,
+      receta: true,
+      formaId: 40,
+      especieIds: [14],
+      viaIds: [54],
+      atc: ['QJ01CR02'],
+      estado: 'autorizado',
+      inmunologico: false,
+    });
+    expect(m?.composicion).toEqual({
+      pas: [
+        { paId: 161, nombre: 'AMOXICILINA TRIHIDRATO', cantidad: '459', unidad: 'mg' },
+        { paId: 5419, nombre: 'CLAVULANATO POTASIO', cantidad: '119', unidad: 'mg' },
+      ],
+      porCantidad: '1',
+      porUnidad: 'Comprimido',
+    });
+    expect(await repo.presentacion('570016')).toMatchObject({ contenido: '10', unidadContenido: 'Comprimido', comerc: false });
+    expect(m?.indicaciones.length).toBeGreaterThan(0);
+  });
+
+  it('tiempos de espera con forma/vía y "no aplica tejido" (estructura de julio de 2024)', async () => {
+    const regs = await h.db.execute(
+      (await import('drizzle-orm')).sql`select count(*)::int as n from cimavet_med_tiempo_espera where no_aplica_tejido and forma_via_admin is not null`,
+    );
+    const n = ((regs as unknown as { rows: Array<{ n: number }> }).rows[0]?.n ?? 0) as number;
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it('psicótropos, estupefacientes y suspendidos de la muestra', async () => {
+    const meds = await h.db.select().from(cimavetMedicamento);
+    expect(meds.some((m) => m.psicotropo)).toBe(true);
+    expect(meds.some((m) => m.estupefaciente)).toBe(true);
+    expect(meds.some((m) => m.estadoCodigo !== 'autorizado')).toBe(true);
+  });
+
+  it('búsqueda difusa por nombre y por CN; candidatos con el mismo principio activo', async () => {
+    const r = await repo.buscar('clavubay');
+    expect(r[0]).toMatchObject({ cn: '570016', nregistro: '1868 ESP' });
+    expect(r[0]!.puntuacion).toBeGreaterThan(0.3);
+    expect((await repo.buscar('570016'))[0]?.cn).toBe('570016');
+    expect(await repo.buscar('clavubay', { especieId: 1 })).toEqual([]);
+    expect(await repo.buscar('   ')).toEqual([]);
+    expect(await repo.nregistrosMismosPa('1868 ESP')).toContain('1868 ESP');
+    expect(await repo.nregistrosConPa([161])).toContain('1868 ESP');
+    expect((await repo.presentacionesDe(['1868 ESP'])).map((p) => p.cn)).toContain('570016');
+  });
+
+  it('descarta registros sin CN o sin nº de registro', () => {
+    const dic = { unidades: new Map(), principiosActivos: new Map(), laboratorios: new Map(), indicaciones: new Map() };
+    expect(registroDesdeNomenclator({ cod_nacion: ['1'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'CN_AUSENTE_O_INVALIDO' });
+    expect(registroDesdeNomenclator({ cod_nacion: ['123456'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'NREGISTRO_AUSENTE' });
+    expect(registroDesdeNomenclator({ cod_nacion: ['123456'], nro_definitivo: ['1 ESP'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'NOMBRE_AUSENTE' });
+    expect(estadoNomenclator('3')).toBe('revocado');
+    expect(estadoNomenclator('5')).toBe('suspendido');
+    expect(estadoNomenclator(null)).toBe('autorizado');
+  });
+
+  it('conversión de tiempos de espera a días (conservadora)', () => {
+    expect(diasEspera('28', 'Días')).toBe(28);
+    expect(diasEspera('36', 'Horas')).toBe(2);
+    expect(diasEspera('2', 'Semanas')).toBe(14);
+    expect(diasEspera('1', 'Meses')).toBe(31);
+    expect(diasEspera('100', 'Grados-día')).toBeNull();
+    expect(diasEspera(null, 'Días')).toBeNull();
+    expect(diasEspera('x', 'Días')).toBeNull();
+  });
+});
+
+describe('jobs de sincronización', () => {
+  it('cimavet-delta: actualiza los cambiados conservando la composición del Nomenclátor y marca las bajas', async () => {
+    let fecha: string | null = null;
+    server.use(
+      http.get(`${BASE}registroCambios`, ({ request }) => {
+        fecha = new URL(request.url).searchParams.get('fecha');
+        return HttpResponse.json(fx('registroCambios.json'));
+      }),
+      http.get(`${BASE}medicamento`, ({ request }) => {
+        const n = new URL(request.url).searchParams.get('nregistro');
+        return n === '1868 ESP' ? HttpResponse.json(fx('medicamento_1868_ESP.json')) : new HttpResponse(null, { status: 404 });
+      }),
+    );
+    const r = await jobCimavetDelta({ client, repo, now: () => new Date('2026-10-14T04:30:00Z') });
+    expect(r).toMatchObject({ cambios: 2, actualizados: 1, bajas: 1, errores: 0 });
+    expect(fecha).toMatch(/^\d{2}\/\d{2}\/2026$/);
+    const m = await repo.medicamento('1868 ESP');
+    expect(m?.composicion.porUnidad).toBe('Comprimido'); // no se pierde la base de la composición
+    expect(m?.source).toBe('api');
+    const baja = await repo.medicamento('1077 ESP');
+    expect(baja?.estado).toBe('revocado');
+  });
+
+  it('cimavet-delta: un fallo en un medicamento no detiene el resto y queda registrado', async () => {
+    server.use(
+      http.get(`${BASE}registroCambios`, () => HttpResponse.json([{ nregistro: '1868 ESP', fecha: '14/10/2026', tipoCambio: 3 }])),
+      http.get(`${BASE}medicamento`, () => new HttpResponse(null, { status: 500 })),
+    );
+    const r = await jobCimavetDelta({ client, repo, now: () => new Date('2026-10-15T04:30:00Z'), log: () => {} });
+    expect(r.errores).toBe(1);
+  });
+
+  it('cimavet-delta: si registroCambios falla, el job falla y se registra el error', async () => {
+    server.use(http.get(`${BASE}registroCambios`, () => new HttpResponse(null, { status: 500 })));
+    await expect(jobCimavetDelta({ client, repo, now: () => new Date('2026-10-16T04:30:00Z') })).rejects.toThrow();
+    const [ultimo] = await repo.ultimasSync(1);
+    expect(ultimo?.error).toMatch(/HTTP 500/);
+  });
+
+  it('cimavet-full: reimporta maestras y refresca los registros con más de 7 días', async () => {
+    let medicamentos = 0;
+    server.use(
+      http.get(`${BASE}maestras`, ({ request }) => {
+        const u = new URL(request.url);
+        return HttpResponse.json(u.searchParams.get('maestra') === '7' && u.searchParams.get('pagina') === '1' ? fx('maestras_7_especies.json') : []);
+      }),
+      http.get(`${BASE}medicamento`, () => {
+        medicamentos++;
+        return new HttpResponse(null, { status: 404 });
+      }),
+    );
+    const r = await jobCimavetFull({ client, repo, now: () => new Date('2026-11-30T02:00:00Z'), limite: 5 });
+    expect(r).toMatchObject({ maestras: 3, refrescados: 0, noEncontrados: 5, errores: 0 });
+    expect(medicamentos).toBe(5);
+  });
+
+  it('cimavet-full con Nomenclátor nuevo usa el importador', async () => {
+    const r = await jobCimavetFull({ client, repo, nomenclatorPath: MUESTRA });
+    expect(r).toMatchObject({ leidos: 34 });
+  });
+
+  it('verificación en vivo: caché reciente → sin llamada; antigua y CIMAVet caído → aviso con la fecha de la caché', async () => {
+    const reciente = await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24);
+    expect(reciente).toEqual({ actualizado: false, cacheDesde: null });
+    server.use(http.get(`${BASE}medicamento`, () => HttpResponse.error()));
+    const caido = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000), log: () => {} }, '1868 ESP', 24);
+    expect(caido.actualizado).toBe(false);
+    expect(caido.cacheDesde).toBeInstanceOf(Date);
+    server.use(
+      http.get(`${BASE}medicamento`, () => HttpResponse.json(fx('medicamento_1868_ESP.json'))),
+      http.get(`${BASE}notas/:n`, () => HttpResponse.json([])),
+    );
+    const ok = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000) }, '1868 ESP', 24);
+    expect(ok).toEqual({ actualizado: true, cacheDesde: null });
+  });
+});
