@@ -123,3 +123,32 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Implementado (conservador):** cualquier código distinto de 1 o 3 se trata como suspendido. Conversión a
   días redondeando hacia arriba (horas/24, semanas×7, meses×31); los grados-día no se convierten (el
   candidato no se considera equivalente en especies productoras).
+
+## DUDA-15 · Desglose de stock por lote en Siweb360
+- **Ref:** la doc de Inventario muestra `levels[]` truncado tras `warehouse_id`; no se ve cómo vienen el lote
+  y el disponible por lote, imprescindibles para FEFO (§4.5).
+- **Implementado:** lectura tolerante (`lot_code`/`batch_number`/`lot`; `available`/`quantity_available`),
+  documentada como **hipótesis** en `fixtures/siweb/README.md`, con `it.todo`. **Conservador:** si alguna
+  variante no trae lote y disponible interpretables, el stock queda `NO_DISPONIBLE` → `PENDIENTE_STOCK`
+  (nunca se recomienda dispensar sin confirmar stock).
+- **Pendiente:** JC — guardar una respuesta real de `GET inventory/variants/:id` de un medicamento con lotes.
+
+## DUDA-16 · `SIWEB_STOCK_WRITE_MODE=off` y el outbox
+- **Spec:** "no escribas stock salvo entradas a través del outbox y respetando `SIWEB_STOCK_WRITE_MODE`".
+- **Ambigüedad:** en `off`, ¿se encolan las entradas para enviarlas cuando se active?
+- **Implementado (conservador):** en `off` **no se encola nada** (la recepción queda con
+  `sync_estado = ESCRITURA_DESACTIVADA`) y el dispatcher no envía. Encolar para más tarde provocaría
+  entradas duplicadas al activar `entries_only`, porque hasta el corte operativo el personal sigue dando
+  las entradas a mano en Siweb360 (D-03).
+
+## DUDA-17 · Qué es una "respuesta ambigua" en el outbox
+- **Spec:** timeout o respuesta ambigua → `needs_reconciliation`; 4xx deterministas → `failed`.
+- **Implementado (conservador):** `needs_reconciliation` para timeout, error de red, **cualquier 5xx** y
+  respuesta 2xx no interpretable (no se sabe si el ajuste se aplicó). `failed` para 4xx (409 = stock ilimitado).
+  Nunca se reintenta sola: una persona resuelve desde Administración (`confirmar_aplicada`, `reenviar`,
+  `descartar`), todo auditado.
+
+## DUDA-18 · Reversión del spike (§12.3)
+- **Spec:** "revierte con −1".
+- **Implementado:** `+1` con `reason=purchase_receipt` (el mismo camino que usará el outbox) y `−1` con
+  `reason=adjustment_negative` sobre el mismo lote (la doc exige que el motivo cuadre con el sentido del ajuste).

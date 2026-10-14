@@ -1,0 +1,20 @@
+{
+  "name": "@mmx/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "spike:siweb": "tsx src/spikes/siweb-write-check.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mmx/shared": "workspace:*",
+    "@mmx/siweb": "workspace:*"
+  },
+  "devDependencies": {
+    "msw": "^2.10.0",
+    "tsup": "^8.5.0"
+  }
+}

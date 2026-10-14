@@ -1,0 +1,4 @@
+{ "success": true, "data": [
+  { "id": 9001, "product_id": 4001, "sku": "NORBROOK-0001-CN570016", "name": "Caja 10 comprimidos", "attributes": {}, "product_name": "CLAVUBAY 400 mg/100 mg comprimidos CN570016", "product_code": "CLAVUBAY" },
+  { "id": 9002, "product_id": 4002, "sku": "CLAV-ANTIGUO", "name": "Otra caja", "attributes": {}, "product_name": "CLAVUBAY variante antigua", "product_code": "CLAV2" }
+] }

@@ -58,6 +58,22 @@ importers:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.30)(tsx@4.23.15)(typescript@5.8.3)(yaml@2.9.1)
 
+  apps/worker:
+    dependencies:
+      '@mmx/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@mmx/siweb':
+        specifier: workspace:*
+        version: link:../../packages/siweb
+    devDependencies:
+      msw:
+        specifier: ^2.10.0
+        version: 2.15.0(@types/node@22.20.5)(typescript@5.8.3)
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.30)(tsx@4.23.15)(typescript@5.8.3)(yaml@2.9.1)
+
   packages/cimavet:
     dependencies:
       '@mmx/db':
@@ -139,6 +155,28 @@ importers:
       zod:
         specifier: ^4.0.5
         version: 4.6.7
+
+  packages/siweb:
+    dependencies:
+      '@mmx/db':
+        specifier: workspace:*
+        version: link:../db
+      '@mmx/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@mmx/shared':
+        specifier: workspace:*
+        version: link:../shared
+      drizzle-orm:
+        specifier: ^0.44.2
+        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+      zod:
+        specifier: ^4.0.5
+        version: 4.6.7
+    devDependencies:
+      msw:
+        specifier: ^2.10.0
+        version: 2.15.0(@types/node@22.20.5)(typescript@5.8.3)
 
 packages:
 

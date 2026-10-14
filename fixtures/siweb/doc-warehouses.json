@@ -1,0 +1,1 @@
+{ "success": true, "data": [ { "id": 14, "name": "Almacén central", "code": "CEN", "is_active": true, "is_default": true }, { "id": 15, "name": "Tienda Centro" } ] }

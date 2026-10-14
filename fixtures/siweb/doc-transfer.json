@@ -1,0 +1,1 @@
+{ "success": true, "message": "Transferred 5 units between warehouses", "data": { "success": true, "reference_id": "TRF-1728374400000", "movements": [ { "id": 77121, "warehouse_id": 14, "quantity": 5, "reason": "transfer_out" } ] } }

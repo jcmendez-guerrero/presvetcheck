@@ -1,0 +1,7 @@
+{ "success": true, "data": { "id": 9001, "product_id": 4001, "sku": "NORBROOK-0001-CN570016", "name": "Caja 10 comprimidos", "attributes": {}, "product_name": "CLAVUBAY 400 mg/100 mg comprimidos CN570016", "product_code": "CLAVUBAY",
+  "total_on_hand": 7, "total_reserved": 0, "total_allocated": 0, "total_available": 7, "is_infinite_stock": false,
+  "levels": [
+    { "warehouse_id": 21, "location_id": null, "lot_code": "A2026", "on_hand": 3, "reserved": 0, "allocated": 0, "available": 3 },
+    { "warehouse_id": 21, "location_id": 5, "lot_code": "B2027", "on_hand": 4, "reserved": 0, "allocated": 0, "available": 4 },
+    { "warehouse_id": 22, "location_id": null, "lot_code": "C2026", "on_hand": 9, "reserved": 0, "allocated": 0, "available": 9 }
+  ] } }
