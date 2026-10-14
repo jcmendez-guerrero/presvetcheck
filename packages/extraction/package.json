@@ -1,0 +1,21 @@
+{
+  "name": "@mmx/extraction",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "eval": "tsx src/eval/run.ts"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.10.0",
+    "@mmx/domain": "workspace:*",
+    "@mmx/shared": "workspace:*",
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "msw": "^2.10.0"
+  }
+}

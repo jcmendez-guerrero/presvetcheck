@@ -22,3 +22,4 @@ export * from './precio';
 export * from './conciliacion';
 export * from './sku';
 export * from './recepcion';
+export * from './puertos';

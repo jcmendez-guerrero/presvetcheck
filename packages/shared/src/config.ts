@@ -110,7 +110,8 @@ export const envSchema = z
       req('ENTRA_TENANT_ID', 'con AUTH_MODE=entra');
       req('ENTRA_CLIENT_ID', 'con AUTH_MODE=entra');
     }
-    if (env.EXTRACTOR === 'azure') {
+    // Fuera de producción, EXTRACTOR=azure sin configuración deja la extracción desactivada (SPEC §12.1.7).
+    if (env.EXTRACTOR === 'azure' && env.NODE_ENV === 'production') {
       req('DOCINTEL_ENDPOINT', 'con EXTRACTOR=azure');
       req('AOAI_ENDPOINT', 'con EXTRACTOR=azure');
       req('AOAI_DEPLOYMENT', 'con EXTRACTOR=azure');

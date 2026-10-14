@@ -152,3 +152,16 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Spec:** "revierte con −1".
 - **Implementado:** `+1` con `reason=purchase_receipt` (el mismo camino que usará el outbox) y `−1` con
   `reason=adjustment_negative` sobre el mismo lote (la doc exige que el motivo cuadre con el sentido del ajuste).
+
+## DUDA-19 · Combinación de confianzas en la extracción
+- **Spec:** "confianza final = combinación de la confianza OCR de las palabras de la evidencia y la
+  autoevaluación del modelo; si la evidencia citada no aparece en el OCR → máximo 0,5" (§5.3).
+- **Implementado (conservador):** el **mínimo** de ambas. Si no hay evidencia, o no aparece en el OCR, o
+  ninguna palabra OCR coincide → máximo 0,5. La firma manuscrita y la casilla "He comprobado los datos con el
+  original" **nunca** se rellenan desde la IA, aunque el modelo detecte una firma.
+
+## DUDA-20 · Recetas de ejemplo para la extracción
+- **Spec:** `fixtures/recetas/` con imágenes anonimizadas y JSON esperado "los aporta JC".
+- **Implementado:** sin recetas reales todavía; `pnpm eval:extraction` lo indica y termina sin error. Para que
+  la UI sea navegable con `EXTRACTOR=fake` se han añadido 3 fixtures `demo-*.expected.json` **sintéticas**
+  (sin imagen ni datos reales), marcadas como tales en `fixtures/recetas/README.md`.
