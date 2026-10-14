@@ -71,3 +71,35 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   dispensar con una receta caducada o de botiquín tiene implicaciones regulatorias: basta con cambiar la
   severidad en `receta-campos.v1.yaml` (y aprobar la nueva versión) para hacerlos no forzables.
 - **Confirmar:** farmacéutico garante.
+
+## DUDA-09 · Menor concentración de **otro laboratorio** (§4.3.1 frente a §4.4.2)
+- **Spec:** §4.3.1 dice que una presentación de menor concentración de otro laboratorio "se trata además con
+  las condiciones y el flujo de sustitución". Pero §4.4.2.1 exige **misma** composición cuantitativa.
+- **Contradicción:** aplicadas literalmente, ninguna presentación de menor concentración de otro laboratorio
+  podría cumplir §4.4.2.
+- **Implementado (conservador):** se propone como `SUSTITUIR` solo si cumple la regla de formato (§4.3.1) **y**
+  todas las condiciones de §4.4.2 salvo la igualdad de concentración, la sustitución está permitida (§4.4.1) y,
+  además, **siempre en modo `PRE`** (aprobación previa del garante), con nota de administración.
+- **Confirmar:** farmacéutico garante.
+
+## DUDA-10 · "Unidades" en dispensación y en el tope de lo prescrito
+- **Spec:** §4.6 "la suma de unidades no supera lo prescrito" y §4.8 "UNIDADES DISPENSADAS"; la receta
+  prescribe "cantidad / nº de envases".
+- **Implementado:** la unidad de dispensación es el **envase**. El tope es el nº de envases prescrito (o el
+  que resulte de la regla de formato). En psicótropos, 1 envase por receta.
+- **Confirmar:** farmacéutico garante (si alguna vez se dispensa fraccionado — `sw_dispensacion_fraccionada`
+  del Nomenclátor — habría que contar unidades de forma).
+
+## DUDA-11 · Comparación de indicaciones
+- **Spec:** "similitud de texto + sinónimos" sin método concreto (§4.4.2.6).
+- **Implementado:** proporción de términos de la indicación de la receta presentes en la indicación del
+  candidato (tras normalizar, quitar palabras vacías y aplicar sinónimos). Umbrales y sinónimos en
+  `config/rules/equivalencia.v1.yaml` (`COINCIDE ≥ 0,8`, `PROBABLE ≥ 0,4`). `PROBABLE` exige confirmación expresa
+  del garante (modo `PRE`).
+- **Confirmar:** farmacéutico garante (umbrales y lista de sinónimos).
+
+## DUDA-12 · Tiempos de espera sin dato comparable
+- **Spec:** §4.4.2.7 exige tiempo de espera del candidato ≤ prescrito por tejido y especie.
+- **Implementado (conservador):** si falta el dato de algún tejido/especie en el prescrito o en el candidato, el
+  candidato **no** es equivalente (`TIEMPO_ESPERA_DESCONOCIDO`). Lo mismo al forzar una prescripción solo por
+  principio activo en especie productora (no hay tiempo de referencia).
