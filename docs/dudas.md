@@ -178,3 +178,16 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Implementado:** en el navegador (canvas): orientación EXIF, PNG, dHash de 64 bits y aviso de calidad; el
   servidor calcula los SHA-256. Los **PDF y HEIC** se guardan tal cual (una "página") sin pHash: rasterizar PDF
   exigiría una dependencia pesada (pdf.js o binarios nativos). Queda pendiente decidir si se añade.
+
+## DUDA-23 · Reportes bajo demanda
+- **Spec:** §4.11 "job semanal y bajo demanda, en XLSX y CSV, guardados en Blob y enviados por correo".
+- **Implementado:** el job `weekly-reports` guarda XLSX + un CSV por hoja en Blob y envía el XLSX por correo. La
+  generación bajo demanda (`POST /api/reportes/semanal/generar`, garante) guarda en Blob y devuelve el fichero,
+  sin enviar correo (evita envíos de datos no solicitados). Las exportaciones nunca incluyen datos del propietario.
+
+## DUDA-24 · Retención de 5 años
+- **Spec:** §9.2 "job de purga/anonimización" para recetas y registros.
+- **Implementado (conservador):** se **anonimizan** (no se borran) recetas (titular, extracción, identificación,
+  REGA) y propietarios de más de 5 años sin dispensaciones recientes. Los registros de salidas/entradas son
+  append-only y no se modifican. Las imágenes las gestiona la inmutabilidad + ciclo de vida de Blob (infra/).
+- **Confirmar:** garante/DPO (si los registros de más de 5 años deben eliminarse además de anonimizarse).

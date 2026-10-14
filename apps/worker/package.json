@@ -7,14 +7,22 @@
     "start": "tsx src/main.ts",
     "spike:siweb": "tsx src/spikes/siweb-write-check.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "tsup"
   },
   "dependencies": {
     "@mmx/shared": "workspace:*",
-    "@mmx/siweb": "workspace:*"
+    "@mmx/siweb": "workspace:*",
+    "@js-temporal/polyfill": "^0.5.1",
+    "@mmx/cimavet": "workspace:*",
+    "@mmx/db": "workspace:*",
+    "@mmx/domain": "workspace:*",
+    "@mmx/reports": "workspace:*",
+    "drizzle-orm": "^0.44.2"
   },
   "devDependencies": {
     "msw": "^2.10.0",
-    "tsup": "^8.5.0"
+    "tsup": "^8.5.0",
+    "exceljs": "^4.4.0"
   }
 }

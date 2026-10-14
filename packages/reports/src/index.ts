@@ -1,3 +1,7 @@
 export * from './formato';
 export * from './salidas';
 export * from './entradas';
+export * from './datos';
+export * from './blob';
+export * from './mailer';
+export * from './semanal';

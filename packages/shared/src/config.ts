@@ -89,6 +89,9 @@ export const envSchema = z
     SMTP_USER: optStr,
     SMTP_PASSWORD: optStr,
     SMTP_FROM: optStr,
+    ACS_ENDPOINT: optStr,
+    ACS_SENDER: optStr,
+    FARMACIA_TELEFONO: z.string().default('(teléfono de la farmacia)'),
 
     COLUMN_ENCRYPTION_KEY: optStr,
     WEB_DIST_DIR: optStr,
@@ -115,6 +118,10 @@ export const envSchema = z
       req('DOCINTEL_ENDPOINT', 'con EXTRACTOR=azure');
       req('AOAI_ENDPOINT', 'con EXTRACTOR=azure');
       req('AOAI_DEPLOYMENT', 'con EXTRACTOR=azure');
+    }
+    if (env.MAILER === 'acs') {
+      req('ACS_ENDPOINT', 'con MAILER=acs');
+      req('ACS_SENDER', 'con MAILER=acs');
     }
     if (env.MAILER === 'smtp') {
       req('SMTP_HOST', 'con MAILER=smtp');

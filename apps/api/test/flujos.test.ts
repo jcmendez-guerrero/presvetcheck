@@ -315,6 +315,15 @@ describe('registros, exportaciones y anulación', () => {
     expect(fila.at(-1)).toBe('S');
   });
 
+  it('reporte semanal bajo demanda (garante) y listado de reportes', async () => {
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/reportes/semanal/generar', { desde: '2026-10-01', hasta: '2026-10-14' })).status).toBe(403);
+    const r = await api(E.app, 'dev-garante', 'POST', '/api/reportes/semanal/generar', { desde: '2026-10-01', hasta: '2026-10-14' });
+    expect(r.res.headers['content-type']).toContain('spreadsheetml');
+    const l = await api(E.app, 'dev-veterinaria', 'GET', '/api/reportes');
+    expect(l.json[0]).toMatchObject({ tipo: 'semanal', periodo: '2026-10-01_2026-10-14' });
+    expect((await api(E.app, 'dev-garante', 'GET', `/api/reportes/${l.json[0].id}/descargar`)).res.headers['content-type']).toContain('spreadsheetml');
+  });
+
   it('registro de psicótropos y de entradas', async () => {
     expect((await api(E.app, 'dev-garante', 'GET', '/api/registros/psicotropos?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
     expect((await api(E.app, 'dev-veterinaria', 'GET', '/api/registros/entradas?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);

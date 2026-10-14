@@ -13,6 +13,7 @@ import { rutasMedicamentos } from './rutas/medicamentos';
 import { rutasOperativa } from './rutas/operativa';
 import { rutasRecetas } from './rutas/recetas';
 import { rutasRegistros } from './rutas/registros';
+import { rutasReportes } from './rutas/reportes';
 import { rutasSistema } from './rutas/sistema';
 
 /** Rutas de log que se redactan: nunca datos personales en logs (SPEC §9.2, §11). */
@@ -69,6 +70,7 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   await rutasOperativa(app, deps);
   await rutasRegistros(app, deps);
   await rutasAdmin(app, deps);
+  await rutasReportes(app, deps);
 
   // SPA estática (PWA) en producción: misma app "mmx-api" (SPEC §1.1).
   const web = deps.config.WEB_DIST_DIR;
