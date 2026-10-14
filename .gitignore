@@ -13,3 +13,4 @@ apps/web/dev-dist/
 # los tests usan la muestra recortada fixtures/nomenclator/PrescripcionVET.sample.xml
 fixtures/nomenclator/PrescripcionVET.xml
 .data/
+.claude/launch.json

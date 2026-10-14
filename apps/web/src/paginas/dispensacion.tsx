@@ -1,0 +1,301 @@
+import { useMemo, useState } from 'react';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
+import { Printer, Trash2 } from 'lucide-react';
+import type { CodigoIncidencia } from '@mmx/shared';
+import { ApiError, get, post } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { leerForzado } from '../lib/flujo';
+import { pitido } from '../lib/sonido';
+import { CN, fecha } from '../lib/textos';
+import type { Evaluacion } from '../lib/tipos';
+import { BandaPsicotropo, BandaSustitucion, RecordatorioTpv } from '../componentes/bandas';
+import { CampoEscaneo } from '../componentes/escaner';
+import { EstadoDecision, ListaMotivos } from '../componentes/estado';
+import { ModalForzado, type SolicitudForzado } from '../componentes/forzado';
+import { Pagina } from '../componentes/layout';
+import { Boton, Campo, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
+
+export interface Envase {
+  lote: string;
+  caducidad: string | null;
+  unidades: number;
+  gtin: string | null;
+  cnEscaneado: string | null;
+  serie: string | null;
+  metodoCaptura: 'scanner' | 'camara' | 'manual';
+}
+
+interface ResultadoScan {
+  ok: boolean;
+  error?: string;
+  detalle?: string;
+  gtin: string | null;
+  cn: string | null;
+  lote: string | null;
+  caducidad: string | null;
+  serie: string | null;
+}
+
+interface RespuestaDispensacion {
+  dispensaciones: string[];
+  recordatorioTpv: { cn: string; lote: string; unidades: number }[];
+  avisos: string[];
+  forzado: string[];
+  apartarReceta: { motivo: string; etiqueta: string | null } | null;
+  notaAdministracion: string | null;
+  resguardo: string | null;
+}
+
+/** Hook de escaneo común (receta y venta sin receta). */
+export function useEnvases() {
+  const { config } = useAuth();
+  const [envases, setEnvases] = useState<Envase[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const leer = async (raw: string, metodo: Envase['metodoCaptura']) => {
+    setError(null);
+    try {
+      const r = await post<ResultadoScan>('/api/scan/parse', { raw });
+      if (!r.ok) {
+        pitido(false);
+        setError(`No se ha podido leer el código (${r.detalle ?? r.error}). Introduce los datos a mano.`);
+        return;
+      }
+      pitido(true);
+      setEnvases((e) => [...e, { lote: r.lote ?? '', caducidad: r.caducidad, unidades: 1, gtin: r.gtin, cnEscaneado: r.cn, serie: r.serie, metodoCaptura: metodo }]);
+    } catch (e) {
+      pitido(false);
+      setError(e instanceof ApiError ? e.message : 'Error al leer el código');
+    }
+  };
+  return { envases, setEnvases, leer, error, gs: config?.scannerGsSubstitute ?? null };
+}
+
+export function ListaEnvases({ envases, setEnvases, recomendado }: { envases: Envase[]; setEnvases: (f: (e: Envase[]) => Envase[]) => void; recomendado: string | null }) {
+  const upd = (i: number, p: Partial<Envase>) => setEnvases((e) => e.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  return (
+    <ul className="flex flex-col gap-2">
+      {envases.map((e, i) => (
+        <li key={i} className={`grid items-end gap-2 rounded-xl p-3 sm:grid-cols-5 ${recomendado && e.lote && e.lote !== recomendado ? 'bg-sustituir-bg' : 'bg-fondo'}`}>
+          <Campo etiqueta="Lote" value={e.lote} onChange={(x) => upd(i, { lote: x.target.value })} />
+          <Campo etiqueta="Caducidad" type="date" value={e.caducidad ?? ''} onChange={(x) => upd(i, { caducidad: x.target.value || null })} />
+          <Campo etiqueta={CN} value={e.cnEscaneado ?? ''} readOnly />
+          <Campo etiqueta="Envases" type="number" min={1} value={e.unidades} onChange={(x) => upd(i, { unidades: Number(x.target.value) || 1 })} />
+          <Boton variante="texto" aria-label="Quitar envase" onClick={() => setEnvases((x) => x.filter((_, j) => j !== i))}>
+            <Trash2 className="h-5 w-5" /> Quitar
+          </Boton>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function Imprimible({ titulo, texto }: { titulo: string; texto: string }) {
+  return (
+    <div className="rounded-xl border-2 border-dashed border-slate-400 bg-white p-4">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">{titulo}</p>
+        <Boton
+          variante="secundario"
+          onClick={() => {
+            const w = window.open('', '_blank', 'width=420,height=600');
+            if (!w) return;
+            w.document.write(`<pre style="font:14px/1.4 sans-serif;white-space:pre-wrap">${texto.replace(/</g, '&lt;')}</pre>`);
+            w.print();
+          }}
+        >
+          <Printer aria-hidden className="h-5 w-5" /> Imprimir
+        </Boton>
+      </div>
+      <pre className="mt-2 whitespace-pre-wrap text-sm">{texto}</pre>
+    </div>
+  );
+}
+
+/** Dispensación con receta (SPEC §4.6, §8.5). */
+export function Dispensacion() {
+  const { id, linea } = useParams({ from: '/recetas/$id/dispensar/$linea' });
+  const s = useSearch({ from: '/recetas/$id/dispensar/$linea' });
+  const orden = Number(linea);
+  const { usuario } = useAuth();
+  // Forzado aceptado en Resultado (solo defectos de la receta) y forzado del envío (receta + escaneo).
+  const [forzadoReceta] = useState<SolicitudForzado | null>(s.forzado ? leerForzado(id, orden) : null);
+  const [forzado, setForzado] = useState<SolicitudForzado | null>(forzadoReceta);
+  const ev = useQuery({
+    queryKey: ['eval-disp', id, orden, !!forzadoReceta],
+    queryFn: () => post<Evaluacion>(`/api/recetas/${id}/evaluar`, forzadoReceta ? { forzados: { [orden]: forzadoReceta } } : {}),
+    refetchOnWindowFocus: false,
+  });
+  const sust = useQuery({
+    queryKey: ['sustitucion', s.sustitucion],
+    queryFn: () => get<{ cnPropuesto: string; prescrito: { nombre: string } | null; sustituto: { nombre: string; laboratorio: string | null } | null }>(`/api/sustituciones/${s.sustitucion}`),
+    enabled: !!s.sustitucion,
+  });
+  const { envases, setEnvases, leer, error, gs } = useEnvases();
+  const [motivoLote, setMotivoLote] = useState('');
+  const [conf, setConf] = useState({ formato: false, nota: false, dosis: false });
+  const [dejarPendientes, setDejarPendientes] = useState(false);
+  const [contacto, setContacto] = useState('');
+  const [modal, setModal] = useState<CodigoIncidencia[] | null>(null);
+  const [res, setRes] = useState<RespuestaDispensacion | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const l = ev.data?.lineas.find((x) => x.orden === orden);
+  const evd = l?.resultado.evidencias;
+  const objetivo = useMemo(() => {
+    if (!l || !evd) return null;
+    if (s.sustitucion && sust.data) return { cn: sust.data.cnPropuesto, lote: null as string | null, nombre: sust.data.sustituto?.nombre ?? '' };
+    if (l.resultado.decision === 'DISPENSAR_CON_AVISO' && evd.alternativaFormato) {
+      const a = evd.alternativaFormato;
+      return { cn: a.cn, lote: a.lotes.recomendado?.lote ?? null, nombre: a.nombre, caducidad: a.lotes.recomendado?.caducidad ?? null };
+    }
+    return { cn: evd.cn ?? '', lote: evd.lotes?.recomendado?.lote ?? null, nombre: '', caducidad: evd.lotes?.recomendado?.caducidad ?? null };
+  }, [l, evd, s.sustitucion, sust.data]);
+  const pendientes = (s.pendientes ?? '').split(',').filter(Boolean).map(Number);
+
+  if (ev.isLoading) return <Cargando />;
+  if (!l || !evd || !objetivo) return <Mensaje tipo="error">No se encuentra la línea</Mensaje>;
+  const loteDistinto = objetivo.lote !== null && envases.some((e) => e.lote && e.lote !== objetivo.lote);
+  const alt = l.resultado.decision === 'DISPENSAR_CON_AVISO' ? evd.alternativaFormato : undefined;
+
+  const enviar = async (f: SolicitudForzado | null) => {
+    setEnviando(true);
+    setMsg(null);
+    try {
+      const r = await post<RespuestaDispensacion>('/api/dispensaciones', {
+        conReceta: true,
+        recetaId: id,
+        lineaOrden: orden,
+        cn: objetivo.cn,
+        envases,
+        motivoLoteDistinto: loteDistinto ? motivoLote : null,
+        forzado: f,
+        sustitucionId: s.sustitucion ?? null,
+        confirmaCambioFormato: conf.formato,
+        notaEntregadaTutor: conf.nota,
+        confirmaDosisNoAjustable: conf.dosis,
+        pendientes: dejarPendientes && pendientes.length ? { lineas: pendientes, contactoTutor: contacto || null } : null,
+      });
+      pitido(true);
+      setRes(r);
+    } catch (e) {
+      pitido(false);
+      if (e instanceof ApiError && e.code === 'DISPENSACION_BLOQUEADA' && Array.isArray(e.detalles?.forzables) && (e.detalles.forzables as string[]).length) {
+        setModal(e.detalles.forzables as CodigoIncidencia[]);
+      } else {
+        setMsg(e instanceof ApiError ? `${e.message}${e.detalles?.codigos ? ` (${(e.detalles.codigos as string[]).join(', ')})` : ''}` : 'Error');
+      }
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (res) {
+    return (
+      <Pagina titulo="Dispensación registrada">
+        <RecordatorioTpv items={res.recordatorioTpv} />
+        {res.apartarReceta && <Mensaje tipo="aviso">{res.apartarReceta.motivo}</Mensaje>}
+        {res.apartarReceta?.etiqueta && <Imprimible titulo="Etiqueta para el dorso de la receta" texto={res.apartarReceta.etiqueta} />}
+        {res.notaAdministracion && <Imprimible titulo="Nota de administración para el tutor (obligatoria)" texto={res.notaAdministracion} />}
+        {res.resguardo && <Imprimible titulo="Resguardo para el tutor" texto={res.resguardo} />}
+        <div className="flex gap-3">
+          <Link to="/recetas/$id/resultado" params={{ id }} className="boton rounded-xl bg-marca px-5 py-3 font-semibold text-white">
+            Volver a la receta
+          </Link>
+          <Link to="/" className="boton rounded-xl border-2 border-marca px-5 py-3 font-semibold text-marca">
+            Inicio
+          </Link>
+        </div>
+      </Pagina>
+    );
+  }
+
+  return (
+    <>
+      {evd.psicotropo && <BandaPsicotropo />}
+      {s.sustitucion && sust.data && <BandaSustitucion prescrito={sust.data.prescrito?.nombre ?? '—'} sustituto={`${sust.data.sustituto?.nombre ?? ''} (${sust.data.sustituto?.laboratorio ?? ''})`} />}
+      <Pagina titulo={`Dispensar · medicamento ${orden}`}>
+        <div className="flex flex-wrap items-center gap-3">
+          <EstadoDecision decision={s.sustitucion ? 'SUSTITUIR' : l.resultado.decision} grande />
+          {forzado && <span className="rounded-full bg-noconforme-bg px-3 py-1 font-semibold text-noconforme">Forzado: {forzado.codigos.join(', ')}</span>}
+        </div>
+        <ListaMotivos motivos={l.resultado.motivos.filter((m) => m.severidad === 'AVISO')} />
+        <Tarjeta titulo="Lote recomendado (caduca antes)">
+          {objetivo.lote ? (
+            <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">
+              {objetivo.lote}
+            </p>
+          ) : (
+            <p>Sin propuesta de lote: consulta el stock.</p>
+          )}
+          <p className="mt-1">
+            {CN} {objetivo.cn} {'caducidad' in objetivo && objetivo.caducidad ? `· caduca el ${fecha(objetivo.caducidad as string)}` : ''}
+          </p>
+          {evd.lotes?.alternativaQueCubre && <p className="mt-1 text-sustituir">Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}</p>}
+        </Tarjeta>
+
+        <Tarjeta titulo="Escanea el envase">
+          <CampoEscaneo onLectura={(raw, m) => void leer(raw, m)} gsSubstitute={gs} />
+          {error && <Mensaje tipo="error">{error}</Mensaje>}
+          <Boton variante="texto" onClick={() => setEnvases((e) => [...e, { lote: '', caducidad: null, unidades: 1, gtin: null, cnEscaneado: null, serie: null, metodoCaptura: 'manual' }])}>
+            Introducir los datos a mano
+          </Boton>
+          <ListaEnvases envases={envases} setEnvases={setEnvases} recomendado={objetivo.lote} />
+          {loteDistinto && <Campo etiqueta="Motivo para no dispensar el lote recomendado (obligatorio)" value={motivoLote} onChange={(e) => setMotivoLote(e.target.value)} />}
+        </Tarjeta>
+
+        {alt && (
+          <Tarjeta titulo="Cambio de formato o concentración">
+            <label className="flex items-center gap-3">
+              <input type="checkbox" className="h-6 w-6" checked={conf.formato} onChange={(e) => setConf({ ...conf, formato: e.target.checked })} />
+              He explicado al cliente que se dispensa otra presentación ({alt.envases} envase/s)
+            </label>
+            {alt.nota && (
+              <>
+                <Imprimible titulo="Nota de administración para el tutor" texto={alt.nota} />
+                <label className="flex items-center gap-3">
+                  <input type="checkbox" className="h-6 w-6" checked={conf.nota} onChange={(e) => setConf({ ...conf, nota: e.target.checked })} />
+                  He entregado y explicado la nota al tutor
+                </label>
+              </>
+            )}
+            {alt.formato.avisos.includes('DOSIS_NO_AJUSTABLE') && (
+              <label className="flex items-center gap-3">
+                <input type="checkbox" className="h-6 w-6" checked={conf.dosis} onChange={(e) => setConf({ ...conf, dosis: e.target.checked })} />
+                Confirmo expresamente que la dosis no se ajusta con unidades enteras
+              </label>
+            )}
+          </Tarjeta>
+        )}
+
+        {pendientes.length > 0 && (
+          <Tarjeta titulo="Dispensación parcial">
+            <label className="flex items-center gap-3">
+              <input type="checkbox" className="h-6 w-6" checked={dejarPendientes} onChange={(e) => setDejarPendientes(e.target.checked)} />
+              Dejar pendientes de entrega los medicamentos {pendientes.join(', ')} (la receta se retiene y se entrega un resguardo)
+            </label>
+            {dejarPendientes && <Campo etiqueta="Teléfono del tutor para avisarle (opcional)" value={contacto} onChange={(e) => setContacto(e.target.value)} />}
+          </Tarjeta>
+        )}
+
+        {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+        <Boton data-testid="confirmar-dispensacion" className="text-lg" disabled={!envases.length || enviando} onClick={() => void enviar(forzado)}>
+          Confirmar dispensación
+        </Boton>
+      </Pagina>
+      {modal && (
+        <ModalForzado
+          codigos={[...new Set([...(forzado?.codigos ?? []), ...modal])]}
+          usuario={usuario?.nombre ?? ''}
+          onCancelar={() => setModal(null)}
+          onConfirmar={(f) => {
+            setModal(null);
+            setForzado(f);
+            void enviar(f);
+          }}
+        />
+      )}
+    </>
+  );
+}

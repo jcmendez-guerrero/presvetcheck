@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/bricolage-grotesque';
+
+/* Identidad visual (SPEC §2.1) y colores semánticos de estado (nunca solo color: siempre icono + texto). */
+@theme {
+  --color-marca: #016581;
+  --color-marca-2: #2f8198;
+  --color-acento: #60abb8;
+  --color-fondo: #f2f8f9;
+  --color-texto: #002028;
+  --color-dorado: #e3a857;
+  --color-sustituir: #b45309;
+  --color-sustituir-bg: #fef3c7;
+  --color-noconforme: #b91c1c;
+  --color-noconforme-bg: #fee2e2;
+  --color-dispensar: #047857;
+  --color-dispensar-bg: #d1fae5;
+  --color-pedir: #016581;
+  --color-pedir-bg: #e0f2f7;
+  --color-psicotropo: #6b21a8;
+  --color-psicotropo-bg: #f3e8ff;
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-titulo: 'Bricolage Grotesque Variable', 'Inter Variable', sans-serif;
+}
+
+html, body { background: var(--color-fondo); color: var(--color-texto); }
+h1, h2, h3 { font-family: var(--font-titulo); }
+/* Objetivos táctiles ≥ 44 px (SPEC §8). */
+button, a.boton, select, input[type='checkbox'] + span { min-height: 44px; }
+:focus-visible { outline: 3px solid var(--color-dorado); outline-offset: 2px; }
