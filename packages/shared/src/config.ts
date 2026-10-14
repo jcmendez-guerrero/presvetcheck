@@ -45,6 +45,7 @@ export const envSchema = z
     CIMAVET_BASE_URL: z.string().url().default('https://cimavet.aemps.es/cimavet/rest/'),
     CIMAVET_RPS: num(3),
     CIMAVET_LIVE_CHECK_MAX_AGE_H: num(24),
+    NOMENCLATOR_URL: z.string().url().default('https://listadomedicamentos.aemps.gob.es/prescripcionVET.zip'),
 
     SIWEB_BASE_URL: z.string().url().default('https://app.siweb360.com/api/public/'),
     SIWEB_TOKEN: optStr,

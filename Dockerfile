@@ -33,7 +33,6 @@ COPY --from=build /src/apps/web/dist ./web
 COPY --from=build /src/config/rules ./config/rules
 COPY --from=build /src/packages/db/migrations ./packages/db/migrations
 COPY --from=build /src/packages/extraction/prompts ./packages/extraction/prompts
-COPY --from=build /src/fixtures/nomenclator/DICCIONARIO_*.xml ./fixtures/nomenclator/
 USER node
 EXPOSE 8080
 # Por defecto la API; los Container Apps Jobs usan: node worker/worker.js <job>

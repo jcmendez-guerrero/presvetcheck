@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
 import { eq } from 'drizzle-orm';
@@ -14,6 +15,7 @@ import type { Contexto } from '../src/contexto';
 import { JOBS, parsearArgs } from '../src/main';
 
 const ROOT = resolve(__dirname, '../../..');
+const REGISTROS_MUESTRA = readFileSync(resolve(ROOT, 'fixtures/nomenclator/PrescripcionVET.sample.xml'), 'utf8').split('<prescription>').length - 1;
 let h: DbHandle;
 let ctx: Contexto;
 let mailer: ConsoleMailer;
@@ -123,8 +125,8 @@ describe('worker', () => {
   });
 
   it('nomenclator-import exige fichero o muestra', async () => {
-    await expect(JOBS['nomenclator-import']!(ctx, {})).rejects.toThrow(/--fichero|--muestra/);
+    await expect(JOBS['nomenclator-import']!(ctx, {})).rejects.toThrow(/--descargar|--fichero|--muestra/);
     const r = (await JOBS['nomenclator-import']!(ctx, { muestra: '' })) as { leidos: number };
-    expect(r.leidos).toBe(34);
+    expect(r.leidos).toBe(REGISTROS_MUESTRA);
   }, 120_000);
 });

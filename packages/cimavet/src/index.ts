@@ -5,3 +5,4 @@ export * from './normalizar';
 export * from './nomenclator';
 export * from './repo';
 export * from './jobs';
+export * from './descarga';

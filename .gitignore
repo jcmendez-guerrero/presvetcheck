@@ -9,8 +9,8 @@ coverage/
 playwright-report/
 test-results/
 apps/web/dev-dist/
-# Nomenclátor completo (140 MB, supera el límite de GitHub). Se conserva en local;
-# los tests usan la muestra recortada fixtures/nomenclator/PrescripcionVET.sample.xml
-fixtures/nomenclator/PrescripcionVET.xml
+# XML de CIMAVet (Nomenclátor, diccionarios y la muestra derivada): no se versionan, se obtienen de
+# CIMAVet cuando hacen falta con `pnpm nomenclator:fetch` (ver fixtures/nomenclator/README.md).
+fixtures/nomenclator/*.xml
 .data/
 .claude/launch.json

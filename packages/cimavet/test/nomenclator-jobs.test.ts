@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -11,12 +10,14 @@ import { jobCimavetDelta, jobCimavetFull, jobNomenclatorImport, verificarEnVivo 
 import { diasEspera } from '../src/normalizar';
 import { estadoNomenclator, registroDesdeNomenclator } from '../src/nomenclator';
 import { CimavetRepository } from '../src/repo';
+import { readFileSync } from 'node:fs';
+import { listaApi, maestraEspeciesApi, medicamentoApi, MUESTRA, registroCambiosApi } from './api-desde-xml';
 
 const ROOT = resolve(__dirname, '../../..');
-const MUESTRA = resolve(ROOT, 'fixtures/nomenclator/PrescripcionVET.sample.xml');
 const BASE = 'https://cimavet.test/cimavet/rest/';
-const fx = (f: string) => JSON.parse(readFileSync(resolve(ROOT, 'fixtures/cimavet', f), 'utf8'));
 
+const med1868 = await medicamentoApi('1868 ESP');
+const N = readFileSync(MUESTRA, 'utf8').split('<prescription>').length - 1;
 let h: DbHandle;
 let repo: CimavetRepository;
 const server = setupServer();
@@ -39,12 +40,12 @@ afterAll(async () => {
 describe('importador del Nomenclátor (muestra real, streaming)', () => {
   it('carga la muestra con informe de nuevos/actualizados/descartados', async () => {
     const informe = await jobNomenclatorImport({ repo, path: MUESTRA, now: () => new Date('2026-10-08T06:00:00Z') });
-    expect(informe).toMatchObject({ leidos: 34, nuevos: 34, actualizados: 0, descartados: 0, listado: '2026-10-08' });
+    expect(informe).toMatchObject({ leidos: N, nuevos: N, actualizados: 0, descartados: 0, listado: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
   });
 
   it('es idempotente: la segunda carga actualiza sin duplicar', async () => {
     const informe = await jobNomenclatorImport({ repo, path: MUESTRA });
-    expect(informe).toMatchObject({ leidos: 34, nuevos: 0, actualizados: 34 });
+    expect(informe).toMatchObject({ leidos: N, nuevos: 0, actualizados: N });
     const runs = await h.db.select().from(cimavetSyncRun).where(eq(cimavetSyncRun.tipo, 'nomenclator'));
     expect(runs).toHaveLength(2);
   });
@@ -129,11 +130,16 @@ describe('jobs de sincronización', () => {
     server.use(
       http.get(`${BASE}registroCambios`, ({ request }) => {
         fecha = new URL(request.url).searchParams.get('fecha');
-        return HttpResponse.json(fx('registroCambios.json'));
+        return HttpResponse.json(
+          registroCambiosApi([
+            { nregistro: '1868 ESP', fecha: '2026-10-13', tipoCambio: 3, cambio: ['comerc'] },
+            { nregistro: '1077 ESP', fecha: '2026-10-13', tipoCambio: 2 },
+          ]),
+        );
       }),
       http.get(`${BASE}medicamento`, ({ request }) => {
         const n = new URL(request.url).searchParams.get('nregistro');
-        return n === '1868 ESP' ? HttpResponse.json(fx('medicamento_1868_ESP.json')) : new HttpResponse(null, { status: 404 });
+        return n === '1868 ESP' ? HttpResponse.json(med1868) : new HttpResponse(null, { status: 404 });
       }),
     );
     const r = await jobCimavetDelta({ client, repo, now: () => new Date('2026-10-14T04:30:00Z') });
@@ -148,7 +154,7 @@ describe('jobs de sincronización', () => {
 
   it('cimavet-delta: un fallo en un medicamento no detiene el resto y queda registrado', async () => {
     server.use(
-      http.get(`${BASE}registroCambios`, () => HttpResponse.json([{ nregistro: '1868 ESP', fecha: '14/10/2026', tipoCambio: 3 }])),
+      http.get(`${BASE}registroCambios`, () => HttpResponse.json(registroCambiosApi([{ nregistro: '1868 ESP', fecha: '2026-10-14', tipoCambio: 3 }]))),
       http.get(`${BASE}medicamento`, () => new HttpResponse(null, { status: 500 })),
     );
     const r = await jobCimavetDelta({ client, repo, now: () => new Date('2026-10-15T04:30:00Z'), log: () => {} });
@@ -163,11 +169,12 @@ describe('jobs de sincronización', () => {
   });
 
   it('cimavet-full: reimporta maestras y refresca los registros con más de 7 días', async () => {
+    const especies = await maestraEspeciesApi([1, 14, 15]);
     let medicamentos = 0;
     server.use(
       http.get(`${BASE}maestras`, ({ request }) => {
         const u = new URL(request.url);
-        return HttpResponse.json(u.searchParams.get('maestra') === '7' && u.searchParams.get('pagina') === '1' ? fx('maestras_7_especies.json') : []);
+        return HttpResponse.json(u.searchParams.get('maestra') === '7' && u.searchParams.get('pagina') === '1' ? especies : listaApi([], 2));
       }),
       http.get(`${BASE}medicamento`, () => {
         medicamentos++;
@@ -181,7 +188,7 @@ describe('jobs de sincronización', () => {
 
   it('cimavet-full con Nomenclátor nuevo usa el importador', async () => {
     const r = await jobCimavetFull({ client, repo, nomenclatorPath: MUESTRA });
-    expect(r).toMatchObject({ leidos: 34 });
+    expect(r).toMatchObject({ leidos: N });
   });
 
   it('verificación en vivo: caché reciente → sin llamada; antigua y CIMAVet caído → aviso con la fecha de la caché', async () => {
@@ -192,7 +199,7 @@ describe('jobs de sincronización', () => {
     expect(caido.actualizado).toBe(false);
     expect(caido.cacheDesde).toBeInstanceOf(Date);
     server.use(
-      http.get(`${BASE}medicamento`, () => HttpResponse.json(fx('medicamento_1868_ESP.json'))),
+      http.get(`${BASE}medicamento`, () => HttpResponse.json(med1868)),
       http.get(`${BASE}notas/:n`, () => HttpResponse.json([])),
     );
     const ok = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000) }, '1868 ESP', 24);

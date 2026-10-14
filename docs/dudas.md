@@ -14,7 +14,7 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Implementado:** se han movido a `fixtures/nomenclator/`. `PrescripcionVET.xml` pesa 140 MB (supera el
   límite de GitHub), así que queda **fuera de git** (`.gitignore`) y los tests usan
   `PrescripcionVET.sample.xml`, generado copiando literalmente 34 registros reales con
-  `scripts/make-nomenclator-sample.ts` (no se inventa estructura).
+  `pnpm nomenclator:fetch` (descarga de CIMAVet; no se inventa estructura).
 - **Confirmar:** JC — si prefiere Git LFS para el fichero completo.
 
 ## DUDA-02 · ¿Se puede forzar dispensar más unidades de las prescritas?

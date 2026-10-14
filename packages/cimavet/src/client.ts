@@ -7,6 +7,7 @@ import {
   PresentacionSchema,
   RegistroCambioSchema,
   extraerLista,
+  tamanioPagina,
   lowerKeys,
   type ItemApi,
   type MedicamentoApi,
@@ -99,12 +100,15 @@ export class CimavetClient {
     return r.data;
   }
 
-  private async lista<S extends z.ZodTypeAny>(schema: S, url: string, endpoint: string): Promise<ConCrudo<z.output<S>>[]> {
+  private async lista<S extends z.ZodTypeAny>(schema: S, url: string, endpoint: string): Promise<ConCrudo<z.output<S>>[] & { tamanio?: number }> {
     const { json } = await this.http.request(url);
-    return extraerLista(json).map((raw) => ({ data: this.parse(schema, raw, endpoint), raw }));
+    const items: ConCrudo<z.output<S>>[] & { tamanio?: number } = extraerLista(json).map((raw) => ({ data: this.parse(schema, raw, endpoint), raw }));
+    const tam = tamanioPagina(json);
+    if (tam !== null) items.tamanio = tam;
+    return items;
   }
 
-  /** Recorre todas las páginas (`pagina=1..n`) hasta una página vacía o repetida. */
+  /** Recorre todas las páginas (`pagina=1..n`) hasta una página incompleta, vacía o repetida. */
   private async paginado<S extends z.ZodTypeAny>(
     schema: S,
     path: string,
@@ -118,6 +122,7 @@ export class CimavetClient {
       if (items.length === 0 || firma === anterior) break;
       anterior = firma;
       out.push(...items);
+      if (items.tamanio !== undefined && items.length < items.tamanio) break;
     }
     return out;
   }
@@ -155,8 +160,14 @@ export class CimavetClient {
     }
   }
 
-  notas(nregistro: string): Promise<ConCrudo<NotaApi>[]> {
-    return this.lista(NotaSchema, this.url(`notas/${encodeURIComponent(nregistro)}`), 'notas');
+  /** La API real responde 404 (HTML) cuando el medicamento no tiene notas: se trata como lista vacía. */
+  async notas(nregistro: string): Promise<ConCrudo<NotaApi>[]> {
+    try {
+      return await this.lista(NotaSchema, this.url(`notas/${encodeURIComponent(nregistro)}`), 'notas');
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 404) return [];
+      throw e;
+    }
   }
 
   maestras(maestra: keyof typeof MAESTRAS_API, filtros: { nombre?: string; id?: number; codigo?: string } = {}): Promise<ConCrudo<ItemApi>[]> {
@@ -166,7 +177,6 @@ export class CimavetClient {
   /** `registroCambios?fecha=dd/mm/yyyy[&nregistro=…]` (SPEC §5.1.2). */
   registroCambios(fecha: string, nregistros: string[] = []): Promise<ConCrudo<RegistroCambioApi>[]> {
     const [y, m, d] = fecha.split('-');
-    // La doc no dice si está paginado: el recorrido se detiene en la primera página vacía o repetida.
     return this.paginado(RegistroCambioSchema, 'registroCambios', {
       fecha: `${d}/${m}/${y}`,
       ...(nregistros.length ? { nregistro: nregistros } : {}),
