@@ -1,0 +1,20 @@
+{
+  "name": "@mmx/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@mmx/shared": "workspace:*",
+    "fastify": "^5.4.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  }
+}

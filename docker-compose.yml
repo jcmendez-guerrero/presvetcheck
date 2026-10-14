@@ -1,0 +1,34 @@
+# Entorno local: PostgreSQL 16 + Azurite (emulador de Blob Storage).
+name: mmx-recetas
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mmx
+      POSTGRES_PASSWORD: mmx
+      POSTGRES_DB: mmx
+      TZ: UTC
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mmx -d mmx']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.34.0
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose --skipApiVersionCheck
+    ports:
+      - '10000:10000'
+    volumes:
+      - azurite:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z 127.0.0.1 10000 || exit 1']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:
+  azurite:

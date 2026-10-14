@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.env
+.env.local
+*.log
+.DS_Store
+playwright-report/
+test-results/
+apps/web/dev-dist/
+# Nomenclátor completo (140 MB, supera el límite de GitHub). Se conserva en local;
+# los tests usan la muestra recortada fixtures/nomenclator/PrescripcionVET.sample.xml
+fixtures/nomenclator/PrescripcionVET.xml
+.data/

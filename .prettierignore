@@ -1,0 +1,4 @@
+fixtures/
+docs/ref/
+pnpm-lock.yaml
+packages/db/migrations/meta/
