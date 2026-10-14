@@ -1,0 +1,14 @@
+{
+  "_comentario": "Stock SINTÉTICO por CN para desarrollo y demos con SIWEB_TOKEN vacío (nunca en producción). CN de la muestra real del Nomenclátor.",
+  "570016": [
+    { "lote": "CLV-2611", "caducidad": "2026-11-30", "disponible": 2, "creadoAt": "2026-03-01T08:00:00Z" },
+    { "lote": "CLV-2705", "caducidad": "2027-05-31", "disponible": 4, "creadoAt": "2026-06-01T08:00:00Z" }
+  ],
+  "570017": [{ "lote": "CLV20-2708", "caducidad": "2027-08-31", "disponible": 1, "creadoAt": "2026-07-01T08:00:00Z" }],
+  "570137": [{ "lote": "NRC-2709", "caducidad": "2027-09-30", "disponible": 3, "creadoAt": "2026-07-15T08:00:00Z" }],
+  "570004": [{ "lote": "AER-2712", "caducidad": "2027-12-31", "disponible": 5, "creadoAt": "2026-05-01T08:00:00Z" }],
+  "570025": [{ "lote": "ADQ-2703", "caducidad": "2027-03-31", "disponible": 6, "creadoAt": "2026-02-01T08:00:00Z" }],
+  "570036": [{ "lote": "MCP-2702", "caducidad": "2027-02-28", "disponible": 8, "creadoAt": "2026-02-01T08:00:00Z" }],
+  "570681": [{ "lote": "DOL-2704", "caducidad": "2027-04-30", "disponible": 2, "creadoAt": "2026-04-01T08:00:00Z" }],
+  "579294": [{ "lote": "SEM-2706", "caducidad": "2027-06-30", "disponible": 1, "creadoAt": "2026-04-01T08:00:00Z" }]
+}

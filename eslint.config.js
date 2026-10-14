@@ -31,7 +31,7 @@ export default tseslint.config(
   },
   {
     // Scripts de línea de comandos que imprimen por consola de forma intencionada.
-    files: ['**/scripts/**', 'apps/worker/src/spikes/**', 'packages/extraction/src/eval/**', 'packages/db/src/cli/**'],
+    files: ['**/scripts/**', 'apps/worker/src/spikes/**', 'packages/extraction/src/eval/**', 'packages/db/src/cli/**', 'apps/api/src/cli/**'],
     rules: { 'no-console': 'off' },
   },
   {
