@@ -50,7 +50,7 @@ afterAll(async () => {
 
 describe('worker', () => {
   it('parsea argumentos y expone todos los jobs de AGENTS.md', () => {
-    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'nomenclator-import', 'outbox-dispatcher', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
+    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'db-migrate', 'nomenclator-import', 'outbox-dispatcher', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
     expect(parsearArgs(['weekly-reports', '--', '--desde', '2026-10-01', '--muestra'])).toEqual({ job: 'weekly-reports', args: { desde: '2026-10-01', muestra: '' } });
   });
 

@@ -1,4 +1,6 @@
+import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
+import { findUp } from '@mmx/shared/node';
 import { fileURLToPath } from 'node:url';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from './schema';
@@ -15,7 +17,9 @@ export interface DbHandle {
   close(): Promise<void>;
 }
 
-export const MIGRATIONS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../migrations');
+const migracionesJunto = resolve(dirname(fileURLToPath(import.meta.url)), '../migrations');
+/** Carpeta de migraciones: junto al código fuente o, en la imagen empaquetada, buscada desde el cwd. */
+export const MIGRATIONS_DIR = existsSync(migracionesJunto) ? migracionesJunto : (findUp('packages/db/migrations', process.cwd()) ?? migracionesJunto);
 
 /**
  * Crea la conexión. `pglite://memory` o `pglite://<directorio>` usan PGlite (PostgreSQL en

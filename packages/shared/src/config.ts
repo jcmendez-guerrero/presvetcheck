@@ -81,6 +81,11 @@ export const envSchema = z
     AUTH_MODE: z.enum(['entra', 'dev']).default('entra'),
     ENTRA_TENANT_ID: optStr,
     ENTRA_CLIENT_ID: optStr,
+    /**
+     * Confiar en la cabecera X-MS-CLIENT-PRINCIPAL que inyecta la autenticación integrada de Container Apps.
+     * Solo si la app NO es accesible sin pasar por ella (ingress con autenticación obligatoria).
+     */
+    AUTH_EASYAUTH: bool(false),
 
     MAILER: z.enum(['smtp', 'acs', 'console']).default('console'),
     REPORT_RECIPIENTS: optStr,

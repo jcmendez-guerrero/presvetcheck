@@ -1,0 +1,92 @@
+// Blob Storage (ADR-03): contenedor `recetas` con inmutabilidad temporal de 5 años y ciclo de vida
+// Hot → Cool (30 días) → Cold (180 días); contenedor `reportes`. Sin claves compartidas.
+param nombre string
+param location string
+param tags object
+param principalId string
+@description('Días de inmutabilidad de las recetas (5 años = 1826).')
+param diasInmutabilidad int = 1826
+
+resource sa 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: nombre
+  location: location
+  tags: tags
+  kind: 'StorageV2'
+  sku: { name: 'Standard_LRS' }
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    supportsHttpsTrafficOnly: true
+    accessTier: 'Hot'
+  }
+}
+
+resource blob 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: sa
+  name: 'default'
+  properties: {
+    isVersioningEnabled: true
+    deleteRetentionPolicy: { enabled: true, days: 30 }
+    containerDeleteRetentionPolicy: { enabled: true, days: 30 }
+  }
+}
+
+resource recetas 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blob
+  name: 'recetas'
+  properties: { publicAccess: 'None' }
+}
+
+resource inmutable 'Microsoft.Storage/storageAccounts/blobServices/containers/immutabilityPolicies@2023-05-01' = {
+  parent: recetas
+  name: 'default'
+  properties: {
+    immutabilityPeriodSinceCreationInDays: diasInmutabilidad
+    allowProtectedAppendWrites: false
+  }
+}
+
+resource reportes 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blob
+  name: 'reportes'
+  properties: { publicAccess: 'None' }
+}
+
+resource ciclo 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
+  parent: sa
+  name: 'default'
+  properties: {
+    policy: {
+      rules: [
+        {
+          name: 'recetas-hot-cool-cold'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            filters: { blobTypes: ['blockBlob'], prefixMatch: ['recetas/'] }
+            actions: {
+              baseBlob: {
+                tierToCool: { daysAfterCreationGreaterThan: 30 }
+                tierToCold: { daysAfterCreationGreaterThan: 180 }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+// Storage Blob Data Contributor para la identidad de la app.
+resource rol 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: sa
+  name: guid(sa.id, principalId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+    principalId: principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+output blobEndpoint string = sa.properties.primaryEndpoints.blob

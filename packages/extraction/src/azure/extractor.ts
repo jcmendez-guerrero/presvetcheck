@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { findUp } from '@mmx/shared/node';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { RecipeExtractor } from '@mmx/domain';
@@ -11,7 +12,10 @@ import type { AzureOpenAiClient } from './openai';
 export const PROMPT_VERSION = 'receta.v1';
 
 export function cargarPrompt(version = PROMPT_VERSION): string {
-  return readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), `../../prompts/${version}.md`), 'utf8');
+  const junto = resolve(dirname(fileURLToPath(import.meta.url)), `../../prompts/${version}.md`);
+  const ruta = existsSync(junto) ? junto : findUp(`packages/extraction/prompts/${version}.md`, process.cwd());
+  if (!ruta) throw new Error(`No se encuentra el prompt ${version}`);
+  return readFileSync(ruta, 'utf8');
 }
 
 function convertir(campo: string, valor: string | null): string | number | boolean | null {

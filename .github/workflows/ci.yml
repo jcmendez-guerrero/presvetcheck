@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promocionar:
+        description: 'SHA de la imagen a promocionar a prod'
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  TZ: UTC
+
+jobs:
+  calidad:
+    name: Lint, tipos, tests y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Integración (Testcontainers, PostgreSQL 16)
+        run: pnpm test:int
+      - run: pnpm build
+      - name: Test de humo de la UI (Playwright)
+        run: |
+          pnpm --filter @mmx/web exec playwright install --with-deps chromium
+          pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+
+  imagen:
+    name: Imagen a GHCR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: calidad
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      imagen: ${{ steps.meta.outputs.imagen }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: echo "imagen=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.imagen }}
+
+  dev:
+    name: Despliegue a dev
+    needs: imagen
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write # OIDC federado: sin secretos de larga duración
+      contents: read
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Migraciones antes de activar la nueva revisión
+        run: |
+          az containerapp job update -g rg-mmx-recetas-dev -n job-db-migrate --image "${{ needs.imagen.outputs.imagen }}"
+          az containerapp job start -g rg-mmx-recetas-dev -n job-db-migrate
+          # Espera a que termine la ejecución
+          for i in $(seq 1 60); do
+            estado=$(az containerapp job execution list -g rg-mmx-recetas-dev -n job-db-migrate --query "[0].properties.status" -o tsv)
+            [ "$estado" = "Succeeded" ] && break
+            [ "$estado" = "Failed" ] && exit 1
+            sleep 10
+          done
+      - name: Actualizar app y jobs
+        run: |
+          az containerapp update -g rg-mmx-recetas-dev -n mmx-api --image "${{ needs.imagen.outputs.imagen }}"
+          for j in cimavet-delta cimavet-full outbox-dispatcher sales-reconciliation weekly-reports retention-sweep nomenclator-import; do
+            az containerapp job update -g rg-mmx-recetas-dev -n "job-$j" --image "${{ needs.imagen.outputs.imagen }}"
+          done
+
+  prod:
+    name: Promoción a prod (aprobación manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.promocionar != ''
+    runs-on: ubuntu-latest
+    environment: prod # el entorno exige revisores en GitHub
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: |
+          IMG="ghcr.io/${GITHUB_REPOSITORY,,}:${{ inputs.promocionar }}"
+          az containerapp job update -g rg-mmx-recetas-prod -n job-db-migrate --image "$IMG"
+          az containerapp job start -g rg-mmx-recetas-prod -n job-db-migrate
+          sleep 60
+          az containerapp update -g rg-mmx-recetas-prod -n mmx-api --image "$IMG"
+          for j in cimavet-delta cimavet-full outbox-dispatcher sales-reconciliation weekly-reports retention-sweep nomenclator-import; do
+            az containerapp job update -g rg-mmx-recetas-prod -n "job-$j" --image "$IMG"
+          done
