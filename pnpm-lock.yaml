@@ -101,6 +101,8 @@ importers:
         specifier: ^10.5.0
         version: 10.6.0
 
+  packages/gs1: {}
+
   packages/shared:
     dependencies:
       decimal.js:
