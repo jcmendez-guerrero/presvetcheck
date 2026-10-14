@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+.git
+.env
+.data
+fixtures/recetas
+fixtures/nomenclator/PrescripcionVET.xml
+docs/ref
+playwright-report
+test-results

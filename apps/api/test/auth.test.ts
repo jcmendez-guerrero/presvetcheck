@@ -40,6 +40,16 @@ describe('autenticación Microsoft Entra (SPEC §9.1)', () => {
     expect((await app.inject({ method: 'GET', url: '/api/me', headers: { 'x-dev-user': 'dev-garante' } })).statusCode).toBe(401);
   });
 
+  it('cabecera X-MS-CLIENT-PRINCIPAL solo con AUTH_EASYAUTH=true', async () => {
+    const principal = Buffer.from(JSON.stringify({ claims: [{ typ: 'http://schemas.microsoft.com/identity/claims/objectidentifier', val: 'p1' }, { typ: 'name', val: 'Garante' }, { typ: 'roles', val: 'farmaceutico_garante' }, { typ: 'amr', val: 'mfa' }] })).toString('base64');
+    expect((await app.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': principal } })).statusCode).toBe(401);
+    const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'x', BLOB_CONNECTION_STRING: 'x', AUTH_MODE: 'entra', ENTRA_TENANT_ID: 't', ENTRA_CLIENT_ID: 'c', AUTH_EASYAUTH: 'true' });
+    const app2 = await buildApp({ deps: { ...E.deps, config }, logger: false, auth: { verificar: async () => ({}) } });
+    expect((await app2.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': principal } })).json()).toEqual({ id: 'p1', nombre: 'Garante', roles: ['farmaceutico_garante'], mfa: true });
+    expect((await app2.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': 'no-es-json' } })).statusCode).toBe(401);
+    await app2.close();
+  });
+
   it('claims sin roles ni oid', () => {
     expect(usuarioDesdeClaims({ sub: 's' })).toEqual({ id: 's', nombre: 'Usuario', roles: [], mfa: false });
   });

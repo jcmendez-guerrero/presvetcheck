@@ -191,3 +191,14 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   REGA) y propietarios de más de 5 años sin dispensaciones recientes. Los registros de salidas/entradas son
   append-only y no se modifican. Las imágenes las gestiona la inmutabilidad + ciclo de vida de Blob (infra/).
 - **Confirmar:** garante/DPO (si los registros de más de 5 años deben eliminarse además de anonimizarse).
+
+## DUDA-25 · Autenticación de PostgreSQL
+- **Spec:** "Identidad gestionada para todo; sin claves de acceso en la configuración de la app".
+- **Implementado:** PostgreSQL con Entra habilitado en la plantilla, pero la app conecta con usuario/contraseña
+  guardados en Key Vault (`database-url`, referenciado como secreto de Container Apps, nunca en claro en la
+  configuración). Conectar con token de Entra exige renovar el token en el pool de conexiones: pendiente.
+- **Confirmar:** JC.
+
+## DUDA-26 · Texto del Anexo A
+- **Spec:** el texto completo de la guía debe guardarse en `docs/ref/guia-receta-veterinaria.md`.
+- **Estado:** no se ha aportado; no se ha inventado. Lo aporta JC.

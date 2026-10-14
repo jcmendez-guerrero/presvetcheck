@@ -11,6 +11,7 @@ import { outboxDispatcher } from './jobs/outbox';
 import { salesReconciliation } from './jobs/conciliacion';
 import { weeklyReports } from './jobs/reportes';
 import { retentionSweep } from './jobs/retencion';
+import { runMigrations } from '@mmx/db';
 
 export const JOBS: Record<string, (ctx: Contexto, args: Record<string, string>) => Promise<unknown>> = {
   'cimavet-delta': cimavetDelta,
@@ -20,6 +21,11 @@ export const JOBS: Record<string, (ctx: Contexto, args: Record<string, string>) 
   'sales-reconciliation': salesReconciliation,
   'weekly-reports': weeklyReports,
   'retention-sweep': retentionSweep,
+  /** Se ejecuta antes de activar una nueva revisión (SPEC §10.3). */
+  'db-migrate': async (ctx) => {
+    await runMigrations({ db: ctx.db, kind: ctx.config.DATABASE_URL.startsWith('pglite://') ? 'pglite' : 'postgres', close: async () => {} });
+    return { ok: true };
+  },
 };
 
 export function parsearArgs(argv: string[]): { job: string | undefined; args: Record<string, string> } {
@@ -67,4 +73,4 @@ async function main() {
   }
 }
 
-if (process.argv[1]?.endsWith('main.ts') || process.argv[1]?.endsWith('main.js')) void main();
+if (process.argv[1]?.endsWith('main.ts') || process.argv[1]?.endsWith('main.js') || process.argv[1]?.endsWith('worker.js')) void main();

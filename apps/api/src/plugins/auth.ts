@@ -28,7 +28,7 @@ export const USUARIOS_DEV: Record<string, { nombre: string; roles: Rol[] }> = {
 const PUBLICAS = ['/api/health', '/api/ready', '/api/openapi.json', '/api/docs', '/api/config/publica'];
 
 export interface OpcionesAuth {
-  config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'>;
+  config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'> & { AUTH_EASYAUTH?: boolean };
   /** Verificador inyectable (tests). Por defecto, JWKS de Entra. */
   verificar?: (token: string) => Promise<JWTPayload>;
 }
@@ -78,6 +78,12 @@ export async function registrarAuth(app: FastifyInstance, o: OpcionesAuth) {
       return;
     }
     const auth = req.headers.authorization ?? '';
+    const principal = req.headers['x-ms-client-principal'];
+    if (!auth.startsWith('Bearer ') && o.config.AUTH_EASYAUTH && typeof principal === 'string') {
+      req.usuario = usuarioDesdePrincipal(principal);
+      if (!req.usuario.id) throw new DomainError('NO_AUTORIZADO');
+      return;
+    }
     if (!auth.startsWith('Bearer ') || !verificar) throw new DomainError('NO_AUTORIZADO');
     try {
       req.usuario = usuarioDesdeClaims(await verificar(auth.slice(7)));
@@ -86,6 +92,26 @@ export async function registrarAuth(app: FastifyInstance, o: OpcionesAuth) {
     }
     if (!req.usuario.id) throw new DomainError('NO_AUTORIZADO');
   });
+}
+
+/**
+ * Cabecera X-MS-CLIENT-PRINCIPAL (base64 JSON con `claims[]`) que inyecta la autenticación integrada de
+ * Container Apps tras validar la sesión de Entra. Solo se usa con AUTH_EASYAUTH=true.
+ */
+export function usuarioDesdePrincipal(b64: string): Usuario {
+  try {
+    const p = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')) as { claims?: { typ: string; val: string }[] };
+    const claims = p.claims ?? [];
+    const val = (...t: string[]) => claims.filter((c) => t.includes(c.typ)).map((c) => c.val);
+    return usuarioDesdeClaims({
+      oid: val('http://schemas.microsoft.com/identity/claims/objectidentifier', 'oid')[0],
+      name: val('name')[0],
+      roles: val('roles', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'),
+      amr: val('amr', 'http://schemas.microsoft.com/claims/authnmethodsreferences'),
+    });
+  } catch {
+    throw new DomainError('NO_AUTORIZADO');
+  }
 }
 
 /** preHandler: exige alguno de los roles. */

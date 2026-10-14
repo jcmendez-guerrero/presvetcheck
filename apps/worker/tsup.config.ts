@@ -1,8 +1,7 @@
 import { defineConfig } from 'tsup';
 
-// Empaqueta la API con los paquetes del workspace (exportan TypeScript fuente).
 export default defineConfig({
-  entry: ['src/main.ts'],
+  entry: { worker: 'src/main.ts' },
   format: ['esm'],
   platform: 'node',
   target: 'node22',
