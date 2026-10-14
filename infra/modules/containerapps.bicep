@@ -100,14 +100,14 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
 // Jobs programados. Los cron de Container Apps Jobs van en UTC: la hora de Madrid es UTC+2 en verano y
 // UTC+1 en invierno (equivalencias en infra/README.md).
 var jobs = [
-  { nombre: 'cimavet-delta', cron: '30 4 * * *', manual: false }
-  { nombre: 'cimavet-full', cron: '0 1 * * 0', manual: false }
-  { nombre: 'outbox-dispatcher', cron: '*/5 8-19 * * 1-6', manual: false }
-  { nombre: 'sales-reconciliation', cron: '0 19 * * *', manual: false }
-  { nombre: 'weekly-reports', cron: '0 5 * * 1', manual: false }
-  { nombre: 'retention-sweep', cron: '0 2 1 * *', manual: false }
-  { nombre: 'nomenclator-import', cron: '', manual: true }
-  { nombre: 'db-migrate', cron: '', manual: true }
+  { nombre: 'cimavet-delta', cron: '30 4 * * *', manual: false, args: [] }
+  { nombre: 'cimavet-full', cron: '0 1 * * 0', manual: false, args: [] }
+  { nombre: 'outbox-dispatcher', cron: '*/5 8-19 * * 1-6', manual: false, args: [] }
+  { nombre: 'sales-reconciliation', cron: '0 19 * * *', manual: false, args: [] }
+  { nombre: 'weekly-reports', cron: '0 5 * * 1', manual: false, args: [] }
+  { nombre: 'retention-sweep', cron: '0 2 1 * *', manual: false, args: [] }
+  { nombre: 'nomenclator-import', cron: '', manual: true, args: ['--descargar'] }
+  { nombre: 'db-migrate', cron: '', manual: true, args: [] }
 ]
 
 resource job 'Microsoft.App/jobs@2024-03-01' = [
@@ -133,7 +133,8 @@ resource job 'Microsoft.App/jobs@2024-03-01' = [
           {
             name: j.nombre
             image: imagen
-            command: ['node', 'worker/worker.js', j.nombre]
+            // nomenclator-import descarga el Nomenclátor de CIMAVet (NOMENCLATOR_URL): no va en la imagen.
+            command: concat(['node', 'worker/worker.js', j.nombre], j.args)
             resources: { cpu: json('0.5'), memory: '1Gi' }
             env: envComun
           }

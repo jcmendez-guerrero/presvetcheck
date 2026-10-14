@@ -28,6 +28,15 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Los XML de CIMAVet no se versionan: se descargan de CIMAVet (caché semanal para no
+      # descargarlos en cada ejecución).
+      - id: semana
+        run: echo "clave=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: fixtures/nomenclator/*.xml
+          key: nomenclator-${{ steps.semana.outputs.clave }}
+      - run: pnpm nomenclator:fetch --si-falta
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

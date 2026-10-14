@@ -37,6 +37,11 @@ export interface NomenclatorSink {
 }
 
 const SI = (v: string | null) => v !== null && /^s[ií]$/i.test(v.trim());
+/** "0,4 " → "0.4"; null si no es un número. */
+export const decimalNomenclator = (v: string | null): string | null => {
+  const t = v?.trim().replace(',', '.') ?? '';
+  return /^\d+(\.\d+)?$/.test(t) ? t : null;
+};
 const num = (v: string | null): number | null => (v !== null && /^-?\d+$/.test(v.trim()) ? Number(v.trim()) : null);
 
 /** cod_estado_registro_* (DICCIONARIO_SITUACION_REGISTRO): 1 Autorizado, 3 Anulado, 4 Suspenso, 5 Suspenso CN. */
@@ -116,7 +121,8 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
         ema: null,
         notas: null,
         primeraAutorizacion: xmlText(node, 'fec_primera_aut'),
-        cantidadConcentracion: porCantidad,
+        // El Nomenclátor usa coma decimal ("0,4"): la columna es numérica.
+        cantidadConcentracion: decimalNomenclator(porCantidad),
         unidadConcentracion: porUnidad,
         raw: node as never,
         source: 'nomenclator',

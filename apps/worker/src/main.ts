@@ -1,7 +1,7 @@
 /**
  * Entrypoint de los jobs (Container Apps Jobs y `pnpm worker <job>` en local):
- *   cimavet-delta · cimavet-full [--fichero] · outbox-dispatcher · sales-reconciliation [--fecha] ·
- *   weekly-reports [--desde --hasta] · nomenclator-import (--fichero | --muestra) · retention-sweep [--anios]
+ *   cimavet-delta · cimavet-full [--descargar | --fichero] · outbox-dispatcher · sales-reconciliation [--fecha] ·
+ *   weekly-reports [--desde --hasta] · nomenclator-import (--descargar | --fichero | --muestra) · retention-sweep [--anios]
  */
 import { ConfigError } from '@mmx/shared';
 import { loadConfigFromProcess } from '@mmx/shared/node';

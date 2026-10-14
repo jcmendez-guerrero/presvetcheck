@@ -17,15 +17,26 @@ export function lowerKeys(v: unknown): unknown {
 }
 
 /**
- * La doc no fija el envoltorio de las listas paginadas. Se acepta un array directo o el primer
- * campo array de un objeto. TODO: confirmar con una respuesta real en fixtures/cimavet/.
+ * Envoltorio de las listas paginadas observado en la API real (docs/ref/cimavet-respuestas.md):
+ * `{ totalFilas, pagina, tamanioPagina, resultados: [] }`. Por tolerancia se acepta también un array
+ * directo o el primer campo array de un objeto.
  */
 export function extraerLista(json: unknown): unknown[] {
   if (Array.isArray(json)) return json;
   if (json && typeof json === 'object') {
-    for (const v of Object.values(json as Record<string, unknown>)) if (Array.isArray(v)) return v;
+    const o = json as Record<string, unknown>;
+    const res = Object.entries(o).find(([k]) => k.toLowerCase() === 'resultados')?.[1];
+    if (Array.isArray(res)) return res;
+    for (const v of Object.values(o)) if (Array.isArray(v)) return v;
   }
   return [];
+}
+
+/** Tamaño de página declarado en el envoltorio (`tamanioPagina`), si lo hay. */
+export function tamanioPagina(json: unknown): number | null {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
+  const v = Object.entries(json as Record<string, unknown>).find(([k]) => k.toLowerCase() === 'tamaniopagina')?.[1];
+  return typeof v === 'number' && v > 0 ? v : null;
 }
 
 const bool = z.preprocess((v) => {
@@ -62,7 +73,9 @@ export const MedicamentoSchema = z.looseObject({
   dispensacion: ItemSchema.nullish(),
   tipomedicamento: ItemSchema.nullish(),
   administracion: ItemSchema.nullish(),
+  /** La doc v1.4 habla de `forma`; la API real devuelve `formasFarmaceuticas[]`. Se aceptan ambas. */
   forma: ItemSchema.nullish(),
+  formasfarmaceuticas: z.array(ItemSchema).nullish(),
   primeraautorizacion: fecha,
   estado: EstadoSchema.nullish(),
   comerc: optBool,
@@ -82,9 +95,11 @@ export const MedicamentoSchema = z.looseObject({
     .array(
       z.looseObject({
         cantidad: z.union([z.number(), z.string()]).nullish(),
-        unidadtiempo: z.string().nullish(),
+        unidadtiempo: z.union([z.string(), ItemSchema]).nullish(),
         especie: ItemSchema.nullish(),
         tejido: z.union([z.string(), ItemSchema]).nullish(),
+        formafarmaceutica: ItemSchema.nullish(),
+        viaadministracion: ItemSchema.nullish(),
       }),
     )
     .nullish(),
@@ -102,6 +117,8 @@ export const RegistroCambioSchema = z.looseObject({
   nregistro: z.string(),
   fecha: fecha,
   tipocambio: z.coerce.number(),
+  /** La API real devuelve `cambio` (la doc dice `cambios`). */
+  cambio: z.array(z.string()).nullish(),
   cambios: z.array(z.string()).nullish(),
 });
 
@@ -111,13 +128,19 @@ export type PresentacionApi = z.infer<typeof PresentacionSchema>;
 export type NotaApi = z.infer<typeof NotaSchema>;
 export type RegistroCambioApi = z.infer<typeof RegistroCambioSchema>;
 
-/** Fecha de CIMAVet (Unix timestamp en s o ms, o texto dd/mm/aaaa o ISO) → AAAA-MM-DD. */
+const FECHA_MADRID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/**
+ * Fecha de CIMAVet → AAAA-MM-DD. La API real devuelve milisegundos epoch de la medianoche de Madrid
+ * (p. ej. 1207778400000 = 2008-04-10 00:00 CEST), así que el día se toma en Europe/Madrid, no en UTC.
+ * También acepta segundos, texto dd/mm/aaaa o ISO.
+ */
 export function fechaCimavet(v: string | number | null | undefined): string | null {
   if (v === null || v === undefined || v === '') return null;
   if (typeof v === 'number' || /^\d+$/.test(v)) {
     const n = Number(v);
     const ms = n > 1e11 ? n : n * 1000;
-    return new Date(ms).toISOString().slice(0, 10);
+    return FECHA_MADRID.format(new Date(ms));
   }
   const es = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(v);
   if (es) return `${es[3]}-${es[2]}-${es[1]}`;
