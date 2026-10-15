@@ -9,6 +9,7 @@ import { Mensaje } from '../componentes/ui';
 interface Contadores {
   sustitucionesPendientes: number;
   recetasNoConformes: number;
+  discrepanciasAbiertas: number;
   outboxIncidencias: number;
   pedidosRecibidosPendientesEntrega: number;
 }
@@ -16,7 +17,7 @@ interface Contadores {
 export function Inicio() {
   const { usuario, tiene } = useAuth();
   const q = useQuery({ queryKey: ['inicio', usuario?.id], queryFn: () => get<Contadores>('/api/inicio'), enabled: !!usuario });
-  const opera = tiene('empleado', 'veterinaria_responsable', 'farmaceutico_garante');
+  const opera = tiene('empleado', 'veterinaria_responsable');
   const B = 'flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl bg-white p-6 text-center text-xl font-bold text-marca shadow-sm ring-2 ring-marca/20 hover:ring-marca';
   return (
     <Pagina titulo={`Hola${usuario ? `, ${usuario.nombre}` : ''}`}>
@@ -38,8 +39,9 @@ export function Inicio() {
         </div>
       )}
       {q.data && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Contador n={q.data.sustitucionesPendientes} t="Sustituciones pendientes de firma" />
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Contador n={q.data.sustitucionesPendientes} t="Sustituciones pendientes (ver Pendientes)" />
+          <Contador n={q.data.discrepanciasAbiertas} t="Discrepancias con el TPV" />
           <Contador n={q.data.recetasNoConformes} t="Recetas no conformes" />
           <Contador n={q.data.outboxIncidencias} t="Incidencias de sincronización" />
         </div>

@@ -1,5 +1,5 @@
 # Severidad por campo y contexto de la receta (SPEC §4.1.2, §4.1.6).
-# La aprueba el farmacéutico garante: cualquier cambio exige una nueva versión del fichero
+# La revisa el farmacéutico garante (fuera de la app): cualquier cambio exige una nueva versión del fichero
 # y su aprobación en Administración → Reglas (tabla regla_version).
 #
 # Severidades: AVISO | BLOQUEANTE_FORMA (forzable) | BLOQUEANTE_DURO (no forzable)
@@ -60,8 +60,8 @@ incidencias:
   PLATAFORMA_DESCONOCIDA: AVISO
   ESTUPEFACIENTE_NO_DISPENSABLE: BLOQUEANTE_DURO
   PSICOTROPO_MAS_DE_UN_ENVASE: BLOQUEANTE_DURO
-  # Decisión conservadora documentada en docs/dudas.md (DUDA-03): la prescripción de un
-  # medicamento de uso humano no es un defecto de forma; requiere revisión del garante.
+  # DUDA-03 (resuelta): un medicamento de uso humano, o que no está en CIMAVet veterinario,
+  # no se dispensa en ningún caso.
   MEDICAMENTO_USO_HUMANO: BLOQUEANTE_DURO
   ONLINE_CON_RECETA: BLOQUEANTE_DURO
   RECETA_REQUERIDA: BLOQUEANTE_DURO

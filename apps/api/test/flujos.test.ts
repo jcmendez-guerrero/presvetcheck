@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { auditEvent, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
+import { auditEvent, discrepancia, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
 import { api, confirmar, crearReceta, entorno, recetaCorrecta, type Entorno } from './entorno';
 
 let E: Entorno;
@@ -23,8 +23,9 @@ describe('sondas, autenticación y roles', () => {
     expect((await api(E.app, 'dev-empleado', 'GET', '/api/me')).json).toMatchObject({ id: 'dev-empleado', roles: ['empleado'] });
     // El admin no participa en la operativa ni autoriza sustituciones (SPEC §9.1).
     expect((await api(E.app, 'dev-admin', 'POST', '/api/dispensaciones', { conReceta: false, canal: 'presencial', cn: '570025', envases: [envase()] })).status).toBe(403);
-    expect((await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2026-10-01&hasta=2026-10-31')).status).toBe(403);
-    expect((await api(E.app, 'dev-empleado', 'GET', '/api/garante/bandeja')).status).toBe(403);
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/admin/reglas')).status).toBe(403);
+    // El farmacéutico garante no tiene usuario en la app.
+    expect((await api(E.app, 'dev-garante' as never, 'GET', '/api/me')).status).toBe(401);
   });
 
   it('OpenAPI generado con las rutas de SPEC §7', async () => {
@@ -199,7 +200,7 @@ describe('defectos de forma, corrección manual y forzado', () => {
     expect(g.json.correcciones).toEqual(expect.arrayContaining([expect.objectContaining({ campo: 'veterinario.numColegiado', extraido: '28/0000', corregido: '28/0000', por: 'dev-empleado' })]));
   });
 
-  it('defecto de forma forzado → dispensación con forzado=true, motivo obligatorio y entrada en la bandeja del garante', async () => {
+  it('defecto de forma forzado → dispensación con forzado=true, motivo obligatorio y receta apartada (el garante la revisa fuera, en el reporte semanal)', async () => {
     const id = await crearReceta(E.app);
     await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), veterinario: { ...r.veterinario!, numColegiado: null } }));
     const corto = await dispensar('dev-empleado', { recetaId: id, forzado: { codigos: ['VETERINARIO_COLEGIADO_FALTA'], motivo: 'corto', aceptaRiesgos: true } });
@@ -212,13 +213,8 @@ describe('defectos de forma, corrección manual y forzado', () => {
     expect(ok.json.apartarReceta.motivo).toMatch(/defecto forzado/);
     const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, ok.json.dispensaciones[0]));
     expect(d).toMatchObject({ forzado: true, defectosForzados: ['VETERINARIO_COLEGIADO_FALTA'], motivoForzado: 'El veterinario lo confirma por teléfono' });
-    const b = await api(E.app, 'dev-garante', 'GET', '/api/garante/bandeja');
-    expect(b.json.dispensacionesARevisar.map((x: { id: string }) => x.id)).toContain(d!.id);
-    // Revisión del garante con MFA (append-only)
-    expect((await api(E.app, 'dev-garante', 'POST', '/api/garante/revisiones', { entidad: 'dispensacion', entidadId: d!.id, resultado: 'conforme' })).status).toBe(403);
-    expect((await api(E.app, 'dev-garante', 'POST', '/api/garante/revisiones', { entidad: 'dispensacion', entidadId: d!.id, resultado: 'conforme' }, { mfa: true })).status).toBe(201);
-    const b2 = await api(E.app, 'dev-garante', 'GET', '/api/garante/bandeja');
-    expect(b2.json.dispensacionesARevisar.map((x: { id: string }) => x.id)).not.toContain(d!.id);
+    // Ya no hay bandeja del garante en la app.
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/garante/bandeja')).status).toBe(404);
   });
 
   it('envase caducado: forzable con PRODUCT_VALIDITY_HARD_BLOCK=false; rechazado con true', async () => {
@@ -280,7 +276,7 @@ describe('PEDIR, PENDIENTE_STOCK y sustitución', () => {
     E.stock.datos = datos;
   });
 
-  it('sin stock del prescrito ni de otros formatos y equivalente con stock → SUSTITUIR → consentimiento → aviso → dispensar → apartar → firmar (MFA) → validar', async () => {
+  it('sin stock del prescrito ni de otros formatos y equivalente con stock → SUSTITUIR → consentimiento → aviso → dispensar → apartar → firma del garante en papel registrada por el empleado', async () => {
     const id = await crearReceta(E.app);
     await confirmar(E.app, id, recetaCorrecta());
     const datos = E.stock.datos;
@@ -300,13 +296,16 @@ describe('PEDIR, PENDIENTE_STOCK y sustitución', () => {
     expect(det.json.plantillaAvisoVeterinario).toMatch(/CN 999901/);
     const d = await api(E.app, 'dev-empleado', 'POST', '/api/dispensaciones', { conReceta: true, recetaId: id, lineaOrden: 1, cn: '999901', sustitucionId: sid, envases: [envase({ lote: 'GEN-1', caducidad: '2027-09-30', cnEscaneado: '999901' })] });
     expect(d.status).toBe(201);
-    expect(d.json.apartarReceta.motivo).toMatch(/bandeja de sustituciones/);
+    expect(d.json.apartarReceta.motivo).toMatch(/firma del garante/);
     expect(d.json.apartarReceta.etiqueta).toMatch(/CN: 999901/);
     expect((await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/anotacion`, {})).json.estado).toBe('RECETA_APARTADA');
-    expect((await api(E.app, 'dev-admin', 'POST', `/api/sustituciones/${sid}/autorizar`, {})).status).toBe(403);
-    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/autorizar`, {})).status).toBe(403); // sin MFA
-    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/autorizar`, {}, { mfa: true })).json.estado).toBe('FIRMADA_GARANTE');
-    expect((await api(E.app, 'dev-garante', 'POST', `/api/sustituciones/${sid}/validar`, {}, { mfa: true })).json.estado).toBe('VALIDADA');
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/sustituciones/${sid}/firma-garante`, { garante: 'Ana Garante' })).status).toBe(403);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/firma-garante`, {})).json.error.code).toBe('SUSTITUCION_REQUISITOS'); // sin nombre
+    const firmada = await api(E.app, 'dev-empleado', 'POST', `/api/sustituciones/${sid}/firma-garante`, { garante: 'Ana Garante' });
+    expect(firmada.json.estado).toBe('FIRMADA_GARANTE');
+    expect(firmada.json.autorizacion.firma).toMatchObject({ garante: 'Ana Garante', empleado: 'dev-empleado' });
+    // Pendientes: ya no figura (firma registrada).
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.sustituciones.map((x: { id: string }) => x.id)).not.toContain(sid);
     const [row] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, d.json.dispensaciones[0]));
     expect(row).toMatchObject({ esSustitucion: true, cnPrescrito: '570016', sustitucionId: sid, procedimientoVersion: 'SUSTITUCION@0-dev' });
     E.stock.datos = datos;
@@ -338,19 +337,23 @@ describe('venta sin receta y pedidos online (SPEC §4.7)', () => {
     expect((await sinReceta({ propietario: { nombre: 'C', movil: '600', direccion: 'Calle', dni: '12345678A' } })).json.error.code).toBe('DNI_INVALIDO');
   });
 
-  it('online correcto: DNI cifrado en BD; exportación C sin datos por defecto y enmascarados salvo garante', async () => {
+  it('online correcto: DNI cifrado en BD; exportación C sin datos por defecto y DNI enmascarado salvo administración con MFA (auditado)', async () => {
     const r = await sinReceta({ propietario: { nombre: 'Cliente Online', movil: '600111222', direccion: 'Calle 1', dni: '12345678Z' }, referenciaPedido: 'WEB-1', especie: 'Perro' });
     expect(r.status).toBe(201);
     const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, r.json.dispensaciones[0]));
     const [p] = await E.h.db.select().from(propietario).where(eq(propietario.id, d!.propietarioId!));
     expect(p!.dniEnc).not.toContain('12345678Z');
     const q = '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=C';
-    const sinDatos = await api(E.app, 'dev-garante', 'GET', q);
+    const sinDatos = await api(E.app, 'dev-empleado', 'GET', q);
     expect(sinDatos.json.tablas[0].filas[0].slice(9, 13)).toEqual(['', '', '', '']);
-    const garante = await api(E.app, 'dev-garante', 'GET', `${q}&incluirPropietario=1`);
-    expect(garante.json.tablas[0].filas[0].slice(9, 13)).toEqual(['Cliente Online', '600111222', '12345678Z', 'Calle 1']);
-    const vet = await api(E.app, 'dev-veterinaria', 'GET', `${q}&incluirPropietario=1`);
-    expect(vet.json.tablas[0].filas[0][11]).toBe('****5678Z');
+    const empleado = await api(E.app, 'dev-empleado', 'GET', `${q}&incluirPropietario=1`);
+    expect(empleado.json.tablas[0].filas[0].slice(9, 13)).toEqual(['Cliente Online', '600111222', '****5678Z', 'Calle 1']);
+    expect((await api(E.app, 'dev-empleado', 'GET', `${q}&incluirPropietario=1&dniCompleto=1`)).status).toBe(403);
+    expect((await api(E.app, 'dev-admin', 'GET', `${q}&incluirPropietario=1&dniCompleto=1`)).status).toBe(403); // sin MFA
+    const admin = await api(E.app, 'dev-admin', 'GET', `${q}&incluirPropietario=1&dniCompleto=1`, undefined, { mfa: true });
+    expect(admin.json.tablas[0].filas[0][11]).toBe('12345678Z');
+    const aud = await E.h.db.select().from(auditEvent).where(eq(auditEvent.accion, 'exportar_dni_completo'));
+    expect(aud).toHaveLength(1);
   });
 
   it('presencial con medicamento sujeto a receta → redirección al flujo de receta', async () => {
@@ -361,34 +364,32 @@ describe('venta sin receta y pedidos online (SPEC §4.7)', () => {
 });
 
 describe('registros, exportaciones y anulación', () => {
-  it('exporta A en XLSX y CSV; la anulación exige garante con MFA y no se repite', async () => {
-    const xlsx = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=xlsx');
+  it('exporta A en XLSX y CSV; la anulación la registra el empleado con motivo y no se repite', async () => {
+    const xlsx = await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=xlsx');
     expect(xlsx.res.headers['content-type']).toContain('spreadsheetml');
-    const csv = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=csv');
+    const csv = await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A&formato=csv');
     expect(csv.res.body.startsWith('﻿NOMBRE DEL FÁRMACO;PRINCIPIO ACTIVO;FORMA FARMACÉUTICA;ESPECIE;FECHA VENTA')).toBe(true);
     const [d] = await E.h.db.select().from(dispensacion).limit(1);
-    expect((await api(E.app, 'dev-empleado', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' })).status).toBe(403);
-    expect((await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' })).status).toBe(403);
-    const ok = await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' }, { mfa: true });
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' })).status).toBe(403);
+    const ok = await api(E.app, 'dev-empleado', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' });
     expect(ok.status).toBe(200);
-    const dup = await api(E.app, 'dev-garante', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' }, { mfa: true });
+    const dup = await api(E.app, 'dev-empleado', 'POST', `/api/dispensaciones/${d!.id}/anular`, { motivo: 'Error de captura del lote' });
     expect(dup.json.error.code).toBe('ANULACION_DUPLICADA');
-    const json = await api(E.app, 'dev-garante', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A');
+    const json = await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A');
     const fila = json.json.tablas[0].filas.find((f: string[]) => f[15] === d!.id);
     expect(fila.at(-1)).toBe('S');
   });
 
-  it('reporte semanal bajo demanda (garante) y listado de reportes', async () => {
-    expect((await api(E.app, 'dev-empleado', 'POST', '/api/reportes/semanal/generar', { desde: '2026-10-01', hasta: '2026-10-14' })).status).toBe(403);
-    const r = await api(E.app, 'dev-garante', 'POST', '/api/reportes/semanal/generar', { desde: '2026-10-01', hasta: '2026-10-14' });
+  it('reporte semanal bajo demanda y listado de reportes', async () => {
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/reportes/semanal/generar', { desde: '2026-10-01', hasta: '2026-10-14' });
     expect(r.res.headers['content-type']).toContain('spreadsheetml');
     const l = await api(E.app, 'dev-veterinaria', 'GET', '/api/reportes');
     expect(l.json[0]).toMatchObject({ tipo: 'semanal', periodo: '2026-10-01_2026-10-14' });
-    expect((await api(E.app, 'dev-garante', 'GET', `/api/reportes/${l.json[0].id}/descargar`)).res.headers['content-type']).toContain('spreadsheetml');
+    expect((await api(E.app, 'dev-admin', 'GET', `/api/reportes/${l.json[0].id}/descargar`)).res.headers['content-type']).toContain('spreadsheetml');
   });
 
   it('registro de psicótropos y de entradas', async () => {
-    expect((await api(E.app, 'dev-garante', 'GET', '/api/registros/psicotropos?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
+    expect((await api(E.app, 'dev-veterinaria', 'GET', '/api/registros/psicotropos?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
     expect((await api(E.app, 'dev-veterinaria', 'GET', '/api/registros/entradas?desde=2026-10-01&hasta=2026-10-31')).status).toBe(200);
   });
 });
@@ -441,14 +442,28 @@ describe('medicamentos, FEFO y escaneo', () => {
 });
 
 describe('administración', () => {
-  it('reglas activas y su aprobación por el garante con MFA; plataformas verificables', async () => {
+  it('reglas activas y registro de su aprobación por administración con MFA; plataformas verificables', async () => {
     const r = await api(E.app, 'dev-admin', 'GET', '/api/admin/reglas');
     expect(r.json.ficheros).toHaveLength(5);
-    expect((await api(E.app, 'dev-admin', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`)).status).toBe(403);
-    expect((await api(E.app, 'dev-garante', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`, undefined, { mfa: true })).json.aprobadaPor).toBe('dev-garante');
-    const p = await api(E.app, 'dev-garante', 'PUT', '/api/admin/plataformas/recevet', { reconocidaMapa: true, urlVerificacion: null });
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`)).status).toBe(403); // sin MFA
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`, undefined, { mfa: true })).status).toBe(403);
+    expect((await api(E.app, 'dev-admin', 'POST', `/api/admin/reglas/${r.json.ficheros[0].id}/aprobar`, undefined, { mfa: true })).json.aprobadaPor).toBe('dev-admin');
+    const p = await api(E.app, 'dev-admin', 'PUT', '/api/admin/plataformas/recevet', { reconocidaMapa: true, urlVerificacion: null });
     expect(p.json.reconocidaMapa).toBe(true);
     expect((await api(E.app, 'dev-admin', 'GET', '/api/admin/outbox')).json.error.code).toBe('SIWEB_NO_DISPONIBLE');
-    expect((await api(E.app, 'dev-garante', 'POST', '/api/admin/exclusiones', { nregistro: '1077 ESP', motivo: 'Prueba', fuente: 'Test' })).status).toBe(201);
+    expect((await api(E.app, 'dev-admin', 'POST', '/api/admin/exclusiones', { nregistro: '1077 ESP', motivo: 'Prueba', fuente: 'Test' })).status).toBe(201);
+  });
+});
+
+describe('pendientes de la operativa (el garante no usa la app)', () => {
+  it('lista discrepancias abiertas y el empleado las resuelve con una nota auditada', async () => {
+    const [x] = await E.h.db.insert(discrepancia).values({ tipo: 'DISPENSACION_SIN_TICKET', origen: 'sales-reconciliation', fecha: new Date('2026-10-14T19:00:00Z'), datos: { cn: '570016' } }).returning();
+    const p = await api(E.app, 'dev-empleado', 'GET', '/api/pendientes');
+    expect(p.json.discrepancias.map((d: { id: string }) => d.id)).toContain(x!.id);
+    expect((await api(E.app, 'dev-admin', 'GET', '/api/pendientes')).status).toBe(403);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/discrepancias/${x!.id}/resolver`, { nota: 'corto' })).status).toBe(400);
+    const r = await api(E.app, 'dev-empleado', 'POST', `/api/discrepancias/${x!.id}/resolver`, { nota: 'Ticket cobrado al día siguiente (T-2026-000150)' });
+    expect(r.json).toMatchObject({ estado: 'resuelta', resueltaPor: 'dev-empleado', notaResolucion: 'Ticket cobrado al día siguiente (T-2026-000150)' });
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/inicio')).json.discrepanciasAbiertas).toBe(0);
   });
 });

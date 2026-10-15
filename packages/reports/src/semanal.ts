@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
-import { discrepancia, dispensacion, outbox, receta, recepcion, recepcionLinea, revisionGarante, sustitucion, type ColumnCipher, type Db } from '@mmx/db';
+import { discrepancia, dispensacion, outbox, receta, recepcion, recepcionLinea, sustitucion, type ColumnCipher, type Db } from '@mmx/db';
 import { RegistrosService, rangoMadrid } from './datos';
 import { aCsv, aXlsx, fechaEs, type Tabla } from './formato';
 import { tablaEntradas, tablaPsicotropos } from './entradas';
@@ -66,11 +66,25 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
   const sust = await ctx.db.select().from(sustitucion).where(and(gte(sustitucion.createdAt, ini), lt(sustitucion.createdAt, fin))).orderBy(asc(sustitucion.createdAt));
   tablas.push({
     nombre: '3 Sustituciones',
-    columnas: ['ID', 'FECHA', 'CN PRESCRITO', 'CN DISPENSADO', 'MODO', 'ESTADO', 'HORAS HASTA FIRMA', 'AUTORIZADO POR', 'PROCEDIMIENTO'],
+    // La autorización previa y la firma del garante se obtienen fuera de la app y las registra el empleado.
+    columnas: ['ID', 'FECHA', 'CN PRESCRITO', 'CN DISPENSADO', 'MODO', 'ESTADO', 'AUTORIZACIÓN PREVIA (GARANTE / MEDIO / REGISTRA)', 'HORAS HASTA FIRMA', 'FIRMA (GARANTE / REGISTRA)', 'PROCEDIMIENTO'],
     filas: sust.map((s) => {
-      const firma = (s.autorizacion as { firma?: { garante: string; fechaHora: string } } | null)?.firma;
+      const aut = s.autorizacion as { previa?: { garante: string; medio: string; empleado: string } | null; firma?: { garante: string; fechaHora: string; empleado: string } | null } | null;
+      const firma = aut?.firma ?? null;
+      const previa = aut?.previa ?? null;
       const horas = firma ? Math.round((new Date(firma.fechaHora).getTime() - s.createdAt.getTime()) / 36e5) : '';
-      return [s.id, fechaEs(s.createdAt), s.cnPrescrito ?? '', s.cnPropuesto, s.modo, s.estado, horas, firma?.garante ?? '', s.procedimientoVersion ?? ''];
+      return [
+        s.id,
+        fechaEs(s.createdAt),
+        s.cnPrescrito ?? '',
+        s.cnPropuesto,
+        s.modo,
+        s.estado,
+        previa ? `${previa.garante} / ${previa.medio} / ${previa.empleado}` : '',
+        horas,
+        firma ? `${firma.garante} / ${firma.empleado}` : '',
+        s.procedimientoVersion ?? '',
+      ];
     }),
   });
 
@@ -86,13 +100,13 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
       [...new Set(((r.evaluacion as { lineas?: { resultado: { motivos: { code: string; severidad: string }[] } }[] } | null)?.lineas ?? []).flatMap((l) => l.resultado.motivos.filter((m) => m.severidad !== 'AVISO').map((m) => m.code)))].join(', '),
     ]),
   });
+  // Forzadas: el garante las revisa en este reporte (fuera de la app).
   const forzadas = await ctx.db
-    .select({ d: dispensacion, rev: revisionGarante })
+    .select({ d: dispensacion })
     .from(dispensacion)
-    .leftJoin(revisionGarante, eq(revisionGarante.entidadId, dispensacion.id))
     .where(and(eq(dispensacion.forzado, true), gte(dispensacion.fechaVenta, ini), lt(dispensacion.fechaVenta, fin)));
-  const fila = ({ d, rev }: (typeof forzadas)[number]) => [d.id, fechaEs(d.fechaVenta), d.nombreFarmaco, d.cn, d.lote, (d.defectosForzados ?? []).join(', '), d.motivoForzado ?? '', d.empleado, rev ? `${rev.resultado} (${rev.revisadoPor})` : 'pendiente'];
-  const COL_F = ['ID DISPENSACIÓN', 'FECHA', 'MEDICAMENTO', 'CN', 'LOTE', 'DEFECTOS', 'MOTIVO', 'EMPLEADO', 'REVISIÓN GARANTE'];
+  const fila = ({ d }: (typeof forzadas)[number]) => [d.id, fechaEs(d.fechaVenta), d.nombreFarmaco, d.cn, d.lote, (d.defectosForzados ?? []).join(', '), d.motivoForzado ?? '', d.empleado];
+  const COL_F = ['ID DISPENSACIÓN', 'FECHA', 'MEDICAMENTO', 'CN', 'LOTE', 'DEFECTOS', 'MOTIVO', 'EMPLEADO'];
   const pnv = (x: (typeof forzadas)[number]) => (x.d.defectosForzados ?? []).some((c) => ctx.producto_no_valido.includes(c));
   tablas.push({ nombre: '4b Dispensaciones forzadas', columnas: COL_F, filas: forzadas.filter((x) => !pnv(x)).map(fila) });
   // "Producto no válido" se lista aparte para decidir cuándo endurecerlo. TODO(decision D-05c)

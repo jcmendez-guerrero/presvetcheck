@@ -395,7 +395,13 @@ export class DispensacionesService {
       forzado: forzados,
       apartarReceta: apartar
         ? {
-            motivo: r.decision === 'SUSTITUIR' ? 'Separar la receta en la bandeja de sustituciones' : forzados.length ? 'Receta con defecto forzado — revisión del garante' : 'Cambio de formato — revisión del garante',
+            // El garante no usa la app: revisa y firma sobre el papel y el reporte semanal.
+            motivo:
+              r.decision === 'SUSTITUIR'
+                ? 'Separar la receta para la firma del garante en la anotación del dorso; después registra la firma en Pendientes'
+                : forzados.length
+                  ? 'Receta con defecto forzado: sepárala para la revisión del garante (figura en el reporte semanal)'
+                  : 'Cambio de formato: separa la receta para la revisión del garante (figura en el reporte semanal)',
             etiqueta:
               r.decision === 'SUSTITUIR'
                 ? textoAnotacionDorso({ nombre: pres.nombre, cn: cnPermitido, lote: s.envases.map((e) => e.lote).join(', '), fecha: fechaEs(hoyDe(this.d)) })

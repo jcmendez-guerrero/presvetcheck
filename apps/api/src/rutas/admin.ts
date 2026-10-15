@@ -18,7 +18,6 @@ import { ctx, type App } from './comun';
 /** Administración (SPEC §8.11): mapeo CN↔Siweb360, distribuidores, reglas, exclusiones, outbox, CIMAVet. */
 export async function rutasAdmin(app: App, d: AppDeps) {
   const admin = requiereRol(...ROLES.admin);
-  const adminOGarante = requiereRol(...ROLES.adminOGarante);
   const siweb = () => {
     if (!d.siweb) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado (modo demo)');
     return d.siweb;
@@ -44,11 +43,12 @@ export async function rutasAdmin(app: App, d: AppDeps) {
   });
 
   // ── Reglas (solo lectura del YAML activo y su aprobación) ──────────────────────
-  app.get('/api/admin/reglas', { preHandler: adminOGarante, schema: { tags: ['admin'] } }, async () => ({
+  app.get('/api/admin/reglas', { preHandler: admin, schema: { tags: ['admin'] } }, async () => ({
     version: d.rules.bundle.version,
     ficheros: await d.db.select().from(reglaVersion).where(eq(reglaVersion.activa, true)).orderBy(asc(reglaVersion.nombreFichero)),
   }));
-  app.post('/api/admin/reglas/:id/aprobar', { preHandler: requiereRol(...ROLES.garante), schema: { tags: ['admin'], summary: 'Aprobación de una versión de reglas por el garante (MFA)', params: IdParam } }, async (req) => {
+  // El garante revisa las reglas fuera de la app; administración deja constancia de la activación (MFA).
+  app.post('/api/admin/reglas/:id/aprobar', { preHandler: admin, schema: { tags: ['admin'], summary: 'Registro de la aprobación de una versión de reglas (administración, MFA)', params: IdParam } }, async (req) => {
     exigirMfa(req);
     const c = ctx(req);
     const [r] = await d.db.update(reglaVersion).set({ aprobadaPor: c.usuario.id, aprobadaAt: ahoraDe(d) }).where(eq(reglaVersion.id, req.params.id)).returning();
@@ -57,12 +57,12 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     return r;
   });
 
-  // ── Exclusiones de sustitución (las mantiene el garante) ──────────────────────
-  app.get('/api/admin/exclusiones', { preHandler: adminOGarante, schema: { tags: ['admin'] } }, async () => d.db.select().from(sustitucionExclusion).orderBy(desc(sustitucionExclusion.createdAt)));
+  // ── Exclusiones de sustitución (las indica el garante fuera de la app; las da de alta administración) ──
+  app.get('/api/admin/exclusiones', { preHandler: admin, schema: { tags: ['admin'] } }, async () => d.db.select().from(sustitucionExclusion).orderBy(desc(sustitucionExclusion.createdAt)));
   app.post(
     '/api/admin/exclusiones',
     {
-      preHandler: requiereRol(...ROLES.garante),
+      preHandler: admin,
       schema: {
         tags: ['admin'],
         body: z.object({ nregistro: z.string().nullable().default(null), paId: z.number().int().nullable().default(null), motivo: z.string().min(5), fuente: z.string().min(3) }).refine((b) => b.nregistro || b.paId, 'nregistro o paId'),
@@ -82,7 +82,7 @@ export async function rutasAdmin(app: App, d: AppDeps) {
   );
   app.put(
     '/api/admin/plataformas/:id',
-    { preHandler: adminOGarante, schema: { tags: ['admin'], summary: 'Marca si la plataforma figura en el listado del MAPA', params: z.object({ id: z.string() }), body: z.object({ reconocidaMapa: z.boolean().nullable(), urlVerificacion: z.url().nullable().default(null) }) } },
+    { preHandler: admin, schema: { tags: ['admin'], summary: 'Marca si la plataforma figura en el listado del MAPA', params: z.object({ id: z.string() }), body: z.object({ reconocidaMapa: z.boolean().nullable(), urlVerificacion: z.url().nullable().default(null) }) } },
     async (req) => {
       const c = ctx(req);
       const [r] = await d.db
@@ -189,7 +189,7 @@ export async function rutasAdmin(app: App, d: AppDeps) {
   );
 
   // ── Estado de la sincronización con CIMAVet ───────────────────────────────────
-  app.get('/api/admin/cimavet', { preHandler: adminOGarante, schema: { tags: ['admin'] } }, async () => ({ ultimas: await d.cimavet.ultimasSync(20) }));
+  app.get('/api/admin/cimavet', { preHandler: admin, schema: { tags: ['admin'] } }, async () => ({ ultimas: await d.cimavet.ultimasSync(20) }));
 
   // ── Tareas pendientes en Siweb360 (todas, para la UI) ─────────────────────────
   app.get('/api/admin/tareas-siweb', { preHandler: requiereRol(...ROLES.operativa, 'admin'), schema: { tags: ['admin'] } }, async () =>

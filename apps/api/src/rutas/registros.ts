@@ -1,14 +1,16 @@
+import { DomainError } from '@mmx/shared';
 import { aCsv, aXlsx, tablaEntradas, tablaPsicotropos, tablasSalidas } from '@mmx/reports';
 import type { AppDeps } from '../deps';
-import { ROLES, requiereRol, usuario } from '../plugins/auth';
-import { RegistrosQuery, RevisionDto } from '../schemas';
-import { GaranteService } from '../servicios/garante';
+import { appendAudit } from '@mmx/db';
+import { ROLES, exigirMfa, requiereRol, usuario } from '../plugins/auth';
+import { IdParam, RegistrosQuery, ResolverDiscrepanciaDto } from '../schemas';
+import { PendientesService } from '../servicios/pendientes';
 import { RegistrosService } from '@mmx/reports';
 import { ctx, enviarFichero, type App } from './comun';
 
 export async function rutasRegistros(app: App, d: AppDeps) {
   const reg = new RegistrosService(d);
-  const gar = new GaranteService(d);
+  const pend = new PendientesService(d);
   const lectura = requiereRol(...ROLES.lecturaRegistros);
 
   app.get(
@@ -17,8 +19,15 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     async (req, reply) => {
       const q = req.query;
       const u = usuario(req);
-      // DNI completo solo para el rol garante (D-07); el resto lo ve enmascarado.
-      const salidas = await reg.salidas(q.desde, q.hasta, { incluirPropietario: q.incluirPropietario === '1', dniCompleto: u.roles.includes('farmaceutico_garante') });
+      // DNI completo solo para administración con MFA y queda auditado (p. ej. requerimiento de la
+      // inspección); el resto lo ve enmascarado (D-07). El garante no usa la app.
+      const dniCompleto = q.dniCompleto === '1';
+      if (dniCompleto) {
+        if (!u.roles.includes('admin')) throw new DomainError('PROHIBIDO', 'El DNI completo solo lo exporta administración');
+        exigirMfa(req);
+        await d.db.transaction((tx) => appendAudit(tx, { actor: u.id, accion: 'exportar_dni_completo', entidad: 'registro_salidas', entidadId: null, despues: { desde: q.desde, hasta: q.hasta, plantilla: q.plantilla } }));
+      }
+      const salidas = await reg.salidas(q.desde, q.hasta, { incluirPropietario: q.incluirPropietario === '1', dniCompleto });
       const tablas = tablasSalidas(salidas, q.plantilla, { incluirPropietario: q.incluirPropietario === '1', internas: q.internas });
       const base = `salidas-${q.plantilla}-${q.desde}_${q.hasta}`;
       if (q.formato === 'csv') return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(tablas[0]!));
@@ -42,9 +51,10 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     return { tablas: [t] };
   });
 
-  // ── Bandeja del garante ────────────────────────────────────────────────────────
-  app.get('/api/garante/bandeja', { preHandler: requiereRol(...ROLES.garante), schema: { tags: ['garante'] } }, async () => gar.bandeja());
-  app.post('/api/garante/revisiones', { preHandler: requiereRol(...ROLES.garante), schema: { tags: ['garante'], body: RevisionDto } }, async (req, reply) =>
-    reply.status(201).send(await gar.revisar(req.body, ctx(req))),
+  // ── Pendientes de la operativa (sustituciones en curso y discrepancias) ────────────
+  const operativa = requiereRol(...ROLES.operativa);
+  app.get('/api/pendientes', { preHandler: operativa, schema: { tags: ['pendientes'] } }, async () => pend.listado());
+  app.post('/api/discrepancias/:id/resolver', { preHandler: operativa, schema: { tags: ['pendientes'], params: IdParam, body: ResolverDiscrepanciaDto } }, async (req) =>
+    pend.resolverDiscrepancia(req.params.id, req.body.nota, ctx(req)),
   );
 }

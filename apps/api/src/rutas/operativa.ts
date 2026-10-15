@@ -3,7 +3,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { appendAudit, pedidoPendiente } from '@mmx/db';
 import { DomainError } from '@mmx/shared';
 import type { AppDeps } from '../deps';
-import { ROLES, exigirMfa, requiereRol } from '../plugins/auth';
+import { ROLES, requiereRol } from '../plugins/auth';
 import { AnularDto, DispensacionDto, IdParam, LineaEntradaDto, PedidoDto, RecepcionDto, SustitucionAccionDto, SustitucionAccionParams, SustitucionCrearDto } from '../schemas';
 import { DispensacionesService } from '../servicios/dispensaciones';
 import { RecepcionesService } from '../servicios/recepciones';
@@ -28,11 +28,8 @@ export async function rutasOperativa(app: App, d: AppDeps) {
   );
   app.post(
     '/api/dispensaciones/:id/anular',
-    { preHandler: requiereRol(...ROLES.garante), schema: { tags: ['dispensaciones'], summary: 'Anulación con motivo (contramovimiento)', params: IdParam, body: AnularDto } },
-    async (req) => {
-      exigirMfa(req);
-      return disp.anular(req.params.id, req.body.motivo, ctx(req));
-    },
+    { preHandler: pre, schema: { tags: ['dispensaciones'], summary: 'Anulación con motivo (contramovimiento), registrada por el empleado', params: IdParam, body: AnularDto } },
+    async (req) => disp.anular(req.params.id, req.body.motivo, ctx(req)),
   );
 
   // ── Sustituciones ──────────────────────────────────────────────────────────────
@@ -42,7 +39,7 @@ export async function rutasOperativa(app: App, d: AppDeps) {
   app.get('/api/sustituciones/:id', { preHandler: pre, schema: { tags: ['sustituciones'], params: IdParam } }, async (req) => sust.detalle(req.params.id));
   app.post(
     '/api/sustituciones/:id/:accion',
-    { preHandler: pre, schema: { tags: ['sustituciones'], summary: 'Transiciones: consentimiento, aviso-veterinario, autorizar, rechazar, anotacion, validar', params: SustitucionAccionParams, body: SustitucionAccionDto } },
+    { preHandler: pre, schema: { tags: ['sustituciones'], summary: 'Transiciones: consentimiento, aviso-veterinario, autorizacion-garante, anotacion, firma-garante, rechazar (lo registra el empleado)', params: SustitucionAccionParams, body: SustitucionAccionDto } },
     async (req) => sust.accion(req.params.id, req.params.accion, req.body ?? {}, ctx(req)),
   );
 

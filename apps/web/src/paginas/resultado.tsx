@@ -56,7 +56,7 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
 
   return (
     <Tarjeta titulo={<span className="flex flex-wrap items-center gap-3">Medicamento {l.orden} <EstadoDecision decision={decision} /></span>}>
-      {ev.psicotropo && <p className="mb-2 font-semibold text-psicotropo">Psicótropo: un envase por receta y receta apartada para el garante.</p>}
+      {ev.psicotropo && <p className="mb-2 font-semibold text-psicotropo">Psicótropo: un envase por receta, DNI de quien lo retira y receta apartada.</p>}
       <ListaMotivos motivos={l.resultado.motivos} />
 
       {decision === 'DISPENSAR' && ev.lotes?.recomendado && (
@@ -79,7 +79,7 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
             <div key={s.cn} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sustituir-bg p-3">
               <span>
                 {s.nombre} · {s.labtitular} · {CN} {s.cn} · caduca {fecha(s.caducidadFefo)}
-                {s.modo === 'PRE' && <strong className="ml-2">Necesita aprobación previa del garante</strong>}
+                {s.modo === 'PRE' && <strong className="ml-2">Necesita aprobación previa del garante (consúltale y regístrala)</strong>}
               </span>
               <Boton onClick={() => void sustituir(s.cn)}>Iniciar sustitución</Boton>
             </div>

@@ -20,7 +20,6 @@ declare module 'fastify' {
 /** Usuarios del modo dev (selector de usuario/rol en la UI y cabecera `x-dev-user`). */
 export const USUARIOS_DEV: Record<string, { nombre: string; roles: Rol[] }> = {
   'dev-empleado': { nombre: 'Empleada de prueba', roles: ['empleado'] },
-  'dev-garante': { nombre: 'Farmacéutico garante de prueba', roles: ['farmaceutico_garante'] },
   'dev-veterinaria': { nombre: 'Veterinaria responsable de prueba', roles: ['veterinaria_responsable'] },
   'dev-admin': { nombre: 'Administración de prueba', roles: ['admin'] },
 };
@@ -123,7 +122,7 @@ export function requiereRol(...roles: Rol[]) {
   };
 }
 
-/** Acciones del garante que exigen MFA (firma de sustituciones, revisiones, anulaciones). */
+/** Acciones que exigen MFA (aprobar reglas, ver el DNI completo). */
 export function exigirMfa(req: FastifyRequest) {
   if (!req.usuario?.mfa) throw new DomainError('PROHIBIDO', 'Esta acción exige autenticación multifactor (MFA)');
 }
@@ -133,11 +132,12 @@ export function usuario(req: FastifyRequest): Usuario {
   return req.usuario;
 }
 
-/** Grupos de roles (SPEC §9.1). El admin no participa en la operativa ni autoriza sustituciones. */
+/**
+ * Grupos de roles (SPEC §9.1). El farmacéutico garante NO usa la app: sus actuaciones (autorizar, firmar,
+ * revisar) se hacen fuera y las registra el empleado. El admin no participa en la operativa.
+ */
 export const ROLES = {
-  operativa: ['empleado', 'veterinaria_responsable', 'farmaceutico_garante'] as Rol[],
-  lecturaRegistros: ['farmaceutico_garante', 'veterinaria_responsable'] as Rol[],
-  garante: ['farmaceutico_garante'] as Rol[],
+  operativa: ['empleado', 'veterinaria_responsable'] as Rol[],
+  lecturaRegistros: ['empleado', 'veterinaria_responsable', 'admin'] as Rol[],
   admin: ['admin'] as Rol[],
-  adminOGarante: ['admin', 'farmaceutico_garante'] as Rol[],
 };

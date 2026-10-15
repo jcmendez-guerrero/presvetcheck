@@ -24,7 +24,7 @@ export function BandaPsicotropo() {
   return (
     <div role="status" data-banda="psicotropo" className="sticky top-0 z-30 border-y-4 border-psicotropo bg-psicotropo-bg px-4 py-3 font-bold text-psicotropo">
       <p className="flex items-center gap-2 text-lg">
-        <Pill aria-hidden className="h-6 w-6" /> PSICÓTROPO — un único envase por receta. La receta queda apartada para el garante.
+        <Pill aria-hidden className="h-6 w-6" /> PSICÓTROPO — un único envase por receta. Comprueba la identidad de quien lo retira y anota su DNI. La receta queda apartada.
       </p>
     </div>
   );

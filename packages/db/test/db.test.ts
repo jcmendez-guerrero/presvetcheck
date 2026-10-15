@@ -137,7 +137,7 @@ describe('auditoría con cadena de hashes', () => {
   it('encadena eventos y detecta manipulación', async () => {
     await h.db.transaction(async (tx) => {
       await appendAudit(tx, { actor: 'dev-empleado', accion: 'crear', entidad: 'receta', entidadId: 'r1', despues: { b: 1, a: [1, 'x'] } });
-      await appendAudit(tx, { actor: 'dev-garante', accion: 'firmar', entidad: 'sustitucion', entidadId: 's1', antes: { e: 'A' }, despues: { e: 'B' } });
+      await appendAudit(tx, { actor: 'dev-empleado', accion: 'firmar', entidad: 'sustitucion', entidadId: 's1', antes: { e: 'A' }, despues: { e: 'B' } });
     });
     expect(await verifyAuditChain(h.db)).toMatchObject({ ok: true, total: 2 });
     await expectPgError(h.db.update(auditEvent).set({ actor: 'x' }), /solo inserción/);

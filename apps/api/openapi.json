@@ -1506,7 +1506,7 @@
     },
     "/api/dispensaciones/{id}/anular": {
       "post": {
-        "summary": "Anulación con motivo (contramovimiento)",
+        "summary": "Anulación con motivo (contramovimiento), registrada por el empleado",
         "tags": [
           "dispensaciones"
         ],
@@ -1620,7 +1620,7 @@
     },
     "/api/sustituciones/{id}/{accion}": {
       "post": {
-        "summary": "Transiciones: consentimiento, aviso-veterinario, autorizar, rechazar, anotacion, validar",
+        "summary": "Transiciones: consentimiento, aviso-veterinario, autorizacion-garante, anotacion, firma-garante, rechazar (lo registra el empleado)",
         "tags": [
           "sustituciones"
         ],
@@ -1653,6 +1653,10 @@
                   "confirmaIndicacionProbable": {
                     "type": "boolean"
                   },
+                  "garante": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
                   "motivo": {
                     "type": "string",
                     "maxLength": 1000
@@ -1679,10 +1683,10 @@
               "enum": [
                 "consentimiento",
                 "aviso-veterinario",
-                "autorizar",
-                "rechazar",
+                "autorizacion-garante",
                 "anotacion",
-                "validar"
+                "firma-garante",
+                "rechazar"
               ]
             },
             "in": "path",
@@ -2134,6 +2138,19 @@
             "in": "query",
             "name": "internas",
             "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
+            "required": false
           }
         ],
         "responses": {
@@ -2220,6 +2237,19 @@
             },
             "in": "query",
             "name": "internas",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
             "required": false
           }
         ],
@@ -2309,6 +2339,19 @@
             "in": "query",
             "name": "internas",
             "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
+            "required": false
           }
         ],
         "responses": {
@@ -2318,10 +2361,10 @@
         }
       }
     },
-    "/api/garante/bandeja": {
+    "/api/pendientes": {
       "get": {
         "tags": [
-          "garante"
+          "pendientes"
         ],
         "responses": {
           "200": {
@@ -2330,10 +2373,10 @@
         }
       }
     },
-    "/api/garante/revisiones": {
+    "/api/discrepancias/{id}/resolver": {
       "post": {
         "tags": [
-          "garante"
+          "pendientes"
         ],
         "requestBody": {
           "required": true,
@@ -2342,43 +2385,31 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "entidad": {
+                  "nota": {
                     "type": "string",
-                    "enum": [
-                      "dispensacion",
-                      "receta",
-                      "sustitucion",
-                      "discrepancia"
-                    ]
-                  },
-                  "entidadId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "resultado": {
-                    "type": "string",
-                    "enum": [
-                      "conforme",
-                      "no_conforme"
-                    ]
-                  },
-                  "comentario": {
-                    "default": null,
-                    "type": "string",
-                    "maxLength": 1000,
-                    "nullable": true
+                    "minLength": 10,
+                    "maxLength": 1000
                   }
                 },
                 "required": [
-                  "entidad",
-                  "entidadId",
-                  "resultado"
+                  "nota"
                 ]
               }
             }
           }
         },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"
@@ -2506,7 +2537,7 @@
     },
     "/api/admin/reglas/{id}/aprobar": {
       "post": {
-        "summary": "Aprobación de una versión de reglas por el garante (MFA)",
+        "summary": "Registro de la aprobación de una versión de reglas (administración, MFA)",
         "tags": [
           "admin"
         ],

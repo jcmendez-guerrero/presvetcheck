@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { AppDeps } from '../deps';
-import { GaranteService } from '../servicios/garante';
+import { PendientesService } from '../servicios/pendientes';
 import { ROLES, requiereRol, usuario } from '../plugins/auth';
 import type { App } from './comun';
 
@@ -30,6 +30,6 @@ export async function rutasSistema(app: App, d: AppDeps) {
   }));
   app.get('/api/me', { schema: { tags: ['sistema'], summary: 'Usuario actual' } }, async (req) => usuario(req));
   app.get('/api/inicio', { schema: { tags: ['sistema'], summary: 'Contadores de Inicio' }, preHandler: requiereRol(...ROLES.operativa, 'admin') }, async () =>
-    new GaranteService(d).inicio(),
+    new PendientesService(d).inicio(),
   );
 }

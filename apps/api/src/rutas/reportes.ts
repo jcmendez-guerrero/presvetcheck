@@ -26,7 +26,7 @@ export async function rutasReportes(app: App, d: AppDeps) {
   app.post(
     '/api/reportes/:tipo/generar',
     {
-      preHandler: requiereRol(...ROLES.garante),
+      preHandler: requiereRol(...ROLES.lecturaRegistros),
       schema: { tags: ['reportes'], summary: 'Genera el reporte semanal bajo demanda', params: z.object({ tipo: z.enum(['semanal']) }), body: z.object({ desde: IsoDate.optional(), hasta: IsoDate.optional() }).default({}) },
     },
     async (req, reply) => {
