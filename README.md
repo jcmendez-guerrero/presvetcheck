@@ -16,22 +16,28 @@ Con **colima** (macOS), Testcontainers necesita el socket:
 ```bash
 cp .env.example .env
 pnpm i
-pnpm dev     # Docker Compose + migraciones + seed + muestra del Nomenclátor + API (3000) + web (5173)
+pnpm dev     # Docker Compose + Nomenclátor (si falta) + migraciones + seed + muestra + API (3000) + web (5173)
 ```
+Los XML de CIMAVet (Nomenclátor y diccionarios) **no están en git**: `pnpm nomenclator:fetch` los descarga de
+CIMAVet a `fixtures/nomenclator/` y genera la muestra de los tests (lo hacen solos `pnpm dev`, `pnpm demo` y la CI).
+Hace falta antes de `pnpm test` en un clon nuevo.
 Sin Docker, con datos en memoria (PGlite) y stock sintético:
 ```bash
 pnpm demo
 ```
 Abre http://localhost:5173. En modo `AUTH_MODE=dev` se elige el usuario/rol arriba a la derecha (y MFA simulado).
+Roles: empleado, veterinaria responsable y administración. El farmacéutico garante no usa la app: lo que hace
+fuera (autorizar, firmar) lo registra el empleado, y revisa el reporte semanal que recibe por correo.
 
 ## Comandos
 | Comando | Qué hace |
 |---|---|
+| `pnpm nomenclator:fetch [--si-falta]` | Descarga el Nomenclátor de CIMAVet y genera la muestra de tests |
 | `pnpm lint && pnpm typecheck && pnpm test` | Puerta de calidad |
 | `pnpm test:int` | Integración con Testcontainers (PostgreSQL 16) |
 | `pnpm test:e2e` | Humo de la UI con Playwright (receta → dispensación, `EXTRACTOR=fake`) |
 | `pnpm db:migrate` / `pnpm db:seed` | Migraciones y maestros desde `fixtures/nomenclator/` |
-| `pnpm worker <job>` | `cimavet-delta`, `cimavet-full`, `outbox-dispatcher`, `sales-reconciliation`, `weekly-reports`, `nomenclator-import --muestra\|--fichero`, `retention-sweep`, `db-migrate` |
+| `pnpm worker <job>` | `cimavet-delta`, `cimavet-full`, `outbox-dispatcher`, `sales-reconciliation`, `weekly-reports`, `nomenclator-import --descargar\|--muestra\|--fichero`, `retention-sweep`, `db-migrate` |
 | `pnpm eval:extraction` | Banco de evaluación de la extracción (`fixtures/recetas/`) |
 | `pnpm --filter @mmx/api openapi` | Regenera `apps/api/openapi.json` (documentación en `/api/docs`) |
 | `pnpm --filter @mmx/worker spike:siweb -- --sku TEST-…` | Spike de escritura en Siweb360 (SPEC §12.3, lo ejecuta una persona) |

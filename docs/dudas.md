@@ -5,17 +5,24 @@ duda, **la opción más conservadora desde el punto de vista regulatorio**, docu
 configurable cuando es posible. Ninguna de estas entradas resuelve las decisiones pendientes
 de §13 (D-02b, D-04b, D-05c, D-06b, D-10b), que siguen como configuración + `TODO(decision)`.
 
-Cada entrada indica: qué dice la spec, qué se ha implementado y quién debería confirmarlo.
+Cada entrada indica: qué dice la spec, qué se ha implementado y quién debería confirmarlo. Las marcadas
+**RESUELTA** recogen la respuesta de JC del 15/10/2026.
+
+**Criterio general (JC):** el farmacéutico garante **no usa la app**. Lo que hace (autorizar, firmar, revisar)
+ocurre fuera y, cuando hace falta dejar constancia, lo **registra el empleado** como confirmación expresa a su
+nombre. Las "confirmaciones expresas" de la app son siempre de la persona que registra.
 
 ---
 
-## DUDA-01 · Ubicación y tamaño de la muestra del Nomenclátor
-- **Spec:** §3 y §5.1.2 esperan la muestra en `fixtures/nomenclator/`. Los XML llegaron en `fixtures/`.
-- **Implementado:** se han movido a `fixtures/nomenclator/`. `PrescripcionVET.xml` pesa 140 MB (supera el
-  límite de GitHub), así que queda **fuera de git** (`.gitignore`) y los tests usan
-  `PrescripcionVET.sample.xml`, generado copiando literalmente 34 registros reales con
-  `pnpm nomenclator:fetch` (descarga de CIMAVet; no se inventa estructura).
-- **Confirmar:** JC — si prefiere Git LFS para el fichero completo.
+## DUDA-01 · Nomenclátor y XML de CIMAVet — RESUELTA
+- **JC:** todos los XML de CIMAVet se ignoran en git; se obtienen de CIMAVet cuando hacen falta.
+- **Implementado:** `fixtures/nomenclator/*.xml` en `.gitignore`. `pnpm nomenclator:fetch` descarga el zip oficial
+  (`NOMENCLATOR_URL`, enlazado desde `cimavet.aemps.es/cimavet/publico/nomenclator.html`) y genera una muestra
+  determinista para los tests (todas las presentaciones de los `nregistro` que usan los tests + ejemplos de cada
+  caso especial). La CI lo descarga con caché semanal; `pnpm dev`/`pnpm demo` lo descargan si falta. En producción,
+  `nomenclator-import --descargar` (y `cimavet-full --descargar`). La imagen ya no incluye diccionarios.
+- **Ojo:** los XML siguen en el **historial** de git (commits anteriores). Purgarlos exige reescribir la historia
+  (`git filter-repo`) y forzar el push: no se ha hecho; decide JC.
 
 ## DUDA-02 · ¿Se puede forzar dispensar más unidades de las prescritas?
 - **Spec:** §4.6 dice "la suma de unidades no supera lo prescrito (bloqueo)". §4.1.6 enumera los
@@ -26,26 +33,29 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   `config/rules/receta-campos.v1.yaml` (configurable).
 - **Confirmar:** farmacéutico garante.
 
-## DUDA-03 · Medicamento de uso humano prescrito
-- **Spec:** §4.1.5 → `NO_CONFORME` con `MEDICAMENTO_USO_HUMANO` ("no se automatiza; requiere
-  prescripción excepcional y revisión"). No aparece en la lista de no forzables de §4.1.6.
-- **Implementado (conservador):** `BLOQUEANTE_DURO` para el empleado: lo gestiona el garante fuera del flujo
-  automático. Configurable.
-- **Confirmar:** farmacéutico garante.
+## DUDA-03 · Medicamento de uso humano / que no está en el sistema — RESUELTA
+- **JC:** no se puede en ningún caso; se informa de que no está en el sistema y de que puede ser de uso humano.
+- **Implementado:** `MEDICAMENTO_NO_EN_SISTEMA` (línea sin medicamento de CIMAVet veterinario, también al vender sin
+  receta) y `MEDICAMENTO_USO_HUMANO`: ambos `BLOQUEANTE_DURO`, sin forzado ni vía de revisión. Texto: "no está en el
+  sistema … puede ser de uso humano: no se puede dispensar".
 
 ## DUDA-04 · Columnas `anulada_por` y `revisado_garante` en una tabla append-only
 - **Spec:** §6 define `dispensacion.anulada_por` y `dispensacion.revisado_garante` en una tabla **sin UPDATE**.
 - **Contradicción:** rellenarlas exigiría un `UPDATE`.
 - **Implementado:** la anulación es una **fila nueva** (contramovimiento) con `anula_dispensacion_id`
-  (único: no se anula dos veces) y la vista `v_dispensacion` deriva `anulada_por`. Las revisiones del garante
-  van a la tabla append-only `revision_garante`. Las correcciones de entradas tras finalizar van a
+  (único: no se anula dos veces), registrada por el empleado con motivo, y la vista `v_dispensacion` deriva
+  `anulada_por`. `revisado_garante` no existe: el garante revisa fuera de la app (reporte semanal); la tabla
+  `revision_garante` se eliminó (migración 0003). Las correcciones de entradas tras finalizar van a
   `recepcion_ajuste` (append-only).
 
-## DUDA-05 · `recepcion_linea` "append-only tras finalizar" frente a estados de sincronización
-- **Spec:** §6 la declara append-only tras finalizar, pero §5.2.2 y §4.9 cambian su estado
-  (`PENDIENTE_ALTA_SIWEB` → encolada → sincronizada) después de finalizar.
-- **Implementado:** trigger que, con la recepción finalizada, impide borrar y modificar cualquier dato
-  registrado; solo permite cambiar `estado` y `siweb_variant_id`. Tampoco admite líneas nuevas ni reabrir.
+## DUDA-05 · `recepcion_linea` "append-only tras finalizar" frente a estados de sincronización — ACLARACIÓN
+- **Qué se preguntaba:** la spec dice que una línea de entrada no se puede modificar una vez finalizada la
+  recepción, pero también que después cambia su estado de sincronización con Siweb360 (pendiente de alta →
+  encolada → sincronizada) y que se le asigna la variante de Siweb360 cuando se da de alta allí.
+- **Implementado:** una vez finalizada, ningún dato registrado (CN, lote, caducidad, unidades, precio…) se puede
+  modificar ni borrar; solo cambian dos campos técnicos: el **estado de sincronización** y el **id de la
+  variante de Siweb360**. Si hay que corregir unidades, se registra un **ajuste** (contramovimiento). No requiere
+  decisión salvo que se quiera otra cosa.
 
 ## DUDA-06 · Fuente de "inmunológico" y "biológico"
 - **Spec:** §4.4.1 usa `tipoMedicamento` de CIMAVet (inmunológico/mixto) y "biológico".
@@ -56,13 +66,10 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   o principio activo), que mantiene el garante.
 - **Confirmar:** farmacéutico garante (lista de biológicos).
 
-## DUDA-07 · Subcategorías de especie (p. ej. "Perros grandes", "Perras gestantes")
-- **Spec:** "autorizado para la especie de destino" (§4.4.2.5) sin jerarquía.
-- **Hallazgo:** el diccionario de especies tiene 371 entradas con subcategorías.
-- **Implementado (conservador):** coincidencia exacta por id, más un mapa configurable
-  `especie_padre` (`config/rules/equivalencia.v1.yaml`): una receta para una subcategoría queda cubierta por
-  la autorización de la especie base, **nunca al revés**. Solo se han mapeado perros y gatos.
-- **Confirmar:** farmacéutico garante / veterinaria responsable.
+## DUDA-07 · Subcategorías de especie (p. ej. "Perros grandes", "Perras gestantes") — RESUELTA (OK)
+- **Implementado:** coincidencia exacta por id, más un mapa configurable `especie_padre`
+  (`config/rules/equivalencia.v1.yaml`): una receta para una subcategoría queda cubierta por la autorización de
+  la especie base, **nunca al revés**. Solo se han mapeado perros y gatos.
 
 ## DUDA-08 · Defectos de forma "forzables" que quizá no deberían serlo
 - **Spec:** §4.1.6 declara forzables todos los bloqueos no listados, lo que incluye `RECETA_CADUCADA` y
@@ -72,30 +79,34 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   severidad en `receta-campos.v1.yaml` (y aprobar la nueva versión) para hacerlos no forzables.
 - **Confirmar:** farmacéutico garante.
 
-## DUDA-09 · Menor concentración de **otro laboratorio** (§4.3.1 frente a §4.4.2)
-- **Spec:** §4.3.1 dice que una presentación de menor concentración de otro laboratorio "se trata además con
-  las condiciones y el flujo de sustitución". Pero §4.4.2.1 exige **misma** composición cuantitativa.
-- **Contradicción:** aplicadas literalmente, ninguna presentación de menor concentración de otro laboratorio
-  podría cumplir §4.4.2.
-- **Implementado (conservador):** se propone como `SUSTITUIR` solo si cumple la regla de formato (§4.3.1) **y**
-  todas las condiciones de §4.4.2 salvo la igualdad de concentración, la sustitución está permitida (§4.4.1) y,
-  además, **siempre en modo `PRE`** (aprobación previa del garante), con nota de administración.
-- **Confirmar:** farmacéutico garante.
+## DUDA-09 · Menor concentración — RESUELTA
+- **JC:** la sustitución es siempre por la misma composición y principio, nunca por menor concentración. La menor
+  concentración solo vale si es el **mismo medicamento** en menor concentración.
+- **Implementado:** la sustitución entre medicamentos exige igual composición cualitativa y cuantitativa. La
+  regla de formato (§4.3.1) solo propone menor concentración del mismo medicamento (mismo registro, o mismo
+  titular y mismo nombre comercial, p. ej. CLAVUBAY 200/50 en vez de 400/100); en otro caso se descarta con
+  `CONCENTRACION_OTRO_MEDICAMENTO`. Se eliminó la vía "menor concentración de otro laboratorio".
 
-## DUDA-10 · "Unidades" en dispensación y en el tope de lo prescrito
-- **Spec:** §4.6 "la suma de unidades no supera lo prescrito" y §4.8 "UNIDADES DISPENSADAS"; la receta
-  prescribe "cantidad / nº de envases".
-- **Implementado:** la unidad de dispensación es el **envase**. El tope es el nº de envases prescrito (o el
-  que resulte de la regla de formato). En psicótropos, 1 envase por receta.
-- **Confirmar:** farmacéutico garante (si alguna vez se dispensa fraccionado — `sw_dispensacion_fraccionada`
-  del Nomenclátor — habría que contar unidades de forma).
+## DUDA-10 · Unidades y dispensación fraccionada — RESUELTA
+- **JC:** la fraccionada se ciñe a lo que permite el laboratorio (1 blíster, 1 comprimido…); en el registro de
+  salidas se anota lo entregado, p. ej. "1 caja 20 comprimidos" o "1 frasco 10 ml".
+- **Implementado:** por defecto se dispensan envases completos. Si el Nomenclátor marca la presentación con
+  `sw_dispensacion_fraccionada` y `fracciones_autorizadas` (texto libre: "fracción: 1 blister de 10 comprimidos",
+  "6 fracciones de 3 comprimidos", "21 fracciones de 1 pipeta"…), se admite fraccionar **solo** la presentación
+  prescrita, de un único envase, en múltiplos de la fracción y sin superar las unidades de dosificación que indica
+  la receta (nuevo campo de la línea). Si el texto de la fracción no se entiende, solo envases completos.
+  `UNIDADES DISPENSADAS` pasa a texto: "1 caja 20 comprimidos", "2 cajas 28 comprimidos", "1 frasco 10 ml" o
+  "14 comprimidos (fracción de caja 28 comprimidos)".
+- **Pendiente (JC):** cómo se cobra/descuenta una fracción en el TPV de Siweb360. Mientras tanto, las fracciones
+  no entran en la conciliación automática con los tickets (se informan aparte) y en el registro de psicótropos el
+  saldo se lleva en envases.
 
 ## DUDA-11 · Comparación de indicaciones
 - **Spec:** "similitud de texto + sinónimos" sin método concreto (§4.4.2.6).
 - **Implementado:** proporción de términos de la indicación de la receta presentes en la indicación del
   candidato (tras normalizar, quitar palabras vacías y aplicar sinónimos). Umbrales y sinónimos en
-  `config/rules/equivalencia.v1.yaml` (`COINCIDE ≥ 0,8`, `PROBABLE ≥ 0,4`). `PROBABLE` exige confirmación expresa
-  del garante (modo `PRE`).
+  `config/rules/equivalencia.v1.yaml` (`COINCIDE ≥ 0,8`, `PROBABLE ≥ 0,4`). `PROBABLE` exige autorización previa
+  del garante (modo `PRE`), que el empleado registra confirmando expresamente que el garante la ha revisado.
 - **Confirmar:** farmacéutico garante (umbrales y lista de sinónimos).
 
 ## DUDA-12 · Tiempos de espera sin dato comparable
@@ -104,54 +115,45 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   candidato **no** es equivalente (`TIEMPO_ESPERA_DESCONOCIDO`). Lo mismo al forzar una prescripción solo por
   principio activo en especie productora (no hay tiempo de referencia).
 
-## DUDA-13 · Respuestas JSON de CIMAVet no documentadas
-- **Spec/ref:** `docs/ref/CIMAVet_REST_API.md` solo describe campos y tipos; no hay ejemplos JSON ni el
-  envoltorio de las listas paginadas; la tabla de "Tiempo de espera" no incluye el tejido; las fechas se
-  describen como "Fecha" o "Unix timestamp" sin más detalle.
-- **Implementado:** cliente tolerante: claves normalizadas a minúsculas, listas como array directo o primer
-  campo array de un objeto, paginación hasta página vacía o repetida, fechas en timestamp (s o ms),
-  `dd/mm/aaaa` o ISO. Fixtures construidas con los nombres de campo de la doc y valores reales del
-  Nomenclátor (`fixtures/cimavet/README.md`). Queda un `it.todo` hasta tener respuestas reales.
-- **Conservador:** la API no da la base de la concentración (`cantidad_concentracion`): un refresco por API
-  **no** sustituye una composición normalizable del Nomenclátor, y una composición solo de API se marca no
-  normalizable (no se proponen formatos ni sustitutos automáticamente).
-- **Pendiente:** JC — guardar respuestas reales en `fixtures/cimavet/`.
+## DUDA-13 · Respuestas JSON de CIMAVet — RESUELTA
+- **JC:** los JSON de los tests se obtienen a partir de los XML.
+- **Implementado:** se eliminaron las fixtures JSON hechas a mano. `packages/cimavet/test/api-desde-xml.ts` genera
+  las respuestas a partir del Nomenclátor con la **forma de la API real**, que se comprobó con peticiones manuales
+  (no desde los tests) y se documenta en `docs/ref/cimavet-respuestas.md`: listas
+  `{ totalFilas, pagina, tamanioPagina, resultados }`, fechas en ms de la medianoche de Madrid,
+  `formasFarmaceuticas[]`, `registroCambios.cambio[]`, tiempos de espera con objetos y 404 en `notas` sin notas.
+  Se quitó el `it.todo`. Dos fallos encontrados y corregidos: fechas convertidas en UTC (día anterior) y coma
+  decimal en `cantidad_concentracion` del Nomenclátor completo.
+- **Conservador (se mantiene):** la API no da la base de la concentración; una composición solo de API no es
+  normalizable.
 
-## DUDA-14 · Estados del Nomenclátor y unidades de tiempo de espera
-- **Hallazgo:** `cod_estado_registro_*` usa el diccionario de situación de registro (1 Autorizado, 3 Anulado,
-  4 Suspenso, 5 Suspenso CN). Los tiempos de espera vienen en Días, Horas, Semanas, Meses y Grados-día.
-- **Implementado (conservador):** cualquier código distinto de 1 o 3 se trata como suspendido. Conversión a
-  días redondeando hacia arriba (horas/24, semanas×7, meses×31); los grados-día no se convierten (el
-  candidato no se considera equivalente en especies productoras).
+## DUDA-14 · Estados del Nomenclátor y unidades de tiempo de espera — RESUELTA (OK)
+- **Implementado:** cualquier código distinto de 1 o 3 se trata como suspendido. Conversión a días redondeando
+  hacia arriba (horas/24, semanas×7, meses×31); los grados-día no se convierten.
 
-## DUDA-15 · Desglose de stock por lote en Siweb360
-- **Ref:** la doc de Inventario muestra `levels[]` truncado tras `warehouse_id`; no se ve cómo vienen el lote
-  y el disponible por lote, imprescindibles para FEFO (§4.5).
-- **Implementado:** lectura tolerante (`lot_code`/`batch_number`/`lot`; `available`/`quantity_available`),
-  documentada como **hipótesis** en `fixtures/siweb/README.md`, con `it.todo`. **Conservador:** si alguna
-  variante no trae lote y disponible interpretables, el stock queda `NO_DISPONIBLE` → `PENDIENTE_STOCK`
-  (nunca se recomienda dispensar sin confirmar stock).
-- **Pendiente:** JC — guardar una respuesta real de `GET inventory/variants/:id` de un medicamento con lotes.
+## DUDA-15 · API de Siweb360 — RESUELTA (OpenAPI aportada)
+- **JC:** aporta `docs/ref/siweb360-openapi.json`.
+- **Implementado:** el desglose por lote está documentado (`stock_levels[]` de la variante y `levels[]` de /stock:
+  `batch_number`, `expiry_date`, `available`…); se quitó la hipótesis y su `it.todo`. Paginación con
+  `pagination.pages`. Lectura de tickets (`GET tickets`, `GET tickets/{id}`) para la conciliación.
+- **Limitaciones de la API (documentadas en `fixtures/siweb/README.md`):** las líneas de ticket no traen variante
+  ni lote: el CN se saca del nombre de la línea (`SIWEB_TICKET_CN_REGEX`) y se concilia por CN + unidades con el
+  lote sin verificar (TODO(decision D-02b): confirmar con tickets reales). No hay alta de productos (D-04b sigue en
+  tareas manuales) ni consulta de movimientos de inventario (el control de entradas manuales sin `MMX-REC-` no se
+  puede automatizar). La app nunca crea, cambia ni borra tickets.
 
-## DUDA-16 · `SIWEB_STOCK_WRITE_MODE=off` y el outbox
-- **Spec:** "no escribas stock salvo entradas a través del outbox y respetando `SIWEB_STOCK_WRITE_MODE`".
-- **Ambigüedad:** en `off`, ¿se encolan las entradas para enviarlas cuando se active?
-- **Implementado (conservador):** en `off` **no se encola nada** (la recepción queda con
-  `sync_estado = ESCRITURA_DESACTIVADA`) y el dispatcher no envía. Encolar para más tarde provocaría
-  entradas duplicadas al activar `entries_only`, porque hasta el corte operativo el personal sigue dando
-  las entradas a mano en Siweb360 (D-03).
+## DUDA-16 · `SIWEB_STOCK_WRITE_MODE=off` y el outbox — RESUELTA (OK)
+- **Implementado:** en `off` **no se encola nada** (la recepción queda con `sync_estado = ESCRITURA_DESACTIVADA`) y
+  el dispatcher no envía.
 
-## DUDA-17 · Qué es una "respuesta ambigua" en el outbox
-- **Spec:** timeout o respuesta ambigua → `needs_reconciliation`; 4xx deterministas → `failed`.
-- **Implementado (conservador):** `needs_reconciliation` para timeout, error de red, **cualquier 5xx** y
-  respuesta 2xx no interpretable (no se sabe si el ajuste se aplicó). `failed` para 4xx (409 = stock ilimitado).
-  Nunca se reintenta sola: una persona resuelve desde Administración (`confirmar_aplicada`, `reenviar`,
-  `descartar`), todo auditado.
+## DUDA-17 · Respuestas ambiguas en el outbox — RESUELTA (manual)
+- **JC:** mejor manual.
+- **Implementado:** el outbox **nunca reintenta solo**. Timeout, error de red, 5xx o 2xx no interpretable →
+  `needs_reconciliation`; 4xx (409 = stock ilimitado) → `failed`. En ambos casos una persona lo resuelve desde
+  Administración (`confirmar_aplicada`, `reenviar`, `descartar`), con nota y auditoría.
 
-## DUDA-18 · Reversión del spike (§12.3)
-- **Spec:** "revierte con −1".
-- **Implementado:** `+1` con `reason=purchase_receipt` (el mismo camino que usará el outbox) y `−1` con
-  `reason=adjustment_negative` sobre el mismo lote (la doc exige que el motivo cuadre con el sentido del ajuste).
+## DUDA-18 · Reversión del spike (§12.3) — RESUELTA (OK)
+- **Implementado:** `+1` con `reason=purchase_receipt` y `−1` con `reason=adjustment_negative` sobre el mismo lote.
 
 ## DUDA-19 · Combinación de confianzas en la extracción
 - **Spec:** "confianza final = combinación de la confianza OCR de las palabras de la evidencia y la
@@ -161,10 +163,10 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   original" **nunca** se rellenan desde la IA, aunque el modelo detecte una firma.
 
 ## DUDA-20 · Recetas de ejemplo para la extracción
-- **Spec:** `fixtures/recetas/` con imágenes anonimizadas y JSON esperado "los aporta JC".
-- **Implementado:** sin recetas reales todavía; `pnpm eval:extraction` lo indica y termina sin error. Para que
-  la UI sea navegable con `EXTRACTOR=fake` se han añadido 3 fixtures `demo-*.expected.json` **sintéticas**
-  (sin imagen ni datos reales), marcadas como tales en `fixtures/recetas/README.md`.
+- **JC:** aporta `fixtures/recetas/Recetas_2026_08.pdf` (29 páginas) y `Recetas_2026_09.pdf` (57 páginas).
+- **Estado:** son escaneos de recetas **reales** con NIF, teléfono y dirección de propietarios: quedan **fuera de
+  git** (`.gitignore`) y solo en local. Para usarlas en `pnpm eval:extraction` hay que etiquetarlas (JSON esperado
+  por página) y guardarlas también fuera de git (`fixtures/recetas/reales/`). Ver DUDA-27 sobre el modelo.
 
 ## DUDA-21 · Autenticación de la PWA con Entra sin MSAL
 - **Spec:** ADR-06 usa la autenticación integrada de Container Apps + validación del token en la API.
@@ -173,32 +175,59 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
   `roles` = app roles, `amr` = MFA). Requiere activar el token store en la app de Container Apps (infra/).
 - **Confirmar:** JC (alternativa: MSAL en la PWA si se quiere renovación de tokens en el cliente).
 
-## DUDA-22 · Normalización de páginas y PDF
-- **Spec:** normalizar a PNG por página, corregir orientación, SHA-256 y pHash (§4.1.1).
-- **Implementado:** en el navegador (canvas): orientación EXIF, PNG, dHash de 64 bits y aviso de calidad; el
-  servidor calcula los SHA-256. Los **PDF y HEIC** se guardan tal cual (una "página") sin pHash: rasterizar PDF
-  exigiría una dependencia pesada (pdf.js o binarios nativos). Queda pendiente decidir si se añade.
+## DUDA-22 · Normalización de páginas y PDF — RESUELTA (OK)
+- **Implementado:** en el navegador: orientación EXIF, PNG, dHash y aviso de calidad; el servidor calcula los
+  SHA-256. PDF y HEIC se guardan tal cual sin pHash.
 
 ## DUDA-23 · Reportes bajo demanda
-- **Spec:** §4.11 "job semanal y bajo demanda, en XLSX y CSV, guardados en Blob y enviados por correo".
-- **Implementado:** el job `weekly-reports` guarda XLSX + un CSV por hoja en Blob y envía el XLSX por correo. La
-  generación bajo demanda (`POST /api/reportes/semanal/generar`, garante) guarda en Blob y devuelve el fichero,
-  sin enviar correo (evita envíos de datos no solicitados). Las exportaciones nunca incluyen datos del propietario.
+- **Implementado:** el job `weekly-reports` guarda XLSX + CSV en Blob y envía el XLSX por correo (al garante entre
+  otros: así revisa las dispensaciones forzadas y las sustituciones fuera de la app). La generación bajo demanda la
+  puede pedir quien consulta registros (empleado, veterinaria, administración); se guarda en Blob y se descarga, sin
+  correo. Las exportaciones nunca incluyen datos del propietario salvo que se pidan, y el DNI completo solo lo
+  exporta administración con MFA (auditado).
 
-## DUDA-24 · Retención de 5 años
-- **Spec:** §9.2 "job de purga/anonimización" para recetas y registros.
-- **Implementado (conservador):** se **anonimizan** (no se borran) recetas (titular, extracción, identificación,
-  REGA) y propietarios de más de 5 años sin dispensaciones recientes. Los registros de salidas/entradas son
-  append-only y no se modifican. Las imágenes las gestiona la inmutabilidad + ciclo de vida de Blob (infra/).
-- **Confirmar:** garante/DPO (si los registros de más de 5 años deben eliminarse además de anonimizarse).
+## DUDA-24 · Retención de 5 años — RESUELTA (eliminar)
+- **JC:** deben eliminarse.
+- **Implementado:** `retention-sweep` (mensual) **borra** lo de más de 5 años: salidas, recetas con líneas,
+  imágenes y sustituciones, propietarios, entradas, pedidos, outbox cerrado, discrepancias y reportes, y después los
+  ficheros de Blob (el ciclo de vida de Blob también los borra a los 1827 días). Las tablas de registro siguen siendo
+  de solo inserción: la base de datos solo admite ese borrado con la marca de purga de la sesión **y** para filas de
+  más de 5 años según su propio reloj; salidas y ajustes se purgan con una función `SECURITY DEFINER` (el rol de la
+  app no tiene `DELETE`). No se borra un original con anulación reciente.
+- **Se conserva:** el rastro de auditoría (sin datos personales) para que la cadena de hashes siga verificable.
 
-## DUDA-25 · Autenticación de PostgreSQL
-- **Spec:** "Identidad gestionada para todo; sin claves de acceso en la configuración de la app".
-- **Implementado:** PostgreSQL con Entra habilitado en la plantilla, pero la app conecta con usuario/contraseña
-  guardados en Key Vault (`database-url`, referenciado como secreto de Container Apps, nunca en claro en la
-  configuración). Conectar con token de Entra exige renovar el token en el pool de conexiones: pendiente.
-- **Confirmar:** JC.
+## DUDA-25 · Autenticación de PostgreSQL — RESUELTA (se queda así)
+- **Implementado:** usuario/contraseña en Key Vault (`database-url`, secreto de Container Apps), nunca en claro.
 
-## DUDA-26 · Texto del Anexo A
-- **Spec:** el texto completo de la guía debe guardarse en `docs/ref/guia-receta-veterinaria.md`.
-- **Estado:** no se ha aportado; no se ha inventado. Lo aporta JC.
+## DUDA-26 · Guía de la receta veterinaria (Anexo A) — RESUELTA
+- **JC:** aporta `docs/ref/guia-receta-veterinaria.md` ("puede que haya información de más").
+- **Incorporado a las reglas:**
+  - Crónicos de **producción**: validez de 3 meses si están en el plan sanitario de la explotación o los pauta el
+    veterinario de la ADS. Lo confirma expresamente quien registra (`cronicoPlanSanitario`); nunca para
+    antimicrobianos, psicótropos, estupefacientes ni gases medicinales; preventivos de producción siguen en 1 mes.
+  - Psicótropos: se comprueba la identidad de quien retira y se anota su **DNI/NIE** (validado y cifrado).
+  - Fraccionada (§5.9): ver DUDA-10.
+- **No incorporado (fuera del alcance de la app):** venta a distancia, estupefacientes de la lista I (siguen
+  bloqueados), autovacunas, fórmulas magistrales, farmacovigilancia.
+
+## DUDA-27 · OCR: ¿modelo multimodal ligero o Donut/LayoutLM entrenado?
+- **Contexto:** las recetas reales son formularios **impresos** de varias clínicas (cada una con su plantilla),
+  con páginas giradas, sellos y firmas encima del texto, y a veces manuscritas.
+- **Recomendación:** mantener **Document Intelligence (layout) + un LLM pequeño con salida estructurada**
+  (p. ej. el despliegue "mini" de Azure OpenAI en la Data Zone UE) y medirlo con las recetas reales etiquetadas.
+  Donut/LayoutLMv3 exigen **cientos de recetas etiquetadas por plantilla**, GPU para entrenar, mantener el modelo
+  cuando cambia una plantilla y no son tan buenos con manuscritos; además los modelos (LayoutLMv3) tienen licencia
+  no comercial. Un modelo multimodal local (tipo Qwen2-VL o Florence-2) es viable como alternativa sin nube, pero
+  requiere GPU en la farmacia o un servicio de cómputo propio, lo que encarece la operación frente al pago por uso.
+- **Siguiente paso propuesto:** etiquetar ~40 páginas de los PDF aportados (fuera de git), pasar
+  `pnpm eval:extraction` y decidir con números (precisión por campo y coste por receta). Decide JC.
+
+## DUDA-28 · El garante no usa la app — RESUELTA
+- **JC:** el garante nunca interactúa con el sistema; las confirmaciones expresas son del empleado que registra.
+- **Implementado:** se eliminó el rol `farmaceutico_garante`. Sustitución en modo `PRE`: el empleado registra la
+  autorización del garante (nombre, medio, fecha) y, si la indicación es probable, confirma que el garante la ha
+  revisado. Modo `POST`: tras apartar la receta, el empleado registra que el garante ha firmado la anotación (ya no
+  hay "validar"). Las dispensaciones forzadas y las recetas no conformes le llegan en el reporte semanal. Nueva
+  pantalla **Pendientes** (sustituciones en curso con alerta de plazo y discrepancias con el TPV). Reglas y
+  exclusiones las registra administración (MFA para aprobar reglas).
+
