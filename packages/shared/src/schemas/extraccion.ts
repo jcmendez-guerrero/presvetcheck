@@ -58,11 +58,14 @@ export const CAMPOS_EXTRAIDOS_LINEA = [
   'duracionDias',
   'tiempoEspera',
   'declaracionAntimicrobiano',
+  /** Código nacional si la receta lo trae (no es obligatorio: sin él se busca por nombre). */
+  'cn',
 ] as const;
 
 export const ExtractionResult = z.object({
   receta: z.record(z.enum(CAMPOS_EXTRAIDOS_RECETA), CampoExtraido),
-  lineas: z.array(z.record(z.enum(CAMPOS_EXTRAIDOS_LINEA), CampoExtraido)),
+  // Las líneas pueden traer solo parte de los campos (p. ej. sin código nacional).
+  lineas: z.array(z.partialRecord(z.enum(CAMPOS_EXTRAIDOS_LINEA), CampoExtraido)),
   proveedor: z.enum(['fake', 'azure']),
   modelo: z.string(),
   promptVersion: z.string(),

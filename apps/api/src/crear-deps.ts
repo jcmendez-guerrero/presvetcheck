@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CimavetClient, CimavetRepository, jobNomenclatorImport, verificarEnVivo } from '@mmx/cimavet';
 import { ColumnCipher, createDb, runMigrations, seed, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
@@ -110,6 +111,9 @@ async function arranqueDesarrollo(handle: DbHandle, rules: ReturnType<typeof loa
   await importarMaestras(handle.db, fixtures, {
     solo: [MAESTRA.FORMAS, MAESTRA.VIAS, MAESTRA.ESPECIES, MAESTRA.UNIDADES, MAESTRA.SITUACION_REGISTRO, MAESTRA.LABORATORIOS, MAESTRA.INDICACIONES, MAESTRA.PRINCIPIOS_ACTIVOS],
   });
-  const informe = await jobNomenclatorImport({ repo, path: resolve(fixtures, 'PrescripcionVET.sample.xml') });
-  log(`DEV_BOOTSTRAP: muestra del Nomenclátor cargada (${informe.nuevos} presentaciones)`);
+  // DEV_NOMENCLATOR=completo (lo usa `pnpm demo`): el Nomenclátor entero (~14.000 presentaciones, ~20 s) para
+  // poder identificar medicamentos de recetas reales; por defecto, la muestra de los tests.
+  const completo = process.env.DEV_NOMENCLATOR === 'completo' && existsSync(resolve(fixtures, 'PrescripcionVET.xml'));
+  const informe = await jobNomenclatorImport({ repo, path: resolve(fixtures, completo ? 'PrescripcionVET.xml' : 'PrescripcionVET.sample.xml') });
+  log(`DEV_BOOTSTRAP: ${completo ? 'Nomenclátor completo' : 'muestra del Nomenclátor'} cargado (${informe.nuevos} presentaciones)`);
 }

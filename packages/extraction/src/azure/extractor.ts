@@ -3,6 +3,7 @@ import { CAMPOS_EXTRAIDOS_LINEA, CAMPOS_EXTRAIDOS_RECETA, ExtractionResult, type
 import { CAMPO_LINEAS, CAMPOS_FECHA, ESQUEMA_CAMPOS_VERSION, convertir } from '../campos';
 import { confianzaCampo, type PalabraOcr } from '../confianza';
 import { palabrasDe, type CampoDocIntel, type DocumentIntelligenceClient } from './docintel';
+import { MODELO_LAYOUT, REGLAS_VERSION, camposDesdeLayout } from './reglas-layout';
 
 /** Texto del campo tal como lo devuelve Document Intelligence según su tipo. */
 function textoCampo(nombre: string, f: CampoDocIntel): string | null {
@@ -45,12 +46,23 @@ export class AzureRecipeExtractor implements RecipeExtractor {
     const lineas: Record<string, CampoExtraido>[] = [];
     const textos: string[] = [];
     let modeloUsado = this.modelo;
+    const reglas = this.modelo === MODELO_LAYOUT;
     for (let i = 0; i < input.pages.length; i++) {
       const pagina = i + 1;
-      const r = await this.di.analizar(this.modelo, input.pages[i] as Uint8Array, input.mime);
+      const r = await this.di.analizar(this.modelo, input.pages[i] as Uint8Array, input.mime, reglas ? ['keyValuePairs'] : []);
       modeloUsado = r.modelId ?? modeloUsado;
       textos.push(r.content ?? '');
       const palabras = palabrasDe(r, pagina);
+      if (reglas) {
+        // Sin modelo entrenado: etiquetas impresas → campos (reglas-layout.ts).
+        const m = camposDesdeLayout(r, pagina, palabras);
+        for (const [c, nuevo] of Object.entries(m.receta)) {
+          const actual = receta[c] as CampoExtraido;
+          if (actual.valor === null || nuevo.confianza > actual.confianza) receta[c] = nuevo;
+        }
+        lineas.push(...m.lineas);
+        continue;
+      }
       const fields = r.documents?.[0]?.fields ?? {};
       for (const c of CAMPOS_EXTRAIDOS_RECETA) {
         const nuevo = campo(c, fields[c], pagina, palabras);
@@ -67,9 +79,9 @@ export class AzureRecipeExtractor implements RecipeExtractor {
       receta,
       lineas,
       proveedor: 'azure',
-      modelo: `docintel:${modeloUsado} (api ${this.di.apiVersion})`,
-      // En Document Intelligence no hay prompt: se guarda la versión del esquema de campos etiquetado.
-      promptVersion: ESQUEMA_CAMPOS_VERSION,
+      modelo: `docintel:${modeloUsado}${reglas ? ' + reglas' : ''} (api ${this.di.apiVersion})`,
+      // En Document Intelligence no hay prompt: se guarda la versión del esquema de campos (o de las reglas).
+      promptVersion: reglas ? REGLAS_VERSION : ESQUEMA_CAMPOS_VERSION,
       ocrTexto: textos.join('\n\n--- página ---\n\n'),
     });
   }

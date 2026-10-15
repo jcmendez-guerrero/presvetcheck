@@ -35,6 +35,8 @@ export interface AnalyzeResult {
   content?: string;
   pages?: { pageNumber: number; words?: { content: string; confidence: number; polygon?: number[]; span?: { offset: number; length: number } }[] }[];
   documents?: { docType?: string; confidence?: number; fields?: Record<string, CampoDocIntel> }[];
+  /** Solo con `features=keyValuePairs` (modelo `prebuilt-layout`). */
+  keyValuePairs?: { key: { content: string }; value?: { content?: string; boundingRegions?: { pageNumber: number; polygon?: number[] }[]; spans?: { offset: number; length: number }[] }; confidence?: number }[];
 }
 
 export class DocumentIntelligenceClient {
@@ -49,9 +51,10 @@ export class DocumentIntelligenceClient {
   }
 
   /** `documentModels/{modelo}:analyze` + sondeo de la operación. */
-  async analizar(modelo: string, bytes: Uint8Array, mime: string): Promise<AnalyzeResult> {
+  async analizar(modelo: string, bytes: Uint8Array, mime: string, features: string[] = []): Promise<AnalyzeResult> {
     const base = this.o.endpoint.replace(/\/$/, '');
-    const res = await fetch(`${base}/documentintelligence/documentModels/${encodeURIComponent(modelo)}:analyze?api-version=${this.apiVersion}&locale=es-ES`, {
+    const extra = features.length ? `&features=${features.join(',')}` : '';
+    const res = await fetch(`${base}/documentintelligence/documentModels/${encodeURIComponent(modelo)}:analyze?api-version=${this.apiVersion}&locale=es-ES${extra}`, {
       method: 'POST',
       headers: await this.headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ base64Source: Buffer.from(bytes).toString('base64') }),

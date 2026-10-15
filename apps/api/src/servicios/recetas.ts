@@ -26,6 +26,7 @@ import {
   parseFraccion,
 } from '@mmx/domain';
 import { borradorDesdeExtraccion } from '@mmx/extraction';
+import { identificarMedicamentos } from './identificacion';
 import type { ExtractionResult} from '@mmx/shared';
 import { DomainError, RecetaConfirmada, type RecetaConfirmadaInput } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
@@ -100,7 +101,10 @@ export class RecetasService {
     try {
       const ext = await this.d.extractor.extract({ pages: paginas.map((p) => p.bytes), mime: paginas[0]!.mime, hints });
       const b = borradorDesdeExtraccion(ext, this.d.config.EXTRACTION_CONFIDENCE_THRESHOLD);
-      await this.guardarBorrador(id, b.receta, { extraccion: ext, dudosos: b.dudosos }, c, 'EXTRAIDA');
+      // Medicamento: por código nacional si lo trae la receta; si no, por nombre o en el texto (propuesta).
+      const ident = await identificarMedicamentos(b.receta, ext.ocrTexto, (q) => this.d.cimavet.buscar(q, { limite: 5 }));
+      const dudosos = [...new Set([...b.dudosos, ...ident.dudosos])];
+      await this.guardarBorrador(id, ident.receta, { extraccion: ext, dudosos }, c, 'EXTRAIDA');
     } catch (e) {
       aviso = e instanceof DomainError ? e.code : 'EXTRACCION_FALLIDA';
       await this.d.db.transaction((tx) => audit(tx, c, 'receta_extraccion_fallida', 'receta', id, null, { aviso }));
