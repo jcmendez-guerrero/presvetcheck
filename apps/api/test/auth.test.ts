@@ -17,7 +17,7 @@ describe('autenticación Microsoft Entra (SPEC §9.1)', () => {
       logger: false,
       auth: {
         verificar: async (token) => {
-          if (token === 'garante-mfa') return { oid: 'g1', name: 'Garante', roles: ['farmaceutico_garante'], amr: ['pwd', 'mfa'] };
+          if (token === 'admin-mfa') return { oid: 'g1', name: 'Admin', roles: ['admin'], amr: ['pwd', 'mfa'] };
           if (token === 'empleado') return { oid: 'e1', name: 'Empleada', roles: ['empleado', 'rol_inventado'] };
           throw new Error('firma no válida');
         },
@@ -30,22 +30,22 @@ describe('autenticación Microsoft Entra (SPEC §9.1)', () => {
   });
 
   it('valida el Bearer, mapea app roles y MFA (amr)', async () => {
-    const me = await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: 'Bearer garante-mfa' } });
-    expect(me.json()).toEqual({ id: 'g1', nombre: 'Garante', roles: ['farmaceutico_garante'], mfa: true });
+    const me = await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: 'Bearer admin-mfa' } });
+    expect(me.json()).toEqual({ id: 'g1', nombre: 'Admin', roles: ['admin'], mfa: true });
     const e = await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: 'Bearer empleado' } });
     expect(e.json()).toMatchObject({ roles: ['empleado'], mfa: false });
     expect((await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: 'Bearer malo' } })).statusCode).toBe(401);
     expect((await app.inject({ method: 'GET', url: '/api/me' })).statusCode).toBe(401);
     // x-dev-user no tiene efecto en modo entra
-    expect((await app.inject({ method: 'GET', url: '/api/me', headers: { 'x-dev-user': 'dev-garante' } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'GET', url: '/api/me', headers: { 'x-dev-user': 'dev-empleado' } })).statusCode).toBe(401);
   });
 
   it('cabecera X-MS-CLIENT-PRINCIPAL solo con AUTH_EASYAUTH=true', async () => {
-    const principal = Buffer.from(JSON.stringify({ claims: [{ typ: 'http://schemas.microsoft.com/identity/claims/objectidentifier', val: 'p1' }, { typ: 'name', val: 'Garante' }, { typ: 'roles', val: 'farmaceutico_garante' }, { typ: 'amr', val: 'mfa' }] })).toString('base64');
+    const principal = Buffer.from(JSON.stringify({ claims: [{ typ: 'http://schemas.microsoft.com/identity/claims/objectidentifier', val: 'p1' }, { typ: 'name', val: 'Empleada' }, { typ: 'roles', val: 'empleado' }, { typ: 'roles', val: 'farmaceutico_garante' }, { typ: 'amr', val: 'mfa' }] })).toString('base64');
     expect((await app.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': principal } })).statusCode).toBe(401);
     const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'x', BLOB_CONNECTION_STRING: 'x', AUTH_MODE: 'entra', ENTRA_TENANT_ID: 't', ENTRA_CLIENT_ID: 'c', AUTH_EASYAUTH: 'true' });
     const app2 = await buildApp({ deps: { ...E.deps, config }, logger: false, auth: { verificar: async () => ({}) } });
-    expect((await app2.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': principal } })).json()).toEqual({ id: 'p1', nombre: 'Garante', roles: ['farmaceutico_garante'], mfa: true });
+    expect((await app2.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': principal } })).json()).toEqual({ id: 'p1', nombre: 'Empleada', roles: ['empleado'], mfa: true }); // el rol garante ya no existe en la app
     expect((await app2.inject({ method: 'GET', url: '/api/me', headers: { 'x-ms-client-principal': 'no-es-json' } })).statusCode).toBe(401);
     await app2.close();
   });

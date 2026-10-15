@@ -22,17 +22,19 @@ interface Sust {
   etiqueta: string;
   recetaId: string;
   lineaOrden: number;
+  equivalencia: { equivalencia?: { indicacion?: string } } | null;
 }
 
-const PASOS = ['PENDIENTE_AUTORIZACION_PREVIA', 'AUTORIZADA_PREVIA', 'PROPUESTA', 'CONSENTIMIENTO_TUTOR', 'AVISO_VETERINARIO', 'DISPENSADA', 'RECETA_APARTADA', 'FIRMADA_GARANTE', 'VALIDADA'];
+const PASOS = ['PENDIENTE_AUTORIZACION_PREVIA', 'AUTORIZADA_PREVIA', 'PROPUESTA', 'CONSENTIMIENTO_TUTOR', 'AVISO_VETERINARIO', 'DISPENSADA', 'RECETA_APARTADA', 'FIRMADA_GARANTE'];
 
 /** Asistente de sustitución (SPEC §4.4.3, §8.6). */
 export function Sustitucion() {
   const { id } = useParams({ from: '/sustituciones/$id' });
   const nav = useNavigate();
   const qc = useQueryClient();
-  const { tiene } = useAuth();
-  const q = useQuery({ queryKey: ['sust', id], queryFn: () => get<Sust>(`/api/sustituciones/${id}`), refetchInterval: (d) => (d.state.data?.estado === 'PENDIENTE_AUTORIZACION_PREVIA' ? 5000 : false) });
+  const { usuario } = useAuth();
+  const q = useQuery({ queryKey: ['sust', id], queryFn: () => get<Sust>(`/api/sustituciones/${id}`) });
+  const [garante, setGarante] = useState({ nombre: '', medio: 'teléfono', confirmaProbable: false });
   const [medio, setMedio] = useState('presencial');
   const [aviso, setAviso] = useState({ medio: 'teléfono', resultado: '', urgencia: false, justificacion: '' });
   const [motivo, setMotivo] = useState('');
@@ -57,7 +59,24 @@ export function Sustitucion() {
           Estado: <strong>{s.estado.replaceAll('_', ' ').toLowerCase()}</strong> · Modo {s.modo === 'POST' ? 'firma posterior del garante' : 'aprobación previa del garante'}
         </p>
         {s.estado === 'PENDIENTE_AUTORIZACION_PREVIA' && (
-          <Mensaje tipo="info">Esperando la aprobación del farmacéutico garante. Si no responde, pide el medicamento prescrito.</Mensaje>
+          <Tarjeta titulo="Autorización previa del farmacéutico garante">
+            <Mensaje tipo="info">
+              Llama o consulta al farmacéutico garante. Cuando autorice, regístralo aquí: quedará a tu nombre ({usuario?.nombre ?? ''}). Si no autoriza o no lo localizas, pide el medicamento prescrito.
+            </Mensaje>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Campo etiqueta="Nombre del farmacéutico garante" value={garante.nombre} onChange={(e) => setGarante({ ...garante, nombre: e.target.value })} />
+              <Campo etiqueta="Cómo ha autorizado (teléfono, en persona…)" value={garante.medio} onChange={(e) => setGarante({ ...garante, medio: e.target.value })} />
+            </div>
+            {s.equivalencia?.equivalencia?.indicacion === 'PROBABLE' && (
+              <label className="mt-3 flex items-center gap-3">
+                <input type="checkbox" className="h-6 w-6" checked={garante.confirmaProbable} onChange={(e) => setGarante({ ...garante, confirmaProbable: e.target.checked })} />
+                Confirmo que el garante ha revisado expresamente que la indicación es compatible
+              </label>
+            )}
+            <Boton className="mt-3" onClick={() => void accion('autorizacion-garante', { garante: garante.nombre, medio: garante.medio, confirmaIndicacionProbable: garante.confirmaProbable })}>
+              Registrar la autorización del garante
+            </Boton>
+          </Tarjeta>
         )}
         {(s.estado === 'PROPUESTA' || s.estado === 'AUTORIZADA_PREVIA') && (
           <Tarjeta titulo="1. Consentimiento del tutor (obligatorio)">
@@ -101,26 +120,28 @@ export function Sustitucion() {
           </Boton>
         )}
         {s.estado === 'DISPENSADA' && (
-          <Tarjeta titulo="4. Separar la receta en la bandeja de sustituciones">
+          <Tarjeta titulo="4. Separar la receta para la firma del garante">
             <Imprimible titulo="Etiqueta para el dorso (62 mm o A6)" texto={s.etiqueta} />
             <Boton className="mt-3" onClick={() => void accion('anotacion')}>
-              La receta está en la bandeja física
+              La receta está apartada con la etiqueta pegada
             </Boton>
           </Tarjeta>
         )}
-        {tiene('farmaceutico_garante') && ['PENDIENTE_AUTORIZACION_PREVIA', 'RECETA_APARTADA', 'FIRMADA_GARANTE'].includes(s.estado) && (
-          <Tarjeta titulo="Farmacéutico garante">
-            <div className="flex flex-wrap gap-3">
-              {s.estado !== 'FIRMADA_GARANTE' ? (
-                <Boton onClick={() => void accion('autorizar', { confirmaIndicacionProbable: true })}>{s.estado === 'RECETA_APARTADA' ? 'Firmar la anotación' : 'Autorizar'}</Boton>
-              ) : (
-                <Boton onClick={() => void accion('validar')}>Validar</Boton>
-              )}
-              <Campo etiqueta="Motivo del rechazo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-              <Boton variante="peligro" onClick={() => void accion('rechazar', { motivo })}>
-                {paso > PASOS.indexOf('AVISO_VETERINARIO') ? 'Sustitución no conforme' : 'Rechazar'}
-              </Boton>
-            </div>
+        {s.estado === 'RECETA_APARTADA' && (
+          <Tarjeta titulo="5. Firma del garante en la receta">
+            <p>Cuando el farmacéutico garante haya firmado la anotación del dorso, regístralo aquí.</p>
+            <Campo etiqueta="Nombre del farmacéutico garante" value={garante.nombre} onChange={(e) => setGarante({ ...garante, nombre: e.target.value })} />
+            <Boton className="mt-3" onClick={() => void accion('firma-garante', { garante: garante.nombre })}>
+              Registrar que el garante ha firmado
+            </Boton>
+          </Tarjeta>
+        )}
+        {!['RECHAZADA', 'NO_CONFORME_GARANTE'].includes(s.estado) && (
+          <Tarjeta titulo={paso > PASOS.indexOf('AVISO_VETERINARIO') ? 'El garante la ha declarado no conforme' : 'Cancelar la sustitución'}>
+            <Campo etiqueta="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+            <Boton variante="peligro" className="mt-3" onClick={() => void accion('rechazar', { motivo })}>
+              {paso > PASOS.indexOf('AVISO_VETERINARIO') ? 'Registrar sustitución no conforme' : 'Cancelar'}
+            </Boton>
           </Tarjeta>
         )}
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}

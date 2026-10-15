@@ -110,7 +110,7 @@ export async function entorno(o: { config?: Record<string, string>; stock?: Reco
   return { app, deps, h, stock };
 }
 
-type Usuario = 'dev-empleado' | 'dev-garante' | 'dev-veterinaria' | 'dev-admin' | null;
+type Usuario = 'dev-empleado' | 'dev-veterinaria' | 'dev-admin' | null;
 
 export async function api(app: FastifyInstance, u: Usuario, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown, extra: { mfa?: boolean } = {}) {
   const headers: Record<string, string> = {};

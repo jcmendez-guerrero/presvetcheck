@@ -13,7 +13,7 @@ import { Dispensacion } from './paginas/dispensacion';
 import { Sustitucion } from './paginas/sustitucion';
 import { Venta } from './paginas/venta';
 import { RecepcionDetalle, Recepciones } from './paginas/recepciones';
-import { Garante } from './paginas/garante';
+import { PaginaPendientes } from './paginas/pendientes';
 import { Registros } from './paginas/registros';
 import { Admin } from './paginas/admin';
 
@@ -25,7 +25,7 @@ const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resulta
 const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
 const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
 const r6 = createRoute({ getParentRoute: () => raiz, path: '/recepciones/$id', component: RecepcionDetalle });
-const r7 = createRoute({ getParentRoute: () => raiz, path: '/garante', component: Garante });
+const r7 = createRoute({ getParentRoute: () => raiz, path: '/pendientes', component: PaginaPendientes });
 const r8 = createRoute({ getParentRoute: () => raiz, path: '/registros', component: Registros });
 const r9 = createRoute({ getParentRoute: () => raiz, path: '/admin', component: Admin });
 const rDisp = createRoute({

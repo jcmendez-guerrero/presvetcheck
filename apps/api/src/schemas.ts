@@ -70,7 +70,7 @@ export const AnularDto = z.object({ motivo: z.string().min(10).max(1000) });
 export const SustitucionCrearDto = z.object({ recetaId: z.uuid(), lineaOrden: z.number().int().positive(), cn: z.string().regex(/^\d{6}$/) });
 export const SustitucionAccionParams = z.object({
   id: z.uuid(),
-  accion: z.enum(['consentimiento', 'aviso-veterinario', 'autorizar', 'rechazar', 'anotacion', 'validar']),
+  accion: z.enum(['consentimiento', 'aviso-veterinario', 'autorizacion-garante', 'anotacion', 'firma-garante', 'rechazar']),
 });
 export const SustitucionAccionDto = z
   .object({
@@ -80,6 +80,8 @@ export const SustitucionAccionDto = z
     urgencia: z.boolean().optional(),
     justificacion: z.string().max(1000).optional(),
     confirmaIndicacionProbable: z.boolean().optional(),
+    /** Nombre del farmacéutico garante (autorización previa o firma obtenidas fuera de la app). */
+    garante: z.string().max(200).optional(),
     motivo: z.string().max(1000).optional(),
   })
   .default({});
@@ -106,6 +108,8 @@ export const RegistrosQuery = z.object({
   formato: z.enum(['xlsx', 'csv', 'json']).default('json'),
   incluirPropietario: z.enum(['0', '1']).default('0'),
   internas: z.enum(['final', 'hoja', 'ninguna']).default('final'),
+  /** Solo administración con MFA (auditado): DNI sin enmascarar. */
+  dniCompleto: z.enum(['0', '1']).default('0'),
 });
 
 export const BuscarQuery = z.object({
@@ -116,12 +120,7 @@ export const BuscarQuery = z.object({
 
 export const FefoQuery = z.object({ unidades: z.coerce.number().int().positive().default(1), duracionDias: z.coerce.number().int().positive().optional() });
 export const ScanDto = z.object({ raw: z.string().min(1).max(500) });
-export const RevisionDto = z.object({
-  entidad: z.enum(['dispensacion', 'receta', 'sustitucion', 'discrepancia']),
-  entidadId: z.uuid(),
-  resultado: z.enum(['conforme', 'no_conforme']),
-  comentario: z.string().max(1000).nullable().default(null),
-});
+export const ResolverDiscrepanciaDto = z.object({ nota: z.string().trim().min(10).max(1000) });
 export const PedidoDto = z.object({
   cn: z.string().regex(/^\d{6}$/),
   nregistro: z.string().nullable().default(null),

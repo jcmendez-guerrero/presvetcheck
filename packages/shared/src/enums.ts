@@ -16,7 +16,8 @@ export const Decision = z.enum([
 export type Decision = z.infer<typeof Decision>;
 
 /** Roles de Entra (SPEC §9.1). */
-export const Rol = z.enum(['empleado', 'farmaceutico_garante', 'veterinaria_responsable', 'admin']);
+/** El farmacéutico garante no usa la app: lo que hace fuera lo registra el empleado. */
+export const Rol = z.enum(['empleado', 'veterinaria_responsable', 'admin']);
 export type Rol = z.infer<typeof Rol>;
 
 export const TipoReceta = z.enum(['papel', 'electronica']);
@@ -61,7 +62,6 @@ export const EstadoSustitucion = z.enum([
   'DISPENSADA',
   'RECETA_APARTADA',
   'FIRMADA_GARANTE',
-  'VALIDADA',
   'RECHAZADA',
   'NO_CONFORME_GARANTE',
 ]);

@@ -203,22 +203,6 @@ export const dispensacion = pgTable(
   ],
 );
 
-/** Revisiones del garante (dispensaciones forzadas, cambios de formato, etc.). Append-only. */
-export const revisionGarante = pgTable(
-  'revision_garante',
-  {
-    id: pk(),
-    entidad: text().notNull(), // dispensacion | receta | sustitucion | discrepancia
-    entidadId: uuid().notNull(),
-    resultado: text().notNull(), // conforme | no_conforme
-    comentario: text(),
-    revisadoPor: text().notNull(),
-    mfa: boolean().notNull().default(false),
-    ...createdOnly,
-  },
-  (t) => [index().on(t.entidad, t.entidadId)],
-);
-
 export const sustitucion = pgTable(
   'sustitucion',
   {

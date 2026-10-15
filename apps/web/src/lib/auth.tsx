@@ -22,7 +22,6 @@ export interface ConfigPublica {
 
 export const USUARIOS_DEV = [
   { id: 'dev-empleado', etiqueta: 'Empleada' },
-  { id: 'dev-garante', etiqueta: 'Farmacéutico garante' },
   { id: 'dev-veterinaria', etiqueta: 'Veterinaria responsable' },
   { id: 'dev-admin', etiqueta: 'Administración' },
 ];

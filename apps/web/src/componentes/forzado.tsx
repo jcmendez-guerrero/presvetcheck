@@ -38,7 +38,7 @@ export function ModalForzado({ codigos, onCancelar, onConfirmar, usuario }: { co
         <label className="mt-4 flex flex-col gap-1">
           <span className="font-medium">Motivo (mínimo 15 caracteres)</span>
           <textarea className="min-h-24 rounded-lg border border-slate-300 p-2" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-          <span className="text-xs text-slate-600">{motivo.trim().length}/15 · Se registrará a nombre de {usuario} y lo revisará el farmacéutico garante.</span>
+          <span className="text-xs text-slate-600">{motivo.trim().length}/15 · Se registrará a nombre de {usuario} y figurará en el reporte semanal para el farmacéutico garante.</span>
         </label>
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <Boton onClick={onCancelar}>Cancelar y no dispensar</Boton>

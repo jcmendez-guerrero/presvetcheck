@@ -5,10 +5,10 @@ import { USUARIOS_DEV, useAuth } from '../lib/auth';
 
 const NAV = [
   { a: '/', t: 'Inicio', roles: null },
-  { a: '/recepciones', t: 'Recepciones', roles: ['empleado', 'veterinaria_responsable', 'farmaceutico_garante'] },
-  { a: '/garante', t: 'Bandeja del garante', roles: ['farmaceutico_garante'] },
-  { a: '/registros', t: 'Registros', roles: ['farmaceutico_garante', 'veterinaria_responsable'] },
-  { a: '/admin', t: 'Administración', roles: ['admin', 'farmaceutico_garante'] },
+  { a: '/recepciones', t: 'Recepciones', roles: ['empleado', 'veterinaria_responsable'] },
+  { a: '/pendientes', t: 'Pendientes', roles: ['empleado', 'veterinaria_responsable'] },
+  { a: '/registros', t: 'Registros', roles: ['empleado', 'veterinaria_responsable', 'admin'] },
+  { a: '/admin', t: 'Administración', roles: ['admin'] },
 ] as const;
 
 export function Layout() {

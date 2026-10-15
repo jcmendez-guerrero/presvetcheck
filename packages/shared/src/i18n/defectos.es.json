@@ -162,7 +162,7 @@
   "PLATAFORMA_PENDIENTE_VERIFICAR": {
     "titulo": "Plataforma de receta electrónica «{plataforma}» pendiente de verificar en el listado del MAPA",
     "donde": "Cabecera o código de la receta electrónica",
-    "accion": "Informativo. El garante o un administrador debe verificarla"
+    "accion": "Informativo. Administración debe verificarla en el listado del MAPA"
   },
   "PLATAFORMA_DESCONOCIDA": {
     "titulo": "La plataforma de receta electrónica no está en la lista",

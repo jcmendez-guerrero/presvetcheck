@@ -37,7 +37,7 @@ export async function procedimientoVigente(d: Pick<AppDeps, 'db'>) {
   return p ?? null;
 }
 
-export type AccionSustitucion = 'consentimiento' | 'aviso-veterinario' | 'autorizar' | 'rechazar' | 'anotacion' | 'validar';
+export type AccionSustitucion = 'consentimiento' | 'aviso-veterinario' | 'autorizacion-garante' | 'anotacion' | 'firma-garante' | 'rechazar';
 
 export class SustitucionesService {
   private readonly recetas: RecetasService;
@@ -105,7 +105,10 @@ export class SustitucionesService {
     };
   }
 
-  /** Transiciones de estado (SPEC §4.4.3) con roles y MFA del garante para firmar. */
+  /**
+   * Transiciones de estado (SPEC §4.4.3). Todas las registra el empleado: lo que hace el garante
+   * (autorizar antes, firmar la receta en papel, declarar no conforme) ocurre fuera de la app.
+   */
   async accion(id: string, accion: AccionSustitucion, body: Record<string, unknown>, c: ContextoPeticion) {
     const [s] = await this.d.db.select().from(sustitucion).where(eq(sustitucion.id, id));
     if (!s) throw new DomainError('NO_ENCONTRADO');
@@ -122,26 +125,28 @@ export class SustitucionesService {
           ? { tipo: 'URGENCIA', justificacion: str('justificacion'), fechaHora: ahora, empleado: c.usuario.id }
           : { tipo: 'AVISO_VETERINARIO', medio: str('medio') || 'teléfono', resultado: str('resultado') || 'avisado', fechaHora: ahora, empleado: c.usuario.id };
         break;
-      case 'autorizar':
-        // PRE: autorización previa. POST: firma de la anotación tras apartar la receta (con MFA).
-        evento =
-          s.estado === 'PENDIENTE_AUTORIZACION_PREVIA'
-            ? { tipo: 'AUTORIZAR_PREVIA', garante: c.usuario.id, fechaHora: ahora, confirmaIndicacionProbable: body.confirmaIndicacionProbable === true }
-            : { tipo: 'FIRMAR', garante: c.usuario.id, fechaHora: ahora, mfa: c.usuario.mfa };
-        if (evento.tipo === 'AUTORIZAR_PREVIA' && !c.usuario.mfa) throw new DomainError('PROHIBIDO', 'La autorización del garante exige MFA');
+      case 'autorizacion-garante':
+        evento = {
+          tipo: 'AUTORIZAR_PREVIA',
+          garante: str('garante'),
+          medio: str('medio'),
+          fechaHora: ahora,
+          empleado: c.usuario.id,
+          confirmaIndicacionProbable: body.confirmaIndicacionProbable === true,
+        };
         break;
       case 'anotacion':
         evento = { tipo: 'APARTAR_RECETA' };
         break;
-      case 'validar':
-        evento = { tipo: 'VALIDAR', garante: c.usuario.id, fechaHora: ahora };
+      case 'firma-garante':
+        evento = { tipo: 'FIRMAR', garante: str('garante'), fechaHora: ahora, empleado: c.usuario.id };
         break;
       case 'rechazar':
         if (str('motivo').trim().length < 5) throw new DomainError('VALIDACION', 'Indica el motivo del rechazo');
         evento = { tipo: 'RECHAZAR', actor: c.usuario.id, motivo: str('motivo'), fechaHora: ahora };
         break;
     }
-    const rol = c.usuario.roles.includes('farmaceutico_garante') ? 'farmaceutico_garante' : (c.usuario.roles[0] ?? 'empleado');
+    const rol = c.usuario.roles[0] ?? 'empleado';
     const nuevo = transicionSustitucion(st, evento, rol);
     await this.d.db.transaction(async (tx) => {
       await tx

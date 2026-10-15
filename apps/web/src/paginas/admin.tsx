@@ -110,7 +110,7 @@ function Reglas() {
             <span>
               {f.nombreFichero} · {f.hash.slice(0, 8)} · {f.aprobadaPor ? `aprobada por ${f.aprobadaPor} el ${fecha(f.aprobadaAt)}` : <strong className="text-sustituir">pendiente de aprobación del garante</strong>}
             </span>
-            {tiene('farmaceutico_garante') && !f.aprobadaPor && <Boton onClick={() => void run(() => post(`/api/admin/reglas/${f.id}/aprobar`))}>Aprobar</Boton>}
+            {tiene('admin') && !f.aprobadaPor && <Boton onClick={() => void run(() => post(`/api/admin/reglas/${f.id}/aprobar`))}>Registrar aprobación (MFA)</Boton>}
           </li>
         ))}
       </ul>

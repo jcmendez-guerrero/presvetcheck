@@ -29,9 +29,10 @@ El usuario de base de datos de la app debe pertenecer al rol `mmx_app` (creado p
 UPDATE/DELETE en las tablas de registro: `GRANT mmx_app TO mmx_app_user;`.
 
 ## Entra ID
-App registration con *app roles* `empleado`, `farmaceutico_garante`, `veterinaria_responsable` y `admin`
-(SPEC §9.1), *redirect URI* `https://<fqdn>/.auth/login/aad/callback` y acceso condicional con MFA para
-`farmaceutico_garante` y `admin`. La autenticación integrada de Container Apps es obligatoria; la API además
+App registration con *app roles* `empleado`, `veterinaria_responsable` y `admin` (SPEC §9.1; el
+farmacéutico garante no usa la app: sus actuaciones las registra el empleado), *redirect URI*
+`https://<fqdn>/.auth/login/aad/callback` y acceso condicional con MFA para `admin` (aprobación de reglas y
+exportación con DNI completo). La autenticación integrada de Container Apps es obligatoria; la API además
 valida el principal (`AUTH_EASYAUTH=true`) o el Bearer.
 
 ## Jobs (cron en UTC)

@@ -17,7 +17,7 @@ export { importarMaestras, DICCIONARIOS } from './maestras';
 
 /**
  * Plataformas de receta electrónica (D-14). `reconocida_mapa = null` (sin verificar) hasta que
- * un garante o admin lo contraste con el listado del MAPA. "Prescrivet": verificar grafía exacta.
+ * administración lo contraste con el listado del MAPA. "Prescrivet": verificar grafía exacta.
  */
 export const PLATAFORMAS_SEMILLA = [
   { id: 'generarecetas', nombre: 'GeneraRecetas', patrones: ['generarecetas'] },
@@ -83,7 +83,6 @@ export async function seed(db: Db, opts: SeedOptions) {
       .insert(usuario)
       .values([
         { entraOid: 'dev-empleado', nombre: 'Empleada de prueba', rolCache: 'empleado' },
-        { entraOid: 'dev-garante', nombre: 'Farmacéutico garante de prueba', rolCache: 'farmaceutico_garante' },
         { entraOid: 'dev-veterinaria', nombre: 'Veterinaria responsable de prueba', rolCache: 'veterinaria_responsable' },
         { entraOid: 'dev-admin', nombre: 'Administración de prueba', rolCache: 'admin' },
       ])
@@ -94,8 +93,8 @@ export async function seed(db: Db, opts: SeedOptions) {
         codigo: 'SUSTITUCION',
         version: '0-dev',
         texto:
-          'PROCEDIMIENTO DE PRUEBA (solo desarrollo). La instrucción real del farmacéutico garante (D-01) debe cargarse firmada antes de producción.',
-        aprobadoPor: 'dev-garante',
+          'PROCEDIMIENTO DE PRUEBA (solo desarrollo). La instrucción real del farmacéutico garante (D-01), firmada por él fuera de la app, la carga administración antes de producción.',
+        aprobadoPor: 'Farmacéutico garante (firma en papel; cargado por dev-admin)',
         aprobadoAt: new Date('2026-01-01T00:00:00Z'),
         vigente: true,
         soloDesarrollo: true,

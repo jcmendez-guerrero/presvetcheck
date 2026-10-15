@@ -59,7 +59,7 @@ export const reportRun = pgTable('report_run', {
   error: text(),
 });
 
-/** Discrepancias (conciliación ticket↔dispensación, outbox) para la bandeja del garante. */
+/** Discrepancias (conciliación ticket↔dispensación, outbox): las resuelve el empleado con una nota. */
 export const discrepancia = pgTable(
   'discrepancia',
   {
@@ -71,6 +71,7 @@ export const discrepancia = pgTable(
     estado: text().notNull().default('abierta'), // abierta | resuelta
     resueltaPor: text(),
     resueltaAt: timestamp({ withTimezone: true }),
+    notaResolucion: text(),
     ...timestamps,
   },
   (t) => [index().on(t.estado)],

@@ -9,7 +9,7 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Código nacional (CN) | Identificador de 6 dígitos de la presentación (7 con dígito de control). En la UI: "Código nacional" | `cn` |
 | Presentación | Formato concreto de un medicamento (envase, contenido) | `PresentacionInfo` |
 | Principio activo (PA) | Sustancia activa; `pa_id` de la maestra de CIMAVet | `paId` |
-| Garante | Farmacéutico garante del establecimiento | rol `farmaceutico_garante` |
+| Garante | Farmacéutico garante del establecimiento. No usa la app: su autorización previa y su firma las registra el empleado; revisa el reporte semanal | — |
 | Dispensación | Entrega de un medicamento; registro de salida append-only | `dispensacion` |
 | Entrada / recepción | Recepción de mercancía de un distribuidor | `recepcion`, `recepcion_linea` |
 | Forzado | Dispensar pese a un defecto de forma, asumiendo la responsabilidad (SPEC §4.1.6) | `forzado`, `validarForzado` |

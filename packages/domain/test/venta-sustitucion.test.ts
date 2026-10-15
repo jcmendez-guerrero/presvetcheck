@@ -93,17 +93,27 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
   const avisar: EventoSustitucion = { tipo: 'AVISO_VETERINARIO', medio: 'teléfono', fechaHora: T, resultado: 'conforme', empleado: 'e1' };
   const run = (s: EstadoSustitucionCompleto, evs: [EventoSustitucion, Rol][]) => evs.reduce((acc, [e, rol]) => transicionSustitucion(acc, e, rol), s);
 
-  it('flujo POST completo hasta VALIDADA', () => {
+  const firma: EventoSustitucion = { tipo: 'FIRMAR', garante: 'Ana Garante', fechaHora: T, empleado: 'e1' };
+  const autorizar = (o: Partial<{ garante: string; medio: string; confirmaIndicacionProbable: boolean }> = {}): EventoSustitucion => ({
+    tipo: 'AUTORIZAR_PREVIA',
+    garante: 'Ana Garante',
+    medio: 'teléfono',
+    fechaHora: T,
+    empleado: 'e1',
+    confirmaIndicacionProbable: true,
+    ...o,
+  });
+
+  it('flujo POST completo: el empleado registra la firma del garante en la receta en papel', () => {
     const s = run(nuevaSustitucion('POST', false), [
       [consentir, 'empleado'],
       [avisar, 'empleado'],
       [{ tipo: 'DISPENSAR' }, 'empleado'],
       [{ tipo: 'APARTAR_RECETA' }, 'empleado'],
-      [{ tipo: 'FIRMAR', garante: 'g1', fechaHora: T, mfa: true }, 'farmaceutico_garante'],
-      [{ tipo: 'VALIDAR', garante: 'g1', fechaHora: T }, 'farmaceutico_garante'],
+      [firma, 'empleado'],
     ]);
-    expect(s.estado).toBe('VALIDADA');
-    expect(s.firma).toEqual({ garante: 'g1', fechaHora: T });
+    expect(s.estado).toBe('FIRMADA_GARANTE');
+    expect(s.firma).toEqual({ garante: 'Ana Garante', fechaHora: T, empleado: 'e1' });
   });
 
   it('sin consentimiento o sin aviso no se habilita dispensar', () => {
@@ -130,49 +140,49 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
     expect(s.estado).toBe('RECHAZADA');
   });
 
-  it('modo PRE: requiere autorización previa del garante (no del admin) y confirmación si la indicación es PROBABLE', () => {
+  it('modo PRE: el empleado registra la autorización del garante obtenida fuera (nombre, medio) y confirma la indicación PROBABLE', () => {
     const s0 = nuevaSustitucion('PRE', true);
     expect(s0.estado).toBe('PENDIENTE_AUTORIZACION_PREVIA');
     expect(err(() => transicionSustitucion(s0, consentir, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, { tipo: 'AUTORIZAR_PREVIA', garante: 'a', fechaHora: T, confirmaIndicacionProbable: true }, 'admin'))).toBe('PROHIBIDO');
-    expect(err(() => transicionSustitucion(s0, { tipo: 'AUTORIZAR_PREVIA', garante: 'g', fechaHora: T, confirmaIndicacionProbable: false }, 'farmaceutico_garante'))).toBe(
-      'SUSTITUCION_REQUISITOS',
-    );
+    expect(err(() => transicionSustitucion(s0, autorizar(), 'admin'))).toBe('PROHIBIDO');
+    expect(err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(s0, autorizar({ garante: ' ' }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(s0, autorizar({ medio: '' }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
     const s = run(s0, [
-      [{ tipo: 'AUTORIZAR_PREVIA', garante: 'g', fechaHora: T, confirmaIndicacionProbable: true }, 'farmaceutico_garante'],
+      [autorizar(), 'empleado'],
       [consentir, 'empleado'],
       [avisar, 'empleado'],
       [{ tipo: 'DISPENSAR' }, 'empleado'],
     ]);
     expect(s.estado).toBe('DISPENSADA');
-    expect(err(() => transicionSustitucion(s, { tipo: 'AUTORIZAR_PREVIA', garante: 'g', fechaHora: T, confirmaIndicacionProbable: true }, 'farmaceutico_garante'))).toBe(
-      'TRANSICION_NO_PERMITIDA',
-    );
+    expect(s.autorizacionPrevia).toMatchObject({ garante: 'Ana Garante', medio: 'teléfono', empleado: 'e1' });
+    expect(err(() => transicionSustitucion(s, autorizar(), 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
   });
 
-  it('firma del garante exige MFA y rol garante', () => {
-    const s = run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [avisar, 'empleado'], [{ tipo: 'DISPENSAR' }, 'empleado'], [{ tipo: 'APARTAR_RECETA' }, 'empleado']]);
-    expect(err(() => transicionSustitucion(s, { tipo: 'FIRMAR', garante: 'g', fechaHora: T, mfa: false }, 'farmaceutico_garante'))).toBe('PROHIBIDO');
-    expect(err(() => transicionSustitucion(s, { tipo: 'FIRMAR', garante: 'g', fechaHora: T, mfa: true }, 'empleado'))).toBe('PROHIBIDO');
-    expect(err(() => transicionSustitucion(s, { tipo: 'VALIDAR', garante: 'g', fechaHora: T }, 'farmaceutico_garante'))).toBe('TRANSICION_NO_PERMITIDA');
+  it('firma registrada: exige el nombre del garante y la receta apartada; admin no interviene', () => {
+    const s = run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [avisar, 'empleado'], [{ tipo: 'DISPENSAR' }, 'empleado']]);
+    expect(err(() => transicionSustitucion(s, firma, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
+    const ap = transicionSustitucion(s, { tipo: 'APARTAR_RECETA' }, 'empleado');
+    expect(err(() => transicionSustitucion(ap, { ...firma, garante: '' } as EventoSustitucion, 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(ap, firma, 'admin'))).toBe('PROHIBIDO');
   });
 
-  it('rechazos: antes de dispensar → RECHAZADA; después solo el garante → NO_CONFORME_GARANTE', () => {
+  it('rechazos: antes de dispensar → RECHAZADA; después, no conforme según el garante (lo registra el empleado)', () => {
     const rech: EventoSustitucion = { tipo: 'RECHAZAR', actor: 'x', motivo: 'm', fechaHora: T };
     expect(transicionSustitucion(nuevaSustitucion('POST', false), rech, 'empleado').estado).toBe('RECHAZADA');
     const disp = run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [avisar, 'empleado'], [{ tipo: 'DISPENSAR' }, 'empleado']]);
-    expect(err(() => transicionSustitucion(disp, rech, 'empleado'))).toBe('PROHIBIDO');
-    const nc = transicionSustitucion(disp, rech, 'farmaceutico_garante');
+    expect(err(() => transicionSustitucion(disp, rech, 'admin'))).toBe('PROHIBIDO');
+    const nc = transicionSustitucion(disp, rech, 'empleado');
     expect(nc.estado).toBe('NO_CONFORME_GARANTE');
-    expect(err(() => transicionSustitucion(nc, rech, 'farmaceutico_garante'))).toBe('TRANSICION_NO_PERMITIDA');
+    expect(err(() => transicionSustitucion(nc, rech, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
   });
 
   it('transiciones fuera de orden', () => {
     const s0 = nuevaSustitucion('POST', false);
     expect(err(() => transicionSustitucion(s0, avisar, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
     expect(err(() => transicionSustitucion(s0, { tipo: 'APARTAR_RECETA' }, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, { tipo: 'FIRMAR', garante: 'g', fechaHora: T, mfa: true }, 'farmaceutico_garante'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, { tipo: 'AUTORIZAR_PREVIA', garante: 'g', fechaHora: T, confirmaIndicacionProbable: false }, 'farmaceutico_garante'))).toBe(
+    expect(err(() => transicionSustitucion(s0, firma, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
+    expect(err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado'))).toBe(
       'TRANSICION_NO_PERMITIDA',
     );
     expect(err(() => transicionSustitucion(s0, consentir, 'admin'))).toBe('PROHIBIDO');
