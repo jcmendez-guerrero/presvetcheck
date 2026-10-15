@@ -29,6 +29,9 @@ export interface ResultadoBusqueda {
   comerc: boolean | null;
   estado: string;
   puntuacion: number;
+  /** Autorizado para la especie pedida (null si no se pidió especie). No filtra: el veterinario puede
+   * prescribir por cascada y el motor avisa con MEDICAMENTO_ESPECIE_NO_AUTORIZADA. */
+  autorizadoEspecie: boolean | null;
 }
 
 /** Repositorio de la caché local de CIMAVet (SPEC §5.1.2, §6). */
@@ -291,18 +294,17 @@ export class CimavetRepository implements NomenclatorSink {
     const n = normalizeText(q);
     if (!n) return [];
     const cn = /^\d{6,7}$/.test(n) ? n.slice(0, 6) : null;
-    const filtros = [
-      f.especieId ? sql`exists (select 1 from cimavet_med_especie e where e.nregistro = m.nregistro and e.especie_id = ${f.especieId})` : sql`true`,
-      f.formaId ? sql`m.forma_id = ${f.formaId}` : sql`true`,
-    ];
+    // La especie ordena (primero los autorizados) pero no filtra.
+    const especie = f.especieId ? sql`exists (select 1 from cimavet_med_especie e where e.nregistro = m.nregistro and e.especie_id = ${f.especieId})` : sql`null::boolean`;
+    const filtros = [sql`true`, f.formaId ? sql`m.forma_id = ${f.formaId}` : sql`true`];
     const res = await this.db.execute(sql`
-      select p.cn, p.nregistro, p.nombre, m.nombre as medicamento, m.labtitular, p.comerc, p.estado_codigo as estado,
+      select p.cn, p.nregistro, p.nombre, m.nombre as medicamento, m.labtitular, p.comerc, p.estado_codigo as estado, ${especie} as autorizado_especie,
              greatest(similarity(p.nombre_norm, ${n}), word_similarity(${n}, p.nombre_norm), word_similarity(${n}, m.nombre_norm),
                       case when p.cn = ${cn} then 1 else 0 end) as puntuacion
       from cimavet_presentacion p join cimavet_medicamento m on m.nregistro = p.nregistro
       where (p.nombre_norm % ${n} or ${n} <% p.nombre_norm or ${n} <% m.nombre_norm or p.nombre_norm like ${`%${n}%`} or p.cn = ${cn})
         and ${filtros[0]} and ${filtros[1]}
-      order by puntuacion desc, p.comerc desc nulls last, p.cn
+      order by puntuacion desc, autorizado_especie desc nulls last, p.comerc desc nulls last, p.cn
       limit ${f.limite ?? 10}`);
     const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<Record<string, unknown>>;
     return rows.map((r) => ({
@@ -314,6 +316,7 @@ export class CimavetRepository implements NomenclatorSink {
       comerc: (r.comerc as boolean | null) ?? null,
       estado: String(r.estado),
       puntuacion: Number(r.puntuacion),
+      autorizadoEspecie: r.autorizado_especie === null || r.autorizado_especie === undefined ? null : Boolean(r.autorizado_especie),
     }));
   }
 

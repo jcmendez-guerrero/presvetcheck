@@ -10,6 +10,9 @@ export interface DocIntelOptions {
   apiVersion?: string;
   pollMs?: number;
   maxPolls?: number;
+  /** Espera máxima por página. En el nivel gratuito (F0) una página puede tardar más de un minuto. */
+  maxEsperaMs?: number;
+  now?: () => number;
   sleep?: (ms: number) => Promise<void>;
 }
 
@@ -64,12 +67,21 @@ export class DocumentIntelligenceClient {
     const op = res.headers.get('operation-location');
     if (!op) throw new Error('Document Intelligence no devolvió Operation-Location');
     const sleep = this.o.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
-    for (let i = 0; i < (this.o.maxPolls ?? 60); i++) {
-      await sleep(this.o.pollMs ?? 1000);
+    const now = this.o.now ?? Date.now;
+    const limite = now() + (this.o.maxEsperaMs ?? 180_000);
+    // El servicio indica cada cuánto consultar (Retry-After); si no, cada `pollMs`.
+    let espera = Number(res.headers.get('retry-after')) * 1000 || (this.o.pollMs ?? 1000);
+    for (let i = 0; i < (this.o.maxPolls ?? 300) && now() < limite; i++) {
+      await sleep(espera);
       const r = await fetch(op, { headers: await this.headers(), signal: AbortSignal.timeout(15_000) });
+      if (r.status === 429) {
+        espera = Math.min(espera * 2, 10_000);
+        continue;
+      }
       const body = (await r.json()) as { status: string; analyzeResult?: AnalyzeResult; error?: { message?: string } };
       if (body.status === 'succeeded') return body.analyzeResult ?? {};
       if (body.status === 'failed') throw new Error(`Document Intelligence falló: ${body.error?.message ?? 'sin detalle'}`);
+      espera = Number(r.headers.get('retry-after')) * 1000 || (this.o.pollMs ?? 1000);
     }
     throw new Error('Document Intelligence: tiempo de espera agotado');
   }

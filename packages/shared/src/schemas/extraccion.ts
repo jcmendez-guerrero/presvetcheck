@@ -25,6 +25,7 @@ export const CAMPOS_EXTRAIDOS_RECETA = [
   'tipoDispensacion',
   'clasePrescripcion',
   'tipoTratamiento',
+  'antimicrobianos',
   'titularNombre',
   'titularTelefono',
   'rega',

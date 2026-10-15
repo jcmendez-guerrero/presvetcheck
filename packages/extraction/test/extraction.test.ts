@@ -11,7 +11,7 @@ import { confianzaCampo } from '../src/confianza';
 import { AzureRecipeExtractor } from '../src/azure/extractor';
 import { DocumentIntelligenceClient } from '../src/azure/docintel';
 import { crearExtractor, DisabledRecipeExtractor } from '../src/factory';
-import { borradorDesdeExtraccion, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
+import { borradorDesdeExtraccion, especieId, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
 import { compararExtraccion, costeEstimado } from '../src/eval/metricas';
 
 const DIR = resolve(__dirname, '../../../fixtures/recetas');
@@ -201,6 +201,20 @@ describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligen
     server.use(...handlers([]).list);
     const lento = new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {}, maxPolls: 2 }), 'm');
     await expect(lento.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/tiempo de espera/);
+    // Límite por tiempo (F0 puede tardar más de un minuto por página) y 429 al consultar → se espera más.
+    let t = 0;
+    const esperas: number[] = [];
+    server.resetHandlers();
+    server.use(
+      http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 202, headers: { 'operation-location': `${DI}/ops/x`, 'retry-after': '2' } })),
+      http.get(`${DI}/ops/x`, () => new HttpResponse(null, { status: 429 })),
+    );
+    const porTiempo = new AzureRecipeExtractor(
+      new DocumentIntelligenceClient({ endpoint: DI, getToken, now: () => t, maxEsperaMs: 20_000, sleep: async (ms) => { esperas.push(ms); t += ms; } }),
+      'm',
+    );
+    await expect(porTiempo.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/tiempo de espera/);
+    expect(esperas.slice(0, 3)).toEqual([2000, 4000, 8000]);
   });
 });
 
@@ -250,6 +264,18 @@ describe('borrador para la revisión humana', () => {
     expect(plazo('3 meses')).toEqual({ cantidad: 3, unidad: 'meses' });
     expect(plazo('larga')).toBeNull();
   });
+});
+
+describe('especie propuesta desde el texto', () => {
+  it.each([
+    ['CANINA', 14],
+    ['Canino', 14],
+    ['PERROS', 14],
+    ['Felina', 15],
+    ['gato', 15],
+    ['Bovino', null],
+    [null, null],
+  ])('%s → %s', (t, id) => expect(especieId(t)).toBe(id));
 });
 
 describe('métricas del banco de evaluación', () => {

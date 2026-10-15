@@ -45,6 +45,18 @@ export function plazo(s: string | null): { cantidad: number; unidad: 'dias' | 'm
   return { cantidad: Number(m[1]), unidad: /^d/i.test(m[2] as string) ? 'dias' : 'meses' };
 }
 
+/**
+ * Propuesta de especie a partir del texto leído (solo las inequívocas de compañía: perro y gato; ids del
+ * diccionario de CIMAVet 14 y 15). La persona la confirma en la revisión.
+ */
+export function especieId(s: string | null): number | null {
+  if (!s) return null;
+  const t = normalizeText(s);
+  if (/^(perr[oa]s?|can(ina|ino|inos|inas|idos?)|canis)\b/.test(t)) return 14;
+  if (/^(gat[oa]s?|fel(ina|ino|inos|inas|idos?)|felis)\b/.test(t)) return 15;
+  return null;
+}
+
 export interface Borrador {
   receta: RecetaConfirmadaInput;
   /** Campos que exigen confirmación individual (confianza < umbral o ausentes). */
@@ -70,9 +82,10 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
       tipoDispensacion: tipoDispensacion(v(r.tipoDispensacion)),
       clasePrescripcion: enumDe(v(r.clasePrescripcion), ['ordinaria', 'excepcional'] as const),
       tipoTratamiento: enumDe(v(r.tipoTratamiento), ['agudo', 'cronico', 'preventivo'] as const),
+      antimicrobianos: r.antimicrobianos?.valor === true,
       titular: { nombre: v(r.titularNombre), telefono: v(r.titularTelefono) },
       rega: v(r.rega),
-      especie: { texto: v(r.especie), especieId: null },
+      especie: { texto: v(r.especie), especieId: especieId(v(r.especie)) },
       especieProduccion: false,
       animalIdentificacion: v(r.animalIdentificacion),
       numAnimales: n(r.numAnimales),

@@ -83,7 +83,8 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
         return {
           orden: l.orden,
           resuelta: m !== null,
-          antimicrobiano: m ? esAntimicrobiano(m, e.rules.recetaCampos) : false,
+          // Antimicrobiano si lo dice CIMAVet o la propia receta (conservador: validez de 5 días).
+          antimicrobiano: r.antimicrobianos || (m ? esAntimicrobiano(m, e.rules.recetaCampos) : false),
           estupefaciente: m?.estupefaciente ?? false,
           psicotropo: m?.psicotropo ?? false,
           excluidaAmpliada: m ? excluidoValidezAmpliada(m, e.rules.recetaCampos) : true,
