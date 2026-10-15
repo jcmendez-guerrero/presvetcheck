@@ -1,73 +1,76 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { findUp } from '@mmx/shared/node';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { RecipeExtractor } from '@mmx/domain';
-import { ExtractionResult, type CampoExtraido } from '@mmx/shared';
-import { confianzaCampo } from '../confianza';
-import { CAMPOS_BOOLEANOS, CAMPOS_NUMERICOS, LlmReceta, jsonSchemaReceta } from '../llm-schema';
-import type { DocumentIntelligenceClient } from './docintel';
-import type { AzureOpenAiClient } from './openai';
+import { CAMPOS_EXTRAIDOS_LINEA, CAMPOS_EXTRAIDOS_RECETA, ExtractionResult, type CampoExtraido } from '@mmx/shared';
+import { CAMPO_LINEAS, CAMPOS_FECHA, ESQUEMA_CAMPOS_VERSION, convertir } from '../campos';
+import { confianzaCampo, type PalabraOcr } from '../confianza';
+import { palabrasDe, type CampoDocIntel, type DocumentIntelligenceClient } from './docintel';
 
-export const PROMPT_VERSION = 'receta.v1';
-
-export function cargarPrompt(version = PROMPT_VERSION): string {
-  const junto = resolve(dirname(fileURLToPath(import.meta.url)), `../../prompts/${version}.md`);
-  const ruta = existsSync(junto) ? junto : findUp(`packages/extraction/prompts/${version}.md`, process.cwd());
-  if (!ruta) throw new Error(`No se encuentra el prompt ${version}`);
-  return readFileSync(ruta, 'utf8');
+/** Texto del campo tal como lo devuelve Document Intelligence según su tipo. */
+function textoCampo(nombre: string, f: CampoDocIntel): string | null {
+  if (f.valueSignature) return f.valueSignature;
+  if (f.valueSelectionMark) return f.valueSelectionMark;
+  if (CAMPOS_FECHA.has(nombre) && f.valueDate) return f.valueDate;
+  const v = f.valueString ?? f.content ?? (f.valueNumber ?? f.valueInteger)?.toString() ?? null;
+  return v === null || v.trim() === '' ? null : v.trim();
 }
 
-function convertir(campo: string, valor: string | null): string | number | boolean | null {
-  if (valor === null) return null;
-  if (CAMPOS_NUMERICOS.has(campo)) {
-    const n = Number.parseInt(valor.replace(/\D/g, ''), 10);
-    return Number.isFinite(n) ? n : null;
-  }
-  if (CAMPOS_BOOLEANOS.has(campo)) return /^(true|s[ií]|1)$/i.test(valor.trim());
-  return valor;
+function campo(nombre: string, f: CampoDocIntel | undefined, pagina: number, palabras: PalabraOcr[]): CampoExtraido {
+  if (!f) return { valor: null, confianza: 0, evidencia: null, fuente: 'ocr' };
+  const valor = convertir(nombre, textoCampo(nombre, f));
+  const region = f.boundingRegions?.[0] ?? null;
+  return {
+    valor,
+    confianza: confianzaCampo(valor, f.confidence ?? 0, f.spans ?? [], region !== null, palabras),
+    evidencia: valor === null ? null : { texto: f.content ?? null, pagina: region ? pagina : null, region: region?.polygon ?? null },
+    fuente: 'ocr',
+  };
 }
 
 /**
- * Extractor Azure (ADR-04): OCR con Document Intelligence + estructuración con Azure OpenAI.
- * Guarda modelo y versión de prompt con cada extracción.
+ * Extractor Azure (ADR-04 revisado, DUDA-27): un MODELO PERSONALIZADO de Document Intelligence entrenado
+ * con las recetas de las clínicas (Document Intelligence Studio, datos en la UE) devuelve directamente los
+ * campos con su confianza y su región en la página. No interviene ningún LLM: no hay texto inventado, cada
+ * valor sale de una zona del documento. Cada página se analiza por separado; de cada campo se queda el de
+ * mayor confianza y las líneas de medicamento se concatenan.
  */
 export class AzureRecipeExtractor implements RecipeExtractor {
   readonly proveedor = 'azure' as const;
 
   constructor(
-    private readonly ocr: DocumentIntelligenceClient,
-    private readonly llm: AzureOpenAiClient,
-    private readonly deployment: string,
-    private readonly prompt: string = cargarPrompt(),
+    private readonly di: DocumentIntelligenceClient,
+    private readonly modelo: string,
   ) {}
 
   async extract(input: { pages: Uint8Array[]; mime: string }) {
-    const ocr = await this.ocr.ocr(input.pages, input.mime);
-    const r = await this.llm.completarJson({
-      sistema: this.prompt,
-      texto: ocr.texto,
-      imagenes: input.pages.map((p) => ({ mime: input.mime === 'application/pdf' ? 'image/png' : input.mime, base64: Buffer.from(p).toString('base64') })),
-      schema: jsonSchemaReceta(),
-    });
-    const parsed = LlmReceta.parse(r.json);
-    const campo = (nombre: string, c: { valor: string | null; evidencia: string | null; confianza: number }): CampoExtraido => {
-      const valor = convertir(nombre, c.valor);
-      const conf = confianzaCampo(valor, c.evidencia, c.confianza, ocr.texto, ocr.palabras);
-      return {
-        valor,
-        confianza: conf.confianza,
-        evidencia: c.evidencia === null ? null : { texto: c.evidencia, pagina: conf.pagina, region: conf.region },
-        fuente: 'llm',
-      };
-    };
+    const receta: Record<string, CampoExtraido> = Object.fromEntries(CAMPOS_EXTRAIDOS_RECETA.map((c) => [c, campo(c, undefined, 1, [])]));
+    const lineas: Record<string, CampoExtraido>[] = [];
+    const textos: string[] = [];
+    let modeloUsado = this.modelo;
+    for (let i = 0; i < input.pages.length; i++) {
+      const pagina = i + 1;
+      const r = await this.di.analizar(this.modelo, input.pages[i] as Uint8Array, input.mime);
+      modeloUsado = r.modelId ?? modeloUsado;
+      textos.push(r.content ?? '');
+      const palabras = palabrasDe(r, pagina);
+      const fields = r.documents?.[0]?.fields ?? {};
+      for (const c of CAMPOS_EXTRAIDOS_RECETA) {
+        const nuevo = campo(c, fields[c], pagina, palabras);
+        const actual = receta[c] as CampoExtraido;
+        if (nuevo.valor !== null && (actual.valor === null || nuevo.confianza > actual.confianza)) receta[c] = nuevo;
+      }
+      for (const fila of fields[CAMPO_LINEAS]?.valueArray ?? []) {
+        const o = fila.valueObject ?? {};
+        const l = Object.fromEntries(CAMPOS_EXTRAIDOS_LINEA.map((c) => [c, campo(c, o[c], pagina, palabras)]));
+        if (Object.values(l).some((x) => x.valor !== null)) lineas.push(l);
+      }
+    }
     return ExtractionResult.parse({
-      receta: Object.fromEntries(Object.entries(parsed.receta).map(([k, v]) => [k, campo(k, v)])),
-      lineas: parsed.lineas.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, campo(k, v)]))),
+      receta,
+      lineas,
       proveedor: 'azure',
-      modelo: `${this.deployment}${r.modelo ? ` (${r.modelo})` : ''}`,
-      promptVersion: PROMPT_VERSION,
-      ocrTexto: ocr.texto,
+      modelo: `docintel:${modeloUsado} (api ${this.di.apiVersion})`,
+      // En Document Intelligence no hay prompt: se guarda la versión del esquema de campos etiquetado.
+      promptVersion: ESQUEMA_CAMPOS_VERSION,
+      ocrTexto: textos.join('\n\n--- página ---\n\n'),
     });
   }
 }

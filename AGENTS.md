@@ -40,7 +40,7 @@ Antes de dar una tarea por terminada: `pnpm lint && pnpm typecheck && pnpm test`
 
 ## Configuración (variables de entorno)
 Documenta todas en `.env.example` con descripción y valor por defecto. Mínimo:
-`DATABASE_URL`, `BLOB_CONNECTION_STRING` (local) / `BLOB_ACCOUNT_URL` (Azure), `KEY_VAULT_URL`, `CIMAVET_BASE_URL`, `CIMAVET_RPS`, `CIMAVET_LIVE_CHECK_MAX_AGE_H`, `SIWEB_BASE_URL`, `SIWEB_TOKEN` (solo local), `SIWEB_STOCK_WRITE_MODE`, `SIWEB_SKU_CN_REGEX`, `SIWEB_CATALOG_WRITE`, `SIWEB_WAREHOUSE_NAME` (por defecto `Farmacia`), `SIWEB_WAREHOUSE_ID` (opcional), `EXTRACTOR` (`fake|azure`), `DOCINTEL_ENDPOINT`, `AOAI_ENDPOINT`, `AOAI_DEPLOYMENT`, `EXTRACTION_CONFIDENCE_THRESHOLD`, `SUBSTITUTION_APPROVAL_MODE`, `SUBSTITUTION_SIGN_MAX_DAYS`, `ALLOW_PACK_SIZE_CHANGE`, `ALLOW_PARTIAL_DISPENSATION`, `ENTRY_MIN_SHELF_LIFE_DAYS`, `SCANNER_GS_SUBSTITUTE`, `PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `AUTH_MODE` (`entra|dev`), `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MAILER` (`smtp|acs|console`), `COLUMN_ENCRYPTION_KEY` (solo local).
+`DATABASE_URL`, `BLOB_CONNECTION_STRING` (local) / `BLOB_ACCOUNT_URL` (Azure), `KEY_VAULT_URL`, `CIMAVET_BASE_URL`, `CIMAVET_RPS`, `CIMAVET_LIVE_CHECK_MAX_AGE_H`, `SIWEB_BASE_URL`, `SIWEB_TOKEN` (solo local), `SIWEB_STOCK_WRITE_MODE`, `SIWEB_SKU_CN_REGEX`, `SIWEB_CATALOG_WRITE`, `SIWEB_WAREHOUSE_NAME` (por defecto `Farmacia`), `SIWEB_WAREHOUSE_ID` (opcional), `EXTRACTOR` (`fake|azure`), `DOCINTEL_ENDPOINT`, `DOCINTEL_MODEL_ID`, `EXTRACTION_CONFIDENCE_THRESHOLD`, `SUBSTITUTION_APPROVAL_MODE`, `SUBSTITUTION_SIGN_MAX_DAYS`, `ALLOW_PACK_SIZE_CHANGE`, `ALLOW_PARTIAL_DISPENSATION`, `ENTRY_MIN_SHELF_LIFE_DAYS`, `SCANNER_GS_SUBSTITUTE`, `PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `AUTH_MODE` (`entra|dev`), `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MAILER` (`smtp|acs|console`), `COLUMN_ENCRYPTION_KEY` (solo local).
 En producción la app no arranca si falta una variable obligatoria (validación zod al inicio).
 
 ## Autenticación en local
@@ -53,4 +53,4 @@ En producción la app no arranca si falta una variable obligatoria (validación 
 - UI: humo con Playwright del flujo receta → dispensación con `EXTRACTOR=fake`.
 
 ## Infraestructura
-Bicep en `infra/`. Objetivo: Azure Container Apps (Consumo) + PostgreSQL Flexible B1ms + Blob + Key Vault + Document Intelligence + Azure OpenAI (Data Zone UE), región `spaincentral` salvo indisponibilidad del servicio. Identidad gestionada para todo; sin claves de acceso en la configuración de la app. Ver `SPEC.md` §10.
+Bicep en `infra/`. Objetivo: Azure Container Apps (Consumo) + PostgreSQL Flexible B1ms + Blob + Key Vault + Document Intelligence (modelo personalizado; sin Azure OpenAI, DUDA-27), región `spaincentral` salvo indisponibilidad del servicio. Identidad gestionada para todo; sin claves de acceso en la configuración de la app. Ver `SPEC.md` §10.

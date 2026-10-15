@@ -1,6 +1,6 @@
 # ADR-04 · Extracción en dos etapas: Document Intelligence + Azure OpenAI
 
-- **Estado:** aceptada (SPEC §1)
+- **Estado:** sustituida por [ADR-12](./0012-extraccion-con-modelo-personalizado-de-document-intelligence.md) (15/10/2026)
 
 ## Contexto
 El OCR da texto y confianza auditables; el LLM estructura los campos y detecta firma/sello. Datos personales sin salir de la UE.

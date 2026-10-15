@@ -4,6 +4,8 @@ param nombre string
 param location string
 param tags object
 param principalId string
+@description('Identidad del recurso de Document Intelligence (lee los datos de entrenamiento).')
+param docIntelPrincipalId string
 @description('Días de inmutabilidad de las recetas (5 años = 1826).')
 param diasInmutabilidad int = 1826
 
@@ -77,6 +79,25 @@ resource ciclo 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01'
         }
       ]
     }
+  }
+}
+
+// Recetas etiquetadas para entrenar el modelo personalizado de Document Intelligence (DUDA-27). Contienen
+// datos personales: contenedor privado, sin inmutabilidad (se borran al terminar el entrenamiento o a los 5 años).
+resource entrenamiento 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blob
+  name: 'docintel-entrenamiento'
+  properties: { publicAccess: 'None' }
+}
+
+// Storage Blob Data Reader para Document Intelligence, solo sobre ese contenedor.
+resource rolEntrenamiento 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: entrenamiento
+  name: guid(entrenamiento.id, docIntelPrincipalId, '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+    principalId: docIntelPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 

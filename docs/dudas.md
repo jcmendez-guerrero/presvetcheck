@@ -156,11 +156,11 @@ nombre. Las "confirmaciones expresas" de la app son siempre de la persona que re
 - **Implementado:** `+1` con `reason=purchase_receipt` y `−1` con `reason=adjustment_negative` sobre el mismo lote.
 
 ## DUDA-19 · Combinación de confianzas en la extracción
-- **Spec:** "confianza final = combinación de la confianza OCR de las palabras de la evidencia y la
-  autoevaluación del modelo; si la evidencia citada no aparece en el OCR → máximo 0,5" (§5.3).
-- **Implementado (conservador):** el **mínimo** de ambas. Si no hay evidencia, o no aparece en el OCR, o
-  ninguna palabra OCR coincide → máximo 0,5. La firma manuscrita y la casilla "He comprobado los datos con el
-  original" **nunca** se rellenan desde la IA, aunque el modelo detecte una firma.
+- **Spec:** "confianza final = combinación de la confianza OCR … y la autoevaluación del modelo" (§5.3).
+- **Implementado (ADR-12, sin LLM):** el **mínimo** entre la confianza del campo del modelo personalizado y la
+  media de la confianza OCR de sus palabras; un campo con valor pero sin región en la página queda en 0,5 como
+  máximo. La firma manuscrita y la casilla "He comprobado los datos con el original" **nunca** se rellenan
+  desde la extracción.
 
 ## DUDA-20 · Recetas de ejemplo para la extracción
 - **JC:** aporta `fixtures/recetas/Recetas_2026_08.pdf` (29 páginas) y `Recetas_2026_09.pdf` (57 páginas).
@@ -210,17 +210,16 @@ nombre. Las "confirmaciones expresas" de la app son siempre de la persona que re
 - **No incorporado (fuera del alcance de la app):** venta a distancia, estupefacientes de la lista I (siguen
   bloqueados), autovacunas, fórmulas magistrales, farmacovigilancia.
 
-## DUDA-27 · OCR: ¿modelo multimodal ligero o Donut/LayoutLM entrenado?
-- **Contexto:** las recetas reales son formularios **impresos** de varias clínicas (cada una con su plantilla),
-  con páginas giradas, sellos y firmas encima del texto, y a veces manuscritas.
-- **Recomendación:** mantener **Document Intelligence (layout) + un LLM pequeño con salida estructurada**
-  (p. ej. el despliegue "mini" de Azure OpenAI en la Data Zone UE) y medirlo con las recetas reales etiquetadas.
-  Donut/LayoutLMv3 exigen **cientos de recetas etiquetadas por plantilla**, GPU para entrenar, mantener el modelo
-  cuando cambia una plantilla y no son tan buenos con manuscritos; además los modelos (LayoutLMv3) tienen licencia
-  no comercial. Un modelo multimodal local (tipo Qwen2-VL o Florence-2) es viable como alternativa sin nube, pero
-  requiere GPU en la farmacia o un servicio de cómputo propio, lo que encarece la operación frente al pago por uso.
-- **Siguiente paso propuesto:** etiquetar ~40 páginas de los PDF aportados (fuera de git), pasar
-  `pnpm eval:extraction` y decidir con números (precisión por campo y coste por receta). Decide JC.
+## DUDA-27 · OCR: modelo para leer las recetas — RESUELTA (Document Intelligence)
+- **JC:** sustitución a Document Intelligence.
+- **Implementado (ADR-12):** un **modelo personalizado neuronal de Document Intelligence**, entrenado en Studio
+  con las recetas reales etiquetadas, sustituye al par `prebuilt-layout` + Azure OpenAI. Devuelve cada campo con
+  confianza y región; la confianza final es el mínimo con la del OCR de sus palabras, y un campo sin región queda
+  en 0,5 como máximo. Azure OpenAI desaparece del código, la configuración (`AOAI_*` → `DOCINTEL_MODEL_ID`) y la
+  infraestructura. Guía de entrenamiento: `docs/extraccion-docintel.md`.
+- **Pendiente:** etiquetar y entrenar el primer modelo con las recetas aportadas (en el contenedor privado
+  `docintel-entrenamiento`, nunca en git) y medirlo con `pnpm eval:extraction`. Hasta entonces la extracción
+  queda desactivada en Azure (entrada manual).
 
 ## DUDA-28 · El garante no usa la app — RESUELTA
 - **JC:** el garante nunca interactúa con el sistema; las confirmaciones expresas son del empleado que registra.

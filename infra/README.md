@@ -3,7 +3,7 @@
 `main.bicep` despliega en un grupo de recursos `rg-mmx-recetas-{dev|prod}` todo lo de SPEC §10.1:
 identidad gestionada, Log Analytics con límite diario + Application Insights + alertas, VNet, Key Vault (RBAC),
 Storage con inmutabilidad de 5 años y ciclo de vida, PostgreSQL Flexible B1ms (PG16, privado), Document
-Intelligence, Azure OpenAI (Data Zone UE), entorno de Container Apps (Consumo) con la app `mmx-api`, los jobs y
+Intelligence (modelo personalizado, ADR-12; contenedor privado `docintel-entrenamiento`), entorno de Container Apps (Consumo) con la app `mmx-api`, los jobs y
 el presupuesto con avisos al 50/80/100 %.
 
 ## Validar y desplegar
@@ -13,8 +13,10 @@ PG_ADMIN_PASSWORD='…' az deployment group what-if -g rg-mmx-recetas-dev -f inf
 PG_ADMIN_PASSWORD='…' az deployment group create  -g rg-mmx-recetas-dev -f infra/main.bicep -p infra/main.dev.bicepparam
 ```
 Antes, rellena en `main.{dev,prod}.bicepparam` la imagen de GHCR, el `entraClientId` de la app registration y
-los correos. Comprueba la disponibilidad de servicios en `spaincentral` (ADR-11); si Azure OpenAI Data Zone UE no
-está, se usa `locationOpenAi` (por defecto `swedencentral`).
+los correos. Comprueba la disponibilidad de servicios en `spaincentral` (ADR-11), en
+particular el entrenamiento de modelos personalizados de Document Intelligence. Tras entrenar el modelo
+(docs/extraccion-docintel.md), pon su id en `modeloDocIntel` y vuelve a desplegar; mientras esté vacío la app
+funciona con entrada manual.
 
 ## Secretos en Key Vault (se cargan fuera de la plantilla)
 | Secreto | Uso |

@@ -1,33 +1,33 @@
-import { normalizeText } from '@mmx/shared';
-
-/** Palabra OCR con su confianza (Document Intelligence). */
+/** Palabra OCR con su confianza y su posición en el contenido (Document Intelligence). */
 export interface PalabraOcr {
   texto: string;
   confianza: number;
   pagina: number;
   poligono: number[] | null;
+  /** Posición en `content` (spans), para cruzarla con los campos. */
+  offset?: number;
+  length?: number;
 }
 
 /**
- * Confianza final de un campo (SPEC §5.3): combinación (mínimo) de la confianza OCR de las palabras de
- * la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → máximo 0,5.
+ * Confianza final de un campo del modelo personalizado (SPEC §5.3): el MÍNIMO entre la confianza del campo
+ * y la media de la confianza OCR de las palabras que lo forman. Un campo con valor pero sin región en el
+ * documento (no se puede mostrar la evidencia) queda en 0,5 como máximo.
  */
 export function confianzaCampo(
   valor: unknown,
-  evidencia: string | null,
-  confianzaLlm: number,
-  ocrTexto: string,
+  confianzaCampoModelo: number,
+  spans: { offset: number; length: number }[],
+  tieneRegion: boolean,
   palabras: PalabraOcr[],
-): { confianza: number; pagina: number | null; region: number[] | null } {
-  const llm = Math.max(0, Math.min(1, confianzaLlm));
-  if (valor === null) return { confianza: llm, pagina: null, region: null };
-  if (!evidencia) return { confianza: Math.min(llm, 0.5), pagina: null, region: null };
-  const ev = normalizeText(evidencia);
-  if (!ev || !normalizeText(ocrTexto).includes(ev)) return { confianza: Math.min(llm, 0.5), pagina: null, region: null };
-  const tokens = new Set(ev.split(' '));
-  const usadas = palabras.filter((p) => tokens.has(normalizeText(p.texto)));
-  if (!usadas.length) return { confianza: Math.min(llm, 0.5), pagina: null, region: null };
-  const ocr = usadas.reduce((s, p) => s + p.confianza, 0) / usadas.length;
-  const primera = usadas[0]!;
-  return { confianza: Math.min(llm, ocr), pagina: primera.pagina, region: primera.poligono };
+): number {
+  const c = Math.max(0, Math.min(1, confianzaCampoModelo));
+  if (valor === null) return c;
+  if (!tieneRegion) return Math.min(c, 0.5);
+  const dentro = palabras.filter(
+    (p) => p.offset !== undefined && spans.some((s) => (p.offset as number) >= s.offset && (p.offset as number) < s.offset + s.length),
+  );
+  if (!dentro.length) return c;
+  const ocr = dentro.reduce((s, p) => s + p.confianza, 0) / dentro.length;
+  return Math.min(c, ocr);
 }
