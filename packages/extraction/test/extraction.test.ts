@@ -11,7 +11,7 @@ import { confianzaCampo } from '../src/confianza';
 import { AzureRecipeExtractor } from '../src/azure/extractor';
 import { DocumentIntelligenceClient } from '../src/azure/docintel';
 import { crearExtractor, DisabledRecipeExtractor } from '../src/factory';
-import { borradorDesdeExtraccion, especieId, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
+import { borradorDesdeExtraccion, esExcepcional, especieId, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
 import { compararExtraccion, costeEstimado } from '../src/eval/metricas';
 
 const DIR = resolve(__dirname, '../../../fixtures/recetas');
@@ -289,4 +289,19 @@ describe('métricas del banco de evaluación', () => {
     expect(m.get('lineas.medicamento')).toMatchObject({ exactos: 1 });
     expect(costeEstimado(10)).toBeCloseTo(0.28);
   });
+});
+
+describe('prescripción excepcional en el texto de la receta', () => {
+  it.each([
+    ['Prescripción excepcional: :selected:', true],
+    ['PRESCRIPCION EXCEPCIONAL: X', true],
+    ['Prescripción excepcional: Sí', true],
+    ['Uso excepcional (cascada) por falta de medicamento autorizado', true],
+    // La etiqueta va impresa en muchos formularios: sin marca no cuenta.
+    ['Prescripción Excepcional :\n% del envase: 100', false],
+    ['PRESCRIPCION EXCEPCIONAL:\n0\nFORMULA MAGISTRAL:\n0', false],
+    ['Prescripción excepcional: Si No Profiláctico: Si :unselected:', false],
+    ['Prescripción excepcional: :unselected:', false],
+    [null, false],
+  ])('%s → %s', (t, esperado) => expect(esExcepcional(t)).toBe(esperado));
 });

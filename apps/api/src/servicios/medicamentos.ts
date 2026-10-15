@@ -70,6 +70,32 @@ export class MedicamentosService {
     return r?.nombre ?? null;
   }
 
+  /**
+   * Datos de CIMAVet de una presentación para rellenar y comprobar la línea de la receta: nombre,
+   * laboratorio, forma farmacéutica, principios activos y concentración ("1,25 mg"; "50 mg/ml").
+   */
+  async resumen(cn: string, especieId: number | null = null) {
+    const p = await this.presentacion(cn);
+    if (!p) return null;
+    const m = await this.info(p.nregistro);
+    if (!m) return null;
+    return {
+      cn: p.cn,
+      nregistro: p.nregistro,
+      // Algunos registros juntan dos nombres con " # ": se muestra el primero (el vigente).
+      presentacion: primerNombre(p.nombre),
+      medicamento: primerNombre(m.nombre),
+      labtitular: m.labtitular,
+      comerc: p.comerc,
+      estado: p.estado,
+      forma: await this.nombreMaestra(MAESTRA.FORMAS, m.formaId),
+      principiosActivos: m.composicion.pas.map((x) => x.nombre.toLowerCase()).join(' + ') || null,
+      concentracion: concentracionDelNombre(m.nombre) ?? concentracion(m),
+      antibiotico: m.antibiotico,
+      autorizadoEspecie: especieId === null ? null : m.especieIds.includes(especieId),
+    };
+  }
+
   /** "amoxicilina 400 mg; ácido clavulánico 100 mg" (SPEC §4.8). */
   textoPrincipiosActivos(m: MedicamentoInfo): string {
     return m.composicion.pas
@@ -107,4 +133,42 @@ export class MedicamentosService {
     if (!ids.length) return [];
     return this.d.db.select().from(cimavetMaestra).where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
   }
+}
+
+const primerNombre = (s: string) => s.split(' # ')[0]!.trim();
+
+const UNIDAD = /^(mg|g|kg|µg|mcg|microgramos?|ng|ui|u\.?i\.?|ml|l|%|mmol|meq|ufc|dosis)$/i;
+/**
+ * Concentración tal como la autoriza el nombre del medicamento ("AMODIP 1,25 mg COMPRIMIDOS…" → "1,25 mg";
+ * "CLAVUBAY 400 mg / 100 mg COMPRIMIDOS…" → "400 mg / 100 mg"; "… 80 mg/ml POLVO…" → "80 mg/ml"). La
+ * composición de CIMAVet puede expresar la sal (459 mg de amoxicilina trihidrato), no la dosis del nombre.
+ */
+export function concentracionDelNombre(nombre: string): string | null {
+  const t = primerNombre(nombre).split(/\s+/);
+  const ini = t.findIndex((w, i) => i > 0 && /^\d/.test(w));
+  if (ini < 0) return null;
+  const out: string[] = [];
+  for (const w of t.slice(ini)) {
+    // Para en la forma farmacéutica (palabra en mayúsculas que no es una unidad: COMPRIMIDOS, SOLUCION…).
+    if (/^[A-ZÁÉÍÓÚÑ]{3,}[,.]?$/.test(w) && w !== 'UFC') break;
+    if (!/[\d/+%-]/.test(w) && !UNIDAD.test(w.replace(/[/,]+$/, '').split('/')[0] ?? '')) break;
+    out.push(w);
+  }
+  const r = out.join(' ').replace(/[,;]$/, '');
+  return /\d/.test(r) && /[a-zµ%]/i.test(r) ? r : null;
+}
+
+const coma = (n: string) => n.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1').replace('.', ',');
+/** Unidades de dosificación: la concentración es por unidad ("1,25 mg" por comprimido), sin "/comprimido". */
+const POR_UNIDAD = /comprimid|c[aá]psula|pipeta|unidad|dosis|jeringa|aplicador|sobre|vial|collar|implante|bolo|tableta/i;
+
+/** Concentración legible a partir de la composición de CIMAVet ("1,25 mg", "400 mg + 100 mg", "50 mg/ml"). */
+export function concentracion(m: Pick<MedicamentoInfo, 'composicion'>): string | null {
+  const pas = m.composicion.pas.filter((p) => p.cantidad);
+  if (!pas.length) return null;
+  const base = pas.map((p) => [coma(p.cantidad as string), p.unidad?.toLowerCase()].filter(Boolean).join(' ')).join(' + ');
+  const { porCantidad, porUnidad } = m.composicion;
+  if (!porUnidad || POR_UNIDAD.test(porUnidad)) return base;
+  const cant = porCantidad && Number(porCantidad) !== 1 ? `${coma(porCantidad)} ` : '';
+  return `${base}/${cant}${porUnidad.toLowerCase()}`;
 }

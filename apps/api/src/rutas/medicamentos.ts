@@ -19,6 +19,19 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
   );
 
   app.get(
+    '/api/medicamentos/presentaciones/:cn/resumen',
+    {
+      preHandler: pre,
+      schema: { tags: ['medicamentos'], summary: 'Nombre, forma, principios activos y concentración de una presentación', params: z.object({ cn: z.string().regex(/^\d{6}$/) }), querystring: z.object({ especie: z.coerce.number().int().optional() }) },
+    },
+    async (req) => {
+      const r = await med.resumen(req.params.cn, req.query.especie ?? null);
+      if (!r) throw new DomainError('NO_ENCONTRADO');
+      return r;
+    },
+  );
+
+  app.get(
     '/api/medicamentos/:nregistro',
     { preHandler: pre, schema: { tags: ['medicamentos'], params: z.object({ nregistro: z.string().min(1) }), querystring: z.object({ vivo: z.enum(['0', '1']).default('0') }) } },
     async (req) => {

@@ -12,8 +12,14 @@ import {
   type DbOrTx,
 } from '@mmx/db';
 import {
+  calcularValidez,
   decidirLinea,
+  esAntimicrobiano,
   evaluarReceta,
+  excluidoValidezAmpliada,
+  fechaReferenciaValidez,
+  recetaCaducada,
+  textoPlazo,
   prescripcionVirtual,
   resumenReceta,
   validarEleccionSoloPA,
@@ -102,9 +108,11 @@ export class RecetasService {
       const ext = await this.d.extractor.extract({ pages: paginas.map((p) => p.bytes), mime: paginas[0]!.mime, hints });
       const b = borradorDesdeExtraccion(ext, this.d.config.EXTRACTION_CONFIDENCE_THRESHOLD);
       // Medicamento: por código nacional si lo trae la receta; si no, por nombre o en el texto (propuesta).
-      const ident = await identificarMedicamentos(b.receta, ext.ocrTexto, (q) => this.d.cimavet.buscar(q, { limite: 5 }));
-      const dudosos = [...new Set([...b.dudosos, ...ident.dudosos])];
-      await this.guardarBorrador(id, ident.receta, { extraccion: ext, dudosos }, c, 'EXTRAIDA');
+      const especieId = b.receta.especie?.especieId ?? null;
+      const ident = await identificarMedicamentos(b.receta, ext.ocrTexto, (q) => this.d.cimavet.buscar(q, { limite: 5, especieId }));
+      const completa = await this.completarDesdeCimavet(ident.receta);
+      const dudosos = [...new Set([...b.dudosos, ...ident.dudosos, ...completa.dudosos])];
+      await this.guardarBorrador(id, completa.receta, { extraccion: ext, dudosos }, c, 'EXTRAIDA');
     } catch (e) {
       aviso = e instanceof DomainError ? e.code : 'EXTRACCION_FALLIDA';
       // Motivo técnico para diagnosticar (sin datos personales: mensajes del servicio, p. ej. tiempo agotado).
@@ -113,6 +121,72 @@ export class RecetasService {
     }
     await this.d.db.transaction((tx) => audit(tx, c, 'receta_crear', 'receta', id, null, { paginas: paginas.length, sha256: hashTotal }));
     return { id, aviso };
+  }
+
+  /**
+   * Validez de la receta con los datos del formulario (aviso inmediato en la revisión, SPEC §4.1.3). Las
+   * mismas reglas del dominio que la evaluación; la fecha de referencia es la de la 1.ª dispensación si la hay.
+   */
+  async validez(id: string, borrador: RecetaConfirmadaInput) {
+    const [r] = await this.d.db.select({ primera: receta.primeraDispensacionAt }).from(receta).where(eq(receta.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    const conf = RecetaConfirmada.parse(borrador);
+    if (!conf.fechaEmision) return null;
+    const reglas = this.d.rules.bundle;
+    const lineas = [];
+    for (const l of conf.lineas) {
+      const m = l.nregistro ? await this.med.info(l.nregistro) : null;
+      lineas.push({
+        orden: l.orden,
+        resuelta: m !== null,
+        antimicrobiano: conf.antimicrobianos || (m ? esAntimicrobiano(m, reglas.recetaCampos) : false),
+        estupefaciente: m?.estupefaciente ?? false,
+        psicotropo: m?.psicotropo ?? false,
+        excluidaAmpliada: m ? excluidoValidezAmpliada(m, reglas.recetaCampos) : true,
+      });
+    }
+    const v = calcularValidez({
+      fechaEmision: conf.fechaEmision,
+      plazoDeclarado: conf.plazoValidezDeclarado,
+      tipoTratamiento: conf.tipoTratamiento,
+      especieProduccion: conf.especieProduccion,
+      cronicoPlanSanitario: conf.cronicoPlanSanitario,
+      rules: reglas.validez,
+      lineas,
+    });
+    const primera = r.primera ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(r.primera) : null;
+    const referencia = fechaReferenciaValidez(primera, hoyDe(this.d));
+    return { validaHasta: v.efectiva, caso: v.caso, plazoMaximo: textoPlazo(v.plazoMaximo), caducada: recetaCaducada(v.efectiva, referencia), fechaReferencia: referencia };
+  }
+
+  /**
+   * Con el medicamento identificado, forma farmacéutica, principios activos y concentración salen de CIMAVet
+   * (no de lo leído). Si no está autorizado para la especie de la receta, es uso en cascada: se propone
+   * prescripción excepcional (la persona lo confirma).
+   */
+  private async completarDesdeCimavet(receta: RecetaConfirmadaInput): Promise<{ receta: RecetaConfirmadaInput; dudosos: string[] }> {
+    const especieId = receta.especie?.especieId ?? null;
+    const dudosos: string[] = [];
+    let cascada = false;
+    const lineas = [];
+    for (const l of receta.lineas ?? []) {
+      const f = l.cn ? await this.med.resumen(l.cn, especieId) : null;
+      if (!f) {
+        lineas.push(l);
+        continue;
+      }
+      if (f.autorizadoEspecie === false) cascada = true;
+      lineas.push({
+        ...l,
+        nregistro: l.nregistro ?? f.nregistro,
+        formaTexto: f.forma ?? l.formaTexto ?? null,
+        principioActivoTexto: f.principiosActivos ?? l.principioActivoTexto ?? null,
+        concentracionTexto: f.concentracion ?? l.concentracionTexto ?? null,
+      });
+    }
+    const excepcional = cascada && !receta.clasePrescripcion;
+    if (excepcional) dudosos.push('receta.clasePrescripcion');
+    return { receta: { ...receta, lineas, ...(excepcional ? { clasePrescripcion: 'excepcional' as const } : {}) }, dudosos };
   }
 
   private async guardarBorrador(
