@@ -69,6 +69,10 @@ describe('esquema de campos para Document Intelligence Studio', () => {
     expect(convertir('firmaDetectada', 'signed')).toBe(true);
     expect(convertir('qrDetectado', 'unselected')).toBe(false);
     expect(convertir('numero', null)).toBeNull();
+    expect(convertir('cantidadEnvases', '1,00')).toBe(1);
+    expect(convertir('duracionDias', '2 semanas')).toBe(14);
+    expect(convertir('cn', 'CN 570016.3')).toBe('570016');
+    expect(convertir('cn', '12')).toBeNull();
   });
 });
 
@@ -161,6 +165,27 @@ describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligen
     expect(r.lineas[0]?.medicamento?.confianza).toBeCloseTo(0.7);
     expect(r.lineas[0]?.cantidadEnvases?.valor).toBe(1);
     expect(r.ocrTexto).toContain('Clavubay');
+  });
+
+  it('sin modelo entrenado (DOCINTEL_MODEL_ID=prebuilt-layout): pares clave-valor + reglas', async () => {
+    const h = handlers([
+      {
+        status: 'succeeded',
+        analyzeResult: {
+          modelId: 'prebuilt-layout',
+          content: 'Fármaco: PRUEBAVET 5 MG',
+          pages: [{ pageNumber: 1, words: [] }],
+          keyValuePairs: [{ key: { content: 'Fármaco:' }, value: { content: 'PRUEBAVET 5 MG', boundingRegions: region }, confidence: 0.95 }],
+        },
+      },
+    ]);
+    server.use(...h.list);
+    const r = await new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {} }), 'prebuilt-layout').extract({ pages: [new Uint8Array([1])], mime: 'image/png' });
+    expect(h.get().url).toContain('prebuilt-layout:analyze');
+    expect(h.get().url).toContain('features=keyValuePairs');
+    expect(r).toMatchObject({ modelo: 'docintel:prebuilt-layout + reglas (api 2024-11-30)', promptVersion: 'layout-reglas.v1' });
+    expect(r.lineas[0]?.medicamento?.valor).toBe('PRUEBAVET 5 MG');
+    expect(r.receta.numero?.valor).toBeNull();
   });
 
   it('errores de Document Intelligence', async () => {

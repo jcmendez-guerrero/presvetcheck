@@ -217,6 +217,10 @@ nombre. Las "confirmaciones expresas" de la app son siempre de la persona que re
   confianza y región; la confianza final es el mínimo con la del OCR de sus palabras, y un campo sin región queda
   en 0,5 como máximo. Azure OpenAI desaparece del código, la configuración (`AOAI_*` → `DOCINTEL_MODEL_ID`) y la
   infraestructura. Guía de entrenamiento: `docs/extraccion-docintel.md`.
+- **Sin entrenar (15/10/2026):** `DOCINTEL_MODEL_ID=prebuilt-layout` usa el modelo genérico con reglas por etiqueta
+  y la identificación del medicamento contra CIMAVet (código nacional opcional; si no, por nombre o en el texto,
+  exigiendo la marca). Con las 86 páginas aportadas identifica el medicamento en 59. Si la receta solo trae el
+  principio activo no se propone marca: elige la persona.
 - **Pendiente:** etiquetar y entrenar el primer modelo con las recetas aportadas (en el contenedor privado
   `docintel-entrenamiento`, nunca en git) y medirlo con `pnpm eval:extraction`. Hasta entonces la extracción
   queda desactivada en Azure (entrada manual).

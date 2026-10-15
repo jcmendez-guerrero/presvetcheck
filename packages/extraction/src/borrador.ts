@@ -102,8 +102,9 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
         posologia: { via: v(l.via), dosis: v(l.dosis), duracionDias: n(l.duracionDias), porcentajeEnvase: null },
         tiempoEsperaTexto: v(l.tiempoEspera),
         declaracionAntimicrobiano: l.declaracionAntimicrobiano?.valor === true || v(l.declaracionAntimicrobiano) === 'true' ? { declarada: true, finalidad: null } : null,
+        // El código nacional es opcional: si la receta lo trae se propone; si no, se busca por nombre.
         nregistro: null,
-        cn: null,
+        cn: /^\d{6}$/.test(v(l.cn) ?? '') ? v(l.cn) : null,
       })),
     },
   };

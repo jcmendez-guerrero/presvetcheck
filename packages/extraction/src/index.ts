@@ -5,4 +5,5 @@ export * from './borrador';
 export * from './factory';
 export * from './azure/docintel';
 export * from './azure/extractor';
+export * from './azure/reglas-layout';
 export * from './eval/metricas';

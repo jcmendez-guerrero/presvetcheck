@@ -21,7 +21,7 @@
     "db:seed": "pnpm --filter @mmx/db seed",
     "worker": "pnpm --filter @mmx/worker start",
     "eval:extraction": "pnpm --filter @mmx/extraction eval",
-    "demo": "pnpm nomenclator:fetch --si-falta && DEV_BOOTSTRAP=1 DATABASE_URL=pglite://memory BLOB_CONNECTION_STRING=memory AUTH_MODE=dev turbo run dev --filter=@mmx/api --filter=@mmx/web",
+    "demo": "pnpm nomenclator:fetch --si-falta && DEV_BOOTSTRAP=1 DEV_NOMENCLATOR=completo DATABASE_URL=pglite://memory BLOB_CONNECTION_STRING=memory AUTH_MODE=dev turbo run dev --filter=@mmx/api --filter=@mmx/web",
     "nomenclator:fetch": "pnpm --filter @mmx/cimavet exec tsx src/cli/nomenclator.ts",
     "docintel:campos": "pnpm --filter @mmx/extraction exec tsx src/cli/campos.ts"
   },

@@ -4,6 +4,27 @@ La app lee las recetas con un **modelo personalizado neuronal** de Azure AI Docu
 cada campo sale de una zona de la imagen, con su confianza. La persona revisa siempre los datos y nunca se marcan
 solos la firma ni "comprobado con el original".
 
+## 0. Sin entrenar: modelo genérico + reglas (`DOCINTEL_MODEL_ID=prebuilt-layout`)
+Mientras no haya modelo personalizado, la app usa `prebuilt-layout` con pares clave-valor y unas reglas que
+llevan cada etiqueta impresa ("Nº Colegiado", "Fármaco", "Cód.nac."…) a su campo
+(`packages/extraction/src/azure/reglas-layout.ts`). Nunca toma datos del propietario y rebaja la confianza para
+que la persona confirme más. Después, el medicamento se identifica contra CIMAVet
+(`apps/api/src/servicios/identificacion.ts`): por código nacional si la receta lo trae (no es obligatorio), si no
+por nombre y, si no hay línea, buscando nombres de medicamento en el texto; siempre exigiendo que la marca del
+candidato aparezca en lo leído. Todo queda como propuesta que la persona confirma.
+
+Medido con las 86 páginas aportadas (15/10/2026, Nomenclátor completo): medicamento identificado en 59, otras 9
+solo con principio activo (elige la persona), colegiado en 68, fecha en 58, especie en 54, indicación en 52 y
+número en 39. Las que fallan son sobre todo manuscritas o no son recetas (resguardos, dorsos).
+
+En local:
+```bash
+EXTRACTOR=azure
+DOCINTEL_ENDPOINT=https://<recurso>.cognitiveservices.azure.com/
+DOCINTEL_MODEL_ID=prebuilt-layout
+```
+con `az login` y el rol *Cognitive Services User* sobre el recurso (sin claves).
+
 ## 1. Preparar las recetas de entrenamiento
 - Usa recetas reales escaneadas (p. ej. los PDF aportados por JC). **Tienen datos personales**: nunca se suben
   a git; solo al contenedor privado `docintel-entrenamiento` de la cuenta de almacenamiento (UE).

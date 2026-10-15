@@ -39,8 +39,18 @@ export function camposDocIntelStudio() {
 export function convertir(campo: string, valor: string | null): string | number | boolean | null {
   if (valor === null) return null;
   if (CAMPOS_NUMERICOS.has(campo)) {
-    const n = Number.parseInt(valor.replace(/\D/g, ''), 10);
-    return Number.isFinite(n) ? n : null;
+    // Primer número del texto, con coma o punto decimal ("1,00" → 1; "21 Vía…" → 21).
+    const m = /\d+(?:[.,]\d+)?/.exec(valor);
+    if (!m) return null;
+    let n = Math.trunc(Number(m[0].replace(',', '.')));
+    // Duración expresada en semanas o meses (conservador: el mes como 30 días).
+    if (campo === 'duracionDias' && /mes/i.test(valor)) n *= 30;
+    else if (campo === 'duracionDias' && /semana/i.test(valor)) n *= 7;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  if (campo === 'cn') {
+    const m = /\b(\d{6})(?:\.\d)?\b/.exec(valor);
+    return m ? (m[1] as string) : null;
   }
   if (CAMPOS_BOOLEANOS.has(campo)) return /^(true|s[ií]|1|selected|signed)$/i.test(valor.trim());
   return valor;
