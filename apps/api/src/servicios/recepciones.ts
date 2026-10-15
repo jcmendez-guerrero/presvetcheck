@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, MAESTRA } from '@mmx/db';
 import { acumularEscaneo, avisosEntrada, calcularPrecioCoste, camposFaltantes, normalizarCn, type LineaEntrada } from '@mmx/domain';
-import { DomainError } from '@mmx/shared';
+import { DomainError, normalizeText } from '@mmx/shared';
 import { hoyDe, politica, type AppDeps } from '../deps';
 import { MedicamentosService } from './medicamentos';
 import type { ContextoPeticion } from './recetas';
@@ -28,13 +28,26 @@ export class RecepcionesService {
     this.med = new MedicamentosService(d);
   }
 
-  async crear(b: { distribuidorId: string; albaran: string | null; fechaCompra: string | null }, c: ContextoPeticion) {
-    const [dist] = await this.d.db.select().from(distribuidor).where(and(eq(distribuidor.id, b.distribuidorId), eq(distribuidor.activo, true)));
+  /** Distribuidor escrito a mano: el existente con el mismo nombre (sin distinguir mayúsculas ni tildes) o uno nuevo. */
+  private async distribuidorPorNombre(nombre: string, c: ContextoPeticion) {
+    const limpio = nombre.trim().replace(/\s+/g, ' ');
+    const todos = await this.d.db.select().from(distribuidor);
+    const existente = todos.find((x) => normalizeText(x.nombre) === normalizeText(limpio));
+    if (existente) return existente;
+    const [nuevo] = await this.d.db.insert(distribuidor).values({ nombre: limpio }).returning();
+    await appendAudit(this.d.db, { actor: c.usuario.id, accion: 'distribuidor_alta', entidad: 'distribuidor', entidadId: nuevo!.id, despues: { nombre: limpio }, ip: c.ip, userAgent: c.userAgent });
+    return nuevo!;
+  }
+
+  async crear(b: { distribuidorId?: string | undefined; distribuidor?: string | undefined; albaran: string | null; fechaCompra: string | null }, c: ContextoPeticion) {
+    const [dist] = b.distribuidor
+      ? [await this.distribuidorPorNombre(b.distribuidor, c)]
+      : await this.d.db.select().from(distribuidor).where(and(eq(distribuidor.id, b.distribuidorId ?? ''), eq(distribuidor.activo, true)));
     if (!dist) throw new DomainError('VALIDACION', 'Distribuidor no válido');
     return this.d.db.transaction(async (tx) => {
       const [r] = await tx
         .insert(recepcion)
-        .values({ distribuidorId: b.distribuidorId, albaran: b.albaran, fechaCompra: b.fechaCompra ?? hoyDe(this.d), empleado: c.usuario.id })
+        .values({ distribuidorId: dist.id, albaran: b.albaran, fechaCompra: b.fechaCompra ?? hoyDe(this.d), empleado: c.usuario.id })
         .returning();
       await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_crear', entidad: 'recepcion', entidadId: r!.id, despues: { distribuidor: dist.nombre }, ip: c.ip, userAgent: c.userAgent });
       return r!;

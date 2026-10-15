@@ -55,7 +55,10 @@ export const RecetaConfirmada = z.object({
    * declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6).
    */
   antimicrobianos: z.boolean().default(false),
-  titular: z.object({ nombre: texto, telefono: texto }).default({ nombre: null, telefono: null }),
+  /** Titular del animal. Dirección y DNI/NIE son opcionales; todo se guarda cifrado (SPEC §9.2). */
+  titular: z
+    .object({ nombre: texto, telefono: texto, direccion: texto, dni: texto })
+    .default({ nombre: null, telefono: null, direccion: null, dni: null }),
   rega: texto,
   especie: z
     .object({ texto: texto, especieId: z.number().int().nullable().default(null) })

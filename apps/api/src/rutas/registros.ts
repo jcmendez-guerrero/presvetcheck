@@ -1,5 +1,5 @@
 import { DomainError } from '@mmx/shared';
-import { aCsv, aXlsx, tablaEntradas, tablaPsicotropos, tablasSalidas } from '@mmx/reports';
+import { aCsv, aXlsx, tablaEntradas, tablaMovimientos, tablaPsicotropos, tablaTodasSalidas, tablasSalidas } from '@mmx/reports';
 import type { AppDeps } from '../deps';
 import { appendAudit } from '@mmx/db';
 import { ROLES, exigirMfa, requiereRol, usuario } from '../plugins/auth';
@@ -41,6 +41,26 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     const base = `entradas-${req.query.desde}_${req.query.hasta}`;
     if (req.query.formato === 'csv') return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(t));
     if (req.query.formato === 'xlsx') return enviarFichero(reply, `${base}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', await aXlsx([t]));
+    return { tablas: [t] };
+  });
+
+  // Informes de conjunto: todas las salidas (A, B y C juntas) y todos los movimientos (entradas y salidas).
+  const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  app.get('/api/registros/todas-salidas', { preHandler: lectura, schema: { tags: ['registros'], summary: 'Todas las salidas del periodo en una tabla', querystring: RegistrosQuery } }, async (req, reply) => {
+    const t = tablaTodasSalidas(await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario: false, dniCompleto: false }));
+    const base = `todas-las-salidas-${req.query.desde}_${req.query.hasta}`;
+    if (req.query.formato === 'csv') return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(t));
+    if (req.query.formato === 'xlsx') return enviarFichero(reply, `${base}.xlsx`, XLSX, await aXlsx([t]));
+    return { tablas: [t] };
+  });
+  app.get('/api/registros/movimientos', { preHandler: lectura, schema: { tags: ['registros'], summary: 'Entradas y salidas del periodo por fecha', querystring: RegistrosQuery } }, async (req, reply) => {
+    const entradas = await reg.entradas(req.query.desde, req.query.hasta);
+    const salidas = await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario: false, dniCompleto: false });
+    const t = tablaMovimientos(entradas, salidas);
+    const base = `entradas-y-salidas-${req.query.desde}_${req.query.hasta}`;
+    if (req.query.formato === 'csv') return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(t));
+    // En XLSX, además de la tabla conjunta, una hoja con las entradas y otra con todas las salidas.
+    if (req.query.formato === 'xlsx') return enviarFichero(reply, `${base}.xlsx`, XLSX, await aXlsx([t, tablaEntradas(entradas), tablaTodasSalidas(salidas)]));
     return { tablas: [t] };
   });
 

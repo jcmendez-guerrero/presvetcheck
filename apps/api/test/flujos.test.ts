@@ -505,3 +505,44 @@ describe('revisión: datos de CIMAVet y validez en el formulario', () => {
     expect((await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/validez`, { ...base, fechaEmision: null })).json.validez).toBeNull();
   });
 });
+
+describe('distribuidor en texto libre, titular con DNI y dirección, informes de conjunto', () => {
+  it('el distribuidor escrito a mano se reutiliza si ya existe (sin distinguir mayúsculas ni tildes) o se da de alta', async () => {
+    const a = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Distribuciones Veterinarias Núñez', albaran: 'ALB-T1' });
+    expect(a.status).toBe(201);
+    const b = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: '  distribuciones veterinarias nunez ' });
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${b.json.id}`)).json.distribuidor).toBe('Distribuciones Veterinarias Núñez');
+    const lista = (await api(E.app, 'dev-empleado', 'GET', '/api/admin/distribuidores')).json as { nombre: string }[];
+    expect(lista.filter((x) => x.nombre === 'Distribuciones Veterinarias Núñez')).toHaveLength(1);
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { albaran: 'X' })).status).toBe(400);
+  });
+
+  it('dirección y DNI del titular: opcionales, cifrados y llevados a la salida', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), titular: { nombre: 'Titular Prueba', telefono: '600000000', direccion: 'Calle Falsa 123', dni: '12345678Z' } }));
+    const [row] = await E.h.db.select().from(receta).where(eq(receta.id, id));
+    expect(JSON.stringify(row!.confirmacion)).not.toContain('Calle Falsa');
+    expect(JSON.stringify(row!.confirmacion)).not.toContain('12345678Z');
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion.titular).toMatchObject({ direccion: 'Calle Falsa 123', dni: '12345678Z' });
+    await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    const d = await dispensar('dev-empleado', { recetaId: id });
+    expect(d.status).toBe(201);
+    const [disp] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.recetaId, id));
+    const [p] = await E.h.db.select().from(propietario).where(eq(propietario.id, disp!.propietarioId!));
+    expect(p!.direccionEnc).toBeTruthy();
+    expect(p!.dniEnc).not.toContain('12345678Z');
+  });
+
+  it('informes: todas las salidas juntas y entradas + salidas por fecha', async () => {
+    const q = 'desde=2020-01-01&hasta=2030-12-31';
+    const todas = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}`)).json.tablas[0];
+    expect(todas.columnas[1]).toBe('TIPO DE SALIDA');
+    expect(new Set(todas.filas.map((f: string[]) => f[1]))).toContain('Con receta');
+    const mov = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/movimientos?${q}`)).json.tablas[0];
+    const tipos = mov.filas.map((f: string[]) => f[1]);
+    expect(tipos).toContain('Entrada');
+    expect(tipos.some((t: string) => t.startsWith('Salida'))).toBe(true);
+    const x = await api(E.app, 'dev-empleado', 'GET', `/api/registros/movimientos?${q}&formato=xlsx`);
+    expect(x.res.headers['content-type']).toContain('spreadsheetml');
+  });
+});

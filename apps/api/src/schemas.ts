@@ -86,7 +86,15 @@ export const SustitucionAccionDto = z
   })
   .default({});
 
-export const RecepcionDto = z.object({ distribuidorId: z.uuid(), albaran: z.string().max(60).nullable().default(null), fechaCompra: IsoDate.nullable().default(null) });
+/** El distribuidor se escribe en texto libre (si no existe se da de alta); `distribuidorId` se mantiene por compatibilidad. */
+export const RecepcionDto = z
+  .object({
+    distribuidorId: z.uuid().optional(),
+    distribuidor: z.string().trim().min(2).max(120).optional(),
+    albaran: z.string().max(60).nullable().default(null),
+    fechaCompra: IsoDate.nullable().default(null),
+  })
+  .refine((b) => b.distribuidorId || b.distribuidor, { message: 'Indica el distribuidor', path: ['distribuidor'] });
 export const LineaEntradaDto = z.object({
   tipo: z.enum(['medicamento', 'producto']).default('medicamento'),
   cn: z.string().regex(/^\d{6,7}$/).nullable().default(null),

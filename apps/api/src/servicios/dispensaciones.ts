@@ -268,7 +268,12 @@ export class DispensacionesService {
       linea: s.lineaOrden,
     });
     const forzados = this.comprobarBloqueos(linea.incidencias, escaneo, s.forzado);
-    if (s.propietario) validarPropietario('presencial', s.propietario);
+    // Sin datos del propietario en la petición se toman los del titular de la receta (cifrados en la salida).
+    const t = conf.titular;
+    const propietarioSalida =
+      s.propietario ??
+      (t.nombre || t.telefono || t.direccion || t.dni ? { nombre: t.nombre, movil: t.telefono, direccion: t.direccion, dni: t.dni && dniNieValido(t.dni) ? t.dni : null } : null);
+    if (propietarioSalida) validarPropietario('presencial', propietarioSalida);
     if (s.pendientes?.lineas.length) {
       const plan = planificarDispensacion(
         ev.lineas.map((x) => ({ orden: x.orden, decision: x.resultado.decision, dispensarAhora: x.orden === s.lineaOrden })),
@@ -285,7 +290,7 @@ export class DispensacionesService {
     const prescrito = r.decision === 'SUSTITUIR' || r.decision === 'DISPENSAR_CON_AVISO' ? await this.recetas.med.presentacion(lineaDb.cnPrescrito ?? '') : null;
 
     const ids = await this.d.db.transaction(async (tx) => {
-      const propietarioId = s.propietario ? await this.guardarPropietario(tx, s.propietario, c) : null;
+      const propietarioId = propietarioSalida ? await this.guardarPropietario(tx, propietarioSalida, c) : null;
       const out: string[] = [];
       for (const e of s.envases) {
         const [row] = await tx
