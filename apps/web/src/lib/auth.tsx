@@ -58,7 +58,11 @@ const escribir = (k: string, v: string) => {
 export function ProveedorAuth({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<ConfigPublica | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [devId, setDevId] = useState(leer('mmx.devUser') ?? 'dev-empleado');
+  // Un usuario dev guardado que ya no existe (p. ej. el antiguo garante) vuelve a la empleada.
+  const [devId, setDevId] = useState(() => {
+    const g = leer('mmx.devUser');
+    return USUARIOS_DEV.some((u) => u.id === g) ? (g as string) : 'dev-empleado';
+  });
   const [mfaDev, setMfaDev] = useState(leer('mmx.devMfa') === '1');
 
   useEffect(() => {
