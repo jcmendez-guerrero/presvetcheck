@@ -471,3 +471,37 @@ describe('pendientes de la operativa (el garante no usa la app)', () => {
     expect((await api(E.app, 'dev-empleado', 'GET', '/api/inicio')).json.discrepanciasAbiertas).toBe(0);
   });
 });
+
+describe('revisión: datos de CIMAVet y validez en el formulario', () => {
+  it('resumen de la presentación: nombre, forma, principios activos y concentración', async () => {
+    const r = await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/presentaciones/570016/resumen?especie=14');
+    expect(r.json).toMatchObject({
+      cn: '570016',
+      nregistro: '1868 ESP',
+      presentacion: 'CLAVUBAY 400 mg / 100 mg COMPRIMIDOS SABOR PARA PERROS, Caja de cartón con 2 Blisters con 5 Comprimidos (10 comprimidos)',
+      forma: 'COMPRIMIDO',
+      principiosActivos: 'amoxicilina trihidrato + clavulanato potasio',
+      // La del nombre autorizado, no la de la sal de la composición (459 mg + 119 mg).
+      concentracion: '400 mg / 100 mg',
+      autorizadoEspecie: true,
+    });
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/presentaciones/570016/resumen?especie=15')).json.autorizadoEspecie).toBe(false);
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/presentaciones/999999/resumen')).status).toBe(404);
+  });
+
+  it('el borrador toma forma, principios activos y concentración de CIMAVet', async () => {
+    const id = await crearReceta(E.app);
+    const l = (await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion.lineas[0];
+    expect(l).toMatchObject({ cn: '570016', formaTexto: 'COMPRIMIDO', principioActivoTexto: 'amoxicilina trihidrato + clavulanato potasio', concentracionTexto: '400 mg / 100 mg' });
+  });
+
+  it('validez: caducada se avisa con los datos del formulario, sin guardarlos', async () => {
+    const id = await crearReceta(E.app);
+    const base = (await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion;
+    const vieja = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/validez`, { ...base, fechaEmision: '2020-01-01' });
+    // CLAVUBAY es antibiótico: 5 días.
+    expect(vieja.json.validez).toMatchObject({ caducada: true, validaHasta: '2020-01-06', plazoMaximo: '5 días' });
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/validez`, base)).json.validez).toMatchObject({ caducada: false });
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/validez`, { ...base, fechaEmision: null })).json.validez).toBeNull();
+  });
+});

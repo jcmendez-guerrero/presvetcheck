@@ -60,6 +60,12 @@ export async function rutasRecetas(app: App, d: AppDeps) {
   );
 
   app.post(
+    '/api/recetas/:id/validez',
+    { preHandler: pre, schema: { tags: ['recetas'], summary: 'Validez (y si está caducada) con los datos del formulario, sin guardarlos', params: IdParam, body: RecetaConfirmada } },
+    async (req) => ({ validez: await svc.validez(req.params.id, req.body) }),
+  );
+
+  app.post(
     '/api/recetas/:id/evaluar',
     { preHandler: pre, schema: { tags: ['recetas'], summary: 'Reglas + resolución + stock → decisión por línea', params: IdParam, body: EvaluarBody } },
     async (req) => {

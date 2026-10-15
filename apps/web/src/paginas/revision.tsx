@@ -3,7 +3,7 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Copy, Search, ZoomIn, ZoomOut } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
-import { ApiError, get, put } from '../lib/api';
+import { ApiError, get, post, put } from '../lib/api';
 import { CN } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
 import { Boton, Campo, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
@@ -18,6 +18,28 @@ interface RecetaApi {
   /** Resultado de la lectura automática (null si no se pudo leer). */
   extraccion: { ocrTexto: string | null; modelo: string } | null;
 }
+/** Datos de CIMAVet de la presentación elegida (GET /api/medicamentos/presentaciones/:cn/resumen). */
+interface ResumenCimavet {
+  cn: string;
+  nregistro: string;
+  presentacion: string;
+  medicamento: string;
+  labtitular: string | null;
+  comerc: boolean;
+  forma: string | null;
+  principiosActivos: string | null;
+  concentracion: string | null;
+  autorizadoEspecie: boolean | null;
+}
+interface Validez {
+  validaHasta: string;
+  caso: string;
+  plazoMaximo: string;
+  caducada: boolean;
+}
+const fechaEs = (iso: string) => iso.split('-').reverse().join('/');
+const resumenDe = (cn: string, especie: number | null) => get<ResumenCimavet>(`/api/medicamentos/presentaciones/${cn}/resumen${especie ? `?especie=${especie}` : ''}`);
+
 interface Candidato {
   cn: string;
   nregistro: string;
@@ -58,6 +80,15 @@ export function Revision() {
     queryKey: ['imagen', urlImg],
     queryFn: async () => URL.createObjectURL(await get<Blob>(urlImg as string)),
     enabled: !!urlImg,
+    staleTime: Infinity,
+  });
+
+  // Validez con los datos del formulario: el aviso de caducada sale aquí, antes de enviar.
+  const claveValidez = r && [r.fechaEmision, r.plazoValidezDeclarado, r.tipoTratamiento, r.antimicrobianos, r.especieProduccion, r.cronicoPlanSanitario, (r.lineas ?? []).map((l) => l.nregistro)];
+  const validez = useQuery({
+    queryKey: ['validez', id, JSON.stringify(claveValidez)],
+    queryFn: () => post<{ validez: Validez | null }>(`/api/recetas/${id}/validez`, r),
+    enabled: !!r?.fechaEmision,
     staleTime: Infinity,
   });
 
@@ -160,7 +191,16 @@ export function Revision() {
                 </label>
               )}
               <Campo etiqueta="Nº de receta" dudoso={dud('receta.numero')} value={r.numero ?? ''} onChange={(e) => set((x) => ({ ...x, numero: txt(e.target.value) }))} />
-              <Campo etiqueta="Fecha de emisión" type="date" dudoso={dud('receta.fechaEmision')} value={r.fechaEmision ?? ''} onChange={(e) => set((x) => ({ ...x, fechaEmision: txt(e.target.value) }))} />
+              <div className="flex flex-col gap-1">
+                <Campo etiqueta="Fecha de emisión" type="date" dudoso={dud('receta.fechaEmision')} value={r.fechaEmision ?? ''} onChange={(e) => set((x) => ({ ...x, fechaEmision: txt(e.target.value) }))} />
+                {r.fechaEmision && validez.data?.validez && (
+                  <p data-testid="aviso-validez" className={`rounded-lg px-2 py-1 text-sm font-semibold ${validez.data.validez.caducada ? 'bg-red-100 text-red-800' : 'text-slate-600'}`}>
+                    {validez.data.validez.caducada
+                      ? `Receta caducada: era válida hasta el ${fechaEs(validez.data.validez.validaHasta)} (plazo máximo ${validez.data.validez.plazoMaximo}). No se puede dispensar.`
+                      : `Válida hasta el ${fechaEs(validez.data.validez.validaHasta)} (plazo máximo ${validez.data.validez.plazoMaximo})`}
+                  </p>
+                )}
+              </div>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-medium">Tipo de dispensación {dud('receta.tipoDispensacion') && <span className="rounded bg-dorado/30 px-1.5 text-xs">Revisar</span>}</span>
                 <select className="min-h-11 rounded-lg border px-2" value={r.tipoDispensacion ?? ''} onChange={(e) => set((x) => ({ ...x, tipoDispensacion: (txt(e.target.value) as never) ?? null }))}>
@@ -171,7 +211,7 @@ export function Revision() {
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">Clase de prescripción</span>
+                <span className="font-medium">Clase de prescripción {dud('receta.clasePrescripcion') && <span className="rounded bg-dorado/30 px-1.5 text-xs">Revisar</span>}</span>
                 <select className="min-h-11 rounded-lg border px-2" value={r.clasePrescripcion ?? ''} onChange={(e) => set((x) => ({ ...x, clasePrescripcion: (txt(e.target.value) as never) ?? null }))}>
                   <option value="">(No consta: se bloquea la sustitución)</option>
                   <option value="ordinaria">Ordinaria</option>
@@ -250,7 +290,16 @@ export function Revision() {
           </Tarjeta>
 
           {(r.lineas ?? []).map((l, i) => (
-            <LineaForm key={l.orden} l={l} i={i} dud={dud} setLinea={setLinea} especie={r.especie?.especieId ?? null} />
+            <LineaForm
+              key={l.orden}
+              l={l}
+              i={i}
+              dud={dud}
+              setLinea={setLinea}
+              especie={r.especie?.especieId ?? null}
+              // No autorizado para la especie = uso en cascada: prescripción excepcional.
+              onCascada={() => set((x) => (x.clasePrescripcion ? x : { ...x, clasePrescripcion: 'excepcional' }))}
+            />
           ))}
 
           <Tarjeta>
@@ -274,7 +323,30 @@ export function Revision() {
   );
 }
 
-function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud: (k: string) => boolean; setLinea: (i: number, l: Partial<Linea>) => void; especie: number | null }) {
+function LineaForm({
+  l,
+  i,
+  dud,
+  setLinea,
+  especie,
+  onCascada,
+}: {
+  l: Linea;
+  i: number;
+  dud: (k: string) => boolean;
+  setLinea: (i: number, l: Partial<Linea>) => void;
+  especie: number | null;
+  onCascada: () => void;
+}) {
+  const ficha = useQuery({ queryKey: ['resumen', l.cn, especie], queryFn: () => resumenDe(l.cn as string, especie), enabled: !!l.cn });
+  const elegir = async (c: Candidato) => {
+    setLinea(i, { cn: c.cn, nregistro: c.nregistro });
+    setBuscar(false);
+    // Forma, principios activos y concentración salen de CIMAVet, no de lo leído.
+    const f = await resumenDe(c.cn, especie).catch(() => null);
+    if (f) setLinea(i, { formaTexto: f.forma ?? l.formaTexto ?? null, principioActivoTexto: f.principiosActivos ?? l.principioActivoTexto ?? null, concentracionTexto: f.concentracion ?? l.concentracionTexto ?? null });
+    if (c.autorizadoEspecie === false) onCascada();
+  };
   const [busqueda, setBusqueda] = useState(l.medicamentoTexto ?? l.principioActivoTexto ?? '');
   const [buscar, setBuscar] = useState(!l.cn);
   const cand = useQuery({
@@ -288,9 +360,9 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
     <Tarjeta titulo={`Medicamento ${l.orden}`}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Campo etiqueta="Nombre del medicamento" dudoso={k('medicamento')} value={l.medicamentoTexto ?? ''} onChange={(e) => setLinea(i, { medicamentoTexto: txt(e.target.value) })} />
-        <Campo etiqueta="Principio(s) activo(s)" dudoso={k('principioActivo')} value={l.principioActivoTexto ?? ''} onChange={(e) => setLinea(i, { principioActivoTexto: txt(e.target.value) })} />
-        <Campo etiqueta="Forma farmacéutica" dudoso={k('forma')} value={l.formaTexto ?? ''} onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })} />
-        <Campo etiqueta="Concentración" dudoso={k('concentracion')} value={l.concentracionTexto ?? ''} onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })} />
+        <Campo etiqueta={`Principio(s) activo(s)${l.cn ? ' (de CIMAVet)' : ''}`} dudoso={k('principioActivo')} value={l.principioActivoTexto ?? ''} onChange={(e) => setLinea(i, { principioActivoTexto: txt(e.target.value) })} />
+        <Campo etiqueta={`Forma farmacéutica${l.cn ? ' (de CIMAVet)' : ''}`} dudoso={k('forma')} value={l.formaTexto ?? ''} onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })} />
+        <Campo etiqueta={`Concentración${l.cn ? ' (de CIMAVet)' : ''}`} dudoso={k('concentracion')} value={l.concentracionTexto ?? ''} onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })} />
         <Campo etiqueta="Nº de envases" type="number" min={1} dudoso={k('cantidadEnvases')} value={l.cantidadEnvases ?? ''} onChange={(e) => setLinea(i, { cantidadEnvases: e.target.value ? Number(e.target.value) : null })} />
         <Campo
           etiqueta="Unidades (comprimidos, pipetas…) — solo si la receta las indica"
@@ -313,12 +385,26 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
       <div className="mt-4 rounded-xl bg-fondo p-3">
         <p className="font-semibold">Medicamento en CIMAVet</p>
         {l.cn && !buscar ? (
-          <p className="mt-1">
-            {CN} <strong>{l.cn}</strong> · nº de registro {l.nregistro}{' '}
-            <Boton variante="texto" onClick={() => setBuscar(true)}>
-              Cambiar
-            </Boton>
-          </p>
+          <div className="mt-1" data-testid="ficha-cimavet">
+            {ficha.data ? (
+              <>
+                <p className="text-lg font-semibold">{ficha.data.presentacion}</p>
+                <p className="text-sm text-slate-700">
+                  {[ficha.data.forma, ficha.data.principiosActivos && `${ficha.data.principiosActivos}${ficha.data.concentracion ? ` ${ficha.data.concentracion}` : ''}`, ficha.data.labtitular].filter(Boolean).join(' · ')}
+                </p>
+                {ficha.data.autorizadoEspecie === false && <p className="mt-1 text-sm font-semibold text-sustituir">No autorizado para esta especie: uso excepcional por cascada</p>}
+                {!ficha.data.comerc && <p className="mt-1 text-sm font-semibold text-sustituir">No comercializado</p>}
+              </>
+            ) : (
+              ficha.isError && <p className="text-sm font-semibold text-red-800">Este código nacional no está en CIMAVet</p>
+            )}
+            <p className="text-sm text-slate-600">
+              {CN} <strong>{l.cn}</strong> · nº de registro {l.nregistro}{' '}
+              <Boton variante="texto" onClick={() => setBuscar(true)}>
+                Cambiar
+              </Boton>
+            </p>
+          </div>
         ) : (
           <>
             <div className="mt-2 flex gap-2">
@@ -342,10 +428,7 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
                   <Boton
                     data-testid={`elegir-${c.cn}`}
                     variante={j === 0 ? 'principal' : 'secundario'}
-                    onClick={() => {
-                      setLinea(i, { cn: c.cn, nregistro: c.nregistro });
-                      setBuscar(false);
-                    }}
+                    onClick={() => void elegir(c)}
                   >
                     Elegir
                   </Boton>

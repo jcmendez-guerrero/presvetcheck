@@ -57,6 +57,18 @@ export function especieId(s: string | null): number | null {
   return null;
 }
 
+/**
+ * La receta indica prescripción excepcional (uso en cascada, arts. 112-114 del Reglamento (UE) 2019/6). La
+ * etiqueta «Prescripción excepcional:» va impresa en muchos formularios, así que solo cuenta si va seguida de
+ * una marca (X, Sí, 1, casilla marcada) o si la receta habla de cascada / uso excepcional.
+ */
+export function esExcepcional(texto: string | null | undefined): boolean {
+  if (!texto) return false;
+  // normalizeText quita los ":" (":selected:" → "selected").
+  const t = normalizeText(texto);
+  return /prescripcion excepcional \.?\s*(\bselected\b|x\b|si\b(?! no)|1\b)/.test(t) || /\b(uso excepcional|en cascada|prescripcion en cascada)\b/.test(t);
+}
+
 export interface Borrador {
   receta: RecetaConfirmadaInput;
   /** Campos que exigen confirmación individual (confianza < umbral o ausentes). */
@@ -70,6 +82,7 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
   ext.lineas.forEach((l, i) => {
     for (const [k, c] of Object.entries(l)) if (c.valor === null || c.confianza < umbral) dudosos.push(`lineas.${i}.${k}`);
   });
+  if (!v(r.clasePrescripcion) && esExcepcional(ext.ocrTexto)) dudosos.push('receta.clasePrescripcion');
   const tipo = v(r.tipo) === 'electronica' || v(r.qrDetectado) === 'true' ? 'electronica' : 'papel';
   return {
     dudosos,
@@ -80,7 +93,7 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
       numero: v(r.numero),
       fechaEmision: fechaIso(v(r.fechaEmision)),
       tipoDispensacion: tipoDispensacion(v(r.tipoDispensacion)),
-      clasePrescripcion: enumDe(v(r.clasePrescripcion), ['ordinaria', 'excepcional'] as const),
+      clasePrescripcion: enumDe(v(r.clasePrescripcion), ['ordinaria', 'excepcional'] as const) ?? (esExcepcional(ext.ocrTexto) ? 'excepcional' : null),
       tipoTratamiento: enumDe(v(r.tipoTratamiento), ['agudo', 'cronico', 'preventivo'] as const),
       antimicrobianos: r.antimicrobianos?.valor === true,
       titular: { nombre: v(r.titularNombre), telefono: v(r.titularTelefono) },
@@ -113,7 +126,8 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
         cantidadEnvases: n(l.cantidadEnvases),
         formatoTexto: v(l.formato),
         posologia: { via: v(l.via), dosis: v(l.dosis), duracionDias: n(l.duracionDias), porcentajeEnvase: null },
-        tiempoEsperaTexto: v(l.tiempoEspera),
+        // Sin tiempo de espera en la receta: 0 (animales de compañía). En producción se revisa (ver servicio).
+        tiempoEsperaTexto: v(l.tiempoEspera) ?? '0',
         declaracionAntimicrobiano: l.declaracionAntimicrobiano?.valor === true || v(l.declaracionAntimicrobiano) === 'true' ? { declarada: true, finalidad: null } : null,
         // El código nacional es opcional: si la receta lo trae se propone; si no, se busca por nombre.
         nregistro: null,
