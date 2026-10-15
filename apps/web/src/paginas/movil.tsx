@@ -58,11 +58,12 @@ export function PaginaMovil() {
 
   return (
     <div className="min-h-screen bg-fondo">
-      <header className="bg-marca px-4 py-3 text-white">
-        <p className="font-titulo text-lg font-bold">
-          Mundo Mascotix <span className="font-normal text-acento">· Móvil</span>
-        </p>
-        {usuario && <p className="text-sm">Conectado al ordenador de {usuario}</p>}
+      <header>
+        <div className="flex items-center gap-2 border-b border-acento/40 bg-white px-4 py-2">
+          <img src="/logo-horizontal.png" alt="Mundo Mascotix" className="h-8 w-auto" />
+          <span className="font-titulo font-semibold text-marca-2">Móvil</span>
+        </div>
+        {usuario && <p className="bg-marca px-4 py-2 text-sm text-white">Conectado al ordenador de {usuario}</p>}
       </header>
       <main className="mx-auto flex max-w-lg flex-col gap-4 p-4">
         {!token && <Mensaje tipo="aviso">Abre esta página leyendo el código QR que aparece en el ordenador al pulsar «Móvil».</Mensaje>}

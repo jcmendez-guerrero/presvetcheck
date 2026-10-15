@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icono.svg'],
+      includeAssets: ['favicon.png', 'logo-horizontal.png'],
       manifest: {
         name: 'Mundo Mascotix · Medicamentos Veterinarios',
         short_name: 'MMX Recetas',
@@ -22,12 +22,15 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'any',
         start_url: '/',
-        icons: [{ src: 'icono.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        icons: [
+          { src: 'icono-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icono-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ],
       },
       workbox: {
         // Nunca se cachean respuestas de la API (datos regulatorios y personales).
         navigateFallbackDenylist: [/^\/api\//, /^\/\.auth\//],
-        globPatterns: ['**/*.{js,css,html,svg,woff2,wasm}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
     }),

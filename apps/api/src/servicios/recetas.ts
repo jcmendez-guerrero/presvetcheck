@@ -212,13 +212,14 @@ export class RecetasService {
 
   /** Datos del titular cifrados dentro del borrador (SPEC §9.2). */
   private cifrarConfirmacion(conf: RecetaConfirmada) {
-    return { ...conf, titular: { nombre: this.d.cipher.encrypt(conf.titular.nombre), telefono: this.d.cipher.encrypt(conf.titular.telefono) }, _cifrado: true };
+    const titular = Object.fromEntries(Object.entries(conf.titular).map(([k, v]) => [k, this.d.cipher.encrypt(v)]));
+    return { ...conf, titular, _cifrado: true };
   }
 
   private descifrarConfirmacion(raw: unknown): RecetaConfirmada | null {
     if (!raw || typeof raw !== 'object') return null;
     const r = raw as RecetaConfirmada & { _cifrado?: boolean };
-    const titular = r._cifrado ? { nombre: this.d.cipher.decrypt(r.titular.nombre), telefono: this.d.cipher.decrypt(r.titular.telefono) } : r.titular;
+    const titular = r._cifrado ? Object.fromEntries(Object.entries(r.titular ?? {}).map(([k, v]) => [k, this.d.cipher.decrypt(v as string | null)])) : r.titular;
     const { _cifrado, ...resto } = r as RecetaConfirmada & { _cifrado?: boolean };
     void _cifrado;
     return RecetaConfirmada.parse({ ...resto, titular });

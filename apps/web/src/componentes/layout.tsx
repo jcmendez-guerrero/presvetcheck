@@ -18,59 +18,69 @@ export function Layout() {
   return (
     <ProveedorMovil>
       <div className="min-h-screen">
-        <header className="bg-marca text-white">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-            <Link to="/" className="font-titulo text-xl font-bold">
-              Mundo Mascotix <span className="font-normal text-acento">· Medicamentos Veterinarios</span>
-            </Link>
-            <nav className="flex flex-wrap gap-1" aria-label="Principal">
-              {NAV.filter((n) => !n.roles || tiene(...n.roles)).map((n) => (
-                <Link
-                  key={n.a}
-                  to={n.a}
-                  className="rounded-lg px-3 py-2 hover:bg-marca-2 [&.active]:bg-marca-2"
-                  activeOptions={{ exact: n.a === '/' }}
-                >
-                  {n.t}
-                </Link>
-              ))}
-            </nav>
-            <div className="ml-auto flex items-center gap-2 text-sm">
-              {usuario && tiene('empleado', 'veterinaria_responsable') && <BotonMovil />}
-              {config?.authMode === 'dev' ? (
-                <>
-                  <label className="sr-only" htmlFor="usuario-dev">
-                    Usuario de prueba
-                  </label>
-                  <select
-                    id="usuario-dev"
-                    data-testid="usuario-dev"
-                    className="rounded-lg bg-white px-2 text-texto"
-                    value={usuario?.id ?? ''}
-                    onChange={(e) => cambiarUsuarioDev(e.target.value)}
+        <header>
+          {/* Logo sobre blanco (es su fondo original); navegación en el azul de la marca. */}
+          <div className="border-b border-acento/40 bg-white">
+            <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
+              <Link to="/" className="flex items-center gap-3" aria-label="Mundo Mascotix · Inicio">
+                <img src="/logo-horizontal.png" alt="Mundo Mascotix" className="h-9 w-auto sm:h-11" />
+                <span className="hidden font-titulo text-lg font-semibold text-marca-2 sm:inline">
+                  Medicamentos Veterinarios
+                </span>
+              </Link>
+            </div>
+          </div>
+          <div className="bg-marca text-white">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-2">
+              <nav className="flex flex-wrap gap-1" aria-label="Principal">
+                {NAV.filter((n) => !n.roles || tiene(...n.roles)).map((n) => (
+                  <Link
+                    key={n.a}
+                    to={n.a}
+                    className="rounded-lg px-3 py-2 hover:bg-marca-2 [&.active]:bg-marca-2"
+                    activeOptions={{ exact: n.a === '/' }}
                   >
-                    {USUARIOS_DEV.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.etiqueta}
-                      </option>
-                    ))}
-                  </select>
-                  <label
-                    className="flex items-center gap-1"
-                    title="Simula la autenticación multifactor (solo desarrollo)"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={mfaDev}
-                      onChange={(e) => cambiarMfaDev(e.target.checked)}
-                    />{' '}
-                    MFA
-                  </label>
-                </>
-              ) : (
-                <span>{usuario?.nombre}</span>
-              )}
-              {usuario?.mfa && <ShieldCheck aria-label="Sesión con MFA" className="h-5 w-5 text-dorado" />}
+                    {n.t}
+                  </Link>
+                ))}
+              </nav>
+              <div className="ml-auto flex items-center gap-2 text-sm">
+                {usuario && tiene('empleado', 'veterinaria_responsable') && <BotonMovil />}
+                {config?.authMode === 'dev' ? (
+                  <>
+                    <label className="sr-only" htmlFor="usuario-dev">
+                      Usuario de prueba
+                    </label>
+                    <select
+                      id="usuario-dev"
+                      data-testid="usuario-dev"
+                      className="rounded-lg bg-white px-2 text-texto"
+                      value={usuario?.id ?? ''}
+                      onChange={(e) => cambiarUsuarioDev(e.target.value)}
+                    >
+                      {USUARIOS_DEV.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.etiqueta}
+                        </option>
+                      ))}
+                    </select>
+                    <label
+                      className="flex items-center gap-1"
+                      title="Simula la autenticación multifactor (solo desarrollo)"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={mfaDev}
+                        onChange={(e) => cambiarMfaDev(e.target.checked)}
+                      />{' '}
+                      MFA
+                    </label>
+                  </>
+                ) : (
+                  <span>{usuario?.nombre}</span>
+                )}
+                {usuario?.mfa && <ShieldCheck aria-label="Sesión con MFA" className="h-5 w-5 text-dorado" />}
+              </div>
             </div>
           </div>
           {config?.stock === 'demo' && (

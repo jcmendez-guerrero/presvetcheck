@@ -131,6 +131,12 @@ export function Dispensacion() {
     queryFn: () => get<{ cnPropuesto: string; prescrito: { nombre: string } | null; sustituto: { nombre: string; laboratorio: string | null } | null }>(`/api/sustituciones/${s.sustitucion}`),
     enabled: !!s.sustitucion,
   });
+  // Envases que pide la receta, para compararlos con los que se escanean.
+  const receta = useQuery({
+    queryKey: ['receta-disp', id],
+    queryFn: () => get<{ confirmacion: { lineas: { orden: number; cantidadEnvases: number | null }[] } | null }>(`/api/recetas/${id}`),
+  });
+  const pedidos = receta.data?.confirmacion?.lineas.find((x) => x.orden === orden)?.cantidadEnvases ?? null;
   const { envases, setEnvases, leer, error, gs } = useEnvases();
   const [motivoLote, setMotivoLote] = useState('');
   const [conf, setConf] = useState({ formato: false, nota: false, dosis: false });
@@ -240,6 +246,7 @@ export function Dispensacion() {
         </Tarjeta>
 
         <Tarjeta titulo="Escanea el envase">
+          <ComparaEnvases pedidos={pedidos} escaneados={envases.reduce((a, e) => a + (e.unidades || 0), 0)} />
           <CampoEscaneo onLectura={(raw, m) => void leer(raw, m)} gsSubstitute={gs} />
           {error && <Mensaje tipo="error">{error}</Mensaje>}
           <Boton variante="texto" onClick={() => setEnvases((e) => [...e, { lote: '', caducidad: null, unidades: 1, gtin: null, cnEscaneado: null, serie: null, metodoCaptura: 'manual' }])}>
@@ -343,5 +350,25 @@ export function Dispensacion() {
         />
       )}
     </>
+  );
+}
+
+/** Envases que pide la receta frente a los que se van a dispensar (escaneados o introducidos a mano). */
+function ComparaEnvases({ pedidos, escaneados }: { pedidos: number | null; escaneados: number }) {
+  const estado = pedidos === null ? 'neutro' : escaneados > pedidos ? 'exceso' : escaneados === pedidos ? 'ok' : 'falta';
+  const color = { neutro: 'bg-fondo', ok: 'bg-dispensar-bg text-dispensar', falta: 'bg-pedir-bg text-pedir', exceso: 'bg-noconforme-bg text-noconforme' }[estado];
+  return (
+    <div data-testid="compara-envases" className={`mb-3 grid grid-cols-2 gap-2 rounded-xl p-3 text-center ${color}`}>
+      <div>
+        <p className="text-sm">La receta pide</p>
+        <p className="text-3xl font-bold">{pedidos ?? '—'}</p>
+      </div>
+      <div>
+        <p className="text-sm">Vas a dispensar</p>
+        <p className="text-3xl font-bold">{escaneados}</p>
+      </div>
+      {estado === 'exceso' && <p className="col-span-2 font-semibold">Más envases de los que pide la receta: quita los que sobran</p>}
+      {estado === 'falta' && escaneados > 0 && <p className="col-span-2 text-sm">Dispensación parcial: faltan {(pedidos ?? 0) - escaneados}</p>}
+    </div>
   );
 }

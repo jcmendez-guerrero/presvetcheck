@@ -24,33 +24,35 @@ export function Recepciones() {
   const nav = useNavigate();
   const lista = useQuery({ queryKey: ['recepciones'], queryFn: () => get<Array<{ id: string; estado: string; fechaCompra: string; albaran: string | null }>>('/api/recepciones') });
   const dist = useQuery({ queryKey: ['distribuidores'], queryFn: () => get<Array<{ id: string; nombre: string; activo: boolean }>>('/api/admin/distribuidores') });
-  const [d, setD] = useState({ distribuidorId: '', albaran: '', fechaCompra: hoyIso() });
+  const [d, setD] = useState({ distribuidor: '', albaran: '', fechaCompra: hoyIso() });
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <Pagina titulo="Recepción de mercancía">
       <Tarjeta titulo="Nueva recepción">
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Distribuidor</span>
-            <select className="min-h-11 rounded-lg border px-2" value={d.distribuidorId} onChange={(e) => setD({ ...d, distribuidorId: e.target.value })}>
-              <option value="">(Elegir)</option>
-              {dist.data?.filter((x) => x.activo).map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Campo etiqueta="Nº de albarán (recomendado)" value={d.albaran} onChange={(e) => setD({ ...d, albaran: e.target.value })} />
-          <Campo etiqueta="Fecha de compra" type="date" value={d.fechaCompra} onChange={(e) => setD({ ...d, fechaCompra: e.target.value })} />
+          <Campo
+            etiqueta="Distribuidor"
+            info="Escribe el nombre del distribuidor tal como figura en el albarán. Si es nuevo, se da de alta solo."
+            list="distribuidores"
+            autoComplete="off"
+            value={d.distribuidor}
+            onChange={(e) => setD({ ...d, distribuidor: e.target.value })}
+          />
+          <datalist id="distribuidores">
+            {dist.data?.filter((x) => x.activo).map((x) => (
+              <option key={x.id} value={x.nombre} />
+            ))}
+          </datalist>
+          <Campo etiqueta="Nº de albarán (recomendado)" info="Número del albarán del distribuidor: permite localizar la compra en una inspección." value={d.albaran} onChange={(e) => setD({ ...d, albaran: e.target.value })} />
+          <Campo etiqueta="Fecha de compra" info="Fecha del albarán o de la compra. Es la fecha que figura en el registro de entradas." type="date" value={d.fechaCompra} onChange={(e) => setD({ ...d, fechaCompra: e.target.value })} />
         </div>
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
         <Boton
           className="mt-3"
-          disabled={!d.distribuidorId}
+          disabled={d.distribuidor.trim().length < 2}
           onClick={async () => {
             try {
-              const r = await post<{ id: string }>('/api/recepciones', { distribuidorId: d.distribuidorId, albaran: d.albaran || null, fechaCompra: d.fechaCompra });
+              const r = await post<{ id: string }>('/api/recepciones', { distribuidor: d.distribuidor.trim(), albaran: d.albaran || null, fechaCompra: d.fechaCompra });
               await nav({ to: '/recepciones/$id', params: { id: r.id } });
             } catch (e) {
               setMsg(e instanceof ApiError ? e.message : 'Error');

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { get, post } from './api';
+import { ApiError, get, post } from './api';
 
 /**
  * Lado del PC del emparejamiento con el móvil. Se guarda la sesión de esta pestaña (sessionStorage) y se
@@ -49,7 +49,9 @@ const guardarSesion = (s: SesionMovil | null) => {
 export const enlaceMovil = (s: SesionMovil) => `${s.urlBase ?? location.origin}/movil#t=${s.token}`;
 
 export function ProveedorMovil({ children }: { children: ReactNode }) {
-  const nav = useNavigate();
+  const navegar = useNavigate();
+  const nav = useRef(navegar);
+  nav.current = navegar;
   const [sesion, setSesion] = useState<SesionMovil | null>(leerSesion);
   const [conectado, setConectado] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
@@ -76,11 +78,17 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
           if (e.tipo === 'leyendo') setLeyendo(true);
           else if (e.tipo === 'receta') {
             setLeyendo(false);
-            void nav({ to: '/recetas/$id/revision', params: { id: e.recetaId } });
+            void nav.current({ to: '/recetas/$id/revision', params: { id: e.recetaId } });
           } else if (oyentes.current.size) oyentes.current.forEach((f) => f(e.raw));
           else setCodigoSinDestino(e.raw);
         }
-      } catch {
+      } catch (e) {
+        // La sesión ya no existe (caducada, cerrada o la API se reinició): se olvida en lugar de reintentar.
+        if (e instanceof ApiError && (e.status === 404 || e.status === 401 || e.status === 403)) {
+          guardarSesion(null);
+          if (activo) setSesion(null);
+          return;
+        }
         /* sin conexión: se reintenta */
       }
       if (activo) t = setTimeout(() => void consultar(), 1500);
@@ -90,7 +98,7 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
       activo = false;
       clearTimeout(t);
     };
-  }, [sesion, nav]);
+  }, [sesion]);
 
   const abrir = useCallback(async () => {
     const s = await post<SesionMovil>('/api/movil/sesiones');

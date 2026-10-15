@@ -55,8 +55,27 @@ export function Registros() {
           <Boton variante="secundario" onClick={() => void descargar(qs('xlsx', 'entradas'), `entradas-${f.desde}_${f.hasta}.xlsx`)}>
             Entradas XLSX
           </Boton>
+          <Boton variante="secundario" onClick={() => void ver('entradas')}>
+            Ver entradas
+          </Boton>
           <Boton variante="secundario" onClick={() => void ver('psicotropos')}>
             Registro de psicótropos
+          </Boton>
+        </div>
+      </Tarjeta>
+      <Tarjeta titulo="Informes de conjunto">
+        <p className="mb-3 text-sm text-slate-700">Para el periodo elegido arriba. Sin datos del propietario.</p>
+        <div className="flex flex-wrap gap-3">
+          <Boton onClick={() => void ver('todas-salidas')}>Todas las salidas</Boton>
+          <Boton variante="secundario" onClick={() => void descargar(qs('xlsx', 'todas-salidas'), `todas-las-salidas-${f.desde}_${f.hasta}.xlsx`)}>
+            Todas las salidas XLSX
+          </Boton>
+          <Boton onClick={() => void ver('movimientos')}>Entradas y salidas</Boton>
+          <Boton variante="secundario" onClick={() => void descargar(qs('xlsx', 'movimientos'), `entradas-y-salidas-${f.desde}_${f.hasta}.xlsx`)}>
+            Entradas y salidas XLSX
+          </Boton>
+          <Boton variante="secundario" onClick={() => void descargar(qs('csv', 'movimientos'), `entradas-y-salidas-${f.desde}_${f.hasta}.csv`)}>
+            Entradas y salidas CSV
           </Boton>
         </div>
       </Tarjeta>

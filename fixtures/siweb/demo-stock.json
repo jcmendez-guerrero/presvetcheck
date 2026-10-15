@@ -10,5 +10,9 @@
   "570025": [{ "lote": "ADQ-2703", "caducidad": "2027-03-31", "disponible": 6, "creadoAt": "2026-02-01T08:00:00Z" }],
   "570036": [{ "lote": "MCP-2702", "caducidad": "2027-02-28", "disponible": 8, "creadoAt": "2026-02-01T08:00:00Z" }],
   "570681": [{ "lote": "DOL-2704", "caducidad": "2027-04-30", "disponible": 2, "creadoAt": "2026-04-01T08:00:00Z" }],
-  "579294": [{ "lote": "SEM-2706", "caducidad": "2027-06-30", "disponible": 1, "creadoAt": "2026-04-01T08:00:00Z" }]
+  "579294": [{ "lote": "SEM-2706", "caducidad": "2027-06-30", "disponible": 1, "creadoAt": "2026-04-01T08:00:00Z" }],
+  "584159": [
+    { "lote": "AMD-2703", "caducidad": "2027-03-31", "disponible": 2, "creadoAt": "2026-05-10T08:00:00Z" },
+    { "lote": "AMD-2801", "caducidad": "2028-01-31", "disponible": 3, "creadoAt": "2026-09-01T08:00:00Z" }
+  ]
 }
