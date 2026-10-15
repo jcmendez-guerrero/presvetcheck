@@ -13,6 +13,8 @@ export const RecetaLineaConfirmada = z.object({
   formaTexto: texto,
   concentracionTexto: texto,
   cantidadEnvases: z.number().int().positive().nullable().default(null),
+  /** Unidades de dosificación (comprimidos, pipetas…) si el veterinario las indica: dispensación fraccionada. */
+  unidadesForma: z.number().int().positive().max(10000).nullable().default(null),
   formatoTexto: texto,
   posologia: z
     .object({
@@ -53,6 +55,11 @@ export const RecetaConfirmada = z.object({
     .object({ texto: texto, especieId: z.number().int().nullable().default(null) })
     .default({ texto: null, especieId: null }),
   especieProduccion: z.boolean().default(false),
+  /**
+   * Producción con tratamiento crónico/periódico: la persona que registra confirma expresamente que está
+   * recogido en el plan sanitario de la explotación o lo pauta el veterinario de la ADS (validez de 3 meses).
+   */
+  cronicoPlanSanitario: z.boolean().default(false),
   animalIdentificacion: texto,
   numAnimales: z.number().int().positive().nullable().default(null),
   veterinario: z

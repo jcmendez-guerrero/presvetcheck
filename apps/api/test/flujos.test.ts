@@ -93,6 +93,8 @@ describe('receta → revisión → resultado → dispensación', () => {
     const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, r.json.dispensaciones[0]));
     expect(d).toMatchObject({ cn: '570016', lote: 'CLV-2705', loteFefoRecomendado: 'CLV-2611', motivoLoteDistinto: 'El otro lote está en reserva', forzado: false, conReceta: true, metodoCaptura: 'camara' });
     expect(d!.principioActivoTxt).toBe('amoxicilina trihidrato 459 mg; clavulanato potasio 119 mg');
+    // UNIDADES DISPENSADAS del registro de salidas: envase completo descrito.
+    expect(d!.unidadesTexto).toBe('1 caja 10 comprimidos');
     const g = await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`);
     expect(g.json.estado).toBe('DISPENSADA');
   });
@@ -120,6 +122,67 @@ describe('receta → revisión → resultado → dispensación', () => {
     const eventos = await E.h.db.select().from(auditEvent);
     expect(eventos.map((e) => e.accion)).toEqual(expect.arrayContaining(['receta_crear', 'receta_confirmar', 'receta_evaluar', 'dispensar']));
     expect((await verifyAuditChain(E.h.db)).ok).toBe(true);
+  });
+});
+
+describe('dispensación fraccionada (guía §5.9)', () => {
+  // BENAZECARE SABOR 5 mg (1865 ESP, CN 570361): caja de 28 comprimidos, "fracción: 1 blister de 14 comprimidos".
+  const lineaBenazecare = (unidadesForma: number | null) => (r: Parameters<ReturnType<typeof recetaCorrecta>>[0]) => {
+    const base = recetaCorrecta(`R-FR-${Math.random().toString(36).slice(2, 7)}`)(r);
+    return { ...base, indicacion: 'Insuficiencia renal crónica', lineas: base.lineas.map((l) => ({ ...l, cn: '570361', nregistro: '1865 ESP', cantidadEnvases: null, unidadesForma })) };
+  };
+  const envFr = { lote: 'BNZ-2709', caducidad: '2027-09-30', unidades: 1, metodoCaptura: 'camara', cnEscaneado: '570361' };
+
+  it('fracción autorizada (14 comprimidos): registra las unidades y el texto de la fracción; la línea queda dispensada', async () => {
+    E.stock.datos['570361'] = [{ lote: 'BNZ-2709', caducidad: '2027-09-30', disponible: 3 }];
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, lineaBenazecare(14));
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('DISPENSAR');
+    const mal = await dispensar('dev-empleado', { recetaId: id, cn: '570361', envases: [envFr], fraccion: { unidadesForma: 7 } });
+    expect(mal.status).toBe(422);
+    expect(mal.json.error).toMatchObject({ code: 'FRACCION_NO_VALIDA', detalles: { motivo: 'NO_MULTIPLO', fraccion: 14 } });
+    const r = await dispensar('dev-empleado', { recetaId: id, cn: '570361', envases: [envFr], fraccion: { unidadesForma: 14 } });
+    expect(r.status).toBe(201);
+    const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, r.json.dispensaciones[0]));
+    expect(d).toMatchObject({ unidades: 0, unidadesForma: 14, unidadesTexto: '14 comprimidos (fracción de caja 28 comprimidos)' });
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.estado).toBe('DISPENSADA');
+  });
+
+  it('sin unidades prescritas en la receta, o presentación no fraccionable → no se fracciona', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => ({ ...lineaBenazecare(null)(r), lineas: lineaBenazecare(null)(r).lineas.map((l) => ({ ...l, cantidadEnvases: 1 })) }));
+    const r = await dispensar('dev-empleado', { recetaId: id, cn: '570361', envases: [envFr], fraccion: { unidadesForma: 14 } });
+    expect(r.json.error).toMatchObject({ code: 'FRACCION_NO_VALIDA', detalles: { motivo: 'SIN_UNIDADES_PRESCRITAS' } });
+    const id2 = await crearReceta(E.app);
+    await confirmar(E.app, id2, (x) => ({ ...recetaCorrecta()(x), lineas: recetaCorrecta()(x).lineas.map((l) => ({ ...l, unidadesForma: 5 })) }));
+    const r2 = await dispensar('dev-empleado', { recetaId: id2, envases: [envase()], fraccion: { unidadesForma: 5 } });
+    expect(r2.json.error).toMatchObject({ code: 'FRACCION_NO_VALIDA', detalles: { motivo: 'NO_FRACCIONABLE' } });
+  });
+});
+
+describe('psicótropos (guía: identidad de quien retira)', () => {
+  it('sin DNI/NIE válido de quien retira no se dispensa; con él, se guarda cifrado', async () => {
+    E.stock.datos['570681'] = [{ lote: 'DOL-2704', caducidad: '2027-04-30', disponible: 2 }];
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => {
+      const b = recetaCorrecta(`R-PS-${Math.random().toString(36).slice(2, 7)}`)(r);
+      return { ...b, indicacion: 'Eutanasia', lineas: b.lineas.map((l) => ({ ...l, cn: '570681', nregistro: '737 ESP', cantidadEnvases: 1 })) };
+    });
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(ev.json.lineas[0].resultado.decision).toBe('DISPENSAR');
+    const env = { lote: 'DOL-2704', caducidad: '2027-04-30', unidades: 1, metodoCaptura: 'camara', cnEscaneado: '570681' };
+    for (const dniRetira of [null, '12345678A']) {
+      const r = await dispensar('dev-empleado', { recetaId: id, cn: '570681', envases: [env], dniRetira });
+      expect(r.status).toBe(422);
+      expect(r.json.error.code).toBe('DNI_RETIRA_OBLIGATORIO');
+      expect(JSON.stringify(r.json)).not.toContain('12345678A');
+    }
+    const ok = await dispensar('dev-empleado', { recetaId: id, cn: '570681', envases: [env], dniRetira: '12345678z' });
+    expect(ok.status).toBe(201);
+    const [d] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.id, ok.json.dispensaciones[0]));
+    expect(d!.dniRetiraEnc).not.toContain('12345678');
+    expect(E.deps.cipher.decrypt(d!.dniRetiraEnc)).toBe('12345678Z');
   });
 });
 

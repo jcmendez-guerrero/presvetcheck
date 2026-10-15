@@ -48,8 +48,6 @@ export function tiemposEsperaCompatibles(
 }
 
 export interface OpcionesEquivalencia {
-  /** Para la regla de formato (§4.3.1) la concentración puede ser menor: no se exige igualdad. */
-  ignorarConcentracion?: boolean;
   /** Prescripción "virtual" construida desde la receta (solo principio activo): sin tiempos de espera propios. */
   prescripcionVirtual?: boolean;
 }
@@ -72,7 +70,7 @@ export function evaluarEquivalencia(
   // 1 y 4. Composición cualitativa y cuantitativa
   if (!mismosPrincipiosActivos(prescrito, candidato)) {
     motivos.push('COMPOSICION_DISTINTA');
-  } else if (!opts.ignorarConcentracion) {
+  } else {
     const cp = concentraciones(prescrito);
     const cc = concentraciones(candidato);
     for (const [paId, c1] of cp) {

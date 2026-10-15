@@ -65,7 +65,8 @@ export interface Sustituto {
   nregistro: string;
   nombre: string;
   labtitular: string | null;
-  origen: 'EQUIVALENTE' | 'MENOR_CONCENTRACION_OTRO_LABORATORIO';
+  /** Siempre misma composición y concentración (la menor concentración solo es del mismo medicamento, paso 3). */
+  origen: 'EQUIVALENTE';
   equivalencia: ResultadoEquivalencia;
   formato: ResultadoFormato | null;
   modo: ModoSustitucion;
@@ -150,8 +151,8 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
     ev.forzado = true;
     ev.codigosForzados = [...new Set(forma.map((f) => f.code))];
   }
-  /* v8 ignore next 2 -- MEDICAMENTO_NO_SELECCIONADO (duro) ya cubre este caso */
-  if (!e.prescrito) return out('NO_CONFORME', [incidencia('MEDICAMENTO_NO_SELECCIONADO', pol, { linea, params: { linea } })]);
+  /* v8 ignore next 2 -- MEDICAMENTO_NO_EN_SISTEMA (duro) ya cubre este caso */
+  if (!e.prescrito) return out('NO_CONFORME', [incidencia('MEDICAMENTO_NO_EN_SISTEMA', pol, { linea, params: { linea } })]);
 
   const motivos: Incidencia[] = [...(ev.forzado ? forma : []), ...avisosEntrada, ...(e.avisosStock ?? [])];
   const P = e.prescrito;
@@ -235,21 +236,8 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
       ev.descartados.push({ cn: x.c.presentacion.cn, nombre: x.c.presentacion.nombre, motivos: ['USO_HUMANO'] });
       continue;
     }
-    let equivalencia = evaluarEquivalencia(P.medicamento, x.c.medicamento, e.ctx, e.equivalencia);
-    let origen: Sustituto['origen'] = 'EQUIVALENTE';
-    let formato: ResultadoFormato | null = null;
-    let envases = P.envases;
-    // Menor concentración de otro laboratorio: regla de formato + condiciones y flujo de sustitución
-    // (§4.3.1). Conservador: siempre con aprobación previa del garante (docs/dudas.md DUDA-09).
-    if (!equivalencia.equivalente && x.formato.valido && x.formato.otroLaboratorio && x.formato.tipo === 'CAMBIO_CONCENTRACION') {
-      const sinConc = evaluarEquivalencia(P.medicamento, x.c.medicamento, e.ctx, e.equivalencia, { ignorarConcentracion: true });
-      if (sinConc.equivalente) {
-        equivalencia = { ...sinConc, requiereAprobacionPrevia: true };
-        origen = 'MENOR_CONCENTRACION_OTRO_LABORATORIO';
-        formato = x.formato;
-        envases = x.formato.envasesPropuestos;
-      }
-    }
+    // Solo misma composición y concentración: nunca menor concentración de otro medicamento.
+    const equivalencia = evaluarEquivalencia(P.medicamento, x.c.medicamento, e.ctx, e.equivalencia);
     if (!equivalencia.equivalente) {
       // No normalizable → "revisar manualmente" (no se propone sola); el resto, descartado con motivo.
       (equivalencia.revisarManual ? ev.revisarManual : ev.descartados).push({
@@ -266,15 +254,15 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
         nregistro: x.c.medicamento.nregistro,
         nombre: x.c.presentacion.nombre,
         labtitular: x.c.medicamento.labtitular,
-        origen,
+        origen: 'EQUIVALENTE',
         equivalencia,
-        formato,
+        formato: null,
         modo: modoEfectivo(e.config.modoSustitucion, equivalencia),
         disponible: x.disponible,
         caducidadFefo: caducidadFefo(lotesDe(x.c.presentacion.cn), e.hoy),
         precioCoste: x.c.precioCoste ?? null,
-        envases: Math.min(envases, x.disponible),
-        nota: formato ? notaAdministracion(formato) : null,
+        envases: Math.min(P.envases, x.disponible),
+        nota: null,
       });
     }
   }

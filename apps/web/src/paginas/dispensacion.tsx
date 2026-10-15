@@ -134,6 +134,8 @@ export function Dispensacion() {
   const { envases, setEnvases, leer, error, gs } = useEnvases();
   const [motivoLote, setMotivoLote] = useState('');
   const [conf, setConf] = useState({ formato: false, nota: false, dosis: false });
+  const [fraccion, setFraccion] = useState<number | null>(null);
+  const [dniRetira, setDniRetira] = useState('');
   const [dejarPendientes, setDejarPendientes] = useState(false);
   const [contacto, setContacto] = useState('');
   const [modal, setModal] = useState<CodigoIncidencia[] | null>(null);
@@ -175,6 +177,8 @@ export function Dispensacion() {
         confirmaCambioFormato: conf.formato,
         notaEntregadaTutor: conf.nota,
         confirmaDosisNoAjustable: conf.dosis,
+        fraccion: fraccion !== null ? { unidadesForma: fraccion } : null,
+        dniRetira: evd.psicotropo ? dniRetira.trim() || null : null,
         pendientes: dejarPendientes && pendientes.length ? { lineas: pendientes, contactoTutor: contacto || null } : null,
       });
       pitido(true);
@@ -245,6 +249,48 @@ export function Dispensacion() {
           {loteDistinto && <Campo etiqueta="Motivo para no dispensar el lote recomendado (obligatorio)" value={motivoLote} onChange={(e) => setMotivoLote(e.target.value)} />}
         </Tarjeta>
 
+        {evd.psicotropo && (
+          <Tarjeta titulo="Psicótropo: identidad de quien lo retira">
+            <p>Comprueba el documento de identidad de la persona que retira el medicamento y anota su DNI o NIE.</p>
+            <Campo etiqueta="DNI / NIE de quien retira (obligatorio)" autoComplete="off" value={dniRetira} onChange={(e) => setDniRetira(e.target.value)} />
+          </Tarjeta>
+        )}
+
+        {l.fraccion && l.resultado.decision === 'DISPENSAR' && (
+          <Tarjeta titulo="Dispensación fraccionada">
+            <p>
+              Presentación autorizada para fraccionar: <strong>{l.fraccion.texto}</strong>. Nunca se corta el blíster; entrega siempre un prospecto con la fracción.
+            </p>
+            {l.fraccion.unidades === null || l.fraccion.prescritas === null ? (
+              <Mensaje tipo="aviso">
+                {l.fraccion.prescritas === null ? 'La receta no indica unidades a dispensar: dispensa el envase completo.' : 'No se reconoce la fracción autorizada: dispensa el envase completo.'}
+              </Mensaje>
+            ) : (
+              <>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-6 w-6"
+                    checked={fraccion !== null}
+                    onChange={(e) => setFraccion(e.target.checked ? Math.min(l.fraccion!.unidades!, l.fraccion!.prescritas!) : null)}
+                  />
+                  Dispensar una fracción en lugar del envase completo (receta: {l.fraccion.prescritas} {l.fraccion.unidad})
+                </label>
+                {fraccion !== null && (
+                  <Campo
+                    etiqueta={`Unidades a entregar (múltiplos de ${l.fraccion.unidades})`}
+                    type="number"
+                    min={l.fraccion.unidades}
+                    step={l.fraccion.unidades}
+                    value={fraccion}
+                    onChange={(e) => setFraccion(Number(e.target.value) || l.fraccion!.unidades)}
+                  />
+                )}
+              </>
+            )}
+          </Tarjeta>
+        )}
+
         {alt && (
           <Tarjeta titulo="Cambio de formato o concentración">
             <label className="flex items-center gap-3">
@@ -280,7 +326,7 @@ export function Dispensacion() {
         )}
 
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
-        <Boton data-testid="confirmar-dispensacion" className="text-lg" disabled={!envases.length || enviando} onClick={() => void enviar(forzado)}>
+        <Boton data-testid="confirmar-dispensacion" className="text-lg" disabled={!envases.length || enviando || (evd.psicotropo && !dniRetira.trim())} onClick={() => void enviar(forzado)}>
           Confirmar dispensación
         </Boton>
       </Pagina>

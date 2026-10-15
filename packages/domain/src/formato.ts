@@ -8,8 +8,30 @@ import { contenidoEnvase, totalPaEnvase, type Concentracion } from './unidades';
 /**
  * Regla de formato y concentración (SPEC §4.3.1, D-09): se puede dispensar otra presentación si
  * la concentración por unidad es igual o menor y la cantidad total de principio activo nunca es
- * mayor que la prescrita.
+ * mayor que la prescrita. La menor concentración solo vale para el MISMO medicamento (mismo
+ * laboratorio y mismo nombre comercial, p. ej. CLAVUBAY 200/50 en lugar de CLAVUBAY 400/100); entre
+ * medicamentos distintos solo cabe sustituir por la misma composición y concentración.
  */
+
+/** Nombre comercial sin dosis ni forma: "CLAVUBAY 400 mg / 100 mg COMPRIMIDOS…" → "CLAVUBAY". */
+export function nombreComercial(nombre: string): string {
+  return nombre
+    .split(/(?:^|\s+)\d|,/)[0]!
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Mismo medicamento: mismo registro, o mismo laboratorio titular y mismo nombre comercial. */
+export function mismoMedicamento(a: MedicamentoInfo, b: MedicamentoInfo): boolean {
+  if (a.nregistro === b.nregistro) return true;
+  if (!a.labtitular || a.labtitular !== b.labtitular) return false;
+  const na = nombreComercial(a.nombre);
+  return na !== '' && na === nombreComercial(b.nombre);
+}
 
 export type TipoAlternativa = 'MISMA_PRESENTACION' | 'CAMBIO_FORMATO' | 'CAMBIO_CONCENTRACION';
 
@@ -127,6 +149,8 @@ export function evaluarAlternativaFormato(
     concentracionCandidato: primeraC,
   };
   if (envasesPropuestos < 1) return { ...out, motivos: ['CANTIDAD_SUPERIOR'] };
+  // Menor concentración solo del mismo medicamento (DUDA-09 resuelta).
+  if (!mismaConcentracion && !mismoMedicamento(P, C)) return { ...out, motivos: ['CONCENTRACION_OTRO_MEDICAMENTO'] };
 
   // 5. Con menor concentración, la dosis debe alcanzarse con unidades enteras (formas contables)
   if (!mismaConcentracion && primeraC.den === 'unidad' && !ratio.isInteger()) avisos.push('DOSIS_NO_AJUSTABLE');

@@ -65,6 +65,9 @@ export const cimavetPresentacion = pgTable(
     /** Contenido total del envase (p. ej. 10) y su unidad (p. ej. Comprimido), si se conoce. */
     contenido: numeric(),
     unidadContenido: text(),
+    /** Solo en el Nomenclátor (la API REST no lo expone): `sw_dispensacion_fraccionada` y `fracciones_autorizadas`. */
+    dispensacionFraccionada: boolean(),
+    fraccionesAutorizadas: text(),
     raw: jsonb(),
     source: text().notNull(),
     fetchedAt: timestamp({ withTimezone: true }).notNull(),

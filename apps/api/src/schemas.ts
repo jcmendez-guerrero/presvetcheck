@@ -43,6 +43,10 @@ export const DispensacionConRecetaDto = z.object({
   confirmaCambioFormato: z.boolean().default(false),
   notaEntregadaTutor: z.boolean().default(false),
   confirmaDosisNoAjustable: z.boolean().default(false),
+  /** Dispensación fraccionada (solo presentaciones autorizadas): unidades de dosificación de un único envase abierto. */
+  fraccion: z.object({ unidadesForma: z.number().int().positive().max(10000) }).nullable().default(null),
+  /** Psicótropos: DNI/NIE de quien retira el medicamento (identidad comprobada por el empleado). */
+  dniRetira: z.string().trim().max(20).nullable().default(null),
   propietario: PropietarioDto.nullable().default(null),
   pendientes: z.object({ lineas: z.array(z.number().int().positive()), contactoTutor: z.string().max(200).nullable().default(null) }).nullable().default(null),
 });

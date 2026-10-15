@@ -103,6 +103,30 @@ describe('validez temporal (SPEC §4.1.3)', () => {
     expect(textoPlazo({ dias: 5 })).toBe('5 días');
   });
 
+  it.each([
+    ['producción, crónico en plan sanitario/ADS (confirmado)', true, 'cronico', true, 'cronico_plan_sanitario', '2027-01-12'],
+    ['producción, crónico sin confirmar plan sanitario/ADS', true, 'cronico', false, 'general', '2026-11-12'],
+    ['producción, preventivo con plan sanitario (no amplía)', true, 'preventivo', true, 'general', '2026-11-12'],
+    ['compañía, crónico (la confirmación no cambia nada)', false, 'cronico', true, 'cronico_no_productora', '2027-01-12'],
+  ] as const)('%s → %s', (_n, produccion, tipo, plan, caso, efectiva) => {
+    const r = calcularValidez({
+      fechaEmision: '2026-10-12',
+      plazoDeclarado: null,
+      tipoTratamiento: tipo,
+      especieProduccion: produccion,
+      cronicoPlanSanitario: plan,
+      lineas: [linea({})],
+      rules: RULES.validez,
+    });
+    expect(r).toMatchObject({ caso, efectiva });
+  });
+
+  it('producción con plan sanitario: los antimicrobianos y psicótropos siguen con su plazo', () => {
+    expect(casoLinea(linea({ antimicrobiano: true }), 'cronico', true, true)).toBe('antimicrobiano');
+    expect(casoLinea(linea({ psicotropo: true }), 'cronico', true, true)).toBe('psicotropo');
+    expect(casoLinea(linea({ excluidaAmpliada: true }), 'cronico', true, true)).toBe('general');
+  });
+
   it('caso de línea: estupefaciente prevalece sobre antimicrobiano', () => {
     expect(casoLinea(linea({ estupefaciente: true, antimicrobiano: true }), 'agudo', false)).toBe('estupefaciente');
   });

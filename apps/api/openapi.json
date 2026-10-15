@@ -277,6 +277,10 @@
                     "default": false,
                     "type": "boolean"
                   },
+                  "cronicoPlanSanitario": {
+                    "default": false,
+                    "type": "boolean"
+                  },
                   "animalIdentificacion": {
                     "default": null,
                     "type": "string",
@@ -432,6 +436,14 @@
                           "type": "integer",
                           "exclusiveMinimum": true,
                           "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "unidadesForma": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 10000,
                           "minimum": 0,
                           "nullable": true
                         },
@@ -613,10 +625,10 @@
                               "PLATAFORMA_DESCONOCIDA",
                               "ESTUPEFACIENTE_NO_DISPENSABLE",
                               "PSICOTROPO_MAS_DE_UN_ENVASE",
-                              "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                              "MEDICAMENTO_USO_HUMANO",
                               "ONLINE_CON_RECETA",
                               "RECETA_REQUERIDA",
-                              "MEDICAMENTO_NO_SELECCIONADO",
+                              "MEDICAMENTO_NO_EN_SISTEMA",
                               "MEDICAMENTO_SUSPENDIDO",
                               "MEDICAMENTO_REVOCADO",
                               "MEDICAMENTO_NO_COMERCIALIZADO",
@@ -1087,10 +1099,10 @@
                                 "PLATAFORMA_DESCONOCIDA",
                                 "ESTUPEFACIENTE_NO_DISPENSABLE",
                                 "PSICOTROPO_MAS_DE_UN_ENVASE",
-                                "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                                "MEDICAMENTO_USO_HUMANO",
                                 "ONLINE_CON_RECETA",
                                 "RECETA_REQUERIDA",
-                                "MEDICAMENTO_NO_SELECCIONADO",
+                                "MEDICAMENTO_NO_EN_SISTEMA",
                                 "MEDICAMENTO_SUSPENDIDO",
                                 "MEDICAMENTO_REVOCADO",
                                 "MEDICAMENTO_NO_COMERCIALIZADO",
@@ -1158,6 +1170,28 @@
                       "confirmaDosisNoAjustable": {
                         "default": false,
                         "type": "boolean"
+                      },
+                      "fraccion": {
+                        "default": null,
+                        "type": "object",
+                        "properties": {
+                          "unidadesForma": {
+                            "type": "integer",
+                            "exclusiveMinimum": true,
+                            "maximum": 10000,
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "unidadesForma"
+                        ],
+                        "nullable": true
+                      },
+                      "dniRetira": {
+                        "default": null,
+                        "type": "string",
+                        "maxLength": 20,
+                        "nullable": true
                       },
                       "propietario": {
                         "default": null,
@@ -1354,10 +1388,10 @@
                                 "PLATAFORMA_DESCONOCIDA",
                                 "ESTUPEFACIENTE_NO_DISPENSABLE",
                                 "PSICOTROPO_MAS_DE_UN_ENVASE",
-                                "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE",
+                                "MEDICAMENTO_USO_HUMANO",
                                 "ONLINE_CON_RECETA",
                                 "RECETA_REQUERIDA",
-                                "MEDICAMENTO_NO_SELECCIONADO",
+                                "MEDICAMENTO_NO_EN_SISTEMA",
                                 "MEDICAMENTO_SUSPENDIDO",
                                 "MEDICAMENTO_REVOCADO",
                                 "MEDICAMENTO_NO_COMERCIALIZADO",
@@ -2913,6 +2947,89 @@
       "get": {
         "tags": [
           "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/reportes": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/reportes/{id}/descargar": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/reportes/{tipo}/generar": {
+      "post": {
+        "summary": "Genera el reporte semanal bajo demanda",
+        "tags": [
+          "reportes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {},
+                "type": "object",
+                "properties": {
+                  "desde": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "hasta": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "semanal"
+              ]
+            },
+            "in": "path",
+            "name": "tipo",
+            "required": true
+          }
         ],
         "responses": {
           "200": {

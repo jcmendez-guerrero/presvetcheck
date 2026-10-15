@@ -80,6 +80,8 @@ export const ValidezRulesSchema = z.object({
   general: Plazo,
   antimicrobiano: Plazo,
   cronico_no_productora: Plazo,
+  /** Producción: crónico/periódico recogido en el plan sanitario de la explotación o pautado por el veterinario de la ADS. */
+  cronico_plan_sanitario: Plazo,
   preventivo_no_productora: Plazo,
   estupefaciente: Plazo,
   psicotropo: Plazo,

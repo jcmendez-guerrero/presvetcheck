@@ -195,7 +195,7 @@ describe('casos de SPEC §12.2 en la evaluación', () => {
   });
 
   it('medicamento de uso humano → requiere garante (no forzable por el empleado)', () => {
-    expect(codes(evaluar(receta(), { m: med({ usoHumano: true }) }))).toContain('MEDICAMENTO_USO_HUMANO_REVISION_GARANTE:BLOQUEANTE_DURO');
+    expect(codes(evaluar(receta(), { m: med({ usoHumano: true }) }))).toContain('MEDICAMENTO_USO_HUMANO:BLOQUEANTE_DURO');
   });
 
   it.each`
@@ -224,8 +224,8 @@ describe('casos de SPEC §12.2 en la evaluación', () => {
   });
 
   it('medicamento sin elegir → BLOQUEANTE_DURO hasta que la persona lo seleccione', () => {
-    expect(codes(evaluar(receta(), { m: null }))).toEqual(['MEDICAMENTO_NO_SELECCIONADO:BLOQUEANTE_DURO']);
-    expect(codes(evaluar(receta(), { p: null }))).toEqual(['MEDICAMENTO_NO_SELECCIONADO:BLOQUEANTE_DURO']);
+    expect(codes(evaluar(receta(), { m: null }))).toEqual(['MEDICAMENTO_NO_EN_SISTEMA:BLOQUEANTE_DURO']);
+    expect(codes(evaluar(receta(), { p: null }))).toEqual(['MEDICAMENTO_NO_EN_SISTEMA:BLOQUEANTE_DURO']);
   });
 
   it('CIMAVet sin respuesta → aviso con la fecha de la última sincronización', () => {

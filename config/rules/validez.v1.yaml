@@ -4,6 +4,7 @@ version: validez.v1
 general: { meses: 1 }
 antimicrobiano: { dias: 5 }           # dentro de los cuales debe iniciarse el tratamiento
 cronico_no_productora: { meses: 3 }   # sin antimicrobianos, estupefacientes, psicótropos, gases medicinales, autovacunas, magistrales ni oficinales
+cronico_plan_sanitario: { meses: 3 }  # producción: en el plan sanitario de la explotación o del veterinario de la ADS (guía §4; confirmación expresa del empleado)
 preventivo_no_productora: { meses: 6 }
 estupefaciente: { dias: 10 }          # en v1, además, bloqueo y derivación
 psicotropo: { meses: 1 }              # nunca crónico ni preventivo (SPEC §4.1.5)

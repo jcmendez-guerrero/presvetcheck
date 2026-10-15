@@ -19,8 +19,13 @@ import {
   especieVentaSinReceta,
   planificarDispensacion,
   proponerLotes,
+  dniNieValido,
+  normalizarDni,
+  parseFraccion,
   textoAnotacionDorso,
   textoResguardo,
+  textoUnidadesDispensadas,
+  validarUnidadesFraccion,
   validarEnvase,
   validarForzado,
   validarPropietario,
@@ -63,6 +68,9 @@ export interface SolicitudConReceta {
   confirmaCambioFormato: boolean;
   notaEntregadaTutor: boolean;
   confirmaDosisNoAjustable: boolean;
+  /** Dispensación fraccionada: unidades de dosificación de un único envase. */
+  fraccion: { unidadesForma: number } | null;
+  dniRetira: string | null;
   propietario: PropietarioDatos | null;
   pendientes: { lineas: number[]; contactoTutor: string | null } | null;
 }
@@ -84,6 +92,16 @@ export class DispensacionesService {
   private readonly recetas: RecetasService;
   constructor(private readonly d: AppDeps) {
     this.recetas = new RecetasService(d);
+  }
+
+  /** Unidades de dosificación ya entregadas en fracciones para la línea (sin anuladas). */
+  private async unidadesFormaYaDispensadas(tx: DbOrTx, recetaLineaId: string): Promise<number> {
+    const r = await tx.execute(sql`
+      select coalesce(sum(d.unidades_forma), 0)::int as n from dispensacion d
+      where d.receta_linea_id = ${recetaLineaId} and d.anula_dispensacion_id is null
+        and not exists (select 1 from dispensacion a where a.anula_dispensacion_id = d.id)`);
+    const rows = (Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ n: number }>;
+    return rows[0]?.n ?? 0;
   }
 
   private async unidadesYaDispensadas(tx: DbOrTx, recetaLineaId: string): Promise<number> {
@@ -221,6 +239,22 @@ export class DispensacionesService {
     const med = pres ? await this.recetas.med.info(pres.nregistro) : null;
     if (!pres || !med) throw new DomainError('NO_ENCONTRADO');
 
+    // 2b. Dispensación fraccionada (guía §5.9): solo la presentación prescrita, autorizada para fraccionar,
+    // en múltiplos de la fracción del laboratorio y sin superar las unidades prescritas pendientes.
+    const yaForma = await this.unidadesFormaYaDispensadas(this.d.db, lineaDb.id);
+    if (s.fraccion) {
+      if (r.decision !== 'DISPENSAR') throw new DomainError('FRACCION_NO_VALIDA', 'Solo se fracciona la presentación prescrita', { motivo: 'SOLO_PRESCRITA' });
+      if (s.envases.length !== 1) throw new DomainError('FRACCION_NO_VALIDA', 'Una fracción sale de un único envase', { motivo: 'UN_ENVASE' });
+      if (lineaDb.unidadesFormaPrescritas === null) {
+        throw new DomainError('FRACCION_NO_VALIDA', 'La receta no indica unidades de dosificación', { motivo: 'SIN_UNIDADES_PRESCRITAS' });
+      }
+      const v = validarUnidadesFraccion(pres, s.fraccion.unidadesForma, lineaDb.unidadesFormaPrescritas - yaForma);
+      if (!v.valida) throw new DomainError('FRACCION_NO_VALIDA', `Fracción no válida: ${v.motivo}`, { motivo: v.motivo, fraccion: parseFraccion(pres.fracciones)?.unidades ?? null });
+    }
+
+    // 2c. Psicótropos: identidad de quien retira con DNI/NIE válido (se anota cifrado).
+    if (med.psicotropo && !dniNieValido(s.dniRetira)) throw new DomainError('DNI_RETIRA_OBLIGATORIO', 'Psicótropo: falta el DNI/NIE válido de quien retira');
+
     // 3. Escaneo y forzado combinado (receta + envase).
     const ya = await this.unidadesYaDispensadas(this.d.db, lineaDb.id);
     const escaneo = await this.validarEnvases({
@@ -269,7 +303,13 @@ export class DispensacionesService {
             especieTxt: especie || null,
             lote: e.lote,
             caducidad: e.caducidad,
-            unidades: e.unidades,
+            // En fraccionada no se entrega ningún envase completo: cuentan las unidades de dosificación.
+            unidades: s.fraccion ? 0 : e.unidades,
+            unidadesForma: s.fraccion?.unidadesForma ?? null,
+            unidadesTexto: s.fraccion
+              ? textoUnidadesDispensadas(pres, { unidadesForma: s.fraccion.unidadesForma, unidad: parseFraccion(pres.fracciones)?.unidad ?? pres.unidadContenido ?? 'unidad' })
+              : textoUnidadesDispensadas(pres, { envases: e.unidades }),
+            dniRetiraEnc: med.psicotropo ? this.d.cipher.encrypt(normalizarDni(s.dniRetira as string)) : null,
             gtin: e.gtin,
             serial: e.serie,
             metodoCaptura: e.metodoCaptura,
@@ -298,8 +338,10 @@ export class DispensacionesService {
           await tx.insert(gtinCn).values({ gtin: e.gtin, cn: cnPermitido, confirmadoPor: c.usuario.id, confirmadoAt: ahora }).onConflictDoNothing();
         }
       }
-      const total = ya + s.envases.reduce((a, e) => a + e.unidades, 0);
-      await tx.update(recetaLinea).set({ estado: total >= max ? 'DISPENSADA' : 'PENDIENTE_ENTREGA' }).where(eq(recetaLinea.id, lineaDb.id));
+      const total = ya + (s.fraccion ? 0 : s.envases.reduce((a, e) => a + e.unidades, 0));
+      const totalForma = yaForma + (s.fraccion?.unidadesForma ?? 0);
+      const completa = s.fraccion || yaForma > 0 ? totalForma >= (lineaDb.unidadesFormaPrescritas ?? Infinity) || total >= max : total >= max;
+      await tx.update(recetaLinea).set({ estado: completa ? 'DISPENSADA' : 'PENDIENTE_ENTREGA' }).where(eq(recetaLinea.id, lineaDb.id));
       for (const orden of s.pendientes?.lineas ?? []) {
         if (orden === s.lineaOrden) continue;
         const [lp] = await tx.select().from(recetaLinea).where(and(eq(recetaLinea.recetaId, s.recetaId), eq(recetaLinea.orden, orden)));
@@ -395,7 +437,7 @@ export class DispensacionesService {
     if (!s.envases.length) throw new DomainError('VALIDACION', 'Indica al menos un envase');
     const pres = await this.recetas.med.presentacion(s.cn);
     const med = pres ? await this.recetas.med.info(pres.nregistro) : null;
-    if (!pres || !med) throw new DomainError('NO_ENCONTRADO', 'Medicamento no encontrado en CIMAVet');
+    if (!pres || !med) throw new DomainError('MEDICAMENTO_NO_EN_SISTEMA', 'CN no encontrado en la caché de CIMAVet');
     const incs = validarVentaSinReceta(s.canal, med, politica(this.d));
     const duros = codigos(incs, 'BLOQUEANTE_DURO');
     if (duros.length) throw new DomainError('DISPENSACION_BLOQUEADA', 'Medicamento no dispensable sin receta', { codigos: duros });
@@ -430,6 +472,7 @@ export class DispensacionesService {
             lote: e.lote,
             caducidad: e.caducidad,
             unidades: e.unidades,
+            unidadesTexto: textoUnidadesDispensadas(pres, { envases: e.unidades }),
             gtin: e.gtin,
             serial: e.serie,
             metodoCaptura: e.metodoCaptura,

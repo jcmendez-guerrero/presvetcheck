@@ -22,6 +22,7 @@ export const REDACCION = [
   'req.headers.cookie',
   'req.headers["x-dev-user"]',
   '*.dni',
+  '*.dniRetira',
   '*.movil',
   '*.telefono',
   '*.direccion',

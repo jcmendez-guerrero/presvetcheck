@@ -94,7 +94,7 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
     async (req) => {
       const pres = await med.presentacion(req.query.cn);
       const m = pres ? await med.info(pres.nregistro) : null;
-      if (!pres || !m) throw new DomainError('NO_ENCONTRADO');
+      if (!pres || !m) throw new DomainError('MEDICAMENTO_NO_EN_SISTEMA');
       const incs = validarVentaSinReceta(req.query.canal as Canal, m, politica(d));
       const s = await d.stock.lotes(req.query.cn, m);
       return {
