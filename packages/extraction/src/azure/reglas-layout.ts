@@ -91,7 +91,13 @@ export function limpiarValor(v: string | null | undefined): string | null {
   return s;
 }
 
-const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\.?\s*:?\s*(\d{6})/i;
+/** Etiquetas del formato en una sola línea (Medivet y similares): delimitan el valor de la anterior. */
+const ETIQUETAS_LINEA = [
+  'cantidad', 'f[aá]rmaco', 'dosis', 'unidades', 'frecuencia', 'duraci[oó]n\\s*\\(d[ií]as\\)', 'v[ií]a\\s+admin\\w*\\s*\\.?',
+  'c\\.\\s*tratamiento', 'principios?\\s+activos?', 'tipo\\s+dispensaci[oó]n', '%\\s*env\\.?\\s*total', 'c[oó]d\\.?\\s*nac\\w*\\s*\\.?', 'n[º°o]\\s*envases',
+].join('|');
+
+const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\s*\.?\s*:?\s*(\d{6})/i;
 const RE_COLEGIADO = /n[º°o.]?\s*(?:de\s+)?colegiado\s*:?\s*(\d{3,})/i;
 
 /** Pares clave-valor de una página → campos de receta y líneas (solo los encontrados). */
@@ -137,23 +143,33 @@ export function camposDesdeLayout(
     const c = campo('cn', cn[1] as string, 0.8, null, []);
     if (c) (lineas[0] ??= {}).cn = c;
   }
-  // Formato en una sola línea ("Dosis: 1 Unidades: COMPRIMIDOS Frecuencia: 24 h Duración (días): 30").
+  // Formato en una sola línea ("Fármaco: X Dosis: 1 Unidades: COMPRIMIDOS Frecuencia: 24 h Duración (días): 30
+  // Vía admin.: VÍA ORAL…"): cada valor llega hasta la siguiente etiqueta conocida del formato.
   const unica = lineas.length === 1 ? lineas[0] : undefined;
   if (unica) {
-    const etiqueta = (re: RegExp) => limpiarValor(re.exec(contenido)?.[1] ?? null);
-    const dur = etiqueta(/duraci[oó]n\s*\(?d[ií]as\)?\s*:\s*([^\n]+)/i);
-    if (dur && !unica.duracionDias) {
-      const c = campo('duracionDias', dur, 0.8, null, []);
-      if (c) unica.duracionDias = c;
+    const enLinea = (etiqueta: string) => limpiarValor(new RegExp(`(?:^|\\s)${etiqueta}\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_LINEA})\\s*:|\\n|$)`, 'i').exec(contenido)?.[1] ?? null);
+    const poner = (nombre: string, texto: string | null, reemplazar = false) => {
+      if (!texto || (unica[nombre] && !reemplazar)) return;
+      const c = campo(nombre, texto, 0.8, null, []);
+      if (c) unica[nombre] = c;
+    };
+    // El nombre de los pares a veces se queda corto ("AMODIP 1,25 MG 30" sin "COMP."): gana el completo.
+    const farmaco = enLinea('f[aá]rmaco');
+    const actual = unica.medicamento?.evidencia?.texto ?? '';
+    if (farmaco && farmaco.length > actual.length && normEtiqueta(farmaco).startsWith(normEtiqueta(actual))) poner('medicamento', farmaco.replace(/\.$/, ''), true);
+    poner('duracionDias', enLinea('duraci[oó]n\\s*\\(d[ií]as\\)'));
+    poner('via', enLinea('v[ií]a\\s+admin\\w*\\s*\\.?')?.replace(/^v[ií]a\s+/i, '') ?? null);
+    const dosis = enLinea('dosis');
+    if (dosis) {
+      const unidades = enLinea('unidades');
+      // La frecuencia de estos formatos va en horas ("24", "24 h", "24 ho" cortado por el OCR).
+      const horas = /^(\d+)\s*(?:h\w*)?$/i.exec(enLinea('frecuencia') ?? '')?.[1];
+      poner('dosis', unidades && horas ? `${dosis} ${unidades.toLowerCase()} cada ${horas} h` : dosis);
     }
-    const dosis = etiqueta(/\bdosis\s*:\s*([^\n]+)/i);
-    if (dosis && !unica.dosis) {
-      const partes = [dosis, etiqueta(/\bunidades\s*:\s*([^\n]+)/i), etiqueta(/\bfrecuencia\s*:\s*([^\n]+)/i)].filter(Boolean);
-      // La frecuencia de estos formatos va en horas ("24" o "24 h").
-      const frec = partes[2] && /^\d+$/.test(String(partes[2])) ? `${partes[2]} h` : partes[2];
-      const texto = partes.length === 3 ? `${partes[0]} ${String(partes[1]).toLowerCase()} cada ${frec}` : (partes[0] as string);
-      const c = campo('dosis', texto, 0.8, null, []);
-      if (c) unica.dosis = c;
+    const tipo = enLinea('tipo\\s+dispensaci[oó]n');
+    if (tipo && !receta.tipoDispensacion) {
+      const c = campo('tipoDispensacion', tipo, 0.8, null, []);
+      if (c) receta.tipoDispensacion = c;
     }
   }
   const col = RE_COLEGIADO.exec(contenido);

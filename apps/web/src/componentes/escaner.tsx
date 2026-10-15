@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Flashlight, Keyboard } from 'lucide-react';
 import { esRafagaLector } from '@mmx/gs1';
+import { useCodigosMovil } from '../lib/movil';
+import { FORMATOS_ENVASE, lector } from '../lib/zxing';
 import { Boton } from './ui';
 
 /**
@@ -16,6 +18,8 @@ export function CampoEscaneo({ onLectura, etiqueta = 'Escanea el envase', autoFo
   useEffect(() => {
     if (autoFoco && !camara) ref.current?.focus();
   }, [autoFoco, camara]);
+  // Lecturas hechas con el móvil emparejado (llegan como lecturas de cámara).
+  useCodigosMovil((raw) => onLectura(raw, 'camara'));
 
   const enviar = () => {
     const raw = valor;
@@ -79,9 +83,7 @@ export function EscanerCamara({ onLectura, onCerrar }: { onLectura: (raw: string
     const t = setTimeout(() => setManual(true), 8000);
     (async () => {
       try {
-        const { readBarcodes, prepareZXingModule } = await import('zxing-wasm/reader');
-        const wasm = (await import('zxing-wasm/reader/zxing_reader.wasm?url')).default;
-        prepareZXingModule({ overrides: { locateFile: (p: string, pref: string) => (p.endsWith('.wasm') ? wasm : pref + p) } });
+        const readBarcodes = await lector();
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } });
         pista.current = stream.getVideoTracks()[0] ?? null;
         await pista.current?.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {});
@@ -96,7 +98,7 @@ export function EscanerCamara({ onLectura, onCerrar }: { onLectura: (raw: string
             c.width = v.videoWidth;
             c.height = v.videoHeight;
             ctx.drawImage(v, 0, 0);
-            const r = await readBarcodes(ctx.getImageData(0, 0, c.width, c.height), { formats: ['DataMatrix', 'QRCode', 'EAN-13', 'Code128'], tryHarder: true, maxNumberOfSymbols: 1 });
+            const r = await readBarcodes(ctx.getImageData(0, 0, c.width, c.height), { formats: [...FORMATOS_ENVASE], tryHarder: true, maxNumberOfSymbols: 1 });
             const ok = r.find((x) => x.isValid);
             if (ok) {
               onLectura(ok.text);

@@ -14,7 +14,7 @@ Con **colima** (macOS), Testcontainers necesita el socket:
 
 ## Arranque
 ```bash
-cp .env.example .env
+cp .env.example .env   # los ajustes propios van en .env.local (gana sobre .env y no se pisa)
 pnpm i
 pnpm dev     # Docker Compose + Nomenclátor (si falta) + migraciones + seed + muestra + API (3000) + web (5173)
 ```
@@ -28,6 +28,15 @@ pnpm demo
 Abre http://localhost:5173. En modo `AUTH_MODE=dev` se elige el usuario/rol arriba a la derecha (y MFA simulado).
 Roles: empleado, veterinaria responsable y administración. El farmacéutico garante no usa la app: lo que hace
 fuera (autorizar, firmar) lo registra el empleado, y revisa el reporte semanal que recibe por correo.
+
+La banda amarilla dice si la lectura de recetas es **real** (Document Intelligence: pon `EXTRACTOR=azure`,
+`DOCINTEL_ENDPOINT` y `DOCINTEL_MODEL_ID=prebuilt-layout` en `.env.local` y haz `az login`) o **simulada**
+(`EXTRACTOR=fake`, devuelve recetas de ejemplo).
+
+**Móvil:** el botón «Móvil» de la cabecera enseña un QR. Al leerlo con el móvil (misma red Wi‑Fi; `pnpm demo`
+publica la web en la red local) se abre una página para fotografiar recetas y leer códigos de envases: la receta
+se abre en el PC para revisarla y los códigos llegan a la pantalla de escaneo abierta. Sin HTTPS (en local) el
+móvil lee el código de una foto; con HTTPS (Azure), también con la cámara en vivo.
 
 ## Comandos
 | Comando | Qué hace |

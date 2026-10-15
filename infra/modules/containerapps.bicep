@@ -85,7 +85,11 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
   name: 'current'
   properties: {
     platform: { enabled: true }
-    globalValidation: { unauthenticatedClientAction: 'RedirectToLoginPage', redirectToProvider: 'azureactivedirectory', excludedPaths: ['/api/health', '/api/ready'] }
+    globalValidation: { unauthenticatedClientAction: 'RedirectToLoginPage', redirectToProvider: 'azureactivedirectory', excludedPaths: [
+      '/api/health', '/api/ready'
+      // Móvil emparejado con el PC por QR: la API exige el token de la sesión (sin datos para quien no lo tenga).
+      '/api/movil/m/*', '/movil', '/assets/*', '/manifest.webmanifest', '/registerSW.js', '/sw.js', '/icono.svg'
+    ] }
     identityProviders: {
       azureActiveDirectory: {
         enabled: true

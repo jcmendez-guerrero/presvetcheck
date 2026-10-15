@@ -36,6 +36,13 @@
       "when": 1792023155922,
       "tag": "0004_purga_retencion",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792099554304,
+      "tag": "0005_sesion_movil",
+      "breakpoints": true
     }
   ]
 }

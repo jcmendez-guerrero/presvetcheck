@@ -2,10 +2,14 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfig, type AppConfig } from '../config';
 
-/** Lee `.env` (si existe, sin sobrescribir el entorno real) y valida la configuración. */
+/**
+ * Lee `.env` y después `.env.local` (si existen; `.env.local` gana y no se pisa al copiar `.env.example`),
+ * sin sobrescribir el entorno real, y valida la configuración.
+ */
 export function loadConfigFromProcess(cwd = process.cwd()): AppConfig {
-  const fileVars = readDotEnv(findUp('.env', cwd));
-  return loadConfig({ ...fileVars, ...process.env });
+  const base = findUp('.env', cwd);
+  const local = base ? resolve(base, '..', '.env.local') : findUp('.env.local', cwd);
+  return loadConfig({ ...readDotEnv(base), ...readDotEnv(local && existsSync(local) ? local : undefined), ...process.env });
 }
 
 export function findUp(name: string, from: string): string | undefined {

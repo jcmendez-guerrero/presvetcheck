@@ -4,9 +4,26 @@ import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import { EvaluarBody, IdParam } from '../schemas';
 import { RecetasService } from '../servicios/recetas';
+import type { FastifyRequest } from 'fastify';
 import { ctx, type App } from './comun';
 
 const MIMES = ['image/png', 'image/jpeg', 'image/heic', 'application/pdf'];
+
+/** Páginas de una receta subidas en multipart (`pagina` + `phash`; `fixture` solo fuera de producción). */
+export async function leerPaginas(req: FastifyRequest, d: AppDeps) {
+  const paginas: { bytes: Uint8Array; mime: string; phash: string | null }[] = [];
+  const phashes: string[] = [];
+  let fixture: string | undefined;
+  for await (const part of req.parts()) {
+    if (part.type === 'file') {
+      if (!MIMES.includes(part.mimetype)) throw new DomainError('VALIDACION', `Tipo de fichero no admitido: ${part.mimetype}`);
+      paginas.push({ bytes: new Uint8Array(await part.toBuffer()), mime: part.mimetype, phash: null });
+    } else if (part.fieldname === 'phash') phashes.push(String(part.value));
+    else if (part.fieldname === 'fixture' && d.config.NODE_ENV !== 'production') fixture = String(part.value);
+  }
+  paginas.forEach((p, i) => (p.phash = phashes[i] && /^[0-9a-f]{16}$/.test(phashes[i] as string) ? (phashes[i] as string) : null));
+  return { paginas, fixture };
+}
 
 export async function rutasRecetas(app: App, d: AppDeps) {
   const svc = new RecetasService(d);
@@ -19,17 +36,7 @@ export async function rutasRecetas(app: App, d: AppDeps) {
       schema: { tags: ['recetas'], summary: 'Crea una receta, sube sus páginas y lanza la extracción (multipart)', consumes: ['multipart/form-data'] },
     },
     async (req, reply) => {
-      const paginas: { bytes: Uint8Array; mime: string; phash: string | null }[] = [];
-      const phashes: string[] = [];
-      let fixture: string | undefined;
-      for await (const part of req.parts()) {
-        if (part.type === 'file') {
-          if (!MIMES.includes(part.mimetype)) throw new DomainError('VALIDACION', `Tipo de fichero no admitido: ${part.mimetype}`);
-          paginas.push({ bytes: new Uint8Array(await part.toBuffer()), mime: part.mimetype, phash: null });
-        } else if (part.fieldname === 'phash') phashes.push(String(part.value));
-        else if (part.fieldname === 'fixture' && d.config.NODE_ENV !== 'production') fixture = String(part.value);
-      }
-      paginas.forEach((p, i) => (p.phash = phashes[i] && /^[0-9a-f]{16}$/.test(phashes[i] as string) ? (phashes[i] as string) : null));
+      const { paginas, fixture } = await leerPaginas(req, d);
       const r = await svc.crear(paginas, ctx(req), fixture ? { fixture } : {});
       return reply.status(201).send(r);
     },

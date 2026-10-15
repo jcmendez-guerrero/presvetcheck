@@ -16,6 +16,7 @@ import { RecepcionDetalle, Recepciones } from './paginas/recepciones';
 import { PaginaPendientes } from './paginas/pendientes';
 import { Registros } from './paginas/registros';
 import { Admin } from './paginas/admin';
+import { PaginaMovil } from './paginas/movil';
 
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
@@ -48,12 +49,17 @@ declare module '@tanstack/react-router' {
 }
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } });
+// El móvil emparejado (QR del PC) no inicia sesión: página propia, sin router ni autenticación.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={qc}>
-      <ProveedorAuth>
-        <RouterProvider router={router} />
-      </ProveedorAuth>
-    </QueryClientProvider>
+    {location.pathname.startsWith('/movil') ? (
+      <PaginaMovil />
+    ) : (
+      <QueryClientProvider client={qc}>
+        <ProveedorAuth>
+          <RouterProvider router={router} />
+        </ProveedorAuth>
+      </QueryClientProvider>
+    )}
   </StrictMode>,
 );

@@ -76,3 +76,35 @@ export const discrepancia = pgTable(
   },
   (t) => [index().on(t.estado)],
 );
+
+/**
+ * Emparejamiento de un móvil con el puesto del PC (foto de la receta y lectura de códigos desde el móvil).
+ * El móvil se identifica con un token de un solo uso por sesión (solo se guarda su hash) que el PC muestra en
+ * un código QR; actúa siempre en nombre de la persona que abrió la sesión en el PC.
+ */
+export const sesionMovil = pgTable('sesion_movil', {
+  id: pk(),
+  tokenHash: text().notNull().unique(),
+  usuarioId: text().notNull(),
+  usuarioNombre: text().notNull(),
+  roles: text().array().notNull(),
+  expiraAt: timestamp({ withTimezone: true }).notNull(),
+  cerradaAt: timestamp({ withTimezone: true }),
+  movilVistoAt: timestamp({ withTimezone: true }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Lo que el móvil envía al PC: `receta` (id de la receta creada) o `codigo` (lectura del envase). */
+export const sesionMovilEvento = pgTable(
+  'sesion_movil_evento',
+  {
+    seq: bigserial({ mode: 'number' }).primaryKey(),
+    sesionId: uuid()
+      .notNull()
+      .references(() => sesionMovil.id),
+    tipo: text().notNull(),
+    datos: jsonb().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.sesionId, t.seq)],
+);
