@@ -2,7 +2,6 @@ import type { RecipeExtractor } from '@mmx/domain';
 import { DomainError, type AppConfig } from '@mmx/shared';
 import { AzureRecipeExtractor } from './azure/extractor';
 import { DocumentIntelligenceClient } from './azure/docintel';
-import { AzureOpenAiClient } from './azure/openai';
 import { FakeRecipeExtractor } from './fake';
 
 /** Extractor desactivado: la app funciona (entrada manual de datos) pero no lee recetas solas. */
@@ -22,22 +21,21 @@ export async function tokenProviderAzure(): Promise<() => Promise<string>> {
   const cred = new DefaultAzureCredential();
   return async () => {
     const t = await cred.getToken(SCOPE_COGNITIVE);
-    if (!t) throw new Error('No se pudo obtener un token de Entra para Azure AI');
+    if (!t) throw new Error('No se pudo obtener un token de Entra para Document Intelligence');
     return t.token;
   };
 }
 
 export async function crearExtractor(
-  config: Pick<AppConfig, 'EXTRACTOR' | 'DOCINTEL_ENDPOINT' | 'AOAI_ENDPOINT' | 'AOAI_DEPLOYMENT' | 'AOAI_API_VERSION'>,
+  config: Pick<AppConfig, 'EXTRACTOR' | 'DOCINTEL_ENDPOINT' | 'DOCINTEL_MODEL_ID' | 'DOCINTEL_API_VERSION'>,
   deps: { fixturesDir: string; hoy: () => string; getToken?: () => Promise<string> },
 ): Promise<RecipeExtractor> {
   if (config.EXTRACTOR === 'fake') return new FakeRecipeExtractor({ dir: deps.fixturesDir, hoy: deps.hoy });
-  const faltan = (['DOCINTEL_ENDPOINT', 'AOAI_ENDPOINT', 'AOAI_DEPLOYMENT'] as const).filter((k) => !config[k]);
-  if (faltan.length) return new DisabledRecipeExtractor(`Falta configuración de Azure: ${faltan.join(', ')}`);
+  const faltan = (['DOCINTEL_ENDPOINT', 'DOCINTEL_MODEL_ID'] as const).filter((k) => !config[k]);
+  if (faltan.length) return new DisabledRecipeExtractor(`Falta configuración de Document Intelligence: ${faltan.join(', ')}`);
   const getToken = deps.getToken ?? (await tokenProviderAzure());
   return new AzureRecipeExtractor(
-    new DocumentIntelligenceClient({ endpoint: config.DOCINTEL_ENDPOINT as string, getToken }),
-    new AzureOpenAiClient({ endpoint: config.AOAI_ENDPOINT as string, deployment: config.AOAI_DEPLOYMENT as string, apiVersion: config.AOAI_API_VERSION, getToken }),
-    config.AOAI_DEPLOYMENT as string,
+    new DocumentIntelligenceClient({ endpoint: config.DOCINTEL_ENDPOINT as string, getToken, apiVersion: config.DOCINTEL_API_VERSION }),
+    config.DOCINTEL_MODEL_ID as string,
   );
 }

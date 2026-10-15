@@ -33,7 +33,10 @@ export function compararExtraccion(esperado: ExtractionResult, obtenido: Extract
   return acc;
 }
 
-/** Coste orientativo (validar con la calculadora de Azure): € por página OCR y por 1.000 tokens. */
-export function costeEstimado(paginas: number, tokensEntrada: number, tokensSalida: number, precios = { paginaOcr: 0.0094, mil: { entrada: 0.0023, salida: 0.0092 } }) {
-  return paginas * precios.paginaOcr + (tokensEntrada / 1000) * precios.mil.entrada + (tokensSalida / 1000) * precios.mil.salida;
+/**
+ * Coste orientativo por página analizada con un modelo personalizado de Document Intelligence (≈ 30 $ por
+ * 1.000 páginas; validar con la calculadora de Azure). Sin LLM no hay coste por tokens.
+ */
+export function costeEstimado(paginas: number, eurosPorPagina = 0.028) {
+  return paginas * eurosPorPagina;
 }

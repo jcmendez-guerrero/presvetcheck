@@ -32,7 +32,6 @@ COPY --from=build /src/apps/web/dist ./web
 # Ficheros de datos que la app busca desde el cwd: reglas aprobadas, migraciones y prompt versionado.
 COPY --from=build /src/config/rules ./config/rules
 COPY --from=build /src/packages/db/migrations ./packages/db/migrations
-COPY --from=build /src/packages/extraction/prompts ./packages/extraction/prompts
 USER node
 EXPOSE 8080
 # Por defecto la API; los Container Apps Jobs usan: node worker/worker.js <job>

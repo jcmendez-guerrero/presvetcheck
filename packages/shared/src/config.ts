@@ -62,9 +62,9 @@ export const envSchema = z
 
     EXTRACTOR: z.enum(['fake', 'azure']).default('fake'),
     DOCINTEL_ENDPOINT: optStr,
-    AOAI_ENDPOINT: optStr,
-    AOAI_DEPLOYMENT: optStr,
-    AOAI_API_VERSION: z.string().default('2024-10-21'),
+    /** Id del modelo personalizado de Document Intelligence entrenado con las recetas (DUDA-27). */
+    DOCINTEL_MODEL_ID: optStr,
+    DOCINTEL_API_VERSION: z.string().default('2024-11-30'),
     EXTRACTION_CONFIDENCE_THRESHOLD: num(0.85).pipe(z.number().min(0).max(1)),
 
     SUBSTITUTION_APPROVAL_MODE: z.enum(['POST', 'PRE']).default('POST'),
@@ -125,8 +125,7 @@ export const envSchema = z
     // Fuera de producción, EXTRACTOR=azure sin configuración deja la extracción desactivada (SPEC §12.1.7).
     if (env.EXTRACTOR === 'azure' && env.NODE_ENV === 'production') {
       req('DOCINTEL_ENDPOINT', 'con EXTRACTOR=azure');
-      req('AOAI_ENDPOINT', 'con EXTRACTOR=azure');
-      req('AOAI_DEPLOYMENT', 'con EXTRACTOR=azure');
+      req('DOCINTEL_MODEL_ID', 'con EXTRACTOR=azure');
     }
     if (env.MAILER === 'acs') {
       req('ACS_ENDPOINT', 'con MAILER=acs');

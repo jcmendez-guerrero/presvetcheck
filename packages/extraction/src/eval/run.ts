@@ -47,4 +47,4 @@ console.table(
 const total = filas.reduce((s, m) => s + m.total, 0);
 const bajo = filas.reduce((s, m) => s + m.bajoUmbral, 0);
 console.log(`Recetas: ${pares.length} · proveedor: ${extractor.proveedor} · campos bajo umbral: ${((100 * bajo) / Math.max(total, 1)).toFixed(1)} %`);
-console.log(`Coste estimado (orientativo): ${costeEstimado(paginas, paginas * 3000, 1500 * paginas).toFixed(3)} €`);
+console.log(`Coste estimado (orientativo): ${costeEstimado(paginas).toFixed(3)} €`);

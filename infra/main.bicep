@@ -7,8 +7,6 @@ targetScope = 'resourceGroup'
 param entorno string
 @description('Región principal (ADR-11): spaincentral si todos los servicios están disponibles.')
 param location string = 'spaincentral'
-@description('Región de Azure OpenAI con Data Zone UE si no está en la principal.')
-param locationOpenAi string = 'swedencentral'
 @description('Imagen OCI publicada en GHCR (ADR-09), p. ej. ghcr.io/org/mmx-recetas:<sha>.')
 param imagen string
 param entraTenantId string = subscription().tenantId
@@ -20,6 +18,8 @@ param destinatariosReportes string
 param presupuestoEuros int = 40
 param inicioPresupuesto string
 param sustitucionModo string = 'POST'
+@description('Id del modelo personalizado de Document Intelligence (vacío hasta entrenarlo: extracción desactivada, entrada manual).')
+param modeloDocIntel string = ''
 @allowed(['off', 'entries_only'])
 param escrituraStock string = 'off'
 
@@ -49,7 +49,7 @@ module kv 'modules/keyvault.bicep' = {
 
 module almacen 'modules/storage.bicep' = {
   name: 'almacenamiento'
-  params: { nombre: take('st${corto}', 24), location: location, tags: tags, principalId: identidad.outputs.principalId }
+  params: { nombre: take('st${corto}', 24), location: location, tags: tags, principalId: identidad.outputs.principalId, docIntelPrincipalId: ia.outputs.docIntelPrincipalId }
 }
 
 module pg 'modules/postgres.bicep' = {
@@ -71,7 +71,6 @@ module ia 'modules/ai.bicep' = {
   params: {
     prefijo: prefijo
     location: location
-    locationOpenAi: locationOpenAi
     tags: tags
     principalId: identidad.outputs.principalId
     skuDocIntel: entorno == 'prod' ? 'S0' : 'F0'
@@ -106,8 +105,7 @@ module apps 'modules/containerapps.bicep' = {
       { name: 'BLOB_ACCOUNT_URL', value: almacen.outputs.blobEndpoint }
       { name: 'EXTRACTOR', value: 'azure' }
       { name: 'DOCINTEL_ENDPOINT', value: ia.outputs.docIntelEndpoint }
-      { name: 'AOAI_ENDPOINT', value: ia.outputs.openAiEndpoint }
-      { name: 'AOAI_DEPLOYMENT', value: ia.outputs.despliegue }
+      { name: 'DOCINTEL_MODEL_ID', value: modeloDocIntel }
       { name: 'SIWEB_STOCK_WRITE_MODE', value: escrituraStock }
       { name: 'SUBSTITUTION_APPROVAL_MODE', value: sustitucionModo }
       { name: 'MAILER', value: 'smtp' }

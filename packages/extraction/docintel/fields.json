@@ -1,0 +1,210 @@
+{
+  "$schema": "https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json",
+  "fields": [
+    {
+      "fieldKey": "tipo",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "plataforma",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "idPlataforma",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "numero",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "fechaEmision",
+      "fieldType": "date",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "tipoDispensacion",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "clasePrescripcion",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "tipoTratamiento",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "titularNombre",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "titularTelefono",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "rega",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "especie",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "animalIdentificacion",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "numAnimales",
+      "fieldType": "number",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioNombre",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioTelefono",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioEmail",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioNumColegiado",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioColegio",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioClinica",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "veterinarioDireccion",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "indicacion",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "plazoValidez",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "advertencias",
+      "fieldType": "string",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "firmaDetectada",
+      "fieldType": "signature",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "selloDetectado",
+      "fieldType": "selectionMark",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "qrDetectado",
+      "fieldType": "selectionMark",
+      "fieldFormat": "not-specified"
+    },
+    {
+      "fieldKey": "lineas",
+      "fieldType": "array",
+      "fieldFormat": "not-specified",
+      "itemType": "lineas_fila"
+    }
+  ],
+  "definitions": {
+    "lineas_fila": {
+      "fieldKey": "lineas_fila",
+      "fieldType": "object",
+      "fieldFormat": "not-specified",
+      "fields": [
+        {
+          "fieldKey": "medicamento",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "principioActivo",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "forma",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "concentracion",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "cantidadEnvases",
+          "fieldType": "number",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "formato",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "via",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "dosis",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "duracionDias",
+          "fieldType": "number",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "tiempoEspera",
+          "fieldType": "string",
+          "fieldFormat": "not-specified"
+        },
+        {
+          "fieldKey": "declaracionAntimicrobiano",
+          "fieldType": "selectionMark",
+          "fieldFormat": "not-specified"
+        }
+      ]
+    }
+  }
+}

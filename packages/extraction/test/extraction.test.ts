@@ -6,11 +6,10 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { CAMPOS_EXTRAIDOS_LINEA, CAMPOS_EXTRAIDOS_RECETA, RecetaConfirmada } from '@mmx/shared';
 import { FakeRecipeExtractor } from '../src/fake';
-import { jsonSchemaReceta } from '../src/llm-schema';
+import { camposDocIntelStudio, convertir, ESQUEMA_CAMPOS_VERSION } from '../src/campos';
 import { confianzaCampo } from '../src/confianza';
-import { AzureRecipeExtractor, cargarPrompt, PROMPT_VERSION } from '../src/azure/extractor';
+import { AzureRecipeExtractor } from '../src/azure/extractor';
 import { DocumentIntelligenceClient } from '../src/azure/docintel';
-import { AzureOpenAiClient } from '../src/azure/openai';
 import { crearExtractor, DisabledRecipeExtractor } from '../src/factory';
 import { borradorDesdeExtraccion, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
 import { compararExtraccion, costeEstimado } from '../src/eval/metricas';
@@ -53,132 +52,135 @@ describe('FakeRecipeExtractor', () => {
   });
 });
 
-describe('esquema para structured outputs (strict)', () => {
-  it('todas las propiedades obligatorias y sin propiedades adicionales', () => {
-    const s = jsonSchemaReceta() as { properties: { receta: { required: string[]; additionalProperties: boolean }; lineas: { items: { required: string[] } } }; additionalProperties: boolean };
-    expect(s.additionalProperties).toBe(false);
-    expect(s.properties.receta.required.sort()).toEqual([...CAMPOS_EXTRAIDOS_RECETA].sort());
-    expect(s.properties.receta.additionalProperties).toBe(false);
-    expect(s.properties.lineas.items.required.sort()).toEqual([...CAMPOS_EXTRAIDOS_LINEA].sort());
-    expect(JSON.stringify(s)).not.toContain('$schema');
+describe('esquema de campos para Document Intelligence Studio', () => {
+  it('fields.json con todos los campos de la receta y la tabla dinámica de líneas', () => {
+    const f = camposDocIntelStudio();
+    expect(f.fields.map((x) => x.fieldKey)).toEqual([...CAMPOS_EXTRAIDOS_RECETA, 'lineas']);
+    expect(f.fields.find((x) => x.fieldKey === 'fechaEmision')?.fieldType).toBe('date');
+    expect(f.fields.find((x) => x.fieldKey === 'firmaDetectada')?.fieldType).toBe('signature');
+    expect(f.fields.find((x) => x.fieldKey === 'qrDetectado')?.fieldType).toBe('selectionMark');
+    expect(f.fields.at(-1)).toMatchObject({ fieldType: 'array', itemType: 'lineas_fila' });
+    expect(f.definitions.lineas_fila.fields.map((x) => x.fieldKey)).toEqual([...CAMPOS_EXTRAIDOS_LINEA]);
   });
-  it('el prompt versionado existe y prohíbe inventar', () => {
-    expect(PROMPT_VERSION).toBe('receta.v1');
-    expect(cargarPrompt()).toMatch(/No inventes valores/);
+
+  it('conversión de tipos', () => {
+    expect(convertir('numAnimales', '3 animales')).toBe(3);
+    expect(convertir('numAnimales', 'ninguno')).toBeNull();
+    expect(convertir('firmaDetectada', 'signed')).toBe(true);
+    expect(convertir('qrDetectado', 'unselected')).toBe(false);
+    expect(convertir('numero', null)).toBeNull();
   });
 });
 
-describe('confianza combinada (SPEC §5.3)', () => {
-  const ocr = 'Nº colegiado 28/1234 Firma';
+describe('confianza (SPEC §5.3)', () => {
   const palabras = [
-    { texto: 'colegiado', confianza: 0.99, pagina: 1, poligono: [1, 2] },
-    { texto: '28/1234', confianza: 0.6, pagina: 1, poligono: [3, 4] },
+    { texto: 'R-77', confianza: 0.98, pagina: 1, poligono: [1, 1, 2, 2], offset: 0, length: 4 },
+    { texto: 'Clavubay', confianza: 0.7, pagina: 1, poligono: null, offset: 5, length: 8 },
   ];
-  it.each`
-    caso                             | valor        | evidencia        | llm    | esperado
-    ${'mínimo de OCR y modelo'}       | ${'28/1234'} | ${'28/1234'}     | ${0.95} | ${0.6}
-    ${'evidencia ausente del OCR'}    | ${'28/9999'} | ${'28/9999'}     | ${0.95} | ${0.5}
-    ${'sin evidencia'}               | ${'x'}       | ${null}          | ${0.9}  | ${0.5}
-    ${'valor nulo'}                  | ${null}      | ${null}          | ${0.2}  | ${0.2}
-    ${'evidencia sin palabras OCR'}  | ${'firma'}   | ${'Firma'}       | ${0.9}  | ${0.5}
-  `('$caso', ({ valor, evidencia, llm, esperado }) => {
-    expect(confianzaCampo(valor, evidencia, llm, ocr, palabras).confianza).toBeCloseTo(esperado);
-  });
-  it('devuelve la página y la región de la evidencia', () => {
-    expect(confianzaCampo('28/1234', '28/1234', 1, ocr, palabras)).toMatchObject({ pagina: 1, region: [3, 4] });
+  it.each([
+    ['sin valor: la del modelo', null, 0.4, [], true, 0.4],
+    ['mínimo entre modelo y OCR de sus palabras', 'R-77', 0.99, [{ offset: 0, length: 4 }], true, 0.98],
+    ['el OCR más bajo manda', 'Clavubay', 0.95, [{ offset: 5, length: 8 }], true, 0.7],
+    ['sin región en el documento → máximo 0,5', 'X', 0.99, [], false, 0.5],
+    ['sin palabras en el span → la del modelo', 'Y', 0.9, [{ offset: 50, length: 3 }], true, 0.9],
+  ])('%s', (_n, valor, modelo, spans, region, esperado) => {
+    expect(confianzaCampo(valor, modelo, spans, region, palabras)).toBeCloseTo(esperado);
   });
 });
 
-describe('AzureRecipeExtractor (MSW: Document Intelligence + Azure OpenAI)', () => {
+describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligence)', () => {
   const DI = 'https://di.test';
-  const AOAI = 'https://aoai.test';
   const getToken = async () => 'token-entra';
-  const vacio = { valor: null, evidencia: null, confianza: 0 };
-  const llmRespuesta = {
-    receta: {
-      ...Object.fromEntries(CAMPOS_EXTRAIDOS_RECETA.map((c) => [c, vacio])),
-      numero: { valor: 'R-77', evidencia: 'R-77', confianza: 0.99 },
-      numAnimales: { valor: '3 animales', evidencia: '3', confianza: 0.9 },
-      firmaDetectada: { valor: 'true', evidencia: 'Firma', confianza: 0.8 },
-      veterinarioNombre: { valor: 'Dra. Inventada', evidencia: 'Dra. Inventada', confianza: 0.99 },
+  const pagina = (fields: Record<string, unknown>, content: string) => ({
+    status: 'succeeded',
+    analyzeResult: {
+      modelId: 'recetas-v1',
+      content,
+      pages: [{ pageNumber: 1, words: [{ content: 'R-77', confidence: 0.98, span: { offset: 7, length: 4 } }, { content: 'Clavubay', confidence: 0.7, span: { offset: 12, length: 8 } }] }],
+      documents: [{ docType: 'recetas-v1', fields }],
     },
-    lineas: [{ ...Object.fromEntries(CAMPOS_EXTRAIDOS_LINEA.map((c) => [c, vacio])), medicamento: { valor: 'Clavubay', evidencia: 'Clavubay', confianza: 0.97 } }],
-  };
+  });
+  const region = [{ pageNumber: 1, polygon: [0, 0, 1, 0, 1, 1, 0, 1] }];
+  const P1 = pagina(
+    {
+      numero: { type: 'string', valueString: 'R-77', content: 'R-77', confidence: 0.99, boundingRegions: region, spans: [{ offset: 7, length: 4 }] },
+      fechaEmision: { type: 'date', valueDate: '2026-10-12', content: '12/10/2026', confidence: 0.95, boundingRegions: region },
+      numAnimales: { type: 'number', valueNumber: 3, content: '3', confidence: 0.9, boundingRegions: region },
+      firmaDetectada: { type: 'signature', valueSignature: 'signed', confidence: 0.8, boundingRegions: region },
+      // Sin región: no se puede enseñar de dónde sale → máximo 0,5.
+      veterinarioNombre: { type: 'string', valueString: 'Dra. Prueba', confidence: 0.99 },
+      especie: { type: 'string', content: 'Canina', confidence: 0.6, boundingRegions: region },
+      lineas: {
+        type: 'array',
+        valueArray: [
+          { type: 'object', valueObject: { medicamento: { type: 'string', content: 'Clavubay', confidence: 0.97, boundingRegions: region, spans: [{ offset: 12, length: 8 }] }, cantidadEnvases: { type: 'number', content: '1', confidence: 0.9, boundingRegions: region } } },
+          { type: 'object', valueObject: { medicamento: { type: 'string', content: '  ', confidence: 0.1 } } },
+        ],
+      },
+    },
+    'Receta R-77 Clavubay',
+  );
+  const P2 = pagina({ especie: { type: 'string', content: 'Perro', confidence: 0.92, boundingRegions: region }, lineas: { type: 'array', valueArray: [{ type: 'object', valueObject: { medicamento: { type: 'string', content: 'Otro', confidence: 0.9, boundingRegions: region } } }] } }, 'Perro Otro');
 
-  function handlers(opts: { diFalla?: boolean; rechazo?: boolean } = {}) {
-    let polls = 0;
-    let authDi: string | null = null;
-    let body: Record<string, unknown> = {};
+  function handlers(respuestas: unknown[]) {
+    let analisis = 0;
+    let url = '';
+    let auth: string | null = null;
     return {
-      get: () => ({ polls, authDi, body }),
+      get: () => ({ analisis, url, auth }),
       list: [
-        http.post(`${DI}/documentintelligence/documentModels/prebuilt-layout:analyze`, ({ request }) => {
-          authDi = request.headers.get('authorization');
-          return new HttpResponse(null, { status: 202, headers: { 'operation-location': `${DI}/ops/1` } });
+        http.post(`${DI}/documentintelligence/documentModels/:modelo`, ({ request }) => {
+          url = request.url;
+          auth = request.headers.get('authorization');
+          const n = analisis++;
+          return new HttpResponse(null, { status: 202, headers: { 'operation-location': `${DI}/ops/${n}` } });
         }),
-        http.get(`${DI}/ops/1`, () => {
-          polls++;
-          if (polls === 1) return HttpResponse.json({ status: 'running' });
-          if (opts.diFalla) return HttpResponse.json({ status: 'failed', error: { message: 'imagen ilegible' } });
-          return HttpResponse.json({
-            status: 'succeeded',
-            analyzeResult: {
-              content: 'Receta R-77 Clavubay 3 Firma',
-              pages: [{ pageNumber: 1, words: [{ content: 'R-77', confidence: 0.98 }, { content: 'Clavubay', confidence: 0.7 }, { content: '3', confidence: 0.99 }, { content: 'Firma', confidence: 0.9 }] }],
-              styles: [{ isHandwritten: true, spans: [{ offset: 0, length: 6 }] }],
-            },
-          });
-        }),
-        http.post(`${AOAI}/openai/deployments/:dep/chat/completions`, async ({ request }) => {
-          body = (await request.json()) as Record<string, unknown>;
-          if (opts.rechazo) return HttpResponse.json({ choices: [{ message: { content: null, refusal: 'no' } }] });
-          return HttpResponse.json({ model: 'gpt-4o-2024-08-06', usage: { prompt_tokens: 100, completion_tokens: 50 }, choices: [{ message: { content: JSON.stringify(llmRespuesta) } }] });
-        }),
+        http.get(`${DI}/ops/:n`, ({ params }) => HttpResponse.json(respuestas[Number(params.n)] ?? { status: 'running' })),
       ],
     };
   }
-  const extractor = () =>
-    new AzureRecipeExtractor(
-      new DocumentIntelligenceClient({ endpoint: `${DI}/`, getToken, sleep: async () => {} }),
-      new AzureOpenAiClient({ endpoint: AOAI, deployment: 'gpt4o-eu', apiVersion: '2024-10-21', getToken }),
-      'gpt4o-eu',
-    );
+  const extractor = () => new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: `${DI}/`, getToken, sleep: async () => {} }), 'recetas-v1');
 
-  it('OCR + structured outputs → campos con confianza, evidencia y tipos', async () => {
-    const h = handlers();
+  it('campos del modelo con confianza, región y tipos; varias páginas: el más fiable y líneas concatenadas', async () => {
+    const h = handlers([P1, P2]);
     server.use(...h.list);
-    const r = await extractor().extract({ pages: [new Uint8Array([1, 2, 3])], mime: 'image/png' });
-    expect(h.get().polls).toBe(2);
-    expect(h.get().authDi).toBe('Bearer token-entra');
-    const body = h.get().body as { response_format: { type: string; json_schema: { strict: boolean } }; temperature: number };
-    expect(body.response_format.type).toBe('json_schema');
-    expect(body.response_format.json_schema.strict).toBe(true);
-    expect(body.temperature).toBe(0);
-    expect(r).toMatchObject({ proveedor: 'azure', promptVersion: 'receta.v1', modelo: 'gpt4o-eu (gpt-4o-2024-08-06)' });
-    expect(r.receta.numero).toMatchObject({ valor: 'R-77', fuente: 'llm' });
+    const r = await extractor().extract({ pages: [new Uint8Array([1]), new Uint8Array([2])], mime: 'image/png' });
+    expect(h.get().analisis).toBe(2);
+    expect(h.get().auth).toBe('Bearer token-entra');
+    expect(h.get().url).toContain('/documentModels/recetas-v1:analyze?api-version=2024-11-30');
+    expect(r).toMatchObject({ proveedor: 'azure', promptVersion: ESQUEMA_CAMPOS_VERSION, modelo: 'docintel:recetas-v1 (api 2024-11-30)' });
+    expect(r.receta.numero).toMatchObject({ valor: 'R-77', fuente: 'ocr', evidencia: { texto: 'R-77', pagina: 1, region: region[0]!.polygon } });
     expect(r.receta.numero?.confianza).toBeCloseTo(0.98);
+    expect(r.receta.fechaEmision?.valor).toBe('2026-10-12');
     expect(r.receta.numAnimales?.valor).toBe(3);
     expect(r.receta.firmaDetectada?.valor).toBe(true);
-    // Evidencia que no aparece en el OCR → confianza máxima 0,5 (posible invención del modelo).
     expect(r.receta.veterinarioNombre?.confianza).toBe(0.5);
+    expect(r.receta.especie).toMatchObject({ valor: 'Perro', evidencia: { pagina: 2 } });
+    expect(r.receta.rega).toMatchObject({ valor: null, evidencia: null });
+    expect(r.lineas.map((l) => l.medicamento?.valor)).toEqual(['Clavubay', 'Otro']);
     expect(r.lineas[0]?.medicamento?.confianza).toBeCloseTo(0.7);
+    expect(r.lineas[0]?.cantidadEnvases?.valor).toBe(1);
     expect(r.ocrTexto).toContain('Clavubay');
   });
 
-  it('errores de Document Intelligence y rechazo del modelo', async () => {
-    server.use(...handlers({ diFalla: true }).list);
+  it('errores de Document Intelligence', async () => {
+    server.use(...handlers([{ status: 'failed', error: { message: 'imagen ilegible' } }]).list);
     await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/imagen ilegible/);
     server.resetHandlers();
-    server.use(...handlers({ rechazo: true }).list);
-    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'application/pdf' })).rejects.toThrow(/rechazó/);
-    server.resetHandlers();
-    server.use(http.post(`${DI}/documentintelligence/documentModels/prebuilt-layout:analyze`, () => new HttpResponse(null, { status: 401 })));
+    server.use(http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 401 })));
     await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/401/);
+    server.resetHandlers();
+    server.use(http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 202 })));
+    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/Operation-Location/);
+    server.resetHandlers();
+    server.use(...handlers([]).list);
+    const lento = new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {}, maxPolls: 2 }), 'm');
+    await expect(lento.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/tiempo de espera/);
   });
 });
 
 describe('fábrica de extractores', () => {
-  const base = { AOAI_API_VERSION: '2024-10-21', DOCINTEL_ENDPOINT: undefined, AOAI_ENDPOINT: undefined, AOAI_DEPLOYMENT: undefined };
+  const base = { DOCINTEL_API_VERSION: '2024-11-30', DOCINTEL_ENDPOINT: undefined, DOCINTEL_MODEL_ID: undefined };
   it('fake por defecto; azure sin configuración → desactivado con código estable', async () => {
     expect((await crearExtractor({ ...base, EXTRACTOR: 'fake' }, { fixturesDir: DIR, hoy })).proveedor).toBe('fake');
     const d = await crearExtractor({ ...base, EXTRACTOR: 'azure' }, { fixturesDir: DIR, hoy });
@@ -187,7 +189,7 @@ describe('fábrica de extractores', () => {
   });
   it('azure configurado', async () => {
     const a = await crearExtractor(
-      { ...base, EXTRACTOR: 'azure', DOCINTEL_ENDPOINT: 'https://di', AOAI_ENDPOINT: 'https://ao', AOAI_DEPLOYMENT: 'd' },
+      { ...base, EXTRACTOR: 'azure', DOCINTEL_ENDPOINT: 'https://di', DOCINTEL_MODEL_ID: 'recetas-v1' },
       { fixturesDir: DIR, hoy, getToken: async () => 't' },
     );
     expect(a.proveedor).toBe('azure');
@@ -234,6 +236,6 @@ describe('métricas del banco de evaluación', () => {
     const m = compararExtraccion(e, o, 0.85);
     expect(m.get('receta.numero')).toMatchObject({ total: 1, exactos: 0, normalizados: 1 });
     expect(m.get('lineas.medicamento')).toMatchObject({ exactos: 1 });
-    expect(costeEstimado(1, 1000, 1000)).toBeCloseTo(0.0094 + 0.0023 + 0.0092);
+    expect(costeEstimado(10)).toBeCloseTo(0.28);
   });
 });
