@@ -60,7 +60,7 @@ resource ciclo 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01'
     policy: {
       rules: [
         {
-          name: 'recetas-hot-cool-cold'
+          name: 'recetas-hot-cool-cold-borrado'
           enabled: true
           type: 'Lifecycle'
           definition: {
@@ -69,6 +69,8 @@ resource ciclo 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01'
               baseBlob: {
                 tierToCool: { daysAfterCreationGreaterThan: 30 }
                 tierToCold: { daysAfterCreationGreaterThan: 180 }
+                // Retención (DUDA-24): pasados 5 años se eliminan (además lo hace el job retention-sweep).
+                delete: { daysAfterCreationGreaterThan: diasInmutabilidad + 1 }
               }
             }
           }
