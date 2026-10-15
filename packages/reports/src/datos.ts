@@ -31,6 +31,19 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
 }
 
 /** Consultas de los registros de entradas y salidas (API y reportes semanales). */
+/**
+ * Titular de la receta (cifrado en la confirmación) para las salidas con receta: se lee al exportar, así que
+ * incluye lo transcrito después de dispensar (dispensación ágil).
+ */
+function titularDeReceta(conf: unknown, c: ColumnCipher, dniCompleto: boolean): Salida['propietario'] {
+  const t = (conf as { _cifrado?: boolean; titular?: Record<string, string | null> } | null)?.titular;
+  if (!t || !(conf as { _cifrado?: boolean })._cifrado) return null;
+  const d = (k: string) => c.decrypt(t[k] ?? null);
+  const dni = d('dni');
+  const out = { nombre: d('nombre'), movil: d('telefono'), dni: dniCompleto ? dni : maskDni(dni), direccion: d('direccion') };
+  return Object.values(out).some(Boolean) ? out : null;
+}
+
 export class RegistrosService {
   constructor(private readonly d: { db: Db; cipher: ColumnCipher }) {}
 
@@ -79,10 +92,11 @@ export class RegistrosService {
         numColegiado: v?.numColegiado ?? r?.numColegiado ?? null,
         clinica: v?.clinica ?? null,
         direccionVeterinario: v?.direccion ?? null,
-        propietario:
-          opts.incluirPropietario && p
+        propietario: !opts.incluirPropietario
+          ? null
+          : p
             ? { nombre: c.decrypt(p.nombreEnc), movil: c.decrypt(p.movilEnc), dni: opts.dniCompleto ? dni : maskDni(dni), direccion: c.decrypt(p.direccionEnc) }
-            : null,
+            : titularDeReceta(r?.confirmacion, c, opts.dniCompleto),
         tipoReceta: r?.tipo ?? null,
         plataforma: pl?.nombre ?? null,
         esSustitucion: d.esSustitucion,

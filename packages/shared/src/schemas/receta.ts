@@ -102,6 +102,11 @@ export const RecetaConfirmada = z.object({
   lineas: z.array(RecetaLineaConfirmada).min(1),
   /** Casilla "He comprobado los datos con el original" (SPEC §4.1.1 punto 3). */
   comprobadoConOriginal: z.boolean().default(false),
+  /**
+   * Dispensación ágil: la persona confirma que la receta incluye el resto de datos obligatorios (titular,
+   * veterinario, indicación, posología…) y los transcribe después de dispensar. Solo animales de compañía.
+   */
+  registroDiferido: z.boolean().default(false),
 });
 export type RecetaConfirmada = z.output<typeof RecetaConfirmada>;
 export type RecetaConfirmadaInput = z.input<typeof RecetaConfirmada>;

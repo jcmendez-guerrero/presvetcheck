@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { appendAudit, discrepancia, outbox, pedidoPendiente, receta, sustitucion } from '@mmx/db';
 import { DomainError } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
@@ -23,6 +23,7 @@ export class PendientesService {
       .orderBy(sustitucion.createdAt);
     const discrepancias = await this.d.db.select().from(discrepancia).where(eq(discrepancia.estado, 'abierta')).orderBy(desc(discrepancia.fecha)).limit(100);
     return {
+      registros: await this.registrosPendientes(),
       sustituciones: sust.map((s) => {
         const dias = Math.floor((ahora - s.createdAt.getTime()) / DIA);
         return {
@@ -39,6 +40,23 @@ export class PendientesService {
       }),
       discrepancias,
     };
+  }
+
+  /** Recetas dispensadas con la transcripción para el registro aún pendiente (dispensación ágil). */
+  async registrosPendientes() {
+    const filas = await this.d.db
+      .select({ id: receta.id, numero: receta.numero, fecha: receta.primeraDispensacionAt, estado: receta.estado })
+      .from(receta)
+      .where(
+        and(
+          inArray(receta.estado, ['DISPENSADA', 'DISPENSADA_PARCIAL']),
+          isNull(receta.registroCompletadoAt),
+          sql`${receta.confirmacion}->>'registroDiferido' = 'true'`,
+        ),
+      )
+      .orderBy(receta.primeraDispensacionAt)
+      .limit(200);
+    return filas.map((f) => ({ ...f, fecha: f.fecha?.toISOString() ?? null }));
   }
 
   /** El empleado deja resuelta una discrepancia con una nota (auditada). */
@@ -64,6 +82,7 @@ export class PendientesService {
       recetasNoConformes: await contar(this.d.db.select({ id: receta.id }).from(receta).where(eq(receta.estado, 'NO_CONFORME'))),
       discrepanciasAbiertas: await contar(this.d.db.select({ id: discrepancia.id }).from(discrepancia).where(eq(discrepancia.estado, 'abierta'))),
       outboxIncidencias: await contar(this.d.db.select({ id: outbox.id }).from(outbox).where(inArray(outbox.status, ['failed', 'needs_reconciliation']))),
+      registrosPendientes: (await this.registrosPendientes()).length,
       pedidosRecibidosPendientesEntrega: await contar(this.d.db.select({ id: pedidoPendiente.id }).from(pedidoPendiente).where(eq(pedidoPendiente.estado, 'recibido'))),
     };
   }

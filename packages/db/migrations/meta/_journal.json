@@ -43,6 +43,13 @@
       "when": 1792099554304,
       "tag": "0005_sesion_movil",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792103859982,
+      "tag": "0006_registro_diferido",
+      "breakpoints": true
     }
   ]
 }

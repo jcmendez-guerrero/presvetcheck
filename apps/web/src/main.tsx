@@ -8,6 +8,7 @@ import { Layout } from './componentes/layout';
 import { Inicio } from './paginas/inicio';
 import { NuevaReceta } from './paginas/nueva-receta';
 import { Revision } from './paginas/revision';
+import { Registro } from './paginas/registro';
 import { Resultado } from './paginas/resultado';
 import { Dispensacion } from './paginas/dispensacion';
 import { Sustitucion } from './paginas/sustitucion';
@@ -22,6 +23,7 @@ const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
 const r1 = createRoute({ getParentRoute: () => raiz, path: '/recetas/nueva', component: NuevaReceta });
 const r2 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/revision', component: Revision });
+const rRegistro = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/registro', component: Registro });
 const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resultado', component: Resultado });
 const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
 const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
@@ -40,7 +42,7 @@ const rDisp = createRoute({
   }),
 });
 const rVenta = createRoute({ getParentRoute: () => raiz, path: '/venta', component: Venta, validateSearch: (s: Record<string, unknown>) => ({ canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const) }) });
-const rutas = [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta];
+const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
   interface Register {

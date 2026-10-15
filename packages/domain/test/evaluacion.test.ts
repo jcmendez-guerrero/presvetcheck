@@ -65,6 +65,23 @@ describe('severidad por campo y contexto (receta-campos.v1.yaml)', () => {
     expect(codes(r)).toContain(esperado);
   });
 
+  it('dispensación ágil (compañía): los datos de registro confirmados se transcriben después; los esenciales no', () => {
+    const vacios = { titular: { nombre: null, telefono: null, direccion: null, dni: null }, veterinario: { ...vet, nombre: null }, indicacion: null, animalIdentificacion: null };
+    const sin = codes(evaluar(receta(vacios)));
+    expect(sin).toContain('TITULAR_NOMBRE_FALTA:BLOQUEANTE_FORMA');
+    const con = codes(evaluar(receta({ ...vacios, registroDiferido: true })));
+    expect(con).toEqual(['REGISTRO_PENDIENTE:AVISO']);
+    // Nº de receta, colegiado, firma y fecha se comprueban siempre antes de dispensar.
+    const esenciales = codes(evaluar(receta({ registroDiferido: true, numero: null, firmaConfirmada: false, veterinario: { ...vet, numColegiado: null } })));
+    expect(esenciales).toEqual(expect.arrayContaining(['RECETA_NUMERO_FALTA:BLOQUEANTE_FORMA', 'FIRMA_FALTA:BLOQUEANTE_FORMA', 'VETERINARIO_COLEGIADO_FALTA:BLOQUEANTE_FORMA']));
+  });
+
+  it('dispensación ágil no aplica a animales de producción', () => {
+    const r = evaluar(receta({ registroDiferido: true, especieProduccion: true, especie: { texto: 'Bovino', especieId: ESPECIE.BOVINO }, rega: 'ES0', indicacion: null }), { m: med({ especieIds: [ESPECIE.BOVINO] }) });
+    expect(codes(r)).toContain('INDICACION_FALTA:BLOQUEANTE_FORMA');
+    expect(codes(r)).not.toContain('REGISTRO_PENDIENTE:AVISO');
+  });
+
   it('REGA no aplica en compañía', () => {
     expect(codes(evaluar(receta({ rega: null })))).toEqual([]);
   });

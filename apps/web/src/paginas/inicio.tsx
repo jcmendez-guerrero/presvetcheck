@@ -12,6 +12,7 @@ interface Contadores {
   discrepanciasAbiertas: number;
   outboxIncidencias: number;
   pedidosRecibidosPendientesEntrega: number;
+  registrosPendientes: number;
 }
 
 export function Inicio() {
@@ -22,6 +23,14 @@ export function Inicio() {
   return (
     <Pagina titulo={`Hola${usuario ? `, ${usuario.nombre}` : ''}`}>
       {q.data && q.data.pedidosRecibidosPendientesEntrega > 0 && <Mensaje tipo="info">Hay medicamentos pendientes de entrega para recetas retenidas ({q.data.pedidosRecibidosPendientesEntrega}).</Mensaje>}
+      {q.data && q.data.registrosPendientes > 0 && (
+        <Mensaje tipo="aviso">
+          Hay {q.data.registrosPendientes} {q.data.registrosPendientes === 1 ? 'receta dispensada' : 'recetas dispensadas'} con los datos del registro por completar.{' '}
+          <Link to="/pendientes" className="font-semibold underline">
+            Completar
+          </Link>
+        </Mensaje>
+      )}
       {opera && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link to="/recetas/nueva" className={B} data-testid="boton-receta">

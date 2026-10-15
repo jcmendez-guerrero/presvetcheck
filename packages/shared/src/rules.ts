@@ -63,6 +63,11 @@ export const RecetaCamposRulesSchema = z.object({
   antimicrobianos_atc_prefijos: z.array(z.string()),
   /** Prefijos ATC excluidos de la validez de crónico/preventivo (gases medicinales, etc.). */
   excluidos_cronico_atc_prefijos: z.array(z.string()).default([]),
+  /**
+   * Campos cuya presencia en la receta se puede confirmar sin transcribirlos antes de dispensar (animales de
+   * compañía): se transcriben después para el registro. Los demás se comprueban siempre antes de dispensar.
+   */
+  diferibles_registro: z.array(z.enum(CAMPOS_RECETA)).default([]),
   /** Severidad por defecto de las incidencias no ligadas a un campo. */
   incidencias: z.partialRecord(CodigoIncidencia, Severidad),
   /** Grupo "producto no válido": forzable salvo PRODUCT_VALIDITY_HARD_BLOCK=true. */

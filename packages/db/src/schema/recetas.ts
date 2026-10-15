@@ -75,6 +75,8 @@ export const receta = pgTable(
     validezEfectiva: date(),
     /** Fecha de la primera dispensación: referencia de validez en entregas diferidas (D-10b). */
     primeraDispensacionAt: timestamp({ withTimezone: true }),
+    /** Dispensación ágil: cuándo se transcribieron los datos para el registro (null = pendiente si se difirió). */
+    registroCompletadoAt: timestamp({ withTimezone: true }),
     propietarioId: uuid().references(() => propietario.id),
     firmaConfirmada: boolean().notNull().default(false),
     talonarioColegial: boolean().notNull().default(false),

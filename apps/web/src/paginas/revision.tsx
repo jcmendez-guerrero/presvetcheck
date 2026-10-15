@@ -35,7 +35,10 @@ interface ResumenCimavet {
 }
 interface StockFefo {
   estado: string;
-  propuesta: { disponibleTotal: number; recomendado: { lote: string; caducidad: string | null } | null } | null;
+  propuesta: {
+    disponibleTotal: number;
+    recomendado: { lote: string; caducidad: string | null } | null;
+  } | null;
 }
 interface Validez {
   validaHasta: string;
@@ -222,7 +225,10 @@ export function Revision() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <Tarjeta titulo="Receta">
+          <Tarjeta titulo="1 · Para dispensar">
+            <p className="mb-3 text-sm text-slate-600">
+              Lo imprescindible para saber si se puede dispensar y cruzarlo con el envase que vas a entregar.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm">
                 <Etiqueta texto="Tipo de receta" info={AYUDA.tipo} />
@@ -353,25 +359,11 @@ export function Revision() {
                   <option value="preventivo">Preventivo</option>
                 </select>
               </label>
-              <Campo
-                etiqueta="Indicación"
-                info={AYUDA.indicacion}
-                dudoso={dud('receta.indicacion')}
-                value={r.indicacion ?? ''}
-                onChange={(e) => set((x) => ({ ...x, indicacion: txt(e.target.value) }))}
-              />
             </div>
           </Tarjeta>
 
           <Tarjeta titulo="Veterinario">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Campo
-                etiqueta="Nombre"
-                info={AYUDA.vetNombre}
-                dudoso={dud('receta.veterinarioNombre')}
-                value={v.nombre ?? ''}
-                onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, nombre: txt(e.target.value) } }))}
-              />
               <Campo
                 etiqueta="Nº de colegiado"
                 info={AYUDA.vetColegiado}
@@ -380,31 +372,6 @@ export function Revision() {
                 onChange={(e) =>
                   set((x) => ({ ...x, veterinario: { ...v, numColegiado: txt(e.target.value) } }))
                 }
-              />
-              <Campo
-                etiqueta="Colegio"
-                info={AYUDA.vetColegio}
-                value={v.colegio ?? ''}
-                onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, colegio: txt(e.target.value) } }))}
-              />
-              <Campo
-                etiqueta="Teléfono"
-                info={AYUDA.vetTelefono}
-                dudoso={dud('receta.veterinarioTelefono')}
-                value={v.telefono ?? ''}
-                onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, telefono: txt(e.target.value) } }))}
-              />
-              <Campo
-                etiqueta="Correo"
-                info={AYUDA.vetCorreo}
-                value={v.email ?? ''}
-                onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, email: txt(e.target.value) } }))}
-              />
-              <Campo
-                etiqueta="Clínica"
-                info={AYUDA.vetClinica}
-                value={v.clinica ?? ''}
-                onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, clinica: txt(e.target.value) } }))}
               />
             </div>
             <label className="mt-3 flex items-center gap-3">
@@ -436,49 +403,8 @@ export function Revision() {
             </label>
           </Tarjeta>
 
-          <Tarjeta titulo="Titular y animal">
+          <Tarjeta titulo="Animal">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Campo
-                etiqueta="Nombre del titular"
-                info={AYUDA.titularNombre}
-                dudoso={dud('receta.titularNombre')}
-                value={r.titular?.nombre ?? ''}
-                onChange={(e) =>
-                  set((x) => ({ ...x, titular: { ...x.titular, nombre: txt(e.target.value) } }))
-                }
-              />
-              <Campo
-                etiqueta="Teléfono del titular"
-                info={AYUDA.titularTelefono}
-                dudoso={dud('receta.titularTelefono')}
-                value={r.titular?.telefono ?? ''}
-                onChange={(e) =>
-                  set((x) => ({ ...x, titular: { ...x.titular, telefono: txt(e.target.value) } }))
-                }
-              />
-              <Campo
-                etiqueta="Dirección del titular (opcional)"
-                info={AYUDA.titularDireccion}
-                autoComplete="off"
-                value={r.titular?.direccion ?? ''}
-                onChange={(e) =>
-                  set((x) => ({ ...x, titular: { ...x.titular, direccion: txt(e.target.value) } }))
-                }
-              />
-              <Campo
-                etiqueta="DNI / NIE del titular (opcional)"
-                info={AYUDA.titularDni}
-                autoComplete="off"
-                value={r.titular?.dni ?? ''}
-                onChange={(e) =>
-                  set((x) => ({ ...x, titular: { ...x.titular, dni: txt(e.target.value.toUpperCase()) } }))
-                }
-                ayuda={
-                  r.titular?.dni && !dniNieValido(r.titular.dni)
-                    ? 'El DNI/NIE no es correcto: revisa la letra'
-                    : undefined
-                }
-              />
               <label className="flex flex-col gap-1 text-sm">
                 <Etiqueta texto={`Especie (leído: ${r.especie?.texto ?? '—'})`} info={AYUDA.especie} />
                 <select
@@ -513,23 +439,6 @@ export function Revision() {
                   Animal productor de alimentos <Info texto={AYUDA.produccion} />
                 </span>
               </label>
-              <Campo
-                etiqueta="Identificación (microchip o lote)"
-                info={AYUDA.animalIdentificacion}
-                dudoso={dud('receta.animalIdentificacion')}
-                value={r.animalIdentificacion ?? ''}
-                onChange={(e) => set((x) => ({ ...x, animalIdentificacion: txt(e.target.value) }))}
-              />
-              <Campo
-                etiqueta="Nº de animales"
-                info={AYUDA.numAnimales}
-                type="number"
-                min={1}
-                value={r.numAnimales ?? ''}
-                onChange={(e) =>
-                  set((x) => ({ ...x, numAnimales: e.target.value ? Number(e.target.value) : null }))
-                }
-              />
               {r.especieProduccion && r.tipoTratamiento === 'cronico' && (
                 <label className="flex items-center gap-3 sm:col-span-2">
                   <input
@@ -569,6 +478,8 @@ export function Revision() {
             />
           ))}
 
+          <TarjetaRegistro r={r} set={set} dud={dud} />
+
           <Tarjeta>
             <label className="flex items-center gap-3 text-lg font-semibold">
               <input
@@ -578,7 +489,7 @@ export function Revision() {
                 checked={!!r.comprobadoConOriginal}
                 onChange={(e) => set((x) => ({ ...x, comprobadoConOriginal: e.target.checked }))}
               />
-              He comprobado los datos con el original <Info texto={AYUDA.comprobado} />
+              He comprobado con la receta original los datos para dispensar <Info texto={AYUDA.comprobado} />
             </label>
             {msg && <Mensaje tipo={msg.t}>{msg.m}</Mensaje>}
             <div className="mt-4 flex flex-wrap gap-3">
@@ -600,6 +511,248 @@ export function Revision() {
         </div>
       </div>
     </Pagina>
+  );
+}
+
+/** Bloque 2 de la revisión: datos para el registro, con la opción de transcribirlos después de dispensar. */
+function TarjetaRegistro({
+  r,
+  set,
+  dud,
+}: {
+  r: RecetaConfirmadaInput;
+  set: (f: (x: RecetaConfirmadaInput) => RecetaConfirmadaInput) => void;
+  dud: (k: string) => boolean;
+}) {
+  const produccion = !!r.especieProduccion;
+  const diferido = !!r.registroDiferido && !produccion;
+  const [abierto, setAbierto] = useState(!diferido);
+  return (
+    <Tarjeta titulo="2 · Datos para el registro">
+      {produccion ? (
+        <p className="mb-3 text-sm text-slate-600">
+          Animal productor de alimentos: estos datos se comprueban antes de dispensar.
+        </p>
+      ) : (
+        <label className="mb-3 flex items-start gap-3 rounded-xl bg-fondo p-3">
+          <input
+            data-testid="registro-diferido"
+            type="checkbox"
+            className="mt-1 h-6 w-6 shrink-0"
+            checked={diferido}
+            onChange={(e) => {
+              set((x) => ({ ...x, registroDiferido: e.target.checked }));
+              setAbierto(!e.target.checked);
+            }}
+          />
+          <span>
+            <span className="font-semibold">
+              La receta incluye estos datos: los transcribo después de dispensar
+            </span>{' '}
+            <Info texto={AYUDA.registroDiferido} />
+            <span className="block text-sm text-slate-600">
+              Titular, veterinario, indicación, identificación del animal y posología. Quedará en «Pendientes»
+              hasta que los completes.
+            </span>
+          </span>
+        </label>
+      )}
+      {diferido && (
+        <Boton variante="texto" onClick={() => setAbierto((a) => !a)}>
+          {abierto ? 'Ocultar los datos leídos' : 'Ver o corregir ahora los datos leídos'}
+        </Boton>
+      )}
+      {(abierto || !diferido) && <DatosRegistro r={r} set={set} dud={dud} />}
+    </Tarjeta>
+  );
+}
+
+/**
+ * Datos para el registro (titular, veterinario, indicación, posología…). En animales de compañía se pueden
+ * transcribir después de dispensar si la receta los incluye (dispensación ágil); en producción, antes.
+ */
+export function DatosRegistro({
+  r,
+  set,
+  dud,
+}: {
+  r: RecetaConfirmadaInput;
+  set: (f: (x: RecetaConfirmadaInput) => RecetaConfirmadaInput) => void;
+  dud: (k: string) => boolean;
+}) {
+  const v = r.veterinario ?? {};
+  const txt = (s: string) => (s.trim() === '' ? null : s);
+  const setLinea = (i: number, l: Partial<Linea>) =>
+    set((x) => ({ ...x, lineas: (x.lineas ?? []).map((y, j) => (j === i ? { ...y, ...l } : y)) }));
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo
+          etiqueta="Indicación"
+          info={AYUDA.indicacion}
+          dudoso={dud('receta.indicacion')}
+          value={r.indicacion ?? ''}
+          onChange={(e) => set((x) => ({ ...x, indicacion: txt(e.target.value) }))}
+        />
+        <Campo
+          etiqueta="Nombre del veterinario"
+          info={AYUDA.vetNombre}
+          dudoso={dud('receta.veterinarioNombre')}
+          value={v.nombre ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, nombre: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Colegio (provincia)"
+          info={AYUDA.vetColegio}
+          value={v.colegio ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, colegio: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Teléfono del veterinario"
+          info={AYUDA.vetTelefono}
+          dudoso={dud('receta.veterinarioTelefono')}
+          value={v.telefono ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, telefono: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Correo del veterinario"
+          info={AYUDA.vetCorreo}
+          value={v.email ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, email: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Clínica"
+          info={AYUDA.vetClinica}
+          value={v.clinica ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, clinica: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Nombre del titular"
+          info={AYUDA.titularNombre}
+          dudoso={dud('receta.titularNombre')}
+          value={r.titular?.nombre ?? ''}
+          onChange={(e) => set((x) => ({ ...x, titular: { ...x.titular, nombre: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Teléfono del titular"
+          info={AYUDA.titularTelefono}
+          dudoso={dud('receta.titularTelefono')}
+          value={r.titular?.telefono ?? ''}
+          onChange={(e) => set((x) => ({ ...x, titular: { ...x.titular, telefono: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="Dirección del titular (opcional)"
+          info={AYUDA.titularDireccion}
+          autoComplete="off"
+          value={r.titular?.direccion ?? ''}
+          onChange={(e) => set((x) => ({ ...x, titular: { ...x.titular, direccion: txt(e.target.value) } }))}
+        />
+        <Campo
+          etiqueta="DNI / NIE del titular (opcional)"
+          info={AYUDA.titularDni}
+          autoComplete="off"
+          value={r.titular?.dni ?? ''}
+          onChange={(e) =>
+            set((x) => ({ ...x, titular: { ...x.titular, dni: txt(e.target.value.toUpperCase()) } }))
+          }
+          ayuda={
+            r.titular?.dni && !dniNieValido(r.titular.dni)
+              ? 'El DNI/NIE no es correcto: revisa la letra'
+              : undefined
+          }
+        />
+        <Campo
+          etiqueta="Identificación (microchip o lote)"
+          info={AYUDA.animalIdentificacion}
+          dudoso={dud('receta.animalIdentificacion')}
+          value={r.animalIdentificacion ?? ''}
+          onChange={(e) => set((x) => ({ ...x, animalIdentificacion: txt(e.target.value) }))}
+        />
+        <Campo
+          etiqueta="Nº de animales"
+          info={AYUDA.numAnimales}
+          type="number"
+          min={1}
+          value={r.numAnimales ?? ''}
+          onChange={(e) =>
+            set((x) => ({ ...x, numAnimales: e.target.value ? Number(e.target.value) : null }))
+          }
+        />
+      </div>
+      {(r.lineas ?? []).map((l, i) => {
+        const k = (c: string) => dud(`lineas.${i}.${c}`);
+        return (
+          <fieldset key={l.orden} className="rounded-xl border border-slate-200 p-3">
+            <legend className="px-1 font-semibold">
+              Medicamento {l.orden}
+              {l.medicamentoTexto ? ` · ${l.medicamentoTexto}` : ''}
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Campo
+                etiqueta={`Principio(s) activo(s)${l.cn ? ' (de CIMAVet)' : ''}`}
+                info={AYUDA.principioActivo}
+                dudoso={k('principioActivo')}
+                value={l.principioActivoTexto ?? ''}
+                onChange={(e) => setLinea(i, { principioActivoTexto: txt(e.target.value) })}
+              />
+              <Campo
+                etiqueta={`Forma farmacéutica${l.cn ? ' (de CIMAVet)' : ''}`}
+                info={AYUDA.forma}
+                dudoso={k('forma')}
+                value={l.formaTexto ?? ''}
+                onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })}
+              />
+              <Campo
+                etiqueta={`Concentración${l.cn ? ' (de CIMAVet)' : ''}`}
+                info={AYUDA.concentracion}
+                dudoso={k('concentracion')}
+                value={l.concentracionTexto ?? ''}
+                onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })}
+              />
+              <Campo
+                etiqueta="Formato"
+                info={AYUDA.formato}
+                value={l.formatoTexto ?? ''}
+                onChange={(e) => setLinea(i, { formatoTexto: txt(e.target.value) })}
+              />
+              <Campo
+                etiqueta="Vía"
+                info={AYUDA.via}
+                value={l.posologia?.via ?? ''}
+                onChange={(e) => setLinea(i, { posologia: { ...l.posologia, via: txt(e.target.value) } })}
+              />
+              <Campo
+                etiqueta="Dosis"
+                info={AYUDA.dosis}
+                value={l.posologia?.dosis ?? ''}
+                onChange={(e) => setLinea(i, { posologia: { ...l.posologia, dosis: txt(e.target.value) } })}
+              />
+              <Campo
+                etiqueta="Duración (días)"
+                info={AYUDA.duracion}
+                type="number"
+                value={l.posologia?.duracionDias ?? ''}
+                onChange={(e) =>
+                  setLinea(i, {
+                    posologia: {
+                      ...l.posologia,
+                      duracionDias: e.target.value ? Number(e.target.value) : null,
+                    },
+                  })
+                }
+              />
+              <Campo
+                etiqueta="Tiempo de espera"
+                info={AYUDA.tiempoEspera}
+                dudoso={k('tiempoEspera')}
+                value={l.tiempoEsperaTexto ?? ''}
+                onChange={(e) => setLinea(i, { tiempoEsperaTexto: txt(e.target.value) })}
+              />
+            </div>
+          </fieldset>
+        );
+      })}
+    </div>
   );
 }
 
@@ -665,27 +818,6 @@ function LineaForm({
           onChange={(e) => setLinea(i, { medicamentoTexto: txt(e.target.value) })}
         />
         <Campo
-          etiqueta={`Principio(s) activo(s)${l.cn ? ' (de CIMAVet)' : ''}`}
-          info={AYUDA.principioActivo}
-          dudoso={k('principioActivo')}
-          value={l.principioActivoTexto ?? ''}
-          onChange={(e) => setLinea(i, { principioActivoTexto: txt(e.target.value) })}
-        />
-        <Campo
-          etiqueta={`Forma farmacéutica${l.cn ? ' (de CIMAVet)' : ''}`}
-          info={AYUDA.forma}
-          dudoso={k('forma')}
-          value={l.formaTexto ?? ''}
-          onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })}
-        />
-        <Campo
-          etiqueta={`Concentración${l.cn ? ' (de CIMAVet)' : ''}`}
-          info={AYUDA.concentracion}
-          dudoso={k('concentracion')}
-          value={l.concentracionTexto ?? ''}
-          onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })}
-        />
-        <Campo
           etiqueta="Nº de envases que pone la receta"
           info={AYUDA.envasesReceta}
           type="number"
@@ -701,42 +833,6 @@ function LineaForm({
           min={1}
           value={l.unidadesForma ?? ''}
           onChange={(e) => setLinea(i, { unidadesForma: e.target.value ? Number(e.target.value) : null })}
-        />
-        <Campo
-          etiqueta="Formato"
-          info={AYUDA.formato}
-          value={l.formatoTexto ?? ''}
-          onChange={(e) => setLinea(i, { formatoTexto: txt(e.target.value) })}
-        />
-        <Campo
-          etiqueta="Vía"
-          info={AYUDA.via}
-          value={l.posologia?.via ?? ''}
-          onChange={(e) => setLinea(i, { posologia: { ...l.posologia, via: txt(e.target.value) } })}
-        />
-        <Campo
-          etiqueta="Dosis"
-          info={AYUDA.dosis}
-          value={l.posologia?.dosis ?? ''}
-          onChange={(e) => setLinea(i, { posologia: { ...l.posologia, dosis: txt(e.target.value) } })}
-        />
-        <Campo
-          etiqueta="Duración (días)"
-          info={AYUDA.duracion}
-          type="number"
-          value={l.posologia?.duracionDias ?? ''}
-          onChange={(e) =>
-            setLinea(i, {
-              posologia: { ...l.posologia, duracionDias: e.target.value ? Number(e.target.value) : null },
-            })
-          }
-        />
-        <Campo
-          etiqueta="Tiempo de espera"
-          info={AYUDA.tiempoEspera}
-          dudoso={k('tiempoEspera')}
-          value={l.tiempoEsperaTexto ?? ''}
-          onChange={(e) => setLinea(i, { tiempoEsperaTexto: txt(e.target.value) })}
         />
       </div>
       <label className="mt-3 flex items-center gap-3">
@@ -847,11 +943,23 @@ function LineaForm({
 }
 
 /** Stock en la farmacia del medicamento elegido, comparado con los envases que pide la receta. */
-function PanelStock({ s, cargando, pedidos }: { s: StockFefo | undefined; cargando: boolean; pedidos: number | null }) {
+function PanelStock({
+  s,
+  cargando,
+  pedidos,
+}: {
+  s: StockFefo | undefined;
+  cargando: boolean;
+  pedidos: number | null;
+}) {
   if (cargando) return <p className="mt-2 animate-pulse text-sm">Consultando el stock…</p>;
   if (!s) return null;
   if (s.estado !== 'OK' || !s.propuesta)
-    return <p className="mt-2 rounded-lg bg-sustituir-bg px-2 py-1 text-sm font-semibold text-sustituir">No se ha podido consultar el stock ahora</p>;
+    return (
+      <p className="mt-2 rounded-lg bg-sustituir-bg px-2 py-1 text-sm font-semibold text-sustituir">
+        No se ha podido consultar el stock ahora
+      </p>
+    );
   const hay = s.propuesta.disponibleTotal;
   const falta = pedidos !== null && hay < pedidos;
   const rec = s.propuesta.recomendado;
@@ -869,7 +977,7 @@ function PanelStock({ s, cargando, pedidos }: { s: StockFefo | undefined; cargan
 }
 
 /** Texto reconocido de la receta, seleccionable, para copiar y pegar en los campos. */
-function TextoReconocido({ texto }: { texto: string }) {
+export function TextoReconocido({ texto }: { texto: string }) {
   const [copiado, setCopiado] = useState(false);
   return (
     <Tarjeta titulo="Texto reconocido (puedes copiar y pegar)">

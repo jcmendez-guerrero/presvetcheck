@@ -51,7 +51,15 @@ export function CampoEscaneo({ onLectura, etiqueta = 'Escanea el envase', autoFo
             } else if (e.key.length === 1) tiempos.current.push(performance.now());
           }}
           onChange={(e) => setValor(e.target.value)}
-          onBlur={() => autoFoco && !camara && setTimeout(() => ref.current?.focus(), 150)}
+          // Vuelve al campo de escaneo solo si el foco no ha ido a otro campo o botón (p. ej. la entrada a mano).
+          onBlur={() =>
+            autoFoco &&
+            !camara &&
+            setTimeout(() => {
+              const a = document.activeElement;
+              if (!a || a === document.body) ref.current?.focus();
+            }, 150)
+          }
         />
         <Boton variante="secundario" onClick={() => setCamara(true)}>
           <Camera aria-hidden className="h-5 w-5" /> Cámara

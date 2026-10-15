@@ -85,6 +85,8 @@ export const CODIGOS_INCIDENCIA = [
   'SUSTITUTO_NO_EQUIVALENTE',
   // Recepción (SPEC §4.9)
   'CADUCIDAD_PROXIMA_ENTRADA',
+  // Datos de registro que se transcriben después de dispensar (la receta los incluye).
+  'REGISTRO_PENDIENTE',
 ] as const;
 
 export const CodigoIncidencia = z.enum(CODIGOS_INCIDENCIA);

@@ -45,5 +45,7 @@ export const AYUDA = {
   tiempoEspera: 'Días que deben pasar desde el último tratamiento hasta sacrificar o aprovechar leche/huevos. En animales de compañía es 0.',
   declaracion: 'En antimicrobianos, la receta debe incluir la declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6 (uso preventivo o metafiláctico justificado).',
   cimavet: 'Medicamento y presentación exactos en CIMAVet. Comprueba que el nombre coincide con la receta: así se evita elegir otro por error.',
-  comprobado: 'Confirma que has revisado todos los datos con la receta original. Sin esto no se puede comprobar la receta.',
+  comprobado: 'Confirma que has revisado con la receta original los datos para dispensar (y los del registro si no los dejas para después). Sin esto no se puede comprobar la receta.',
+  registroDiferido:
+    'Para agilizar la caja: mira que la receta trae estos datos y márcalo. Se comprueba que la receta es válida y el medicamento, y los datos se transcriben después de dispensar desde «Pendientes». No aplica a animales de producción.',
 } as const;

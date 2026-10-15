@@ -1,0 +1,1 @@
+ALTER TABLE "receta" ADD COLUMN "registro_completado_at" timestamp with time zone;
