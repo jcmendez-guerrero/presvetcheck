@@ -17,3 +17,5 @@ fixtures/nomenclator/*.xml
 # Recetas reales escaneadas (datos personales): solo en local para el banco de evaluación.
 fixtures/recetas/*.pdf
 fixtures/recetas/reales/
+# Árbol de medicamentos veterinarios de la AEMPS (40 MB): no se versiona; ver docs/ref/README.md.
+docs/ref/*Arbol_Medicamentos_VET*.xlsx
