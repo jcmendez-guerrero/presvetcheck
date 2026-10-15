@@ -76,6 +76,7 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
       plazoDeclarado: r.plazoValidezDeclarado,
       tipoTratamiento: r.tipoTratamiento,
       especieProduccion: r.especieProduccion,
+      cronicoPlanSanitario: r.cronicoPlanSanitario,
       rules: e.rules.validez,
       lineas: r.lineas.map((l) => {
         const m = e.lineas.find((x) => x.orden === l.orden)?.medicamento ?? null;
@@ -108,11 +109,11 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
     const linea = l.orden;
     const m = res?.medicamento ?? null;
     if (!m || !res?.presentacion) {
-      incs.push(incidencia('MEDICAMENTO_NO_SELECCIONADO', pol, { linea, params: { linea } }));
+      incs.push(incidencia('MEDICAMENTO_NO_EN_SISTEMA', pol, { linea, params: { linea } }));
       continue;
     }
     const p = { medicamento: m.nombre, linea };
-    if (m.usoHumano) incs.push(incidencia('MEDICAMENTO_USO_HUMANO_REVISION_GARANTE', pol, { linea, params: p }));
+    if (m.usoHumano) incs.push(incidencia('MEDICAMENTO_USO_HUMANO', pol, { linea, params: p }));
     if (m.estupefaciente) incs.push(incidencia('ESTUPEFACIENTE_NO_DISPENSABLE', pol, { linea, params: p }));
     if (m.psicotropo && (l.cantidadEnvases ?? 0) > 1) {
       incs.push(incidencia('PSICOTROPO_MAS_DE_UN_ENVASE', pol, { linea, params: p }));

@@ -172,11 +172,15 @@ describe('motor de decisión (SPEC §4.3)', () => {
       expect(r.decision).toBe('PEDIR');
     });
 
-    it('menor concentración de otro laboratorio → se trata como sustitución con aprobación previa', () => {
-      const otroLab = amoxicilina(250, { nregistro: '4250 ESP', labtitular: 'LABORATORIO C' });
-      const r = decidir({ candidatos: [cand(otroLab, '590250')], stock: { '590250': [lote({ lote: 'X' })] } });
-      expect(r.decision).toBe('SUSTITUIR');
-      expect(r.evidencias.sustitutos[0]).toMatchObject({ origen: 'MENOR_CONCENTRACION_OTRO_LABORATORIO', modo: 'PRE', envases: 2 });
+    it.each([
+      ['de otro laboratorio', { nregistro: '4250 ESP', labtitular: 'LABORATORIO C' }],
+      ['del mismo laboratorio pero otro medicamento', { nregistro: '4251 ESP', nombre: 'OTRAMOX 250 mg COMPRIMIDOS' }],
+    ])('menor concentración %s → nunca se propone (ni formato ni sustitución): PEDIR', (_n, o) => {
+      const otro = amoxicilina(250, o);
+      const r = decidir({ candidatos: [cand(otro, '590250')], stock: { '590250': [lote({ lote: 'X' })] } });
+      expect(r.decision).toBe('PEDIR');
+      expect(r.evidencias.sustitutos).toEqual([]);
+      expect(r.evidencias.descartados[0]?.motivos).toContain('CONCENTRACION_DISTINTA');
     });
   });
 

@@ -179,10 +179,10 @@
     "donde": "Cantidad de la línea",
     "accion": "No se puede dispensar más de un envase con esta receta"
   },
-  "MEDICAMENTO_USO_HUMANO_REVISION_GARANTE": {
+  "MEDICAMENTO_USO_HUMANO": {
     "titulo": "El medicamento de la línea {linea} es de uso humano",
     "donde": "Línea del medicamento",
-    "accion": "Requiere prescripción excepcional y revisión del farmacéutico garante"
+    "accion": "No se puede dispensar en ningún caso con receta veterinaria"
   },
   "ONLINE_CON_RECETA": {
     "titulo": "{medicamento} necesita receta: no se puede vender a distancia",
@@ -194,10 +194,10 @@
     "donde": "Venta sin receta",
     "accion": "Usa el flujo de «Receta»"
   },
-  "MEDICAMENTO_NO_SELECCIONADO": {
-    "titulo": "No se ha elegido el medicamento de la línea {linea}",
+  "MEDICAMENTO_NO_EN_SISTEMA": {
+    "titulo": "El medicamento de la línea {linea} no está en el sistema",
     "donde": "Línea del medicamento",
-    "accion": "Elige el medicamento entre los candidatos o búscalo"
+    "accion": "No figura entre los medicamentos veterinarios de CIMAVet y puede ser de uso humano: no se puede dispensar. Si crees que es veterinario, búscalo por su nombre o su código nacional"
   },
   "MEDICAMENTO_SUSPENDIDO": {
     "titulo": "{medicamento} está SUSPENDIDO en CIMAVet",
@@ -353,5 +353,10 @@
     "titulo": "El lote {lote} caduca el {fecha} (menos de {dias} días)",
     "donde": "Línea de entrada",
     "accion": "Informativo"
+  },
+  "CONCENTRACION_OTRO_MEDICAMENTO": {
+    "titulo": "Menor concentración de otro medicamento",
+    "donde": "Presentación",
+    "accion": "Descartada: la menor concentración solo se admite del mismo medicamento; para cambiar de medicamento debe tener la misma composición y concentración"
   }
 }

@@ -99,6 +99,9 @@ export class CimavetRepository implements NomenclatorSink {
             estadoCodigo: sql`excluded.estado_codigo`,
             contenido: sql`coalesce(excluded.contenido, ${cimavetPresentacion.contenido})`,
             unidadContenido: sql`coalesce(excluded.unidad_contenido, ${cimavetPresentacion.unidadContenido})`,
+            // La API REST no informa la fraccionada: se conserva la del Nomenclátor.
+            dispensacionFraccionada: sql`coalesce(excluded.dispensacion_fraccionada, ${cimavetPresentacion.dispensacionFraccionada})`,
+            fraccionesAutorizadas: sql`coalesce(excluded.fracciones_autorizadas, ${cimavetPresentacion.fraccionesAutorizadas})`,
             raw: sql`coalesce(excluded.raw, ${cimavetPresentacion.raw})`,
             source: sql`excluded.source`,
             fetchedAt: sql`excluded.fetched_at`,
@@ -263,6 +266,8 @@ export class CimavetRepository implements NomenclatorSink {
       estado: p.estadoCodigo as PresentacionInfo['estado'],
       contenido: p.contenido,
       unidadContenido: p.unidadContenido,
+      fraccionable: p.dispensacionFraccionada ?? false,
+      fracciones: p.fraccionesAutorizadas,
       fetchedAt: p.fetchedAt,
     };
   }

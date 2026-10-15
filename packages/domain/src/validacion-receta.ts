@@ -86,7 +86,8 @@ export function validarCampos(
     }
     exigir('principio_activo', tienePa, { linea });
     exigir('forma_concentracion', presente(l.formaTexto) && presente(l.concentracionTexto), { linea });
-    exigir('cantidad', presente(l.cantidadEnvases), { linea });
+    // Cantidad: nº de envases o, en fraccionada, nº de unidades de dosificación (guía §5.9).
+    exigir('cantidad', presente(l.cantidadEnvases) || presente(l.unidadesForma), { linea });
     exigir(
       'posologia',
       l.posologia !== null && presente(l.posologia.via) && presente(l.posologia.dosis) && presente(l.posologia.duracionDias),

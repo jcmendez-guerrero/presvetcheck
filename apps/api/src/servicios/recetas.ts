@@ -23,6 +23,7 @@ import {
   type ResultadoDecision,
   type SolicitudForzado,
   type StockPorCn,
+  parseFraccion,
 } from '@mmx/domain';
 import { borradorDesdeExtraccion } from '@mmx/extraction';
 import type { ExtractionResult} from '@mmx/shared';
@@ -54,6 +55,8 @@ export interface LineaEvaluada {
   incidencias: Incidencia[];
   forzado: ForzadoAceptado | null;
   opcionesSoloPA: Awaited<ReturnType<MedicamentosService['opcionesSoloPA']>> | null;
+  /** Presentación prescrita autorizada para dispensación fraccionada (guía §5.9), si lo está. */
+  fraccion: { texto: string; unidades: number | null; unidad: string | null; prescritas: number | null } | null;
 }
 
 export interface EvaluacionReceta {
@@ -158,6 +161,7 @@ export class RecetasService {
         cantidadEnvases: l.cantidadEnvases,
         formatoTexto: l.formatoTexto,
         unidadesMax: l.cantidadEnvases,
+        unidadesFormaPrescritas: l.unidadesForma,
         posologia: l.posologia as never,
         duracionDias: l.posologia?.duracionDias ?? null,
         tiempoEsperaTexto: l.tiempoEsperaTexto,
@@ -421,6 +425,14 @@ export class RecetasService {
         incidencias: incs,
         forzado,
         opcionesSoloPA: soloPA ? await this.med.opcionesSoloPA(l.principioActivoTexto, especieId) : null,
+        fraccion: ctxL.presentacion?.fraccionable
+          ? {
+              texto: ctxL.presentacion.fracciones ?? '',
+              unidades: parseFraccion(ctxL.presentacion.fracciones)?.unidades ?? null,
+              unidad: parseFraccion(ctxL.presentacion.fracciones)?.unidad ?? null,
+              prescritas: l.unidadesForma,
+            }
+          : null,
       });
     }
 

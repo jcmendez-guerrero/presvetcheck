@@ -27,7 +27,7 @@ Cada entrada indica: qué dice la spec, qué se ha implementado y quién deberí
 - **Confirmar:** farmacéutico garante.
 
 ## DUDA-03 · Medicamento de uso humano prescrito
-- **Spec:** §4.1.5 → `NO_CONFORME` con `MEDICAMENTO_USO_HUMANO_REVISION_GARANTE` ("no se automatiza; requiere
+- **Spec:** §4.1.5 → `NO_CONFORME` con `MEDICAMENTO_USO_HUMANO` ("no se automatiza; requiere
   prescripción excepcional y revisión"). No aparece en la lista de no forzables de §4.1.6.
 - **Implementado (conservador):** `BLOQUEANTE_DURO` para el empleado: lo gestiona el garante fuera del flujo
   automático. Configurable.

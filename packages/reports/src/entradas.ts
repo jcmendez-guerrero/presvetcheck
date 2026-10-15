@@ -78,7 +78,10 @@ export interface MovimientoPsicotropo {
   cn: string;
   nombre: string;
   lote: string;
+  /** Envases completos (el saldo se lleva en envases; una fracción no consume un envase entero). */
   unidades: number;
+  /** Texto de unidades dispensadas (fracciones: "10 comprimidos (fracción de caja 20 comprimidos)"). */
+  unidadesTexto?: string | null;
   referencia: string;
 }
 
@@ -92,7 +95,7 @@ export function tablaPsicotropos(movs: MovimientoPsicotropo[]): Tabla {
       const k = `${m.cn}|${m.lote}`;
       const delta = m.tipo === 'SALIDA' ? -m.unidades : m.unidades;
       saldo.set(k, (saldo.get(k) ?? 0) + delta);
-      return [m.cn, m.nombre, m.lote, fechaEs(m.fecha), m.tipo, m.tipo === 'SALIDA' ? '' : m.unidades, m.tipo === 'SALIDA' ? m.unidades : '', saldo.get(k) as number, m.referencia];
+      return [m.cn, m.nombre, m.lote, fechaEs(m.fecha), m.tipo, m.tipo === 'SALIDA' ? '' : m.unidades, m.tipo === 'SALIDA' ? (m.unidades === 0 && m.unidadesTexto ? m.unidadesTexto : m.unidades) : '', saldo.get(k) as number, m.referencia];
     }),
   };
 }

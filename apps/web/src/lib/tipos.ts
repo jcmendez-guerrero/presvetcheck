@@ -41,6 +41,7 @@ export interface LineaEvaluada {
   resultado: { decision: string; motivos: Motivo[]; evidencias: Evidencias };
   incidencias: Motivo[];
   opcionesSoloPA: { cn: string; nombre: string; labtitular: string | null; enStock: boolean }[] | null;
+  fraccion?: { texto: string; unidades: number | null; unidad: string | null; prescritas: number | null } | null;
 }
 export interface Evaluacion {
   recetaId: string;

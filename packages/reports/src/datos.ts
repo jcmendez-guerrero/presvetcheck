@@ -72,6 +72,7 @@ export class RegistrosService {
         lote: d.lote,
         cn: d.cn,
         unidades: d.unidades,
+        unidadesTexto: d.unidadesTexto,
         fechaReceta: r?.fechaEmision ?? null,
         numeroReceta: r?.numero ?? null,
         veterinario: v?.nombre ?? null,
@@ -149,6 +150,7 @@ export class RegistrosService {
         nombre: s.nombreFarmaco,
         lote: s.lote,
         unidades: s.unidades,
+        unidadesTexto: s.unidadesTexto,
         referencia: s.anulaDispensacionId ?? s.id,
       })),
     ];

@@ -11,6 +11,7 @@ export type CasoValidez =
   | 'general'
   | 'antimicrobiano'
   | 'cronico_no_productora'
+  | 'cronico_plan_sanitario'
   | 'preventivo_no_productora'
   | 'estupefaciente'
   | 'psicotropo';
@@ -32,6 +33,8 @@ export interface EntradaValidez {
   /** Si no consta en la receta se usa `agudo`. */
   tipoTratamiento: TipoTratamiento | null;
   especieProduccion: boolean;
+  /** Confirmación expresa: crónico de producción en el plan sanitario o pautado por el veterinario de la ADS. */
+  cronicoPlanSanitario?: boolean;
   lineas: LineaValidez[];
   rules: ValidezRules;
 }
@@ -45,12 +48,14 @@ export interface ResultadoValidez {
   porLinea: { orden: number; caso: CasoValidez; limite: FechaIso }[];
 }
 
-export function casoLinea(l: LineaValidez, tipo: TipoTratamiento, produccion: boolean): CasoValidez {
+export function casoLinea(l: LineaValidez, tipo: TipoTratamiento, produccion: boolean, planSanitario = false): CasoValidez {
   if (l.estupefaciente) return 'estupefaciente';
   if (l.antimicrobiano) return 'antimicrobiano';
   if (l.psicotropo) return 'psicotropo';
   const ampliable = !produccion && l.resuelta && !l.excluidaAmpliada;
   if (ampliable && tipo === 'cronico') return 'cronico_no_productora';
+  // Producción: solo crónicos del plan sanitario de la explotación o del veterinario de la ADS (nunca preventivos).
+  if (produccion && planSanitario && tipo === 'cronico' && l.resuelta && !l.excluidaAmpliada) return 'cronico_plan_sanitario';
   if (ampliable && tipo === 'preventivo') return 'preventivo_no_productora';
   return 'general';
 }
@@ -58,7 +63,7 @@ export function casoLinea(l: LineaValidez, tipo: TipoTratamiento, produccion: bo
 export function calcularValidez(e: EntradaValidez): ResultadoValidez {
   const tipo = e.tipoTratamiento ?? 'agudo';
   const porLinea = e.lineas.map((l) => {
-    const caso = casoLinea(l, tipo, e.especieProduccion);
+    const caso = casoLinea(l, tipo, e.especieProduccion, e.cronicoPlanSanitario ?? false);
     return { orden: l.orden, caso, limite: sumarPlazo(e.fechaEmision, e.rules[caso]) };
   });
   if (porLinea.length === 0) {

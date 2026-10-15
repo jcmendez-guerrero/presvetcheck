@@ -225,6 +225,12 @@ export function Revision() {
               </label>
               <Campo etiqueta="Identificación (microchip o lote)" dudoso={dud('receta.animalIdentificacion')} value={r.animalIdentificacion ?? ''} onChange={(e) => set((x) => ({ ...x, animalIdentificacion: txt(e.target.value) }))} />
               <Campo etiqueta="Nº de animales" type="number" min={1} value={r.numAnimales ?? ''} onChange={(e) => set((x) => ({ ...x, numAnimales: e.target.value ? Number(e.target.value) : null }))} />
+              {r.especieProduccion && r.tipoTratamiento === 'cronico' && (
+                <label className="flex items-center gap-3 sm:col-span-2">
+                  <input type="checkbox" className="h-6 w-6" checked={!!r.cronicoPlanSanitario} onChange={(e) => set((x) => ({ ...x, cronicoPlanSanitario: e.target.checked }))} />
+                  Confirmo que este tratamiento crónico está en el plan sanitario de la explotación o lo pauta el veterinario de la ADS (validez de 3 meses)
+                </label>
+              )}
               {r.especieProduccion && <Campo etiqueta="Código REGA" dudoso={dud('receta.rega')} value={r.rega ?? ''} onChange={(e) => set((x) => ({ ...x, rega: txt(e.target.value) }))} />}
             </div>
           </Tarjeta>
@@ -272,6 +278,13 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
         <Campo etiqueta="Forma farmacéutica" dudoso={k('forma')} value={l.formaTexto ?? ''} onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })} />
         <Campo etiqueta="Concentración" dudoso={k('concentracion')} value={l.concentracionTexto ?? ''} onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })} />
         <Campo etiqueta="Nº de envases" type="number" min={1} dudoso={k('cantidadEnvases')} value={l.cantidadEnvases ?? ''} onChange={(e) => setLinea(i, { cantidadEnvases: e.target.value ? Number(e.target.value) : null })} />
+        <Campo
+          etiqueta="Unidades (comprimidos, pipetas…) — solo si la receta las indica"
+          type="number"
+          min={1}
+          value={l.unidadesForma ?? ''}
+          onChange={(e) => setLinea(i, { unidadesForma: e.target.value ? Number(e.target.value) : null })}
+        />
         <Campo etiqueta="Formato" value={l.formatoTexto ?? ''} onChange={(e) => setLinea(i, { formatoTexto: txt(e.target.value) })} />
         <Campo etiqueta="Vía" value={l.posologia?.via ?? ''} onChange={(e) => setLinea(i, { posologia: { ...l.posologia, via: txt(e.target.value) } })} />
         <Campo etiqueta="Dosis" value={l.posologia?.dosis ?? ''} onChange={(e) => setLinea(i, { posologia: { ...l.posologia, dosis: txt(e.target.value) } })} />

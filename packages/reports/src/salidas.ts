@@ -53,6 +53,8 @@ export interface Salida {
   lote: string;
   cn: string;
   unidades: number;
+  /** "1 caja 20 comprimidos", "1 frasco 10 ml" o la fracción; si falta (registros antiguos), el nº de envases. */
+  unidadesTexto?: string | null;
   fechaReceta: string | null;
   numeroReceta: string | null;
   veterinario: string | null;
@@ -97,7 +99,7 @@ export function tablasSalidas(salidas: Salida[], plantilla: PlantillaSalidas, o:
     fechaEs(s.caducidad),
     s.lote,
     s.cn,
-    s.unidades,
+    s.unidadesTexto ?? s.unidades,
   ];
   const receta = (s: Salida) => [fechaEs(s.fechaReceta), s.numeroReceta ?? '', s.veterinario ?? '', s.numColegiado ?? '', s.clinica ?? '', s.direccionVeterinario ?? ''];
   const prop = (s: Salida) =>

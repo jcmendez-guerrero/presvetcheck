@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'decimal.js';
 import { concentracion, contenidoEnvase, parseCantidadTexto, parseDecimal, textoConcentracion, totalPaEnvase, unidadCanonica } from '../src/unidades';
-import { evaluarAlternativaFormato, notaAdministracion, validarEnvasesFormato } from '../src/formato';
+import { evaluarAlternativaFormato, mismoMedicamento, nombreComercial, notaAdministracion, validarEnvasesFormato } from '../src/formato';
 import { evaluarEquivalencia, tiemposEsperaCompatibles, viaCompatible } from '../src/equivalencia';
 import { compararIndicacion, similitudIndicacion, tokensIndicacion } from '../src/indicacion';
 import { autorizadoParaEspecie, especiesEquivalentes } from '../src/medicamento';
@@ -170,5 +170,23 @@ describe('indicación', () => {
     expect(compararIndicacion('mastitis', ['piel'], R).resultado).toBe('NO_COINCIDE');
     expect(compararIndicacion(null, ['piel'], R).resultado).toBe('NO_COINCIDE');
     expect(compararIndicacion('piel', [], R).mejor).toBeNull();
+  });
+});
+
+describe('mismo medicamento (menor concentración, DUDA-09)', () => {
+  it.each([
+    ['CLAVUBAY 400 mg / 100 mg COMPRIMIDOS SABOR PARA PERROS', 'CLAVUBAY'],
+    ['Synulox 50 mg, comprimidos', 'SYNULOX'],
+    ['ÁCIDO-VET 5 mg', 'ACIDO VET'],
+    ['250 mg', ''],
+  ])('nombreComercial(%s) = %s', (n, esperado) => expect(nombreComercial(n)).toBe(esperado));
+
+  it('mismo registro, o mismo laboratorio y mismo nombre comercial', () => {
+    const a = amoxicilina(500);
+    expect(mismoMedicamento(a, amoxicilina(250))).toBe(true);
+    expect(mismoMedicamento(a, amoxicilina(250, { labtitular: 'OTRO' }))).toBe(false);
+    expect(mismoMedicamento(a, amoxicilina(250, { nombre: 'OTRAMOX 250 mg' }))).toBe(false);
+    expect(mismoMedicamento(a, amoxicilina(250, { labtitular: null }))).toBe(false);
+    expect(mismoMedicamento(a, amoxicilina(250, { nombre: '250 mg', labtitular: a.labtitular }))).toBe(false);
   });
 });

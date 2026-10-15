@@ -125,6 +125,8 @@ export const recetaLinea = pgTable(
     cantidadEnvases: integer(),
     formatoTexto: text(),
     unidadesMax: integer(),
+    /** Unidades de dosificación prescritas (comprimidos, pipetas…) cuando la presentación es fraccionable. */
+    unidadesFormaPrescritas: integer(),
     posologia: jsonb(),
     duracionDias: integer(),
     tiempoEsperaTexto: text(),
@@ -161,6 +163,12 @@ export const dispensacion = pgTable(
     lote: text().notNull(),
     caducidad: date(),
     unidades: integer().notNull(),
+    /** Dispensación fraccionada: unidades de dosificación entregadas (null = envases completos). */
+    unidadesForma: integer(),
+    /** Texto de UNIDADES DISPENSADAS del registro de salidas ("1 caja 20 comprimidos"). */
+    unidadesTexto: text(),
+    /** Psicótropos: DNI/NIE de la persona que retira (identidad comprobada), cifrado (guía §4, psicótropos). */
+    dniRetiraEnc: text(),
     gtin: text(),
     serial: text(),
     metodoCaptura: text().notNull(), // scanner | camara | manual

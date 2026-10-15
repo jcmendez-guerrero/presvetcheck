@@ -81,6 +81,10 @@ export interface PresentacionInfo {
   /** Contenido del envase (p. ej. 10) y unidad (p. ej. Comprimido). */
   contenido: string | null;
   unidadContenido: string | null;
+  /** Autorizada para dispensación fraccionada (Nomenclátor `sw_dispensacion_fraccionada`). */
+  fraccionable?: boolean;
+  /** Texto `fracciones_autorizadas` del Nomenclátor ("1 blister de 10 comprimidos"…). */
+  fracciones?: string | null;
 }
 
 /** Lote con stock en el almacén "Farmacia" (lo construye packages/siweb). */

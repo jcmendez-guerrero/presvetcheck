@@ -139,6 +139,8 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
           estadoCodigo: estadoNomenclator(xmlText(node, 'cod_estado_registro_formato')),
           contenido: xmlText(node, 'contenido_total_envase'),
           unidadContenido: unidad(xmlText(node, 'unidad_contenido_total_envase')),
+          dispensacionFraccionada: SI(xmlText(node, 'sw_dispensacion_fraccionada')),
+          fraccionesAutorizadas: xmlText(node, 'fracciones_autorizadas')?.trim() || null,
           raw: null,
           source: 'nomenclator',
           fetchedAt,
