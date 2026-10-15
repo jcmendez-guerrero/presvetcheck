@@ -54,7 +54,7 @@ export function Layout() {
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
         {/* Nada pide datos hasta tener sesión (cabeceras de autenticación configuradas). */}
-        {usuario ? <Outlet /> : <p className="animate-pulse text-slate-600">Iniciando sesión…</p>}
+        {usuario ? <Outlet /> : <p className="animate-pulse text-slate-600">{config ? 'Iniciando sesión…' : 'Conectando con el servidor…'}</p>}
       </main>
     </div>
   );
