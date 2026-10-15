@@ -66,7 +66,22 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
   const [mfaDev, setMfaDev] = useState(leer('mmx.devMfa') === '1');
 
   useEffect(() => {
-    void get<ConfigPublica>('/api/config/publica').then(setConfig);
+    // La API puede tardar en arrancar (p. ej. `pnpm demo` carga el Nomenclátor completo): se reintenta
+    // hasta que responda en lugar de quedarse en "Iniciando sesión…".
+    let activo = true;
+    let espera = 1000;
+    const cargar = () =>
+      get<ConfigPublica>('/api/config/publica')
+        .then((c) => activo && setConfig(c))
+        .catch(() => {
+          if (!activo) return;
+          setTimeout(cargar, espera);
+          espera = Math.min(espera * 2, 5000);
+        });
+    void cargar();
+    return () => {
+      activo = false;
+    };
   }, []);
 
   useEffect(() => {
