@@ -12,6 +12,7 @@ const cand = (cn: string, medicamento: string, puntuacion: number): ResultadoBus
   comerc: true,
   estado: 'autorizado',
   puntuacion,
+  autorizadoEspecie: null,
 });
 // Catálogo ficticio: la búsqueda devuelve por similitud de texto, como pg_trgm.
 const CATALOGO = [cand('570001', 'PROPALIN 40 mg/ml JARABE', 0.9), cand('570002', 'TAF SPRAY 28,5 mg/g', 0.9), cand('570003', 'PROCACTIVE 300 mg/ml', 0.9)];

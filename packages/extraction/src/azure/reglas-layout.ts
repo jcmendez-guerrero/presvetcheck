@@ -32,6 +32,7 @@ const REGLAS: [RegExp, Destino][] = [
   [/^(identificacion de los animales|n identificacion|chip|microchip)$/, { ambito: 'receta', campo: 'animalIdentificacion' }],
   [/^(advertencias|advertencias e instrucciones para el propietario)$/, { ambito: 'receta', campo: 'advertencias' }],
   [/^(rega|codigo rega)$/, { ambito: 'receta', campo: 'rega' }],
+  [/^(contiene antibiotico|contiene antimicrobianos?|receta de antimicrobianos|antimicrobianos?)$/, { ambito: 'receta', campo: 'antimicrobianos' }],
   // Líneas de medicamento: cada etiqueta de medicamento abre una línea nueva.
   [/^(farmaco|medicamento|denominacion y presentacion del medicamento|denominacion y concentracion|denominacion)$/, { ambito: 'linea', campo: 'medicamento' }],
   [/^principios? activos?$/, { ambito: 'linea', campo: 'principioActivo' }],
@@ -135,6 +136,25 @@ export function camposDesdeLayout(
   if (cn && lineas.length <= 1 && !lineas[0]?.cn) {
     const c = campo('cn', cn[1] as string, 0.8, null, []);
     if (c) (lineas[0] ??= {}).cn = c;
+  }
+  // Formato en una sola línea ("Dosis: 1 Unidades: COMPRIMIDOS Frecuencia: 24 h Duración (días): 30").
+  const unica = lineas.length === 1 ? lineas[0] : undefined;
+  if (unica) {
+    const etiqueta = (re: RegExp) => limpiarValor(re.exec(contenido)?.[1] ?? null);
+    const dur = etiqueta(/duraci[oó]n\s*\(?d[ií]as\)?\s*:\s*([^\n]+)/i);
+    if (dur && !unica.duracionDias) {
+      const c = campo('duracionDias', dur, 0.8, null, []);
+      if (c) unica.duracionDias = c;
+    }
+    const dosis = etiqueta(/\bdosis\s*:\s*([^\n]+)/i);
+    if (dosis && !unica.dosis) {
+      const partes = [dosis, etiqueta(/\bunidades\s*:\s*([^\n]+)/i), etiqueta(/\bfrecuencia\s*:\s*([^\n]+)/i)].filter(Boolean);
+      // La frecuencia de estos formatos va en horas ("24" o "24 h").
+      const frec = partes[2] && /^\d+$/.test(String(partes[2])) ? `${partes[2]} h` : partes[2];
+      const texto = partes.length === 3 ? `${partes[0]} ${String(partes[1]).toLowerCase()} cada ${frec}` : (partes[0] as string);
+      const c = campo('dosis', texto, 0.8, null, []);
+      if (c) unica.dosis = c;
+    }
   }
   const col = RE_COLEGIADO.exec(contenido);
   if (col && !receta.veterinarioNumColegiado) {

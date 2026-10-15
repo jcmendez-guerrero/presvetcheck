@@ -9,7 +9,7 @@ export const ESQUEMA_CAMPOS_VERSION = 'docintel-campos.v1';
 export const CAMPO_LINEAS = 'lineas';
 
 export const CAMPOS_NUMERICOS = new Set(['numAnimales', 'cantidadEnvases', 'duracionDias']);
-export const CAMPOS_BOOLEANOS = new Set(['firmaDetectada', 'selloDetectado', 'qrDetectado', 'declaracionAntimicrobiano']);
+export const CAMPOS_BOOLEANOS = new Set(['firmaDetectada', 'selloDetectado', 'qrDetectado', 'declaracionAntimicrobiano', 'antimicrobianos']);
 /** Campos que se etiquetan como fecha (Document Intelligence los normaliza a AAAA-MM-DD). */
 export const CAMPOS_FECHA = new Set(['fechaEmision']);
 
@@ -52,6 +52,6 @@ export function convertir(campo: string, valor: string | null): string | number 
     const m = /\b(\d{6})(?:\.\d)?\b/.exec(valor);
     return m ? (m[1] as string) : null;
   }
-  if (CAMPOS_BOOLEANOS.has(campo)) return /^(true|s[ií]|1|selected|signed)$/i.test(valor.trim());
+  if (CAMPOS_BOOLEANOS.has(campo)) return /^(true|s[ií]|1|x|selected|:selected:|signed)$/i.test(valor.trim());
   return valor;
 }

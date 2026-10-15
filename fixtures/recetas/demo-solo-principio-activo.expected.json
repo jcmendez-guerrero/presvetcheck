@@ -68,6 +68,16 @@
       "evidencia": null,
       "fuente": "llm"
     },
+    "antimicrobianos": {
+      "valor": false,
+      "confianza": 0.95,
+      "evidencia": {
+        "texto": "Contiene antibiótico: No",
+        "pagina": 1,
+        "region": null
+      },
+      "fuente": "llm"
+    },
     "titularNombre": {
       "valor": "Titular de demostración",
       "confianza": 0.97,

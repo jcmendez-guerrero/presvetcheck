@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ZoomIn, ZoomOut } from 'lucide-react';
+import { Copy, Search, ZoomIn, ZoomOut } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
 import { ApiError, get, put } from '../lib/api';
 import { CN } from '../lib/textos';
@@ -15,6 +15,8 @@ interface RecetaApi {
   imagenes: { pagina: number; url: string; mime: string }[];
   confirmacion: RecetaConfirmadaInput | null;
   dudosos: string[];
+  /** Resultado de la lectura automática (null si no se pudo leer). */
+  extraccion: { ocrTexto: string | null; modelo: string } | null;
 }
 interface Candidato {
   cn: string;
@@ -23,6 +25,7 @@ interface Candidato {
   labtitular: string | null;
   comerc: boolean | null;
   puntuacion: number;
+  autorizadoEspecie: boolean | null;
 }
 
 const ESPECIES = [
@@ -93,6 +96,9 @@ export function Revision() {
   return (
     <Pagina titulo="Revisión de datos">
       <p className="text-slate-700">Comprueba cada dato con la receta original. Los campos marcados «Revisar» se han leído con poca seguridad o no se han encontrado.</p>
+      {!q.data.extraccion && (
+        <Mensaje tipo="aviso">No se ha podido leer la receta automáticamente (el servicio no ha respondido a tiempo o no está configurado). Introduce los datos a mano.</Mensaje>
+      )}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="lg:sticky lg:top-4 lg:self-start">
           <Tarjeta>
@@ -119,6 +125,7 @@ export function Revision() {
               )}
             </div>
           </Tarjeta>
+          {q.data.extraccion?.ocrTexto && <TextoReconocido texto={q.data.extraccion.ocrTexto} />}
         </div>
 
         <div className="flex flex-col gap-5">
@@ -130,6 +137,13 @@ export function Revision() {
                   <option value="papel">Papel</option>
                   <option value="electronica">Electrónica</option>
                 </select>
+              </label>
+              <label className="flex items-center gap-3 self-end pb-2">
+                <input type="checkbox" className="h-6 w-6" checked={!!r.antimicrobianos} onChange={(e) => set((x) => ({ ...x, antimicrobianos: e.target.checked }))} />
+                <span>
+                  Receta de antimicrobianos {dud('receta.antimicrobianos') && <span className="rounded bg-dorado/30 px-1.5 text-xs">Revisar</span>}
+                  <span className="block text-xs text-slate-600">Validez de 5 días y declaración del art. 107.3 y 4 en cada medicamento</span>
+                </span>
               </label>
               {r.tipo === 'electronica' && (
                 <label className="flex flex-col gap-1 text-sm">
@@ -321,6 +335,9 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
                     <span className="text-slate-600">
                       {CN} {c.cn} · {c.labtitular ?? '—'} {c.comerc === false && '· no comercializado'}
                     </span>
+                    {c.autorizadoEspecie === false && (
+                      <span className="mt-1 block font-semibold text-sustituir">No autorizado para esta especie (uso excepcional por cascada)</span>
+                    )}
                   </span>
                   <Boton
                     data-testid={`elegir-${c.cn}`}
@@ -338,6 +355,27 @@ function LineaForm({ l, i, dud, setLinea, especie }: { l: Linea; i: number; dud:
           </>
         )}
       </div>
+    </Tarjeta>
+  );
+}
+
+/** Texto reconocido de la receta, seleccionable, para copiar y pegar en los campos. */
+function TextoReconocido({ texto }: { texto: string }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <Tarjeta titulo="Texto reconocido (puedes copiar y pegar)">
+      <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm select-text">{texto.replaceAll('--- página ---', '— página siguiente —')}</pre>
+      <Boton
+        variante="texto"
+        onClick={() =>
+          void navigator.clipboard?.writeText(texto).then(() => {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1500);
+          })
+        }
+      >
+        <Copy aria-hidden className="h-4 w-4" /> {copiado ? 'Copiado' : 'Copiar todo'}
+      </Boton>
     </Tarjeta>
   );
 }

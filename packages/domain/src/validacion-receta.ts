@@ -94,7 +94,7 @@ export function validarCampos(
       { linea },
     );
     exigir('tiempo_espera', presente(l.tiempoEsperaTexto), { linea });
-    if (res?.medicamento && esAntimicrobiano(res.medicamento, pol.rules)) {
+    if (r.antimicrobianos || (res?.medicamento && esAntimicrobiano(res.medicamento, pol.rules))) {
       exigir('declaracion_antimicrobiano', l.declaracionAntimicrobiano?.declarada === true, { linea });
     }
   }

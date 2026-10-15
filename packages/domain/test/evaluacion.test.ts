@@ -103,6 +103,12 @@ describe('severidad por campo y contexto (receta-campos.v1.yaml)', () => {
     expect(codes(r)).toEqual([]);
   });
 
+  it('receta marcada «de antimicrobianos»: exige la declaración y validez de 5 días aunque CIMAVet no lo diga', () => {
+    const r = evaluar(receta({ antimicrobianos: true, fechaEmision: '2026-10-08', lineas: [{ ...lineaBase, declaracionAntimicrobiano: null }] }), { m: medNoAntibiotico() });
+    expect(codes(r)).toEqual(expect.arrayContaining(['DECLARACION_ANTIMICROBIANO_FALTA:BLOQUEANTE_FORMA', 'RECETA_CADUCADA:BLOQUEANTE_FORMA']));
+    expect(r.validez?.caso).toBe('antimicrobiano');
+  });
+
   it('ATC QJ01 cuenta como antimicrobiano aunque antibiotico=false', () => {
     const r = evaluar(receta({ lineas: [{ ...lineaBase, declaracionAntimicrobiano: null }] }), { m: med({ antibiotico: false }) });
     expect(codes(r)).toContain('DECLARACION_ANTIMICROBIANO_FALTA:BLOQUEANTE_FORMA');

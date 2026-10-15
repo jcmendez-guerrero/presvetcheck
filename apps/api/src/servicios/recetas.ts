@@ -107,6 +107,8 @@ export class RecetasService {
       await this.guardarBorrador(id, ident.receta, { extraccion: ext, dudosos }, c, 'EXTRAIDA');
     } catch (e) {
       aviso = e instanceof DomainError ? e.code : 'EXTRACCION_FALLIDA';
+      // Motivo técnico para diagnosticar (sin datos personales: mensajes del servicio, p. ej. tiempo agotado).
+      console.warn(JSON.stringify({ msg: 'extraccion_fallida', receta: id, aviso, error: (e as Error).message.slice(0, 200) }));
       await this.d.db.transaction((tx) => audit(tx, c, 'receta_extraccion_fallida', 'receta', id, null, { aviso }));
     }
     await this.d.db.transaction((tx) => audit(tx, c, 'receta_crear', 'receta', id, null, { paginas: paginas.length, sha256: hashTotal }));

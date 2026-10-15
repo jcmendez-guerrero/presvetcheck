@@ -49,6 +49,12 @@ export const RecetaConfirmada = z.object({
   tipoDispensacion: TipoDispensacion.nullable().default(null),
   clasePrescripcion: ClasePrescripcion.nullable().default(null),
   tipoTratamiento: TipoTratamiento.nullable().default(null),
+  /**
+   * Receta de antimicrobianos (lo indica la receta, p. ej. "Contiene antibiótico: Sí", o lo marca quien registra).
+   * Se suma a lo que dice CIMAVet: basta con que una de las dos fuentes lo indique (validez de 5 días y
+   * declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6).
+   */
+  antimicrobianos: z.boolean().default(false),
   titular: z.object({ nombre: texto, telefono: texto }).default({ nombre: null, telefono: null }),
   rega: texto,
   especie: z

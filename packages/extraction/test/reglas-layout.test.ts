@@ -79,4 +79,11 @@ describe('reglas de prebuilt-layout (sin modelo entrenado)', () => {
     expect(m.lineas[0]?.cn).toMatchObject({ valor: '584159', confianza: 0.5 });
     expect(camposDesdeLayout({ content: 'C.N. 584159' }, 1, []).lineas).toEqual([]);
   });
+
+  it('formato en una sola línea: dosis (dosis + unidades + frecuencia) y duración desde el texto', () => {
+    const content = 'Cantidad: 30,00 Fármaco: PRUEBAVET 1,25 MG 30 COMP. Dosis: 1 Unidades: COMPRIMIDOS Frecuencia: 24\nho Duración (días): 30 Vía admin.: VÍA ORAL';
+    const m = camposDesdeLayout({ content, keyValuePairs: [kv('Fármaco:', 'PRUEBAVET 1,25 MG')] }, 1, []);
+    expect(m.lineas[0]?.duracionDias?.valor).toBe(30);
+    expect(m.lineas[0]?.dosis?.valor).toBe('1 comprimidos cada 24 h');
+  });
 });

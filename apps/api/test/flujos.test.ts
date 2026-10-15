@@ -427,6 +427,10 @@ describe('recepción de mercancía (SPEC §4.9)', () => {
 describe('medicamentos, FEFO y escaneo', () => {
   it('búsqueda, detalle, FEFO y parseo GS1 con heurística de CN', async () => {
     expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/buscar?q=clavubay')).json[0].cn).toBe('570016');
+    // La especie no filtra (cascada): CLAVUBAY es solo para perros y aparece para un gato, marcado.
+    const gato = (await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/buscar?q=clavubay&especie=15')).json;
+    expect(gato[0]).toMatchObject({ cn: '570016', autorizadoEspecie: false });
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/buscar?q=clavubay&especie=14')).json[0].autorizadoEspecie).toBe(true);
     expect((await api(E.app, 'dev-empleado', 'GET', '/api/medicamentos/1868%20ESP')).json.especies).toEqual(['Perros']);
     const f = await api(E.app, 'dev-empleado', 'GET', '/api/stock/570016/fefo?unidades=3&duracionDias=60');
     expect(f.json.propuesta.recomendado.lote).toBe('CLV-2611');
