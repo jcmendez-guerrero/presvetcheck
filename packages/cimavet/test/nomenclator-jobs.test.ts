@@ -101,6 +101,10 @@ describe('importador del Nomenclátor (muestra real, streaming)', () => {
     expect((await repo.buscar('clavubay', { especieId: 14 }))[0]).toMatchObject({ cn: '570016', autorizadoEspecie: true });
     expect(r[0]!.autorizadoEspecie).toBeNull();
     expect(await repo.buscar('   ')).toEqual([]);
+    // Por principio activo (CLAVUBAY lleva amoxicilina), por debajo de una coincidencia de marca.
+    const pa = (await repo.buscar('amoxicilina', { limite: 50 })).find((x) => x.nregistro === '1868 ESP');
+    expect(pa?.puntuacion).toBeGreaterThan(0.5);
+    expect(pa!.puntuacion).toBeLessThan(1);
     expect(await repo.nregistrosMismosPa('1868 ESP')).toContain('1868 ESP');
     expect(await repo.nregistrosConPa([161])).toContain('1868 ESP');
     expect((await repo.presentacionesDe(['1868 ESP'])).map((p) => p.cn)).toContain('570016');

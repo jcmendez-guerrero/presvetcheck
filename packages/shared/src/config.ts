@@ -104,6 +104,10 @@ export const envSchema = z
 
     COLUMN_ENCRYPTION_KEY: optStr,
     WEB_DIST_DIR: optStr,
+    /** URL pública de la web para el QR del móvil. Si falta, la del navegador (en local, la IP de la red). */
+    APP_PUBLIC_URL: optStr.pipe(z.string().url().optional()),
+    /** Horas que dura el emparejamiento del móvil con el PC (un turno). */
+    MOVIL_SESION_HORAS: num(10).pipe(z.number().min(0.25).max(24)),
   })
   .superRefine((env, ctx) => {
     const req = (key: keyof typeof env, why: string) => {

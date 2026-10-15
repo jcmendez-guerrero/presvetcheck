@@ -297,12 +297,18 @@ export class CimavetRepository implements NomenclatorSink {
     // La especie ordena (primero los autorizados) pero no filtra.
     const especie = f.especieId ? sql`exists (select 1 from cimavet_med_especie e where e.nregistro = m.nregistro and e.especie_id = ${f.especieId})` : sql`null::boolean`;
     const filtros = [sql`true`, f.formaId ? sql`m.forma_id = ${f.formaId}` : sql`true`];
+    // Principio activo ("amlodipino" → AMODIP): puntúa un poco menos que la marca para que esta salga antes.
+    const paNorm = sql`lower(translate(a.nombre, 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))`;
     const res = await this.db.execute(sql`
+      with pa as (
+        select a.nregistro, max(word_similarity(${n}, ${paNorm})) as s
+        from cimavet_med_principio_activo a where ${n} <% ${paNorm} group by a.nregistro
+      )
       select p.cn, p.nregistro, p.nombre, m.nombre as medicamento, m.labtitular, p.comerc, p.estado_codigo as estado, ${especie} as autorizado_especie,
              greatest(similarity(p.nombre_norm, ${n}), word_similarity(${n}, p.nombre_norm), word_similarity(${n}, m.nombre_norm),
-                      case when p.cn = ${cn} then 1 else 0 end) as puntuacion
-      from cimavet_presentacion p join cimavet_medicamento m on m.nregistro = p.nregistro
-      where (p.nombre_norm % ${n} or ${n} <% p.nombre_norm or ${n} <% m.nombre_norm or p.nombre_norm like ${`%${n}%`} or p.cn = ${cn})
+                      coalesce(pa.s, 0) * 0.9, case when p.cn = ${cn} then 1 else 0 end) as puntuacion
+      from cimavet_presentacion p join cimavet_medicamento m on m.nregistro = p.nregistro left join pa on pa.nregistro = m.nregistro
+      where (p.nombre_norm % ${n} or ${n} <% p.nombre_norm or ${n} <% m.nombre_norm or p.nombre_norm like ${`%${n}%`} or p.cn = ${cn} or pa.s is not null)
         and ${filtros[0]} and ${filtros[1]}
       order by puntuacion desc, autorizado_especie desc nulls last, p.comerc desc nulls last, p.cn
       limit ${f.limite ?? 10}`);

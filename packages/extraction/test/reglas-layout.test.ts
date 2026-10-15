@@ -86,4 +86,17 @@ describe('reglas de prebuilt-layout (sin modelo entrenado)', () => {
     expect(m.lineas[0]?.duracionDias?.valor).toBe(30);
     expect(m.lineas[0]?.dosis?.valor).toBe('1 comprimidos cada 24 h');
   });
+
+  it('formato en una sola línea: cada valor acaba en la etiqueta siguiente; nombre completo, vía y tipo de dispensación', () => {
+    const content =
+      'Cantidad: 30,00 Fármaco: PRUEBAVET 1,25 MG 30 COMP. Dosis: 1 Unidades: COMPRIMIDOS Frecuencia: 24 ho Duración (días): 30 Vía admin .: VÍA ORAL C. Tratamiento: Terapéutico Principio activo: - Tipo dispensación: Dispensación %Env.total: 100,0 Cód.nac .: 584159 Nº Envases: 1';
+    const m = camposDesdeLayout({ content, keyValuePairs: [kv('Fármaco:', 'PRUEBAVET 1,25 MG 30')] }, 1, []);
+    const l = m.lineas[0]!;
+    expect(l.medicamento?.valor).toBe('PRUEBAVET 1,25 MG 30 COMP');
+    expect(l.dosis?.valor).toBe('1 comprimidos cada 24 h');
+    expect(l.duracionDias?.valor).toBe(30);
+    expect(l.via?.valor).toBe('ORAL');
+    expect(l.cn?.valor).toBe('584159');
+    expect(m.receta.tipoDispensacion?.valor).toBe('Dispensación');
+  });
 });

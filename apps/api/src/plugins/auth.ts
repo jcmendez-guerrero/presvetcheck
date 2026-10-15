@@ -24,7 +24,8 @@ export const USUARIOS_DEV: Record<string, { nombre: string; roles: Rol[] }> = {
   'dev-admin': { nombre: 'Administración de prueba', roles: ['admin'] },
 };
 
-const PUBLICAS = ['/api/health', '/api/ready', '/api/openapi.json', '/api/docs', '/api/config/publica'];
+// `/api/movil/m`: el móvil emparejado; cada ruta exige el token del QR (servicios/movil.ts).
+const PUBLICAS = ['/api/health', '/api/ready', '/api/openapi.json', '/api/docs', '/api/config/publica', '/api/movil/m'];
 
 export interface OpcionesAuth {
   config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'> & { AUTH_EASYAUTH?: boolean };
