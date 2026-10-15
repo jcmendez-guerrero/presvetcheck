@@ -7,6 +7,7 @@ import { Pagina } from '../componentes/layout';
 import { Boton, Cargando, Campo, Mensaje, Tarjeta } from '../componentes/ui';
 
 interface Pendientes {
+  registros: Array<{ id: string; numero: string | null; fecha: string | null; estado: string }>;
   sustituciones: Array<{ id: string; estado: string; modo: string; cnPrescrito: string | null; cnPropuesto: string; indicacion: string | null; antiguedadDias: number; alerta: boolean }>;
   discrepancias: Array<{ id: string; tipo: string; fecha: string; datos: Record<string, unknown> }>;
 }
@@ -47,6 +48,21 @@ export function PaginaPendientes() {
   return (
     <Pagina titulo="Pendientes">
       {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+      <Tarjeta titulo={`Datos del registro por completar (${p.registros.length})`}>
+        {p.registros.length === 0 && <p>No hay recetas con el registro pendiente.</p>}
+        <ul className="divide-y">
+          {p.registros.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                Receta {r.numero ?? '(sin número)'} · dispensada {r.fecha ? fecha(r.fecha.slice(0, 10)) : ''}
+              </span>
+              <Link to="/recetas/$id/registro" params={{ id: r.id }} className="font-semibold text-marca underline">
+                Completar el registro
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Tarjeta>
       <Tarjeta titulo={`Sustituciones en curso (${p.sustituciones.length})`}>
         {p.sustituciones.length === 0 && <p>No hay sustituciones pendientes.</p>}
         <ul className="divide-y">

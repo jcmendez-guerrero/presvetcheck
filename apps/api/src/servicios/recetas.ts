@@ -322,24 +322,8 @@ export class RecetasService {
         por: c.usuario.id,
         at,
       }));
-    let vetId: string | null = r.veterinarioId;
     await this.d.db.transaction(async (tx) => {
-      if (input.veterinario.nombre) {
-        const v = input.veterinario;
-        const [existente] = v.numColegiado
-          ? await tx.select().from(veterinario).where(and(eq(veterinario.numColegiado, v.numColegiado), v.colegio ? eq(veterinario.colegio, v.colegio) : isNull(veterinario.colegio)))
-          : [];
-        if (existente) {
-          vetId = existente.id;
-          await tx.update(veterinario).set({ nombre: v.nombre ?? existente.nombre, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion }).where(eq(veterinario.id, existente.id));
-        } else {
-          const [nv] = await tx
-            .insert(veterinario)
-            .values({ nombre: v.nombre as string, numColegiado: v.numColegiado, colegio: v.colegio, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion })
-            .returning();
-          vetId = nv!.id;
-        }
-      }
+      const vetId = (await this.guardarVeterinario(tx, input)) ?? r.veterinarioId;
       await tx
         .update(receta)
         .set({
@@ -371,6 +355,71 @@ export class RecetasService {
       await audit(tx, c, 'receta_confirmar', 'receta', id, null, { cambios: cambios.map((x) => x.campo) });
     });
     return { correcciones: cambios.length };
+  }
+
+  /** Alta o actualización del veterinario de la receta (por nº de colegiado y colegio). */
+  private async guardarVeterinario(tx: DbOrTx, input: RecetaConfirmada): Promise<string | null> {
+    const v = input.veterinario;
+    if (!v.nombre) return null;
+    const [existente] = v.numColegiado
+      ? await tx.select().from(veterinario).where(and(eq(veterinario.numColegiado, v.numColegiado), v.colegio ? eq(veterinario.colegio, v.colegio) : isNull(veterinario.colegio)))
+      : [];
+    if (existente) {
+      await tx.update(veterinario).set({ nombre: v.nombre ?? existente.nombre, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion }).where(eq(veterinario.id, existente.id));
+      return existente.id;
+    }
+    const [nv] = await tx
+      .insert(veterinario)
+      .values({ nombre: v.nombre, numColegiado: v.numColegiado, colegio: v.colegio, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion })
+      .returning();
+    return nv!.id;
+  }
+
+  /**
+   * Dispensación ágil: datos para el registro transcritos después de dispensar. Solo cambian los datos de
+   * registro (titular, veterinario salvo el nº de colegiado, indicación, identificación del animal y textos y
+   * posología de las líneas); lo comprobado antes de dispensar no se toca. Queda auditado.
+   */
+  async completarRegistro(id: string, input: RecetaConfirmada, c: ContextoPeticion) {
+    const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    const anterior = this.descifrarConfirmacion(r.confirmacion);
+    if (!anterior) throw new DomainError('CONFLICTO', 'La receta aún no se ha revisado');
+    const lineas = anterior.lineas.map((l) => {
+      const n = input.lineas.find((x) => x.orden === l.orden);
+      return n
+        ? { ...l, principioActivoTexto: n.principioActivoTexto, formaTexto: n.formaTexto, concentracionTexto: n.concentracionTexto, formatoTexto: n.formatoTexto, posologia: n.posologia, tiempoEsperaTexto: n.tiempoEsperaTexto }
+        : l;
+    });
+    const nuevo: RecetaConfirmada = {
+      ...anterior,
+      titular: input.titular,
+      veterinario: { ...input.veterinario, numColegiado: anterior.veterinario.numColegiado },
+      indicacion: input.indicacion,
+      animalIdentificacion: input.animalIdentificacion,
+      numAnimales: input.numAnimales,
+      lineas,
+    };
+    const antes = aplanar(anterior);
+    const despues = aplanar(nuevo);
+    const cambios = Object.keys(despues).filter((k) => JSON.stringify(despues[k]) !== JSON.stringify(antes[k]));
+    await this.d.db.transaction(async (tx) => {
+      const vetId = (await this.guardarVeterinario(tx, nuevo)) ?? r.veterinarioId;
+      await tx
+        .update(receta)
+        .set({
+          confirmacion: this.cifrarConfirmacion(nuevo) as never,
+          veterinarioId: vetId,
+          indicacion: nuevo.indicacion,
+          animalIdentificacion: nuevo.animalIdentificacion,
+          numAnimales: nuevo.numAnimales,
+          registroCompletadoAt: ahoraDe(this.d),
+        })
+        .where(eq(receta.id, id));
+      // Sin datos personales en la traza: solo los nombres de los campos.
+      await audit(tx, c, 'receta_completar_registro', 'receta', id, null, { cambios });
+    });
+    return { cambios: cambios.length };
   }
 
   // ── Evaluación ───────────────────────────────────────────────────────────────

@@ -77,9 +77,17 @@ export function ListaEnvases({ envases, setEnvases, recomendado }: { envases: En
     <ul className="flex flex-col gap-2">
       {envases.map((e, i) => (
         <li key={i} className={`grid items-end gap-2 rounded-xl p-3 sm:grid-cols-5 ${recomendado && e.lote && e.lote !== recomendado ? 'bg-sustituir-bg' : 'bg-fondo'}`}>
-          <Campo etiqueta="Lote" value={e.lote} onChange={(x) => upd(i, { lote: x.target.value })} />
+          <Campo etiqueta="Lote" autoFocus={e.metodoCaptura === 'manual' && !e.lote} value={e.lote} onChange={(x) => upd(i, { lote: x.target.value })} />
           <Campo etiqueta="Caducidad" type="date" value={e.caducidad ?? ''} onChange={(x) => upd(i, { caducidad: x.target.value || null })} />
-          <Campo etiqueta={CN} value={e.cnEscaneado ?? ''} readOnly />
+          {/* A mano se puede escribir el código nacional del envase para cruzarlo con el prescrito. */}
+          <Campo
+            etiqueta={CN}
+            inputMode="numeric"
+            maxLength={7}
+            value={e.cnEscaneado ?? ''}
+            readOnly={e.metodoCaptura !== 'manual'}
+            onChange={(x) => upd(i, { cnEscaneado: x.target.value.replace(/\D/g, '') || null })}
+          />
           <Campo etiqueta="Envases" type="number" min={1} value={e.unidades} onChange={(x) => upd(i, { unidades: Number(x.target.value) || 1 })} />
           <Boton variante="texto" aria-label="Quitar envase" onClick={() => setEnvases((x) => x.filter((_, j) => j !== i))}>
             <Trash2 className="h-5 w-5" /> Quitar
@@ -134,7 +142,7 @@ export function Dispensacion() {
   // Envases que pide la receta, para compararlos con los que se escanean.
   const receta = useQuery({
     queryKey: ['receta-disp', id],
-    queryFn: () => get<{ confirmacion: { lineas: { orden: number; cantidadEnvases: number | null }[] } | null }>(`/api/recetas/${id}`),
+    queryFn: () => get<{ confirmacion: { registroDiferido?: boolean; lineas: { orden: number; cantidadEnvases: number | null }[] } | null }>(`/api/recetas/${id}`),
   });
   const pedidos = receta.data?.confirmacion?.lineas.find((x) => x.orden === orden)?.cantidadEnvases ?? null;
   const { envases, setEnvases, leer, error, gs } = useEnvases();
@@ -209,6 +217,15 @@ export function Dispensacion() {
         {res.apartarReceta?.etiqueta && <Imprimible titulo="Etiqueta para el dorso de la receta" texto={res.apartarReceta.etiqueta} />}
         {res.notaAdministracion && <Imprimible titulo="Nota de administración para el tutor (obligatoria)" texto={res.notaAdministracion} />}
         {res.resguardo && <Imprimible titulo="Resguardo para el tutor" texto={res.resguardo} />}
+        {receta.data?.confirmacion?.registroDiferido && (
+          <Mensaje tipo="aviso">
+            Faltan los datos para el registro (titular, veterinario, posología…).{' '}
+            <Link to="/recetas/$id/registro" params={{ id }} className="font-semibold underline" data-testid="completar-registro">
+              Completarlos ahora
+            </Link>{' '}
+            o más tarde desde «Pendientes».
+          </Mensaje>
+        )}
         <div className="flex gap-3">
           <Link to="/recetas/$id/resultado" params={{ id }} className="boton rounded-xl bg-marca px-5 py-3 font-semibold text-white">
             Volver a la receta

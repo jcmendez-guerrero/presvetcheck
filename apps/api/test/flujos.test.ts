@@ -517,7 +517,7 @@ describe('distribuidor en texto libre, titular con DNI y dirección, informes de
     expect((await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { albaran: 'X' })).status).toBe(400);
   });
 
-  it('dirección y DNI del titular: opcionales, cifrados y llevados a la salida', async () => {
+  it('dirección y DNI del titular: opcionales, cifrados y en el registro de salidas si se pide', async () => {
     const id = await crearReceta(E.app);
     await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), titular: { nombre: 'Titular Prueba', telefono: '600000000', direccion: 'Calle Falsa 123', dni: '12345678Z' } }));
     const [row] = await E.h.db.select().from(receta).where(eq(receta.id, id));
@@ -525,12 +525,48 @@ describe('distribuidor en texto libre, titular con DNI y dirección, informes de
     expect(JSON.stringify(row!.confirmacion)).not.toContain('12345678Z');
     expect((await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion.titular).toMatchObject({ direccion: 'Calle Falsa 123', dni: '12345678Z' });
     await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
-    const d = await dispensar('dev-empleado', { recetaId: id });
-    expect(d.status).toBe(201);
-    const [disp] = await E.h.db.select().from(dispensacion).where(eq(dispensacion.recetaId, id));
-    const [p] = await E.h.db.select().from(propietario).where(eq(propietario.id, disp!.propietarioId!));
-    expect(p!.direccionEnc).toBeTruthy();
-    expect(p!.dniEnc).not.toContain('12345678Z');
+    expect((await dispensar('dev-empleado', { recetaId: id })).status).toBe(201);
+    const t = (await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2020-01-01&hasta=2030-12-31&incluirPropietario=1')).json.tablas[0];
+    const fila = t.filas.find((f: string[]) => f.includes('Calle Falsa 123'));
+    expect(fila).toBeTruthy();
+    // DNI enmascarado salvo administración con MFA.
+    expect(fila.join('|')).not.toContain('12345678Z');
+  });
+
+  it('dispensación ágil: se dispensa con lo esencial y el registro se completa después (Pendientes)', async () => {
+    const id = await crearReceta(E.app);
+    await confirmar(E.app, id, (r) => ({
+      ...recetaCorrecta()(r),
+      registroDiferido: true,
+      titular: { nombre: null, telefono: null, direccion: null, dni: null },
+      indicacion: null,
+      veterinario: { ...r.veterinario, nombre: null },
+    }));
+    const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    const motivos = ev.json.lineas[0].resultado.motivos.map((m: { code: string }) => m.code);
+    expect(motivos).toContain('REGISTRO_PENDIENTE');
+    expect(motivos).not.toContain('TITULAR_NOMBRE_FALTA');
+    expect((await dispensar('dev-empleado', { recetaId: id })).status).toBe(201);
+    const pend = (await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.registros as { id: string }[];
+    expect(pend.map((x) => x.id)).toContain(id);
+
+    const base = (await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion;
+    const colegiado = base.veterinario.numColegiado;
+    const r = await api(E.app, 'dev-empleado', 'PUT', `/api/recetas/${id}/registro`, {
+      ...base,
+      titular: { ...base.titular, nombre: 'Titular Ágil' },
+      indicacion: 'Otitis externa',
+      veterinario: { ...base.veterinario, nombre: 'Vet Ágil', numColegiado: '99/9999' },
+      numero: 'CAMBIADO',
+    });
+    expect(r.status).toBe(200);
+    const despues = (await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion;
+    expect(despues).toMatchObject({ indicacion: 'Otitis externa', titular: { nombre: 'Titular Ágil' }, veterinario: { nombre: 'Vet Ágil', numColegiado: colegiado } });
+    // Lo comprobado antes de dispensar no cambia.
+    expect(despues.numero).toBe(base.numero);
+    expect(((await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.registros as { id: string }[]).map((x) => x.id)).not.toContain(id);
+    const sal = (await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2020-01-01&hasta=2030-12-31&incluirPropietario=1')).json.tablas[0];
+    expect(sal.filas.some((f: string[]) => f.includes('Titular Ágil') && f.includes('Vet Ágil'))).toBe(true);
   });
 
   it('informes: todas las salidas juntas y entradas + salidas por fecha', async () => {

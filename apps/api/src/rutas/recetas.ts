@@ -59,6 +59,12 @@ export async function rutasRecetas(app: App, d: AppDeps) {
     async (req) => svc.confirmar(req.params.id, req.body, ctx(req)),
   );
 
+  app.put(
+    '/api/recetas/:id/registro',
+    { preHandler: pre, schema: { tags: ['recetas'], summary: 'Completa los datos para el registro (también tras dispensar)', params: IdParam, body: RecetaConfirmada } },
+    async (req) => svc.completarRegistro(req.params.id, req.body, ctx(req)),
+  );
+
   app.post(
     '/api/recetas/:id/validez',
     { preHandler: pre, schema: { tags: ['recetas'], summary: 'Validez (y si está caducada) con los datos del formulario, sin guardarlos', params: IdParam, body: RecetaConfirmada } },

@@ -34,8 +34,15 @@ export function validarCampos(
     return regla.compania;
   };
 
+  // Dispensación ágil: en compañía, los datos diferibles que constan en la receta se transcriben después.
+  const diferido = r.registroDiferido && !produccion;
+  const pendientes = new Set<CampoReceta>();
   const exigir = (campo: CampoReceta, ok: boolean, extra: { linea?: number; params?: Record<string, string | number> } = {}) => {
     if (ok) return;
+    if (diferido && pol.rules.diferibles_registro.includes(campo)) {
+      pendientes.add(campo);
+      return;
+    }
     const sev = severidadCampo(campo);
     if (sev === 'NO_APLICA' || sev === 'OPCIONAL') return;
     const regla = pol.rules.campos[campo];
@@ -98,5 +105,6 @@ export function validarCampos(
       exigir('declaracion_antimicrobiano', l.declaracionAntimicrobiano?.declarada === true, { linea });
     }
   }
+  if (pendientes.size) out.push(incidencia('REGISTRO_PENDIENTE', pol, { params: { campos: [...pendientes].join(', ') } }));
   return out;
 }

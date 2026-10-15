@@ -349,6 +349,11 @@
     "donde": "Medicamento elegido",
     "accion": "Elige un medicamento equivalente"
   },
+  "REGISTRO_PENDIENTE": {
+    "titulo": "Datos para el registro pendientes de transcribir",
+    "donde": "Datos para el registro",
+    "accion": "Complétalos después de dispensar (Pendientes → Completar el registro)"
+  },
   "CADUCIDAD_PROXIMA_ENTRADA": {
     "titulo": "El lote {lote} caduca el {fecha} (menos de {dias} días)",
     "donde": "Línea de entrada",
