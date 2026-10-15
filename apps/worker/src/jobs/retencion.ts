@@ -1,32 +1,101 @@
-import { and, isNotNull, lt, notInArray, sql } from 'drizzle-orm';
-import { appendAudit, dispensacion, pedidoPendiente, propietario, receta } from '@mmx/db';
+import { and, eq, inArray, isNull, lt, notExists, sql } from 'drizzle-orm';
+import {
+  appendAudit,
+  discrepancia,
+  dispensacion,
+  outbox,
+  pedidoPendiente,
+  propietario,
+  receta,
+  recetaImagen,
+  recetaLinea,
+  recepcion,
+  recepcionAjuste,
+  recepcionLinea,
+  reportRun,
+  sustitucion,
+} from '@mmx/db';
 import type { Contexto } from '../contexto';
 
 /**
- * Retención (SPEC §9.2, job mensual `retention-sweep`): pasados 5 años se anonimizan los datos personales
- * de recetas y propietarios. Los registros de salidas/entradas son append-only y no contienen datos
- * personales directos (el propietario está en su tabla cifrada). Las imágenes de Blob las elimina la
- * política de ciclo de vida/inmutabilidad (infra/), no la app.
+ * Retención (SPEC §9.2, job mensual `retention-sweep`; DUDA-24 resuelta): pasados 5 años los datos SE
+ * ELIMINAN — dispensaciones (registro de salidas), recetas con sus líneas, imágenes y sustituciones,
+ * propietarios, recepciones (registro de entradas), pedidos, outbox cerrado, discrepancias resueltas y
+ * reportes. El borrado en las tablas de solo inserción solo lo admite la base de datos con la marca de
+ * purga de la sesión y para filas de más de 5 años (migración 0004). El rastro de auditoría no contiene
+ * datos personales y se conserva. Nunca se borra con menos de 5 años, aunque se pida.
  */
 export async function retentionSweep(ctx: Contexto, args: Record<string, string>) {
-  const anios = Number(args.anios ?? 5);
+  const anios = Math.max(5, Number(args.anios ?? 5));
   const limite = new Date(ctx.clock.now().epochMilliseconds);
   limite.setUTCFullYear(limite.getUTCFullYear() - anios);
-  return ctx.db.transaction(async (tx) => {
-    const recetas = await tx
-      .update(receta)
-      .set({ extraccion: null, confirmacion: sql`case when ${receta.confirmacion} is null then null else jsonb_set(${receta.confirmacion}, '{titular}', '{"nombre": null, "telefono": null}'::jsonb) end`, animalIdentificacion: null, rega: null })
-      .where(and(lt(receta.createdAt, limite), isNotNull(receta.confirmacion)))
-      .returning({ id: receta.id });
-    // Propietarios sin dispensaciones recientes: se vacían sus datos (la fila se conserva por la FK).
-    const recientes = tx.select({ id: dispensacion.propietarioId }).from(dispensacion).where(and(isNotNull(dispensacion.propietarioId), sql`${dispensacion.fechaVenta} >= ${limite.toISOString()}::timestamptz`));
+  const lim = sql`${limite.toISOString()}::timestamptz`;
+  const blobs: { c: 'recetas' | 'reportes'; path: string }[] = [];
+
+  const res = await ctx.db.transaction(async (tx) => {
+    // Marca de purga de la sesión (las tablas con guarda la exigen además de los 5 años).
+    await tx.execute(sql`set local mmx.purga_retencion = 'on'`);
+
+    // 1. Registros de solo inserción (salidas y ajustes de entrada): función de la BD con permisos propios.
+    const reg = await tx.execute(sql`select mmx_purgar_registros(${lim}) as r`);
+    const filas = (Array.isArray(reg) ? reg : (reg as { rows: unknown[] }).rows) as Array<{ r: { dispensaciones: number; ajustes: number } }>;
+    const purgados = filas[0]?.r ?? { dispensaciones: 0, ajustes: 0 };
+
+    // 2. Recetas antiguas sin dispensaciones restantes, con todo lo que cuelga de ellas.
+    const conDisp = tx.select({ x: sql`1` }).from(dispensacion).where(eq(dispensacion.recetaId, receta.id));
+    const recetas = (await tx.select({ id: receta.id }).from(receta).where(and(lt(receta.createdAt, limite), notExists(conDisp)))).map((r) => r.id);
+    if (recetas.length) {
+      const lineas = (await tx.select({ id: recetaLinea.id }).from(recetaLinea).where(inArray(recetaLinea.recetaId, recetas))).map((l) => l.id);
+      if (lineas.length) {
+        await tx.delete(sustitucion).where(inArray(sustitucion.recetaLineaId, lineas));
+        await tx.delete(pedidoPendiente).where(inArray(pedidoPendiente.recetaLineaId, lineas));
+        await tx.delete(recetaLinea).where(inArray(recetaLinea.id, lineas));
+      }
+      const imgs = await tx.delete(recetaImagen).where(inArray(recetaImagen.recetaId, recetas)).returning({ path: recetaImagen.blobPath });
+      blobs.push(...imgs.map((i) => ({ c: 'recetas' as const, path: i.path.replace(/^recetas\//, '') })));
+      await tx.delete(receta).where(inArray(receta.id, recetas));
+    }
+
+    // 3. Propietarios antiguos ya sin dispensaciones ni recetas.
+    const usadoD = tx.select({ x: sql`1` }).from(dispensacion).where(eq(dispensacion.propietarioId, propietario.id));
+    const usadoR = tx.select({ x: sql`1` }).from(receta).where(eq(receta.propietarioId, propietario.id));
     const props = await tx
-      .update(propietario)
-      .set({ nombreEnc: null, movilEnc: null, dniEnc: null, direccionEnc: null, dniHash: null })
-      .where(and(lt(propietario.createdAt, limite), notInArray(propietario.id, sql`(${recientes})`), isNotNull(propietario.nombreEnc)))
+      .delete(propietario)
+      .where(and(lt(propietario.createdAt, limite), notExists(usadoD), notExists(usadoR)))
       .returning({ id: propietario.id });
-    await tx.update(pedidoPendiente).set({ contactoTutorEnc: null }).where(and(lt(pedidoPendiente.createdAt, limite), isNotNull(pedidoPendiente.contactoTutorEnc)));
-    await appendAudit(tx, { actor: 'retention-sweep', accion: 'retencion_anonimizar', entidad: 'sistema', entidadId: null, despues: { recetas: recetas.length, propietarios: props.length, limite: limite.toISOString() } });
-      return { recetasAnonimizadas: recetas.length, propietariosAnonimizados: props.length, limite: limite.toISOString().slice(0, 10) };
+
+    // 4. Entradas: recepciones antiguas cuyas líneas ya no tienen ajustes (los recientes se conservan).
+    const ajusteVivo = tx
+      .select({ x: sql`1` })
+      .from(recepcionAjuste)
+      .innerJoin(recepcionLinea, eq(recepcionLinea.id, recepcionAjuste.recepcionLineaId))
+      .where(eq(recepcionLinea.recepcionId, recepcion.id));
+    const recs = (await tx.select({ id: recepcion.id }).from(recepcion).where(and(lt(recepcion.createdAt, limite), notExists(ajusteVivo)))).map((r) => r.id);
+    if (recs.length) {
+      await tx.delete(recepcionLinea).where(inArray(recepcionLinea.recepcionId, recs));
+      await tx.delete(recepcion).where(inArray(recepcion.id, recs));
+    }
+
+    // 5. Resto: pedidos sin línea, outbox cerrado, discrepancias y reportes.
+    await tx.delete(pedidoPendiente).where(and(lt(pedidoPendiente.createdAt, limite), isNull(pedidoPendiente.recetaLineaId)));
+    await tx.delete(outbox).where(and(lt(outbox.createdAt, limite), inArray(outbox.status, ['sent', 'failed'])));
+    await tx.delete(discrepancia).where(lt(discrepancia.createdAt, limite));
+    const reps = await tx.delete(reportRun).where(lt(reportRun.generadoAt, limite)).returning({ path: reportRun.blobPath });
+    blobs.push(...reps.filter((r) => r.path).map((r) => ({ c: 'reportes' as const, path: (r.path as string).replace(/^reportes\//, '') })));
+
+    const resumen = { dispensaciones: purgados.dispensaciones, ajustesEntrada: purgados.ajustes, recetas: recetas.length, propietarios: props.length, recepciones: recs.length, reportes: reps.length };
+    await appendAudit(tx, { actor: 'retention-sweep', accion: 'retencion_eliminar', entidad: 'sistema', entidadId: null, despues: { ...resumen, limite: limite.toISOString() } });
+    return resumen;
   });
+
+  // Ficheros en Blob tras confirmar el borrado en BD (el ciclo de vida de Blob los borra también).
+  let blobsBorrados = 0;
+  for (const b of blobs) {
+    try {
+      if (await ctx.blob.delete(b.c, b.path)) blobsBorrados++;
+    } catch (e) {
+      ctx.log('retention-sweep: no se pudo borrar un fichero (lo hará el ciclo de vida de Blob)', { contenedor: b.c, error: (e as Error).message });
+    }
+  }
+  return { ...res, blobsBorrados, limite: limite.toISOString().slice(0, 10) };
 }

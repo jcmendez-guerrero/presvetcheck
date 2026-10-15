@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { CimavetClient, CimavetRepository } from '@mmx/cimavet';
-import { ColumnCipher, discrepancia, dispensacion, propietario, receta, reportRun, auditEvent, type DbHandle } from '@mmx/db';
+import { ColumnCipher, discrepancia, dispensacion, distribuidor, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { fixedClock } from '@mmx/domain';
 import { ConsoleMailer, MemoryBlobStore, semanaAnterior } from '@mmx/reports';
@@ -111,17 +111,45 @@ describe('worker', () => {
     expect(await JOBS['outbox-dispatcher']!({ ...ctx, siweb: {} as never }, {})).toEqual({ inactivo: 'SIWEB_STOCK_WRITE_MODE=off' });
   });
 
-  it('retention-sweep anonimiza recetas y propietarios de más de 5 años sin tocar los registros', async () => {
+  it('retention-sweep ELIMINA lo de más de 5 años (salidas, recetas con imágenes, propietarios, entradas) y deja lo reciente', async () => {
     const viejo = new Date('2020-01-01T00:00:00Z');
     const [p] = await h.db.insert(propietario).values({ nombreEnc: ctx.cipher.encrypt('Nombre'), dniEnc: ctx.cipher.encrypt('12345678Z'), createdAt: viejo }).returning();
-    const [r] = await h.db.insert(receta).values({ tipo: 'papel', creadaPor: 'x', createdAt: viejo, confirmacion: { titular: { nombre: 'cifrado', telefono: 'cifrado' } }, extraccion: { cifrado: 'v1:x' } }).returning();
-    const res = (await JOBS['retention-sweep']!(ctx, {})) as { recetasAnonimizadas: number; propietariosAnonimizados: number };
-    expect(res).toMatchObject({ recetasAnonimizadas: 1, propietariosAnonimizados: 1 });
-    const [r2] = await h.db.select().from(receta).where(eq(receta.id, r!.id));
-    expect(r2!.extraccion).toBeNull();
-    expect((r2!.confirmacion as { titular: unknown }).titular).toEqual({ nombre: null, telefono: null });
-    const [p2] = await h.db.select().from(propietario).where(eq(propietario.id, p!.id));
-    expect(p2!.dniEnc).toBeNull();
+    const [r] = await h.db.insert(receta).values({ tipo: 'papel', creadaPor: 'x', createdAt: viejo, propietarioId: p!.id }).returning();
+    const [l] = await h.db.insert(recetaLinea).values({ recetaId: r!.id, orden: 1, createdAt: viejo }).returning();
+    await blob.put('recetas', `${r!.id}/pagina-1.png`, new Uint8Array([1]), 'image/png');
+    await h.db.insert(recetaImagen).values({ recetaId: r!.id, pagina: 1, blobPath: `${r!.id}/pagina-1.png`, mime: 'image/png', sha256: 'x', createdAt: viejo });
+    const base = { canal: 'presencial', conReceta: true, cn: '570016', nombreFarmaco: 'X', lote: 'L', unidades: 1, metodoCaptura: 'manual', empleado: 'e', fechaVenta: viejo, createdAt: viejo };
+    const [dv] = await h.db.insert(dispensacion).values({ ...base, recetaId: r!.id, recetaLineaId: l!.id, propietarioId: p!.id }).returning();
+    // Original antiguo con anulación reciente: se conservan los dos.
+    const [o] = await h.db.insert(dispensacion).values({ ...base, conReceta: false }).returning();
+    await h.db.insert(dispensacion).values({ ...base, conReceta: false, anulaDispensacionId: o!.id, motivoAnulacion: 'x', createdAt: new Date('2026-01-01T00:00:00Z'), fechaVenta: new Date('2026-01-01T00:00:00Z') });
+    const [d] = await h.db.insert(distribuidor).values({ nombre: 'Viejo' }).returning();
+    const [rc] = await h.db.insert(recepcion).values({ distribuidorId: d!.id, fechaCompra: '2020-01-01', empleado: 'e', createdAt: viejo }).returning();
+    await h.db.insert(recepcionLinea).values({ recepcionId: rc!.id, numero: 1, nombreFarmaco: 'X', unidades: 1, empleado: 'e', origenDatos: 'manual', createdAt: viejo });
+    await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, rc!.id));
+
+    // Sin la marca de purga la base de datos no deja borrar ni lo antiguo.
+    await expect(h.db.delete(dispensacion).where(eq(dispensacion.id, dv!.id))).rejects.toThrow();
+
+    const res = (await JOBS['retention-sweep']!(ctx, { anios: '1' })) as Record<string, unknown>;
+    expect(res).toMatchObject({ dispensaciones: 1, recetas: 1, propietarios: 1, recepciones: 1, blobsBorrados: 1 });
+    expect(await h.db.select().from(receta).where(eq(receta.id, r!.id))).toEqual([]);
+    expect(await h.db.select().from(propietario).where(eq(propietario.id, p!.id))).toEqual([]);
+    expect(await h.db.select().from(dispensacion).where(eq(dispensacion.id, o!.id))).toHaveLength(1);
+    expect(await blob.get('recetas', `${r!.id}/pagina-1.png`)).toBeNull();
+    // Lo reciente sigue (las dispensaciones de 2026 del beforeAll) y la auditoría registra la purga.
+    expect((await h.db.select().from(dispensacion)).length).toBeGreaterThanOrEqual(4);
+    expect((await h.db.select().from(auditEvent).where(eq(auditEvent.accion, 'retencion_eliminar'))).length).toBe(1);
+  });
+
+  it('con la marca de purga, la base de datos sigue impidiendo borrar filas de menos de 5 años', async () => {
+    const [x] = await h.db.select().from(dispensacion).limit(1);
+    await expect(
+      h.db.transaction(async (tx) => {
+        await tx.execute(sql`set local mmx.purga_retencion = 'on'`);
+        await tx.delete(dispensacion).where(eq(dispensacion.id, x!.id));
+      }),
+    ).rejects.toThrow();
   });
 
   it('nomenclator-import exige fichero o muestra', async () => {

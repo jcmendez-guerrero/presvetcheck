@@ -5,6 +5,8 @@ import type { BlobServiceClient } from '@azure/storage-blob';
 export interface BlobStore {
   put(contenedor: 'recetas' | 'reportes', path: string, bytes: Uint8Array, mime: string): Promise<string>;
   get(contenedor: 'recetas' | 'reportes', path: string): Promise<{ bytes: Uint8Array; mime: string } | null>;
+  /** Borrado por retención (> 5 años). La inmutabilidad temporal del contenedor impide borrar antes. */
+  delete(contenedor: 'recetas' | 'reportes', path: string): Promise<boolean>;
 }
 
 export class MemoryBlobStore implements BlobStore {
@@ -15,6 +17,9 @@ export class MemoryBlobStore implements BlobStore {
   }
   async get(c: string, path: string) {
     return this.m.get(`${c}/${path}`) ?? null;
+  }
+  async delete(c: string, path: string) {
+    return this.m.delete(`${c}/${path}`);
   }
 }
 
@@ -51,6 +56,11 @@ export class AzureBlobStore implements BlobStore {
     const buf = await blob.downloadToBuffer();
     const props = await blob.getProperties();
     return { bytes: new Uint8Array(buf), mime: props.contentType ?? 'application/octet-stream' };
+  }
+
+  async delete(c: 'recetas' | 'reportes', path: string) {
+    const r = await this.svc.getContainerClient(c).getBlockBlobClient(path).deleteIfExists();
+    return r.succeeded;
   }
 }
 
