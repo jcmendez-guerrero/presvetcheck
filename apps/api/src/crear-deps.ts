@@ -9,10 +9,13 @@ import type { AppConfig } from '@mmx/shared';
 import { findUp, loadRules, secretoKeyVault } from '@mmx/shared/node';
 import {
   BandejaSiweb,
+  DemoSalesMovementsSource,
+  NotConfiguredSalesMovementsSource,
   OutboxService,
   SiwebClient,
   SkuReservas,
   StockService,
+  TicketsSalesMovementsSource,
   VariantResolver,
   crearCatalogWriter,
   resolverAlmacen,
@@ -46,6 +49,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
   const tokenSiweb = config.SIWEB_TOKEN ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, 'siweb-token').catch(() => undefined) : undefined);
   let siweb: AppDeps['siweb'] = null;
   let stock: AppDeps['stock'];
+  let ventas: AppDeps['ventas'] = new NotConfiguredSalesMovementsSource();
   const deps0 = { config, rules: { bundle: rules.bundle, files: rules.files } };
   if (tokenSiweb) {
     const sc = new SiwebClient({ baseUrl: config.SIWEB_BASE_URL, token: tokenSiweb });
@@ -62,11 +66,14 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
       stockActual: (id) => sc.stock(id),
     };
     stock = new SiwebStockPort(resolver, new StockService(sc, almacenId), () => politica(deps0));
+    // TODO(decision D-02b): validar con tickets reales que las líneas llevan el CN en el nombre.
+    if (config.SIWEB_SALES_SOURCE === 'tickets') ventas = new TicketsSalesMovementsSource(sc, config.SIWEB_TICKET_CN_REGEX);
   } else {
     if (prod) throw new Error('Falta el token de Siweb360 en producción');
     const demo = findUp('fixtures/siweb/demo-stock.json', process.cwd());
     if (!demo) throw new Error('Sin token de Siweb360 y sin stock de demostración');
     stock = new DemoStockPort(demo);
+    ventas = new DemoSalesMovementsSource(db);
     log('Siweb360 sin token: se usa el stock SINTÉTICO de fixtures/siweb/demo-stock.json');
   }
 
@@ -85,6 +92,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     verificarEnVivo: (nregistro) => verificarEnVivo({ client, repo: cimavet }, nregistro, config.CIMAVET_LIVE_CHECK_MAX_AGE_H),
     stock,
     siweb,
+    ventas,
     extractor: await crearExtractor(config, { fixturesDir: fixturesRecetas, hoy: () => hoy(clock) }),
     blob:
       !prod && config.BLOB_CONNECTION_STRING === 'memory'

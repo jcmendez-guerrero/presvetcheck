@@ -3,6 +3,7 @@ import { appendAudit, discrepancia, outbox, pedidoPendiente, receta, sustitucion
 import { DomainError } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
 import type { ContextoPeticion } from './recetas';
+import { ConciliacionService } from './conciliacion';
 
 const DIA = 24 * 3600 * 1000;
 
@@ -24,6 +25,7 @@ export class PendientesService {
     const discrepancias = await this.d.db.select().from(discrepancia).where(eq(discrepancia.estado, 'abierta')).orderBy(desc(discrepancia.fecha)).limit(100);
     return {
       registros: await this.registrosPendientes(),
+      sinConciliar: await new ConciliacionService(this.d).pendientes(),
       sustituciones: sust.map((s) => {
         const dias = Math.floor((ahora - s.createdAt.getTime()) / DIA);
         return {

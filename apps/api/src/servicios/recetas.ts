@@ -277,6 +277,7 @@ export class RecetasService {
       creadaPor: r.creadaPor,
       createdAt: r.createdAt,
       primeraDispensacionAt: r.primeraDispensacionAt,
+      registroCompletadoAt: r.registroCompletadoAt,
       validezEfectiva: r.validezEfectiva,
       reglaVersion: r.reglaVersion,
       imagenes: imagenes.map((i) => ({ pagina: i.pagina, mime: i.mime, url: `/api/recetas/${id}/imagenes/${i.pagina}` })),

@@ -5,6 +5,9 @@ import { appendAudit } from '@mmx/db';
 import { ROLES, exigirMfa, requiereRol, usuario } from '../plugins/auth';
 import { IdParam, RegistrosQuery, ResolverDiscrepanciaDto } from '../schemas';
 import { PendientesService } from '../servicios/pendientes';
+import { ConciliacionService } from '../servicios/conciliacion';
+import { z } from 'zod';
+import { IsoDate } from '@mmx/shared';
 import { RegistrosService } from '@mmx/reports';
 import { ctx, enviarFichero, type App } from './comun';
 
@@ -73,6 +76,30 @@ export async function rutasRegistros(app: App, d: AppDeps) {
 
   // ── Pendientes de la operativa (sustituciones en curso y discrepancias) ────────────
   const operativa = requiereRol(...ROLES.operativa);
+
+  // ── Conciliación de salidas con los tickets del TPV ──────────────────────────────
+  const conc = new ConciliacionService(d);
+  app.post(
+    '/api/conciliacion',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Concilia las salidas de un día con los tickets (cierre=true: lo que quede sin pareja pasa a discrepancia)',
+        body: z.object({ fecha: IsoDate.optional(), cierre: z.boolean().default(false) }).default({ cierre: false }),
+      },
+    },
+    async (req) => conc.conciliarDias([req.body?.fecha ?? conc.hoy()], ctx(req), { origen: req.body?.cierre ? 'cierre-manual' : 'bajo-demanda', cierre: req.body?.cierre ?? false }),
+  );
+  app.get('/api/recetas/:id/conciliacion', { preHandler: operativa, schema: { tags: ['conciliacion'], summary: 'Estado de conciliación de las salidas de la receta', params: IdParam } }, async (req) => ({
+    configurado: conc.configurado,
+    salidas: await conc.estadoReceta(req.params.id),
+  }));
+  app.post(
+    '/api/demo/tpv',
+    { preHandler: operativa, schema: { tags: ['conciliacion'], summary: 'DEMO: simula el cobro en el TPV (ticket sin lote)', body: z.object({ cn: z.string().regex(/^\d{6}$/), unidades: z.number().int().positive().max(99) }) } },
+    async (req, reply) => reply.status(201).send(await conc.cobrarDemo(req.body.cn, req.body.unidades, ctx(req))),
+  );
   app.get('/api/pendientes', { preHandler: operativa, schema: { tags: ['pendientes'] } }, async () => pend.listado());
   app.post('/api/discrepancias/:id/resolver', { preHandler: operativa, schema: { tags: ['pendientes'], params: IdParam, body: ResolverDiscrepanciaDto } }, async (req) =>
     pend.resolverDiscrepancia(req.params.id, req.body.nota, ctx(req)),

@@ -56,6 +56,7 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
 
   return (
     <Tarjeta titulo={<span className="flex flex-wrap items-center gap-3">Medicamento {l.orden} <EstadoDecision decision={decision} /></span>}>
+      <AvisoSuministro motivos={l.resultado.motivos.map((m) => m.code)} />
       {ev.psicotropo && <p className="mb-2 font-semibold text-psicotropo">Psicótropo: un envase por receta, DNI de quien lo retira y receta apartada.</p>}
       <ListaMotivos motivos={l.resultado.motivos} />
 
@@ -79,6 +80,7 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
             <div key={s.cn} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sustituir-bg p-3">
               <span>
                 {s.nombre} · {s.labtitular} · {CN} {s.cn} · caduca {fecha(s.caducidadFefo)}
+                {s.psum && <strong className="ml-2 text-noconforme">Problemas de suministro</strong>}
                 {s.modo === 'PRE' && <strong className="ml-2">Necesita aprobación previa del garante (consúltale y regístrala)</strong>}
               </span>
               <Boton onClick={() => void sustituir(s.cn)}>Iniciar sustitución</Boton>
@@ -91,7 +93,7 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
           <p>
             Pedir {ev.pedido.nombre} ({CN} {ev.pedido.cn}, {ev.pedido.labtitular ?? '—'}){ev.pedido.psum && ' · con problemas de suministro'}
           </p>
-          {ev.pedido.equivalentes.length > 0 && <p className="mt-1 text-sm">Equivalentes sin stock: {ev.pedido.equivalentes.map((x) => `${x.nombre} (${x.cn})`).join(', ')}</p>}
+          {ev.pedido.equivalentes.length > 0 && <p className="mt-1 text-sm">Equivalentes sin stock: {ev.pedido.equivalentes.map((x) => `${x.nombre} (${x.cn})${x.psum ? ' · problemas de suministro' : ''}`).join(', ')}</p>}
           {ev.sustitucionBloqueada.length > 0 && <p className="mt-1 text-sm">No se puede sustituir (ver motivos).</p>}
           <Boton
             className="mt-2"
@@ -152,4 +154,21 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
       )}
     </Tarjeta>
   );
+}
+
+/** Banda destacada con los problemas de suministro que informa CIMAVet (o que no se han podido comprobar). */
+function AvisoSuministro({ motivos }: { motivos: string[] }) {
+  if (motivos.includes('PROBLEMA_SUMINISTRO'))
+    return (
+      <p data-testid="aviso-suministro" className="mb-3 rounded-xl bg-noconforme-bg px-3 py-2 font-semibold text-noconforme">
+        Problemas de suministro según CIMAVet: si hay que pedirlo puede tardar o no llegar; valora sustituir.
+      </p>
+    );
+  if (motivos.includes('SUMINISTRO_NO_COMPROBADO'))
+    return (
+      <p data-testid="aviso-suministro" className="mb-3 rounded-xl bg-fondo px-3 py-2 text-sm text-slate-700">
+        No se ha podido comprobar en CIMAVet si hay problemas de suministro.
+      </p>
+    );
+  return null;
 }

@@ -1,6 +1,8 @@
 import { and, asc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   cimavetMedicamento,
+  conciliacion,
+  discrepancia,
   dispensacion,
   distribuidor,
   maskDni,
@@ -14,21 +16,11 @@ import {
 } from '@mmx/db';
 import type { ColumnCipher, Db } from '@mmx/db';
 import type { Entrada, MovimientoPsicotropo } from './entradas';
+import { rangoMadrid } from '@mmx/shared';
 import type { Salida } from './salidas';
 
-/** Rango [desde 00:00, hasta+1 00:00) en Europe/Madrid → instantes UTC. */
-export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
-  const aUtc = (iso: string) => {
-    // Desfase de Madrid ese día (CET/CEST), calculado con Intl.
-    const guess = new Date(`${iso}T00:00:00Z`);
-    const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' }).formatToParts(guess).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
-    const h = Number(/GMT([+-]\d+)/.exec(offset)?.[1] ?? 1);
-    return new Date(guess.getTime() - h * 3600_000);
-  };
-  const fin = new Date(`${hasta}T00:00:00Z`);
-  fin.setUTCDate(fin.getUTCDate() + 1);
-  return [aUtc(desde), aUtc(fin.toISOString().slice(0, 10))];
-}
+// Se mantiene la exportación desde @mmx/reports (la usan el worker y la API).
+export { rangoMadrid };
 
 /** Consultas de los registros de entradas y salidas (API y reportes semanales). */
 /**
@@ -51,13 +43,14 @@ export class RegistrosService {
   async salidas(desde: string, hasta: string, opts: { incluirPropietario: boolean; dniCompleto: boolean }): Promise<Salida[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
     const filas = await this.d.db
-      .select({ d: dispensacion, r: receta, v: veterinario, p: propietario, pl: plataformaRecetaElectronica, s: sustitucion })
+      .select({ d: dispensacion, r: receta, v: veterinario, p: propietario, pl: plataformaRecetaElectronica, s: sustitucion, cc: conciliacion })
       .from(dispensacion)
       .leftJoin(receta, eq(receta.id, dispensacion.recetaId))
       .leftJoin(veterinario, eq(veterinario.id, receta.veterinarioId))
       .leftJoin(propietario, eq(propietario.id, dispensacion.propietarioId))
       .leftJoin(plataformaRecetaElectronica, eq(plataformaRecetaElectronica.id, receta.plataformaId))
       .leftJoin(sustitucion, eq(sustitucion.id, dispensacion.sustitucionId))
+      .leftJoin(conciliacion, eq(conciliacion.dispensacionId, dispensacion.id))
       .where(and(gte(dispensacion.fechaVenta, ini), lt(dispensacion.fechaVenta, fin), sql`${dispensacion.anulaDispensacionId} is null`))
       .orderBy(asc(dispensacion.fechaVenta));
     const anuladas = new Set(
@@ -68,8 +61,13 @@ export class RegistrosService {
           .where(sql`${dispensacion.anulaDispensacionId} is not null`)
       ).map((x) => x.id),
     );
+    const conDiscrepancia = new Set(
+      (await this.d.db.select({ datos: discrepancia.datos }).from(discrepancia).where(eq(discrepancia.estado, 'abierta')))
+        .map((x) => (x.datos as { dispensacionId?: string | null }).dispensacionId)
+        .filter(Boolean),
+    );
     const c = this.d.cipher;
-    return filas.map(({ d, r, v, p, pl, s }) => {
+    return filas.map(({ d, r, v, p, pl, s, cc }) => {
       const dni = p ? c.decrypt(p.dniEnc) : null;
       const firma = (s?.autorizacion as { firma?: { garante?: string } } | null)?.firma?.garante ?? null;
       return {
@@ -107,6 +105,8 @@ export class RegistrosService {
         empleado: d.empleado,
         metodoCaptura: d.metodoCaptura,
         anulada: anuladas.has(d.id),
+        registro: !r ? 'no aplica' : (r.confirmacion as { registroDiferido?: boolean } | null)?.registroDiferido && !r.registroCompletadoAt ? 'pendiente' : 'completo',
+        conciliacion: cc ? 'conciliada' : conDiscrepancia.has(d.id) ? 'discrepancia' : 'pendiente',
       };
     });
   }

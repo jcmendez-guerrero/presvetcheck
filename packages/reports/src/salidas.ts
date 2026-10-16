@@ -72,6 +72,10 @@ export interface Salida {
   empleado: string;
   metodoCaptura: string;
   anulada: boolean;
+  /** Datos del registro de la receta: completos, pendientes de transcribir o sin receta. */
+  registro?: 'completo' | 'pendiente' | 'no aplica';
+  /** Conciliación con el ticket del TPV. */
+  conciliacion?: 'conciliada' | 'pendiente' | 'discrepancia';
 }
 
 const sn = (b: boolean) => (b ? 'S' : 'N');

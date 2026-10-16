@@ -73,6 +73,8 @@ describe('receta → revisión → resultado → dispensación', () => {
     const l = ev.json.lineas[0];
     expect(l.resultado.decision).toBe('DISPENSAR');
     expect(l.resultado.evidencias.lotes.recomendado.lote).toBe('CLV-2611');
+    // El Nomenclátor no informa problemas de suministro y en los tests no hay CIMAVet en vivo: se avisa.
+    expect(l.resultado.motivos.map((m: { code: string }) => m.code)).toContain('SUMINISTRO_NO_COMPROBADO');
     expect(ev.json.validez).toMatchObject({ caso: 'antimicrobiano', efectiva: '2026-10-18' });
     expect(ev.json.reglaVersion).toMatch(/^receta-campos\.v1@/);
   });
@@ -567,6 +569,51 @@ describe('distribuidor en texto libre, titular con DNI y dirección, informes de
     expect(((await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.registros as { id: string }[]).map((x) => x.id)).not.toContain(id);
     const sal = (await api(E.app, 'dev-empleado', 'GET', '/api/registros/salidas?desde=2020-01-01&hasta=2030-12-31&incluirPropietario=1')).json.tablas[0];
     expect(sal.filas.some((f: string[]) => f.includes('Titular Ágil') && f.includes('Vet Ágil'))).toBe(true);
+  });
+
+  it('conciliación con el ticket: pendiente sin ticket, conciliada al cobrar, discrepancia si no cuadran las unidades; sin duplicados', async () => {
+    const completar = async (id: string) => {
+      const base = (await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.confirmacion;
+      return (await api(E.app, 'dev-empleado', 'PUT', `/api/recetas/${id}/registro`, { ...base, titular: { ...base.titular, nombre: 'Titular TPV' } })).json;
+    };
+    const nueva = async () => {
+      const id = await crearReceta(E.app);
+      await confirmar(E.app, id, (r) => ({ ...recetaCorrecta()(r), registroDiferido: true }));
+      await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+      expect((await dispensar('dev-empleado', { recetaId: id })).status).toBe(201);
+      return id;
+    };
+    // Sin ticket: pendiente (durante el día no es discrepancia).
+    const a = await nueva();
+    expect((await completar(a)).conciliacion.salidas).toEqual([expect.objectContaining({ estado: 'pendiente' })]);
+    const pendientesAntes = (await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.sinConciliar.salidas.length;
+    expect(pendientesAntes).toBeGreaterThan(0);
+    // Se cobra en el TPV (demo) → una salida de ese medicamento y unidades queda conciliada (el ticket no trae
+    // lote ni receta: se empareja con una salida pendiente con el mismo código nacional y unidades).
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/demo/tpv', { cn: '570016', unidades: 1 })).status).toBe(201);
+    const r1 = await api(E.app, 'dev-empleado', 'POST', '/api/conciliacion', {});
+    expect(r1.json).toMatchObject({ configurado: true, conciliadas: 1, loteSinVerificar: 1, discrepancias: 0 });
+    expect((await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.sinConciliar.salidas).toHaveLength(pendientesAntes - 1);
+    // Repetir no duplica.
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/conciliacion', {})).json.conciliadas).toBe(0);
+    // Cobro con otras unidades → discrepancia al guardar el registro (no se repite al volver a conciliar).
+    const b = await nueva();
+    await api(E.app, 'dev-empleado', 'POST', '/api/demo/tpv', { cn: '570016', unidades: 3 });
+    await completar(b);
+    const disc = () => api(E.app, 'dev-empleado', 'GET', '/api/pendientes').then((x) => x.json.discrepancias.filter((d: { tipo: string }) => d.tipo === 'UNIDADES_DISTINTAS').length);
+    expect(await disc()).toBe(1);
+    await api(E.app, 'dev-empleado', 'POST', '/api/conciliacion', {});
+    expect(await disc()).toBe(1);
+    // Al cierre, lo que queda sin ticket pasa a discrepancia.
+    const cierre = await api(E.app, 'dev-empleado', 'POST', '/api/conciliacion', { cierre: true });
+    expect(cierre.json.discrepancias).toBeGreaterThan(0);
+    // Solo quedan las fracciones, que no se venden como envase en el TPV y se revisan a mano.
+    const quedan = (await api(E.app, 'dev-empleado', 'GET', '/api/pendientes')).json.sinConciliar.salidas as { fraccion: boolean }[];
+    expect(quedan.every((x) => x.fraccion)).toBe(true);
+    // Informe: estado del registro y de la conciliación de cada salida.
+    const t = (await api(E.app, 'dev-empleado', 'GET', '/api/registros/todas-salidas?desde=2020-01-01&hasta=2030-12-31')).json.tablas[0];
+    expect(t.columnas.slice(-2)).toEqual(['REGISTRO', 'CONCILIACIÓN CON TICKET']);
+    expect(t.filas.map((f: string[]) => f.at(-1))).toEqual(expect.arrayContaining(['conciliada', 'discrepancia']));
   });
 
   it('informes: todas las salidas juntas y entradas + salidas por fecha', async () => {

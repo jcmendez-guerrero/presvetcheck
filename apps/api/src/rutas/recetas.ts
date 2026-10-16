@@ -4,6 +4,7 @@ import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import { EvaluarBody, IdParam } from '../schemas';
 import { RecetasService } from '../servicios/recetas';
+import { ConciliacionService } from '../servicios/conciliacion';
 import type { FastifyRequest } from 'fastify';
 import { ctx, type App } from './comun';
 
@@ -62,7 +63,11 @@ export async function rutasRecetas(app: App, d: AppDeps) {
   app.put(
     '/api/recetas/:id/registro',
     { preHandler: pre, schema: { tags: ['recetas'], summary: 'Completa los datos para el registro (también tras dispensar)', params: IdParam, body: RecetaConfirmada } },
-    async (req) => svc.completarRegistro(req.params.id, req.body, ctx(req)),
+    async (req) => {
+      const r = await svc.completarRegistro(req.params.id, req.body, ctx(req));
+      // Con el registro completo, la salida se concilia con el ticket del TPV (si ya se ha cobrado).
+      return { ...r, conciliacion: await new ConciliacionService(d).conciliarReceta(req.params.id, ctx(req)) };
+    },
   );
 
   app.post(

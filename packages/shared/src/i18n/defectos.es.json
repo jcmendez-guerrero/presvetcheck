@@ -214,6 +214,11 @@
     "donde": "Ficha del medicamento",
     "accion": "El farmacéutico garante decide si se dispensa desde existencias"
   },
+  "SUMINISTRO_NO_COMPROBADO": {
+    "titulo": "No se ha podido comprobar en CIMAVet si {medicamento} tiene problemas de suministro",
+    "donde": "Medicamento",
+    "accion": "Informativo: si hay que pedirlo, consúltalo con el distribuidor"
+  },
   "PROBLEMA_SUMINISTRO": {
     "titulo": "{medicamento} tiene problemas de suministro",
     "donde": "Ficha del medicamento",
@@ -350,9 +355,9 @@
     "accion": "Elige un medicamento equivalente"
   },
   "REGISTRO_PENDIENTE": {
-    "titulo": "Datos para el registro pendientes de transcribir",
+    "titulo": "Los datos para el registro de salidas se anotan tras dispensar",
     "donde": "Datos para el registro",
-    "accion": "Complétalos después de dispensar (Pendientes → Completar el registro)"
+    "accion": "Al confirmar la dispensación, transcríbelos o déjalos en Pendientes"
   },
   "CADUCIDAD_PROXIMA_ENTRADA": {
     "titulo": "El lote {lote} caduca el {fecha} (menos de {dias} días)",

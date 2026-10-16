@@ -1,4 +1,4 @@
-import { bigserial, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { bigserial, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { pk, timestamps } from './common';
 
 /** Outbox de escrituras en Siweb360 (SPEC §5.2.5). */
@@ -108,3 +108,34 @@ export const sesionMovilEvento = pgTable(
   },
   (t) => [index().on(t.sesionId, t.seq)],
 );
+
+/**
+ * Conciliación de cada salida con su ticket del TPV (SPEC §5.2.4). La dispensación es de solo inserción, así
+ * que el resultado va aparte: una fila por salida conciliada (una sola vez: `dispensacion_id` único).
+ */
+export const conciliacion = pgTable(
+  'conciliacion',
+  {
+    id: pk(),
+    dispensacionId: uuid().notNull().unique(),
+    /** Movimiento de venta (línea de ticket) con el que se ha emparejado. */
+    movimientoId: text().notNull(),
+    ticket: text(),
+    /** false si el ticket no trae lote (Siweb360): conciliada por código nacional y unidades. */
+    loteVerificado: boolean().notNull(),
+    /** registro (al completar el registro) | bajo-demanda | sales-reconciliation (job diario). */
+    origen: text().notNull(),
+    at: timestamp({ withTimezone: true }).notNull(),
+  },
+  (t) => [index().on(t.movimientoId)],
+);
+
+/** Tickets SIMULADOS del TPV para la demo («Simular cobro en TPV»). Imposibles en producción. */
+export const ticketDemo = pgTable('ticket_demo', {
+  id: pk(),
+  numero: text().notNull(),
+  cn: text().notNull(),
+  unidades: integer().notNull(),
+  fecha: timestamp({ withTimezone: true }).notNull(),
+  creadoPor: text().notNull(),
+});

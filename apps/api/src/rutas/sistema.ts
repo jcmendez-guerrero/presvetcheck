@@ -24,6 +24,8 @@ export async function rutasSistema(app: App, d: AppDeps) {
     permitirCambioFormato: d.config.ALLOW_PACK_SIZE_CHANGE,
     permitirParcial: d.config.ALLOW_PARTIAL_DISPENSATION,
     stock: d.stock.tipo,
+    // Fuente de tickets para conciliar: Siweb360, simulada (demo) o ninguna.
+    ventas: !d.ventas.configurado ? 'off' : 'demo' in d.ventas ? 'demo' : 'siweb',
     escrituraStock: d.config.SIWEB_STOCK_WRITE_MODE,
     fechaCorteEntradas: d.config.ENTRY_CUTOVER_DATE ?? null,
     telefonoFarmacia: d.telefonoFarmacia,

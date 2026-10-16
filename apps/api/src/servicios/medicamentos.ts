@@ -92,6 +92,7 @@ export class MedicamentosService {
       principiosActivos: m.composicion.pas.map((x) => x.nombre.toLowerCase()).join(' + ') || null,
       concentracion: concentracionDelNombre(m.nombre) ?? concentracion(m),
       antibiotico: m.antibiotico,
+      psum: m.psum,
       autorizadoEspecie: especieId === null ? null : m.especieIds.includes(especieId),
     };
   }
