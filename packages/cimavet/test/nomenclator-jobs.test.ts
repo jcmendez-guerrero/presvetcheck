@@ -171,8 +171,9 @@ describe('jobs de sincronización', () => {
   it('cimavet-delta: si registroCambios falla, el job falla y se registra el error', async () => {
     server.use(http.get(`${BASE}registroCambios`, () => new HttpResponse(null, { status: 500 })));
     await expect(jobCimavetDelta({ client, repo, now: () => new Date('2026-10-16T04:30:00Z') })).rejects.toThrow();
-    const [ultimo] = await repo.ultimasSync(1);
-    expect(ultimo?.error).toMatch(/HTTP 500/);
+    // Se busca la ejecución fallida (las demás pruebas registran ejecuciones con la fecha real).
+    const fallida = (await repo.ultimasSync(50)).find((x) => x.error);
+    expect(fallida?.error).toMatch(/HTTP 500/);
   });
 
   it('cimavet-full: reimporta maestras y refresca los registros con más de 7 días', async () => {
@@ -198,10 +199,19 @@ describe('jobs de sincronización', () => {
     expect(r).toMatchObject({ leidos: N });
   });
 
-  it('verificación en vivo: caché reciente → sin llamada; antigua y CIMAVet caído → aviso con la fecha de la caché', async () => {
+  it('verificación en vivo: suministro desconocido → consulta aunque la caché sea reciente; antigua y CIMAVet caído → aviso con la fecha de la caché', async () => {
+    // Del Nomenclátor: sin `psum` → se consulta CIMAVet aunque la caché sea reciente.
+    expect((await repo.medicamento('1868 ESP'))?.psum).toBeNull();
+    server.use(
+      http.get(`${BASE}medicamento`, () => HttpResponse.json({ ...med1868, psum: true })),
+      http.get(`${BASE}notas/:n`, () => HttpResponse.json([])),
+    );
+    expect(await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24)).toEqual({ actualizado: true, cacheDesde: null });
+    expect((await repo.medicamento('1868 ESP'))?.psum).toBe(true);
+    // Ya conocido y reciente: sin llamada.
+    server.use(http.get(`${BASE}medicamento`, () => HttpResponse.error()));
     const reciente = await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24);
     expect(reciente).toEqual({ actualizado: false, cacheDesde: null });
-    server.use(http.get(`${BASE}medicamento`, () => HttpResponse.error()));
     const caido = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000), log: () => {} }, '1868 ESP', 24);
     expect(caido.actualizado).toBe(false);
     expect(caido.cacheDesde).toBeInstanceOf(Date);

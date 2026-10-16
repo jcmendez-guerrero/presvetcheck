@@ -141,7 +141,9 @@ export async function verificarEnVivo(
 ): Promise<{ actualizado: boolean; cacheDesde: Date | null }> {
   const now = (deps.now ?? (() => new Date()))();
   const actual = await deps.repo.medicamento(nregistro);
-  if (actual && now.getTime() - actual.fetchedAt.getTime() <= maxAgeH * 3600 * 1000) return { actualizado: false, cacheDesde: null };
+  // Caché reciente y con el suministro conocido: no hace falta CIMAVet. El Nomenclátor no trae `psum`, así
+  // que un medicamento cargado de él se consulta en vivo aunque sea reciente.
+  if (actual && actual.psum !== null && now.getTime() - actual.fetchedAt.getTime() <= maxAgeH * 3600 * 1000) return { actualizado: false, cacheDesde: null };
   try {
     const ok = await refrescarDesdeApi(deps, nregistro);
     return { actualizado: ok, cacheDesde: ok ? null : (actual?.fetchedAt ?? null) };

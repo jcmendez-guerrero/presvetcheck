@@ -6,3 +6,4 @@ export * from './mapeo';
 export * from './tareas';
 export * from './outbox';
 export * from './ventas';
+export * from './conciliacion';

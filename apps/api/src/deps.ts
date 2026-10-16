@@ -4,7 +4,7 @@ import type { Clock, PoliticaSeveridad, RecipeExtractor } from '@mmx/domain';
 import { hoy } from '@mmx/domain';
 import type { AppConfig, RulesBundle } from '@mmx/shared';
 import type { LoadedRuleFile } from '@mmx/shared/node';
-import type { BandejaSiweb, OutboxService, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
+import type { BandejaSiweb, OutboxService, SalesMovementsSource, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
 import type { BlobStore } from '@mmx/reports';
 import type { StockPort } from './puertos/stock';
 
@@ -26,6 +26,11 @@ export interface AppDeps {
     outbox: OutboxService;
     stockActual: (variantId: number) => Promise<unknown>;
   } | null;
+  /**
+   * Movimientos de venta (tickets del TPV) para conciliar las salidas: Siweb360, tickets simulados en la demo
+   * (`DemoSalesMovementsSource`, nunca en producción) o sin configurar.
+   */
+  ventas: SalesMovementsSource;
   extractor: RecipeExtractor;
   blob: BlobStore;
   cipher: ColumnCipher;

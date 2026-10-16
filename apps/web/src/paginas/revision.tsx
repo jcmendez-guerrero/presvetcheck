@@ -32,6 +32,7 @@ interface ResumenCimavet {
   principiosActivos: string | null;
   concentracion: string | null;
   autorizadoEspecie: boolean | null;
+  psum: boolean | null;
 }
 interface StockFefo {
   estado: string;
@@ -478,23 +479,50 @@ export function Revision() {
             />
           ))}
 
-          <TarjetaRegistro r={r} set={set} dud={dud} />
+          {/* Animales productores de alimentos: los datos de registro se piden antes de dispensar. */}
+          {r.especieProduccion && (
+            <Tarjeta titulo="Datos de la explotación y del tratamiento (animal de producción)">
+              <p className="mb-3 text-sm text-slate-600">
+                En animales productores de alimentos estos datos se comprueban antes de dispensar.
+              </p>
+              <DatosRegistro r={r} set={set} dud={dud} />
+            </Tarjeta>
+          )}
 
           <Tarjeta>
-            <label className="flex items-center gap-3 text-lg font-semibold">
+            <label className="flex items-start gap-3">
               <input
                 data-testid="comprobado"
                 type="checkbox"
-                className="h-7 w-7"
+                className="mt-1 h-7 w-7 shrink-0"
                 checked={!!r.comprobadoConOriginal}
-                onChange={(e) => set((x) => ({ ...x, comprobadoConOriginal: e.target.checked }))}
+                // En compañía, el resto de datos de la receta (titular, veterinario, posología…) se transcribe tras
+                // dispensar: con esta casilla la persona confirma que constan en la receta.
+                onChange={(e) =>
+                  set((x) => ({
+                    ...x,
+                    comprobadoConOriginal: e.target.checked,
+                    registroDiferido: e.target.checked && !x.especieProduccion,
+                  }))
+                }
               />
-              He comprobado con la receta original los datos para dispensar <Info texto={AYUDA.comprobado} />
+              <span>
+                <span className="text-lg font-semibold">
+                  He comprobado con la receta original los datos para dispensar
+                </span>{' '}
+                <Info texto={AYUDA.comprobado} />
+                {!r.especieProduccion && (
+                  <span className="block text-sm text-slate-600">
+                    y que incluye el resto de datos obligatorios (titular, veterinario, indicación,
+                    posología), que se anotan después de dispensar.
+                  </span>
+                )}
+              </span>
             </label>
             {msg && <Mensaje tipo={msg.t}>{msg.m}</Mensaje>}
             <div className="mt-4 flex flex-wrap gap-3">
               <Boton data-testid="evaluar" disabled={!r.comprobadoConOriginal} onClick={() => void evaluar()}>
-                Comprobar la receta
+                Ver qué dispensar
               </Boton>
               <Boton
                 variante="secundario"
@@ -511,59 +539,6 @@ export function Revision() {
         </div>
       </div>
     </Pagina>
-  );
-}
-
-/** Bloque 2 de la revisión: datos para el registro, con la opción de transcribirlos después de dispensar. */
-function TarjetaRegistro({
-  r,
-  set,
-  dud,
-}: {
-  r: RecetaConfirmadaInput;
-  set: (f: (x: RecetaConfirmadaInput) => RecetaConfirmadaInput) => void;
-  dud: (k: string) => boolean;
-}) {
-  const produccion = !!r.especieProduccion;
-  const diferido = !!r.registroDiferido && !produccion;
-  const [abierto, setAbierto] = useState(!diferido);
-  return (
-    <Tarjeta titulo="2 · Datos para el registro">
-      {produccion ? (
-        <p className="mb-3 text-sm text-slate-600">
-          Animal productor de alimentos: estos datos se comprueban antes de dispensar.
-        </p>
-      ) : (
-        <label className="mb-3 flex items-start gap-3 rounded-xl bg-fondo p-3">
-          <input
-            data-testid="registro-diferido"
-            type="checkbox"
-            className="mt-1 h-6 w-6 shrink-0"
-            checked={diferido}
-            onChange={(e) => {
-              set((x) => ({ ...x, registroDiferido: e.target.checked }));
-              setAbierto(!e.target.checked);
-            }}
-          />
-          <span>
-            <span className="font-semibold">
-              La receta incluye estos datos: los transcribo después de dispensar
-            </span>{' '}
-            <Info texto={AYUDA.registroDiferido} />
-            <span className="block text-sm text-slate-600">
-              Titular, veterinario, indicación, identificación del animal y posología. Quedará en «Pendientes»
-              hasta que los completes.
-            </span>
-          </span>
-        </label>
-      )}
-      {diferido && (
-        <Boton variante="texto" onClick={() => setAbierto((a) => !a)}>
-          {abierto ? 'Ocultar los datos leídos' : 'Ver o corregir ahora los datos leídos'}
-        </Boton>
-      )}
-      {(abierto || !diferido) && <DatosRegistro r={r} set={set} dud={dud} />}
-    </Tarjeta>
   );
 }
 
@@ -878,6 +853,11 @@ function LineaForm({
                 )}
                 {!ficha.data.comerc && (
                   <p className="mt-1 text-sm font-semibold text-sustituir">No comercializado</p>
+                )}
+                {ficha.data.psum && (
+                  <p data-testid="psum-revision" className="mt-1 text-sm font-semibold text-noconforme">
+                    Problemas de suministro según CIMAVet
+                  </p>
                 )}
               </>
             ) : (

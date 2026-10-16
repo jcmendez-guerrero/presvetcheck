@@ -4,6 +4,7 @@ export * from './codes';
 export * from './errors';
 export * from './rules';
 export * from './text';
+export * from './madrid';
 export * from './schemas/receta';
 export * from './schemas/extraccion';
 export * from './i18n';

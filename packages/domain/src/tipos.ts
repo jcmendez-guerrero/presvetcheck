@@ -67,7 +67,8 @@ export interface MedicamentoInfo {
   tiemposEspera: TiempoEspera[];
   estado: EstadoAutorizacion;
   comerc: boolean;
-  psum: boolean;
+  /** Problemas de suministro según CIMAVet; null = desconocido (el Nomenclátor no lo informa). */
+  psum: boolean | null;
   notas: boolean;
   composicion: Composicion;
 }

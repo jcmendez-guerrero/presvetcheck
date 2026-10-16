@@ -229,6 +229,7 @@ describe('casos de SPEC §12.2 en la evaluación', () => {
     ${'no comercializado'}              | ${{ comerc: false }}                   | ${{}}                                                                    | ${'MEDICAMENTO_NO_COMERCIALIZADO:AVISO'}
     ${'presentación no comercializada'} | ${{}}                                  | ${{ comerc: false }}                                                     | ${'MEDICAMENTO_NO_COMERCIALIZADO:AVISO'}
     ${'problema de suministro'}         | ${{ psum: true }}                      | ${{}}                                                                    | ${'PROBLEMA_SUMINISTRO:AVISO'}
+    ${'suministro desconocido'}         | ${{ psum: null }}                      | ${{}}                                                                    | ${'SUMINISTRO_NO_COMPROBADO:AVISO'}
     ${'notas de seguridad'}             | ${{ notas: true }}                     | ${{}}                                                                    | ${'NOTAS_SEGURIDAD:AVISO'}
     ${'especie no autorizada'}          | ${{ especieIds: [ESPECIE.GATOS] }}     | ${{}}                                                                    | ${'MEDICAMENTO_ESPECIE_NO_AUTORIZADA:AVISO'}
   `('medicamento $descripcion', ({ m, p, esperado }) => {

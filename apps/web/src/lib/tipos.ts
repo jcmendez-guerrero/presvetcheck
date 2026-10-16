@@ -23,6 +23,7 @@ export interface Sustituto {
   nota: string | null;
   origen: string;
   equivalencia: { indicacion: string };
+  psum?: boolean | null;
 }
 export interface Evidencias {
   forzable: boolean;
@@ -34,7 +35,7 @@ export interface Evidencias {
   sustitutos: Sustituto[];
   descartados: { cn: string; nombre: string; motivos: string[] }[];
   sustitucionBloqueada: string[];
-  pedido?: { cn: string; nombre: string; labtitular: string | null; psum: boolean; equivalentes: { cn: string; nombre: string; labtitular: string | null }[] };
+  pedido?: { cn: string; nombre: string; labtitular: string | null; psum: boolean | null; equivalentes: { cn: string; nombre: string; labtitular: string | null; psum?: boolean | null }[] };
 }
 export interface LineaEvaluada {
   orden: number;

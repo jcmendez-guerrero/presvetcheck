@@ -242,7 +242,7 @@ export class CimavetRepository implements NomenclatorSink {
         })),
         estado: m.estadoCodigo as MedicamentoInfo['estado'],
         comerc: m.comerc ?? de(pres).some((p) => p.comerc === true),
-        psum: m.psum ?? false,
+        psum: m.psum ?? null,
         notas: m.notas ?? false,
         composicion: {
           pas: de(pas).map((p) => ({ paId: p.paId, nombre: p.nombre ?? `PA ${p.paId}`, cantidad: p.cantidadRaw, unidad: p.unidadRaw })),

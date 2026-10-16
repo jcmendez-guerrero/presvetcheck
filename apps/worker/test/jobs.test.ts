@@ -104,6 +104,9 @@ describe('worker', () => {
     const conVentas = { ...ctx, clock: fixedClock('2026-10-14T20:00:00Z'), ventas: { configurado: true, movimientos: async () => [{ id: 'm1', variantId: 1, cn: '570025', lote: 'OTRO', unidades: 1, fecha: '2026-10-14' }] } };
     expect(await JOBS['sales-reconciliation']!(conVentas, {})).toEqual({ conciliadas: 0, loteSinVerificar: 0, discrepancias: 1 });
     expect((await h.db.select().from(discrepancia))[0]?.tipo).toBe('LOTE_DISTINTO');
+    // Repetir el cierre no duplica la discrepancia.
+    expect(await JOBS['sales-reconciliation']!(conVentas, {})).toEqual({ conciliadas: 0, loteSinVerificar: 0, discrepancias: 0 });
+    expect(await h.db.select().from(discrepancia)).toHaveLength(1);
   });
 
   it('outbox-dispatcher inactivo sin Siweb360 o con escritura desactivada', async () => {

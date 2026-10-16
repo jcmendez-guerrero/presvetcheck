@@ -124,6 +124,8 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
     if (estado === 'revocado') incs.push(incidencia('MEDICAMENTO_REVOCADO', pol, { linea, params: p }));
     if (!m.comerc || !res.presentacion.comerc) incs.push(incidencia('MEDICAMENTO_NO_COMERCIALIZADO', pol, { linea, params: p }));
     if (m.psum) incs.push(incidencia('PROBLEMA_SUMINISTRO', pol, { linea, params: p }));
+    // Desconocido (Nomenclátor sin consulta a CIMAVet): se avisa para que no se dé por bueno.
+    else if (m.psum === null) incs.push(incidencia('SUMINISTRO_NO_COMPROBADO', pol, { linea, params: p }));
     if (m.notas) incs.push(incidencia('NOTAS_SEGURIDAD', pol, { linea, params: p }));
     if (r.especie.especieId !== null && !autorizadoParaEspecie(m, r.especie.especieId, e.rules.equivalencia.especie_padre)) {
       incs.push(incidencia('MEDICAMENTO_ESPECIE_NO_AUTORIZADA', pol, { linea, params: p }));

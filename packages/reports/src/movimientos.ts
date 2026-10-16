@@ -27,6 +27,8 @@ export const COLUMNAS_TODAS_SALIDAS = [
   'SUSTITUCIÓN (S/N)',
   'ANULADA (S/N)',
   'EMPLEADO',
+  'REGISTRO',
+  'CONCILIACIÓN CON TICKET',
 ] as const;
 
 const ordenFecha = (a: Date | string, b: Date | string) => new Date(a).getTime() - new Date(b).getTime();
@@ -55,6 +57,8 @@ export function tablaTodasSalidas(salidas: Salida[]): Tabla {
         sn(s.esSustitucion),
         sn(s.anulada),
         s.empleado,
+        s.registro ?? '',
+        s.conciliacion ?? '',
       ]),
   };
 }

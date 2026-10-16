@@ -1,3 +1,4 @@
+import { DemoSalesMovementsSource } from '@mmx/siweb';
 import { resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { CimavetRepository, jobNomenclatorImport, type RegistroCache } from '@mmx/cimavet';
@@ -100,6 +101,8 @@ export async function entorno(o: { config?: Record<string, string>; stock?: Reco
     verificarEnVivo: null,
     stock,
     siweb: null,
+    // Tickets simulados (como la demo): POST /api/demo/tpv.
+    ventas: new DemoSalesMovementsSource(h.db),
     extractor: new FakeRecipeExtractor({ dir: resolve(ROOT, 'fixtures/recetas'), hoy: () => hoy(CLOCK) }),
     blob: new MemoryBlobStore(),
     cipher: new ColumnCipher(Buffer.alloc(32, 3).toString('base64')),

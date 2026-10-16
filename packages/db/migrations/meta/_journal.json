@@ -50,6 +50,13 @@
       "when": 1792103859982,
       "tag": "0006_registro_diferido",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792142860119,
+      "tag": "0007_conciliacion",
+      "breakpoints": true
     }
   ]
 }

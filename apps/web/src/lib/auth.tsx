@@ -15,6 +15,7 @@ export interface ConfigPublica {
   modoSustitucion: 'PRE' | 'POST';
   permitirParcial: boolean;
   stock: 'siweb' | 'demo';
+  ventas?: 'siweb' | 'demo' | 'off';
   escrituraStock: string;
   fechaCorteEntradas: string | null;
   telefonoFarmacia: string;

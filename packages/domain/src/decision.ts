@@ -75,6 +75,8 @@ export interface Sustituto {
   precioCoste: string | null;
   envases: number;
   nota: string | null;
+  /** Problemas de suministro según CIMAVet (null = desconocido). */
+  psum: boolean | null;
 }
 
 export interface EvidenciasDecision {
@@ -102,8 +104,8 @@ export interface EvidenciasDecision {
     cn: string;
     nombre: string;
     labtitular: string | null;
-    psum: boolean;
-    equivalentes: { cn: string; nombre: string; labtitular: string | null; psum: boolean }[];
+    psum: boolean | null;
+    equivalentes: { cn: string; nombre: string; labtitular: string | null; psum: boolean | null }[];
   };
 }
 
@@ -263,6 +265,7 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
         precioCoste: x.c.precioCoste ?? null,
         envases: Math.min(P.envases, x.disponible),
         nota: null,
+        psum: x.c.medicamento.psum,
       });
     }
   }
