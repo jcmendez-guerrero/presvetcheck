@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { camposDesdeLayout, destinoDeEtiqueta, limpiarValor, separarEtiqueta } from '../src/azure/reglas-layout';
+import { camposDesdeLayout, titularDesdeTexto, destinoDeEtiqueta, limpiarValor, separarEtiqueta } from '../src/azure/reglas-layout';
 
 const region = [{ pageNumber: 1, polygon: [0, 0, 1, 0, 1, 1, 0, 1] }];
 const kv = (key: string, value: string | null, confidence = 0.99) => ({ key: { content: key }, ...(value === null ? {} : { value: { content: value, boundingRegions: region } }), confidence });
@@ -98,5 +98,25 @@ describe('reglas de prebuilt-layout (sin modelo entrenado)', () => {
     expect(l.via?.valor).toBe('ORAL');
     expect(l.cn?.valor).toBe('584159');
     expect(m.receta.tipoDispensacion?.valor).toBe('Dispensación');
+  });
+});
+
+describe('titular: solo dentro de su bloque', () => {
+  it('formato Medivet: nombre, DNI, teléfonos y dirección del bloque CLIENTE (no el de la mascota)', () => {
+    const t = titularDesdeTexto(
+      'CLIENTE: Nombre: PRUEBA GARCÍA, ANA\nNIF: 12345678Z Teléfono: 912000000600000000 Dirección: C/ FALSA 1 - 28100 Provincia: Madrid - Alcobendas\nMASCOTA:\nNombre: ROCKY\nEspecie: CANINA',
+    );
+    expect(t).toEqual({ titularNombre: 'PRUEBA GARCÍA, ANA', titularDni: '12345678Z', titularTelefono: '912000000 / 600000000', titularDireccion: 'C/ FALSA 1 - 28100, Madrid - Alcobendas' });
+  });
+
+  it('sin bloque de titular no se toma ningún «Nombre:»', () => {
+    expect(titularDesdeTexto('Nombre: ROCKY\nResponsable: Dra. Pérez\nTeléfono: 912000000')).toEqual({});
+  });
+
+  it('los campos del titular quedan con confianza baja (se revisan)', () => {
+    const m = camposDesdeLayout({ content: 'PROPIETARIO: Nombre: ANA PRUEBA Teléfono: 600000000\nPACIENTE: Nombre: TOBY' }, 1, []);
+    expect(m.receta.titularNombre).toMatchObject({ valor: 'ANA PRUEBA' });
+    expect(m.receta.titularNombre!.confianza).toBeLessThan(0.85);
+    expect(m.receta.titularTelefono?.valor).toBe('600000000');
   });
 });

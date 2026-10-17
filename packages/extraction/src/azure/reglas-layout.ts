@@ -7,8 +7,9 @@ import type { AnalyzeResult } from './docintel';
  * Modo sin entrenamiento (DUDA-27): `prebuilt-layout` de Document Intelligence con pares clave-valor y unas
  * reglas que llevan cada etiqueta impresa de la receta ("Nº Colegiado", "Fármaco", "Cód.nac."…) a su campo.
  * Sirve mientras no hay modelo personalizado y para pre-etiquetar recetas para entrenarlo. Es conservador:
- * - solo se mapean etiquetas inequívocas; los datos del propietario (nombre, NIF, teléfono, dirección) no se
- *   toman nunca porque las etiquetas son ambiguas entre propietario y veterinario;
+ * - solo se mapean etiquetas inequívocas. Los datos del propietario (nombre, NIF, teléfono, dirección) solo se
+ *   toman dentro de su bloque («CLIENTE:», «PROPIETARIO:», «TITULAR:»), porque fuera de él «Nombre:» es ambiguo
+ *   (mascota, veterinario), y siempre con confianza baja para que se revisen;
  * - la confianza se rebaja (factor 0,9) para que la persona confirme más campos que con un modelo entrenado.
  */
 export const MODELO_LAYOUT = 'prebuilt-layout';
@@ -97,6 +98,36 @@ const ETIQUETAS_LINEA = [
   'c\\.\\s*tratamiento', 'principios?\\s+activos?', 'tipo\\s+dispensaci[oó]n', '%\\s*env\\.?\\s*total', 'c[oó]d\\.?\\s*nac\\w*\\s*\\.?', 'n[º°o]\\s*envases',
 ].join('|');
 
+/**
+ * Datos del titular leídos de su bloque de la receta. Con confianza baja (se marcan «Revisar»): la persona
+ * los confirma al completar el registro.
+ */
+const CONF_TITULAR = 0.7;
+const INICIO_TITULAR = /(?:^|\n|\s)(?:cliente|propietario|titular|due[nñ]o)\s*:/i;
+const FIN_TITULAR = /(?:^|\n|\s)(?:mascota|paciente|animal|especie|tipo de receta|n[uú]mero de receta|veterinari[oa]|diagn[oó]stico|fecha)\s*:/i;
+const ETIQUETAS_TITULAR = 'nombre|nif|dni|nie|tel[eé]fono|tlf|m[oó]vil|direcci[oó]n|domicilio|provincia|poblaci[oó]n|e-?mail|correo';
+
+export function titularDesdeTexto(contenido: string): Partial<Record<'titularNombre' | 'titularTelefono' | 'titularDireccion' | 'titularDni', string>> {
+  const ini = INICIO_TITULAR.exec(contenido);
+  if (!ini) return {};
+  const resto = contenido.slice(ini.index + ini[0].length);
+  const fin = FIN_TITULAR.exec(resto);
+  const bloque = (fin ? resto.slice(0, fin.index) : resto.slice(0, 400)).replace(/\n/g, ' ');
+  const valor = (etiqueta: string) =>
+    limpiarValor(new RegExp(`(?:^|\\s)(?:${etiqueta})\\s*\\.?\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_TITULAR})\\s*\\.?\\s*:|$)`, 'i').exec(bloque)?.[1] ?? null);
+  const out: Partial<Record<'titularNombre' | 'titularTelefono' | 'titularDireccion' | 'titularDni', string>> = {};
+  const nombre = valor('nombre');
+  if (nombre) out.titularNombre = nombre;
+  const dni = valor('nif|dni|nie')?.replace(/[\s.-]/g, '').toUpperCase();
+  if (dni && /^[XYZ0-9]\d{7}[A-Z]$/.test(dni)) out.titularDni = dni;
+  // El OCR a veces junta dos teléfonos ("912615417630543870"): se separan en grupos de 9 cifras.
+  const tel = valor('tel[eé]fono|tlf|m[oó]vil')?.replace(/[^\d+]/g, '');
+  if (tel && tel.length >= 9) out.titularTelefono = tel.length % 9 === 0 && !tel.startsWith('+') ? (tel.match(/\d{9}/g) ?? [tel]).join(' / ') : tel;
+  const dir = [valor('direcci[oó]n|domicilio'), valor('poblaci[oó]n'), valor('provincia')].filter(Boolean).join(', ');
+  if (dir) out.titularDireccion = dir;
+  return out;
+}
+
 const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\s*\.?\s*:?\s*(\d{6})/i;
 const RE_COLEGIADO = /n[º°o.]?\s*(?:de\s+)?colegiado\s*:?\s*(\d{3,})/i;
 
@@ -171,6 +202,12 @@ export function camposDesdeLayout(
       const c = campo('tipoDispensacion', tipo, 0.8, null, []);
       if (c) receta.tipoDispensacion = c;
     }
+  }
+  // Titular: solo dentro de su bloque («CLIENTE:», «PROPIETARIO:», «TITULAR:»), donde «Nombre:» no es ambiguo.
+  for (const [nombre, texto] of Object.entries(titularDesdeTexto(contenido))) {
+    if (receta[nombre] || !texto) continue;
+    const c = campo(nombre, texto, CONF_TITULAR, null, []);
+    if (c) receta[nombre] = c;
   }
   const col = RE_COLEGIADO.exec(contenido);
   if (col && !receta.veterinarioNumColegiado) {

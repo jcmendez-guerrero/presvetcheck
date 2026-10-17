@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Search, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
 import { ApiError, get, post, put } from '../lib/api';
 import { CN } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
+import { TextoReconocido, VisorReceta } from '../componentes/visor-receta';
+
+export { TextoReconocido };
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
 import { AYUDA } from '../lib/ayudas';
 import { dniNieValido } from '@mmx/domain';
@@ -89,8 +92,6 @@ export function Revision() {
     refetchOnWindowFocus: false,
   });
   const [r, setR] = useState<RecetaConfirmadaInput | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pagina, setPagina] = useState(0);
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const plataformas = useQuery({
     queryKey: ['plataformas'],
@@ -98,14 +99,6 @@ export function Revision() {
       get<{ id: string; nombre: string; reconocidaMapa: boolean | null }[]>('/api/admin/plataformas'),
   });
   const cambiado = useRef(false);
-  // Las imágenes se piden con autenticación (cabecera) y se muestran como blob local.
-  const urlImg = q.data?.imagenes[pagina]?.url;
-  const imagen = useQuery({
-    queryKey: ['imagen', urlImg],
-    queryFn: async () => URL.createObjectURL(await get<Blob>(urlImg as string)),
-    enabled: !!urlImg,
-    staleTime: Infinity,
-  });
 
   // Validez con los datos del formulario: el aviso de caducada sale aquí, antes de enviar.
   const claveValidez = r && [
@@ -170,8 +163,6 @@ export function Revision() {
     }
   };
 
-  const img = q.data.imagenes[pagina];
-  const src = imagen.data;
   return (
     <Pagina titulo="Revisión de datos">
       <p className="text-slate-700">
@@ -185,45 +176,7 @@ export function Revision() {
         </Mensaje>
       )}
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="lg:sticky lg:top-4 lg:self-start">
-          <Tarjeta>
-            <div className="mb-2 flex flex-wrap gap-2">
-              {q.data.imagenes.map((im, i) => (
-                <Boton
-                  key={im.pagina}
-                  variante={i === pagina ? 'principal' : 'secundario'}
-                  onClick={() => setPagina(i)}
-                >
-                  Página {im.pagina}
-                </Boton>
-              ))}
-              <Boton
-                variante="secundario"
-                aria-label="Ampliar"
-                onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
-              >
-                <ZoomIn className="h-5 w-5" />
-              </Boton>
-              <Boton
-                variante="secundario"
-                aria-label="Reducir"
-                onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
-              >
-                <ZoomOut className="h-5 w-5" />
-              </Boton>
-            </div>
-            <div className="max-h-[75vh] overflow-auto rounded-xl bg-slate-100">
-              {img && img.mime !== 'application/pdf' ? (
-                <img src={src} alt={`Receta, página ${img.pagina}`} style={{ width: `${zoom * 100}%` }} />
-              ) : img ? (
-                <iframe title="Receta en PDF" src={src} className="h-[70vh] w-full" />
-              ) : (
-                <p className="p-6">Sin imagen</p>
-              )}
-            </div>
-          </Tarjeta>
-          {q.data.extraccion?.ocrTexto && <TextoReconocido texto={q.data.extraccion.ocrTexto} />}
-        </div>
+        <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} />
 
         <div className="flex flex-col gap-5">
           <Tarjeta titulo="1 · Para dispensar">
@@ -617,6 +570,7 @@ export function DatosRegistro({
         />
         <Campo
           etiqueta="Dirección del titular (opcional)"
+          dudoso={dud('receta.titularDireccion')}
           info={AYUDA.titularDireccion}
           autoComplete="off"
           value={r.titular?.direccion ?? ''}
@@ -624,6 +578,7 @@ export function DatosRegistro({
         />
         <Campo
           etiqueta="DNI / NIE del titular (opcional)"
+          dudoso={dud('receta.titularDni')}
           info={AYUDA.titularDni}
           autoComplete="off"
           value={r.titular?.dni ?? ''}
@@ -662,6 +617,9 @@ export function DatosRegistro({
               Medicamento {l.orden}
               {l.medicamentoTexto ? ` · ${l.medicamentoTexto}` : ''}
             </legend>
+            {l.cn && (
+              <CimavetRegistro l={l} especie={r.especie?.especieId ?? null} aplicar={(x) => setLinea(i, x)} />
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <Campo
                 etiqueta={`Principio(s) activo(s)${l.cn ? ' (de CIMAVet)' : ''}`}
@@ -956,25 +914,85 @@ function PanelStock({
   );
 }
 
-/** Texto reconocido de la receta, seleccionable, para copiar y pegar en los campos. */
-export function TextoReconocido({ texto }: { texto: string }) {
-  const [copiado, setCopiado] = useState(false);
+const igual = (a: string | null | undefined, b: string | null | undefined) =>
+  !a ||
+  !b ||
+  a
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim() ===
+    b
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+/**
+ * Registro de salidas: los datos de CIMAVet del medicamento elegido junto a lo transcrito, para verificarlos.
+ * Marca lo que no coincide y permite copiar los datos de CIMAVet a los campos.
+ */
+function CimavetRegistro({
+  l,
+  especie,
+  aplicar,
+}: {
+  l: Linea;
+  especie: number | null;
+  aplicar: (x: Partial<Linea>) => void;
+}) {
+  const f = useQuery({
+    queryKey: ['resumen', l.cn, especie],
+    queryFn: () => resumenDe(l.cn as string, especie),
+    enabled: !!l.cn,
+  });
+  if (!f.data)
+    return f.isError ? <Mensaje tipo="error">Este código nacional no está en CIMAVet</Mensaje> : null;
+  const d = f.data;
+  const filas: [string, string | null, string | null | undefined][] = [
+    ['Principio(s) activo(s)', d.principiosActivos, l.principioActivoTexto],
+    ['Forma farmacéutica', d.forma, l.formaTexto],
+    ['Concentración', d.concentracion, l.concentracionTexto],
+  ];
+  const distintos = filas.filter(([, c, t]) => !igual(c, t));
   return (
-    <Tarjeta titulo="Texto reconocido (puedes copiar y pegar)">
-      <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm select-text">
-        {texto.replaceAll('--- página ---', '— página siguiente —')}
-      </pre>
-      <Boton
-        variante="texto"
-        onClick={() =>
-          void navigator.clipboard?.writeText(texto).then(() => {
-            setCopiado(true);
-            setTimeout(() => setCopiado(false), 1500);
-          })
-        }
-      >
-        <Copy aria-hidden className="h-4 w-4" /> {copiado ? 'Copiado' : 'Copiar todo'}
-      </Boton>
-    </Tarjeta>
+    <div data-testid="cimavet-registro" className="mb-3 rounded-xl bg-fondo p-3 text-sm">
+      <p className="font-semibold">
+        Según CIMAVet <Info texto={AYUDA.cimavet} />
+      </p>
+      <p className="font-semibold">{d.presentacion}</p>
+      <p className="text-slate-600">
+        {CN} {d.cn} · nº de registro {d.nregistro}
+        {d.labtitular ? ` · ${d.labtitular}` : ''}
+      </p>
+      <dl className="mt-2 grid gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
+        {filas.map(([e, c, t]) => (
+          <div key={e} className="contents">
+            <dt className="text-slate-600">{e}</dt>
+            <dd className={!igual(c, t) ? 'font-semibold text-sustituir' : ''}>
+              {c ?? '—'}
+              {!igual(c, t) && <span className="ml-2 text-xs">(transcrito: {t})</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {d.psum && <p className="mt-1 font-semibold text-noconforme">Problemas de suministro según CIMAVet</p>}
+      {distintos.length > 0 && (
+        <Boton
+          variante="texto"
+          onClick={() =>
+            aplicar({
+              principioActivoTexto: d.principiosActivos ?? l.principioActivoTexto ?? null,
+              formaTexto: d.forma ?? l.formaTexto ?? null,
+              concentracionTexto: d.concentracion ?? l.concentracionTexto ?? null,
+            })
+          }
+        >
+          Usar los datos de CIMAVet
+        </Boton>
+      )}
+    </div>
   );
 }
