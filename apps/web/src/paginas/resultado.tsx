@@ -10,40 +10,74 @@ import type { Evaluacion, LineaEvaluada } from '../lib/tipos';
 import { EstadoDecision, ListaMotivos } from '../componentes/estado';
 import { ModalForzado } from '../componentes/forzado';
 import { Pagina } from '../componentes/layout';
+import { ConReceta } from '../componentes/visor-receta';
 import { Boton, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
 
 /** Resultado por línea (SPEC §8.4): estado con icono y texto, motivos legibles y acción principal. */
 export function Resultado() {
   const { id } = useParams({ from: '/recetas/$id/resultado' });
-  const q = useQuery({ queryKey: ['evaluacion', id], queryFn: () => post<Evaluacion>(`/api/recetas/${id}/evaluar`), refetchOnWindowFocus: false });
+  const q = useQuery({
+    queryKey: ['evaluacion', id],
+    queryFn: () => post<Evaluacion>(`/api/recetas/${id}/evaluar`),
+    refetchOnWindowFocus: false,
+  });
   if (q.isLoading) return <Cargando texto="Comprobando la receta…" />;
   if (q.error) return <Mensaje tipo="error">{(q.error as Error).message}</Mensaje>;
   const e = q.data!;
   return (
-    <Pagina titulo="Resultado" acciones={<Link to="/recetas/$id/revision" params={{ id }} className="font-semibold text-marca underline">Volver a la revisión</Link>}>
+    <Pagina
+      titulo="Resultado"
+      acciones={
+        <Link to="/recetas/$id/revision" params={{ id }} className="font-semibold text-marca underline">
+          Volver a la revisión
+        </Link>
+      }
+    >
       <div className="flex flex-wrap items-center gap-3">
         {e.resumen && <EstadoDecision decision={e.resumen} grande />}
         {e.validez && <span>Válida hasta el {fecha(e.validez.efectiva)}</span>}
       </div>
-      {e.lineas.map((l) => (
-        <TarjetaLinea key={l.orden} l={l} recetaId={id} todas={e.lineas} />
-      ))}
+      <ConReceta recetaId={id}>
+        {e.lineas.map((l) => (
+          <TarjetaLinea key={l.orden} l={l} recetaId={id} todas={e.lineas} />
+        ))}
+      </ConReceta>
     </Pagina>
   );
 }
 
-function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: string; todas: LineaEvaluada[] }) {
+function TarjetaLinea({
+  l,
+  recetaId,
+  todas,
+}: {
+  l: LineaEvaluada;
+  recetaId: string;
+  todas: LineaEvaluada[];
+}) {
   const nav = useNavigate();
   const { usuario } = useAuth();
   const [forzar, setForzar] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const ev = l.resultado.evidencias;
   const decision = l.resultado.decision;
-  const forzables = [...new Set(l.incidencias.filter((i) => i.severidad === 'BLOQUEANTE_FORMA').map((i) => i.code))] as CodigoIncidencia[];
-  const pendientes = todas.filter((x) => x.orden !== l.orden && !['DISPENSAR', 'DISPENSAR_CON_AVISO', 'SUSTITUIR'].includes(x.resultado.decision)).map((x) => x.orden);
+  const forzables = [
+    ...new Set(l.incidencias.filter((i) => i.severidad === 'BLOQUEANTE_FORMA').map((i) => i.code)),
+  ] as CodigoIncidencia[];
+  const pendientes = todas
+    .filter(
+      (x) =>
+        x.orden !== l.orden &&
+        !['DISPENSAR', 'DISPENSAR_CON_AVISO', 'SUSTITUIR'].includes(x.resultado.decision),
+    )
+    .map((x) => x.orden);
 
   const irADispensar = (extra: Record<string, unknown> = {}) =>
-    nav({ to: '/recetas/$id/dispensar/$linea', params: { id: recetaId, linea: String(l.orden) }, search: { pendientes: pendientes.join(','), ...extra } });
+    nav({
+      to: '/recetas/$id/dispensar/$linea',
+      params: { id: recetaId, linea: String(l.orden) },
+      search: { pendientes: pendientes.join(','), ...extra },
+    });
 
   const sustituir = async (cn: string) => {
     try {
@@ -55,20 +89,32 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
   };
 
   return (
-    <Tarjeta titulo={<span className="flex flex-wrap items-center gap-3">Medicamento {l.orden} <EstadoDecision decision={decision} /></span>}>
+    <Tarjeta
+      titulo={
+        <span className="flex flex-wrap items-center gap-3">
+          Medicamento {l.orden} <EstadoDecision decision={decision} />
+        </span>
+      }
+    >
       <AvisoSuministro motivos={l.resultado.motivos.map((m) => m.code)} />
-      {ev.psicotropo && <p className="mb-2 font-semibold text-psicotropo">Psicótropo: un envase por receta, DNI de quien lo retira y receta apartada.</p>}
+      {ev.psicotropo && (
+        <p className="mb-2 font-semibold text-psicotropo">
+          Psicótropo: un envase por receta, DNI de quien lo retira y receta apartada.
+        </p>
+      )}
       <ListaMotivos motivos={l.resultado.motivos} />
 
       {decision === 'DISPENSAR' && ev.lotes?.recomendado && (
         <p className="mt-3">
-          Lote recomendado <strong className="font-mono">{ev.lotes.recomendado.lote}</strong> (caduca el {fecha(ev.lotes.recomendado.caducidad)})
+          Lote recomendado <strong className="font-mono">{ev.lotes.recomendado.lote}</strong> (caduca el{' '}
+          {fecha(ev.lotes.recomendado.caducidad)})
         </p>
       )}
       {decision === 'DISPENSAR_CON_AVISO' && ev.alternativaFormato && (
         <div className="mt-3 rounded-xl bg-dispensar-bg p-3">
           <p>
-            Se puede dispensar <strong>{ev.alternativaFormato.envases}</strong> envase(s) de {ev.alternativaFormato.nombre} ({CN} {ev.alternativaFormato.cn}).
+            Se puede dispensar <strong>{ev.alternativaFormato.envases}</strong> envase(s) de{' '}
+            {ev.alternativaFormato.nombre} ({CN} {ev.alternativaFormato.cn}).
           </p>
           {ev.alternativaFormato.nota && <p className="mt-1 font-semibold">{ev.alternativaFormato.nota}</p>}
         </div>
@@ -77,11 +123,18 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
         <div className="mt-3 flex flex-col gap-2">
           <p className="font-semibold">El prescrito no está disponible. Sustitutos equivalentes con stock:</p>
           {ev.sustitutos.map((s) => (
-            <div key={s.cn} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sustituir-bg p-3">
+            <div
+              key={s.cn}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sustituir-bg p-3"
+            >
               <span>
                 {s.nombre} · {s.labtitular} · {CN} {s.cn} · caduca {fecha(s.caducidadFefo)}
                 {s.psum && <strong className="ml-2 text-noconforme">Problemas de suministro</strong>}
-                {s.modo === 'PRE' && <strong className="ml-2">Necesita aprobación previa del garante (consúltale y regístrala)</strong>}
+                {s.modo === 'PRE' && (
+                  <strong className="ml-2">
+                    Necesita aprobación previa del garante (consúltale y regístrala)
+                  </strong>
+                )}
               </span>
               <Boton onClick={() => void sustituir(s.cn)}>Iniciar sustitución</Boton>
             </div>
@@ -91,20 +144,38 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
       {decision === 'PEDIR' && ev.pedido && (
         <div className="mt-3 rounded-xl bg-pedir-bg p-3">
           <p>
-            Pedir {ev.pedido.nombre} ({CN} {ev.pedido.cn}, {ev.pedido.labtitular ?? '—'}){ev.pedido.psum && ' · con problemas de suministro'}
+            Pedir {ev.pedido.nombre} ({CN} {ev.pedido.cn}, {ev.pedido.labtitular ?? '—'})
+            {ev.pedido.psum && ' · con problemas de suministro'}
           </p>
-          {ev.pedido.equivalentes.length > 0 && <p className="mt-1 text-sm">Equivalentes sin stock: {ev.pedido.equivalentes.map((x) => `${x.nombre} (${x.cn})${x.psum ? ' · problemas de suministro' : ''}`).join(', ')}</p>}
-          {ev.sustitucionBloqueada.length > 0 && <p className="mt-1 text-sm">No se puede sustituir (ver motivos).</p>}
+          {ev.pedido.equivalentes.length > 0 && (
+            <p className="mt-1 text-sm">
+              Equivalentes sin stock:{' '}
+              {ev.pedido.equivalentes
+                .map((x) => `${x.nombre} (${x.cn})${x.psum ? ' · problemas de suministro' : ''}`)
+                .join(', ')}
+            </p>
+          )}
+          {ev.sustitucionBloqueada.length > 0 && (
+            <p className="mt-1 text-sm">No se puede sustituir (ver motivos).</p>
+          )}
           <Boton
             className="mt-2"
             variante="secundario"
-            onClick={() => void post('/api/pedidos', { cn: ev.pedido!.cn, unidades: 1 }).then(() => setMsg({ t: 'ok', m: 'Añadido a la lista de pedido' }))}
+            onClick={() =>
+              void post('/api/pedidos', { cn: ev.pedido!.cn, unidades: 1 }).then(() =>
+                setMsg({ t: 'ok', m: 'Añadido a la lista de pedido' }),
+              )
+            }
           >
             Añadir a lista de pedido
           </Boton>
         </div>
       )}
-      {decision === 'PENDIENTE_STOCK' && <p className="mt-3">No se ha podido confirmar el stock en Siweb360. Vuelve a comprobar en unos segundos.</p>}
+      {decision === 'PENDIENTE_STOCK' && (
+        <p className="mt-3">
+          No se ha podido confirmar el stock en Siweb360. Vuelve a comprobar en unos segundos.
+        </p>
+      )}
       {l.opcionesSoloPA && (
         <div className="mt-3">
           <p className="font-semibold">Opciones con ese principio activo (para llamar al veterinario):</p>
@@ -138,10 +209,15 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
           onConfirmar={async (s) => {
             setForzar(false);
             try {
-              const r = await post<Evaluacion>(`/api/recetas/${recetaId}/evaluar`, { forzados: { [l.orden]: s } });
+              const r = await post<Evaluacion>(`/api/recetas/${recetaId}/evaluar`, {
+                forzados: { [l.orden]: s },
+              });
               const nueva = r.lineas.find((x) => x.orden === l.orden)!;
               if (!['DISPENSAR', 'DISPENSAR_CON_AVISO'].includes(nueva.resultado.decision)) {
-                setMsg({ t: 'error', m: `Tras forzar, la línea queda en «${nueva.resultado.decision}»: no hay stock para dispensar.` });
+                setMsg({
+                  t: 'error',
+                  m: `Tras forzar, la línea queda en «${nueva.resultado.decision}»: no hay stock para dispensar.`,
+                });
                 return;
               }
               guardarForzado(recetaId, l.orden, s);
@@ -160,7 +236,10 @@ function TarjetaLinea({ l, recetaId, todas }: { l: LineaEvaluada; recetaId: stri
 function AvisoSuministro({ motivos }: { motivos: string[] }) {
   if (motivos.includes('PROBLEMA_SUMINISTRO'))
     return (
-      <p data-testid="aviso-suministro" className="mb-3 rounded-xl bg-noconforme-bg px-3 py-2 font-semibold text-noconforme">
+      <p
+        data-testid="aviso-suministro"
+        className="mb-3 rounded-xl bg-noconforme-bg px-3 py-2 font-semibold text-noconforme"
+      >
         Problemas de suministro según CIMAVet: si hay que pedirlo puede tardar o no llegar; valora sustituir.
       </p>
     );

@@ -102,6 +102,26 @@
       },
       "fuente": "llm"
     },
+    "titularDireccion": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": {
+        "texto": null,
+        "pagina": null,
+        "region": null
+      },
+      "fuente": "llm"
+    },
+    "titularDni": {
+      "valor": null,
+      "confianza": 0,
+      "evidencia": {
+        "texto": null,
+        "pagina": null,
+        "region": null
+      },
+      "fuente": "llm"
+    },
     "rega": {
       "valor": null,
       "confianza": 0,

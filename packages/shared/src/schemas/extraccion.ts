@@ -28,6 +28,8 @@ export const CAMPOS_EXTRAIDOS_RECETA = [
   'antimicrobianos',
   'titularNombre',
   'titularTelefono',
+  'titularDireccion',
+  'titularDni',
   'rega',
   'especie',
   'animalIdentificacion',

@@ -12,6 +12,7 @@ import type { Evaluacion } from '../lib/tipos';
 import { BandaPsicotropo, BandaSustitucion, RecordatorioTpv } from '../componentes/bandas';
 import { CampoEscaneo } from '../componentes/escaner';
 import { TrasDispensar } from '../componentes/tras-dispensar';
+import { ConReceta } from '../componentes/visor-receta';
 import { EstadoDecision, ListaMotivos } from '../componentes/estado';
 import { ModalForzado, type SolicitudForzado } from '../componentes/forzado';
 import { Pagina } from '../componentes/layout';
@@ -297,31 +298,36 @@ export function Dispensacion() {
   if (res) {
     return (
       <Pagina titulo="Dispensación registrada">
-        <RecordatorioTpv items={res.recordatorioTpv} />
-        {res.apartarReceta && <Mensaje tipo="aviso">{res.apartarReceta.motivo}</Mensaje>}
-        {res.apartarReceta?.etiqueta && (
-          <Imprimible titulo="Etiqueta para el dorso de la receta" texto={res.apartarReceta.etiqueta} />
-        )}
-        {res.notaAdministracion && (
-          <Imprimible
-            titulo="Nota de administración para el tutor (obligatoria)"
-            texto={res.notaAdministracion}
-          />
-        )}
-        {res.resguardo && <Imprimible titulo="Resguardo para el tutor" texto={res.resguardo} />}
-        <TrasDispensar recetaId={id} cobro={res.recordatorioTpv} />
-        <div className="flex gap-3">
-          <Link
-            to="/recetas/$id/resultado"
-            params={{ id }}
-            className="boton rounded-xl bg-marca px-5 py-3 font-semibold text-white"
-          >
-            Volver a la receta
-          </Link>
-          <Link to="/" className="boton rounded-xl border-2 border-marca px-5 py-3 font-semibold text-marca">
-            Inicio
-          </Link>
-        </div>
+        <ConReceta recetaId={id}>
+          <RecordatorioTpv items={res.recordatorioTpv} />
+          {res.apartarReceta && <Mensaje tipo="aviso">{res.apartarReceta.motivo}</Mensaje>}
+          {res.apartarReceta?.etiqueta && (
+            <Imprimible titulo="Etiqueta para el dorso de la receta" texto={res.apartarReceta.etiqueta} />
+          )}
+          {res.notaAdministracion && (
+            <Imprimible
+              titulo="Nota de administración para el tutor (obligatoria)"
+              texto={res.notaAdministracion}
+            />
+          )}
+          {res.resguardo && <Imprimible titulo="Resguardo para el tutor" texto={res.resguardo} />}
+          <TrasDispensar recetaId={id} cobro={res.recordatorioTpv} />
+          <div className="flex gap-3">
+            <Link
+              to="/recetas/$id/resultado"
+              params={{ id }}
+              className="boton rounded-xl bg-marca px-5 py-3 font-semibold text-white"
+            >
+              Volver a la receta
+            </Link>
+            <Link
+              to="/"
+              className="boton rounded-xl border-2 border-marca px-5 py-3 font-semibold text-marca"
+            >
+              Inicio
+            </Link>
+          </div>
+        </ConReceta>
       </Pagina>
     );
   }
@@ -336,197 +342,202 @@ export function Dispensacion() {
         />
       )}
       <Pagina titulo={`Dispensar · medicamento ${orden}`}>
-        <div className="flex flex-wrap items-center gap-3">
-          <EstadoDecision decision={s.sustitucion ? 'SUSTITUIR' : l.resultado.decision} grande />
-          {forzado && (
-            <span className="rounded-full bg-noconforme-bg px-3 py-1 font-semibold text-noconforme">
-              Forzado: {forzado.codigos.join(', ')}
-            </span>
-          )}
-        </div>
-        <ListaMotivos motivos={l.resultado.motivos.filter((m) => m.severidad === 'AVISO')} />
-        <Tarjeta titulo="Lote recomendado (caduca antes)">
-          {objetivo.lote ? (
-            <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">
-              {objetivo.lote}
-            </p>
-          ) : (
-            <p>Sin propuesta de lote: consulta el stock.</p>
-          )}
-          <p className="mt-1">
-            {CN} {objetivo.cn}{' '}
-            {'caducidad' in objetivo && objetivo.caducidad
-              ? `· caduca el ${fecha(objetivo.caducidad as string)}`
-              : ''}
-          </p>
-          {evd.lotes?.alternativaQueCubre && (
-            <p className="mt-1 text-sustituir">
-              Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}
-            </p>
-          )}
-        </Tarjeta>
-
-        <Tarjeta titulo="Escanea el envase">
-          <ComparaEnvases pedidos={pedidos} escaneados={envases.reduce((a, e) => a + (e.unidades || 0), 0)} />
-          <CampoEscaneo onLectura={(raw, m) => void leer(raw, m)} gsSubstitute={gs} />
-          {error && <Mensaje tipo="error">{error}</Mensaje>}
-          <Boton
-            variante="texto"
-            onClick={() =>
-              setEnvases((e) => [
-                ...e,
-                {
-                  lote: '',
-                  caducidad: null,
-                  unidades: 1,
-                  gtin: null,
-                  cnEscaneado: null,
-                  serie: null,
-                  metodoCaptura: 'manual',
-                },
-              ])
-            }
-          >
-            Introducir los datos a mano
-          </Boton>
-          <ListaEnvases envases={envases} setEnvases={setEnvases} recomendado={objetivo.lote} />
-          {loteDistinto && (
-            <Campo
-              etiqueta="Motivo para no dispensar el lote recomendado (obligatorio)"
-              value={motivoLote}
-              onChange={(e) => setMotivoLote(e.target.value)}
-            />
-          )}
-        </Tarjeta>
-
-        {evd.psicotropo && (
-          <Tarjeta titulo="Psicótropo: identidad de quien lo retira">
-            <p>
-              Comprueba el documento de identidad de la persona que retira el medicamento y anota su DNI o
-              NIE.
-            </p>
-            <Campo
-              etiqueta="DNI / NIE de quien retira (obligatorio)"
-              autoComplete="off"
-              value={dniRetira}
-              onChange={(e) => setDniRetira(e.target.value)}
-            />
-          </Tarjeta>
-        )}
-
-        {l.fraccion && l.resultado.decision === 'DISPENSAR' && (
-          <Tarjeta titulo="Dispensación fraccionada">
-            <p>
-              Presentación autorizada para fraccionar: <strong>{l.fraccion.texto}</strong>. Nunca se corta el
-              blíster; entrega siempre un prospecto con la fracción.
-            </p>
-            {l.fraccion.unidades === null || l.fraccion.prescritas === null ? (
-              <Mensaje tipo="aviso">
-                {l.fraccion.prescritas === null
-                  ? 'La receta no indica unidades a dispensar: dispensa el envase completo.'
-                  : 'No se reconoce la fracción autorizada: dispensa el envase completo.'}
-              </Mensaje>
+        <ConReceta recetaId={id}>
+          <div className="flex flex-wrap items-center gap-3">
+            <EstadoDecision decision={s.sustitucion ? 'SUSTITUIR' : l.resultado.decision} grande />
+            {forzado && (
+              <span className="rounded-full bg-noconforme-bg px-3 py-1 font-semibold text-noconforme">
+                Forzado: {forzado.codigos.join(', ')}
+              </span>
+            )}
+          </div>
+          <ListaMotivos motivos={l.resultado.motivos.filter((m) => m.severidad === 'AVISO')} />
+          <Tarjeta titulo="Lote recomendado (caduca antes)">
+            {objetivo.lote ? (
+              <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">
+                {objetivo.lote}
+              </p>
             ) : (
-              <>
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-6 w-6"
-                    checked={fraccion !== null}
-                    onChange={(e) =>
-                      setFraccion(
-                        e.target.checked ? Math.min(l.fraccion!.unidades!, l.fraccion!.prescritas!) : null,
-                      )
-                    }
-                  />
-                  Dispensar una fracción en lugar del envase completo (receta: {l.fraccion.prescritas}{' '}
-                  {l.fraccion.unidad})
-                </label>
-                {fraccion !== null && (
-                  <Campo
-                    etiqueta={`Unidades a entregar (múltiplos de ${l.fraccion.unidades})`}
-                    type="number"
-                    min={l.fraccion.unidades}
-                    step={l.fraccion.unidades}
-                    value={fraccion}
-                    onChange={(e) => setFraccion(Number(e.target.value) || l.fraccion!.unidades)}
-                  />
-                )}
-              </>
+              <p>Sin propuesta de lote: consulta el stock.</p>
+            )}
+            <p className="mt-1">
+              {CN} {objetivo.cn}{' '}
+              {'caducidad' in objetivo && objetivo.caducidad
+                ? `· caduca el ${fecha(objetivo.caducidad as string)}`
+                : ''}
+            </p>
+            {evd.lotes?.alternativaQueCubre && (
+              <p className="mt-1 text-sustituir">
+                Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}
+              </p>
             )}
           </Tarjeta>
-        )}
 
-        {alt && (
-          <Tarjeta titulo="Cambio de formato o concentración">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                className="h-6 w-6"
-                checked={conf.formato}
-                onChange={(e) => setConf({ ...conf, formato: e.target.checked })}
+          <Tarjeta titulo="Escanea el envase">
+            <ComparaEnvases
+              pedidos={pedidos}
+              escaneados={envases.reduce((a, e) => a + (e.unidades || 0), 0)}
+            />
+            <CampoEscaneo onLectura={(raw, m) => void leer(raw, m)} gsSubstitute={gs} />
+            {error && <Mensaje tipo="error">{error}</Mensaje>}
+            <Boton
+              variante="texto"
+              onClick={() =>
+                setEnvases((e) => [
+                  ...e,
+                  {
+                    lote: '',
+                    caducidad: null,
+                    unidades: 1,
+                    gtin: null,
+                    cnEscaneado: null,
+                    serie: null,
+                    metodoCaptura: 'manual',
+                  },
+                ])
+              }
+            >
+              Introducir los datos a mano
+            </Boton>
+            <ListaEnvases envases={envases} setEnvases={setEnvases} recomendado={objetivo.lote} />
+            {loteDistinto && (
+              <Campo
+                etiqueta="Motivo para no dispensar el lote recomendado (obligatorio)"
+                value={motivoLote}
+                onChange={(e) => setMotivoLote(e.target.value)}
               />
-              He explicado al cliente que se dispensa otra presentación ({alt.envases} envase/s)
-            </label>
-            {alt.nota && (
-              <>
-                <Imprimible titulo="Nota de administración para el tutor" texto={alt.nota} />
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-6 w-6"
-                    checked={conf.nota}
-                    onChange={(e) => setConf({ ...conf, nota: e.target.checked })}
-                  />
-                  He entregado y explicado la nota al tutor
-                </label>
-              </>
             )}
-            {alt.formato.avisos.includes('DOSIS_NO_AJUSTABLE') && (
+          </Tarjeta>
+
+          {evd.psicotropo && (
+            <Tarjeta titulo="Psicótropo: identidad de quien lo retira">
+              <p>
+                Comprueba el documento de identidad de la persona que retira el medicamento y anota su DNI o
+                NIE.
+              </p>
+              <Campo
+                etiqueta="DNI / NIE de quien retira (obligatorio)"
+                autoComplete="off"
+                value={dniRetira}
+                onChange={(e) => setDniRetira(e.target.value)}
+              />
+            </Tarjeta>
+          )}
+
+          {l.fraccion && l.resultado.decision === 'DISPENSAR' && (
+            <Tarjeta titulo="Dispensación fraccionada">
+              <p>
+                Presentación autorizada para fraccionar: <strong>{l.fraccion.texto}</strong>. Nunca se corta
+                el blíster; entrega siempre un prospecto con la fracción.
+              </p>
+              {l.fraccion.unidades === null || l.fraccion.prescritas === null ? (
+                <Mensaje tipo="aviso">
+                  {l.fraccion.prescritas === null
+                    ? 'La receta no indica unidades a dispensar: dispensa el envase completo.'
+                    : 'No se reconoce la fracción autorizada: dispensa el envase completo.'}
+                </Mensaje>
+              ) : (
+                <>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="h-6 w-6"
+                      checked={fraccion !== null}
+                      onChange={(e) =>
+                        setFraccion(
+                          e.target.checked ? Math.min(l.fraccion!.unidades!, l.fraccion!.prescritas!) : null,
+                        )
+                      }
+                    />
+                    Dispensar una fracción en lugar del envase completo (receta: {l.fraccion.prescritas}{' '}
+                    {l.fraccion.unidad})
+                  </label>
+                  {fraccion !== null && (
+                    <Campo
+                      etiqueta={`Unidades a entregar (múltiplos de ${l.fraccion.unidades})`}
+                      type="number"
+                      min={l.fraccion.unidades}
+                      step={l.fraccion.unidades}
+                      value={fraccion}
+                      onChange={(e) => setFraccion(Number(e.target.value) || l.fraccion!.unidades)}
+                    />
+                  )}
+                </>
+              )}
+            </Tarjeta>
+          )}
+
+          {alt && (
+            <Tarjeta titulo="Cambio de formato o concentración">
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   className="h-6 w-6"
-                  checked={conf.dosis}
-                  onChange={(e) => setConf({ ...conf, dosis: e.target.checked })}
+                  checked={conf.formato}
+                  onChange={(e) => setConf({ ...conf, formato: e.target.checked })}
                 />
-                Confirmo expresamente que la dosis no se ajusta con unidades enteras
+                He explicado al cliente que se dispensa otra presentación ({alt.envases} envase/s)
               </label>
-            )}
-          </Tarjeta>
-        )}
+              {alt.nota && (
+                <>
+                  <Imprimible titulo="Nota de administración para el tutor" texto={alt.nota} />
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="h-6 w-6"
+                      checked={conf.nota}
+                      onChange={(e) => setConf({ ...conf, nota: e.target.checked })}
+                    />
+                    He entregado y explicado la nota al tutor
+                  </label>
+                </>
+              )}
+              {alt.formato.avisos.includes('DOSIS_NO_AJUSTABLE') && (
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-6 w-6"
+                    checked={conf.dosis}
+                    onChange={(e) => setConf({ ...conf, dosis: e.target.checked })}
+                  />
+                  Confirmo expresamente que la dosis no se ajusta con unidades enteras
+                </label>
+              )}
+            </Tarjeta>
+          )}
 
-        {pendientes.length > 0 && (
-          <Tarjeta titulo="Dispensación parcial">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                className="h-6 w-6"
-                checked={dejarPendientes}
-                onChange={(e) => setDejarPendientes(e.target.checked)}
-              />
-              Dejar pendientes de entrega los medicamentos {pendientes.join(', ')} (la receta se retiene y se
-              entrega un resguardo)
-            </label>
-            {dejarPendientes && (
-              <Campo
-                etiqueta="Teléfono del tutor para avisarle (opcional)"
-                value={contacto}
-                onChange={(e) => setContacto(e.target.value)}
-              />
-            )}
-          </Tarjeta>
-        )}
+          {pendientes.length > 0 && (
+            <Tarjeta titulo="Dispensación parcial">
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="h-6 w-6"
+                  checked={dejarPendientes}
+                  onChange={(e) => setDejarPendientes(e.target.checked)}
+                />
+                Dejar pendientes de entrega los medicamentos {pendientes.join(', ')} (la receta se retiene y
+                se entrega un resguardo)
+              </label>
+              {dejarPendientes && (
+                <Campo
+                  etiqueta="Teléfono del tutor para avisarle (opcional)"
+                  value={contacto}
+                  onChange={(e) => setContacto(e.target.value)}
+                />
+              )}
+            </Tarjeta>
+          )}
 
-        {msg && <Mensaje tipo="error">{msg}</Mensaje>}
-        <Boton
-          data-testid="confirmar-dispensacion"
-          className="text-lg"
-          disabled={!envases.length || enviando || (evd.psicotropo && !dniRetira.trim())}
-          onClick={() => void enviar(forzado)}
-        >
-          Confirmar dispensación
-        </Boton>
+          {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+          <Boton
+            data-testid="confirmar-dispensacion"
+            className="text-lg"
+            disabled={!envases.length || enviando || (evd.psicotropo && !dniRetira.trim())}
+            onClick={() => void enviar(forzado)}
+          >
+            Confirmar dispensación
+          </Boton>
+        </ConReceta>
       </Pagina>
       {modal && (
         <ModalForzado

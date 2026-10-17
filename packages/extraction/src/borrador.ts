@@ -96,7 +96,7 @@ export function borradorDesdeExtraccion(ext: ExtractionResult, umbral: number): 
       clasePrescripcion: enumDe(v(r.clasePrescripcion), ['ordinaria', 'excepcional'] as const) ?? (esExcepcional(ext.ocrTexto) ? 'excepcional' : null),
       tipoTratamiento: enumDe(v(r.tipoTratamiento), ['agudo', 'cronico', 'preventivo'] as const),
       antimicrobianos: r.antimicrobianos?.valor === true,
-      titular: { nombre: v(r.titularNombre), telefono: v(r.titularTelefono) },
+      titular: { nombre: v(r.titularNombre), telefono: v(r.titularTelefono), direccion: v(r.titularDireccion), dni: v(r.titularDni) },
       rega: v(r.rega),
       especie: { texto: v(r.especie), especieId: especieId(v(r.especie)) },
       especieProduccion: false,
