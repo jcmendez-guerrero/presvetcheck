@@ -111,6 +111,9 @@ importers:
         specifier: ^4.0.5
         version: 4.6.7
     devDependencies:
+      exceljs:
+        specifier: ^4.4.0
+        version: 4.4.0
       msw:
         specifier: ^2.10.0
         version: 2.15.0(@types/node@25.9.9)(typescript@5.8.3)
@@ -301,6 +304,9 @@ importers:
       '@mmx/shared':
         specifier: workspace:*
         version: link:../shared
+      decimal.js:
+        specifier: ^10.5.0
+        version: 10.6.0
       zod:
         specifier: ^4.0.5
         version: 4.6.7

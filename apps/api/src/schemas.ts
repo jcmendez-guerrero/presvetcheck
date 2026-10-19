@@ -22,8 +22,16 @@ export const EnvaseDto = z.object({
   lote: z.string().trim().min(1).max(40),
   caducidad: IsoDate.nullable(),
   unidades: z.number().int().positive().max(1000).default(1),
-  gtin: z.string().regex(/^\d{8,14}$/).nullable().default(null),
-  cnEscaneado: z.string().regex(/^\d{6}$/).nullable().default(null),
+  gtin: z
+    .string()
+    .regex(/^\d{8,14}$/)
+    .nullable()
+    .default(null),
+  cnEscaneado: z
+    .string()
+    .regex(/^\d{6}$/)
+    .nullable()
+    .default(null),
   serie: z.string().max(40).nullable().default(null),
   metodoCaptura: MetodoCaptura,
 });
@@ -44,11 +52,20 @@ export const DispensacionConRecetaDto = z.object({
   notaEntregadaTutor: z.boolean().default(false),
   confirmaDosisNoAjustable: z.boolean().default(false),
   /** Dispensación fraccionada (solo presentaciones autorizadas): unidades de dosificación de un único envase abierto. */
-  fraccion: z.object({ unidadesForma: z.number().int().positive().max(10000) }).nullable().default(null),
+  fraccion: z
+    .object({ unidadesForma: z.number().int().positive().max(10000) })
+    .nullable()
+    .default(null),
   /** Psicótropos: DNI/NIE de quien retira el medicamento (identidad comprobada por el empleado). */
   dniRetira: z.string().trim().max(20).nullable().default(null),
   propietario: PropietarioDto.nullable().default(null),
-  pendientes: z.object({ lineas: z.array(z.number().int().positive()), contactoTutor: z.string().max(200).nullable().default(null) }).nullable().default(null),
+  pendientes: z
+    .object({
+      lineas: z.array(z.number().int().positive()),
+      contactoTutor: z.string().max(200).nullable().default(null),
+    })
+    .nullable()
+    .default(null),
 });
 
 export const DispensacionSinRecetaDto = z.object({
@@ -63,14 +80,28 @@ export const DispensacionSinRecetaDto = z.object({
   referenciaPedido: z.string().max(100).nullable().default(null),
 });
 
-export const DispensacionDto = z.discriminatedUnion('conReceta', [DispensacionConRecetaDto, DispensacionSinRecetaDto]);
+export const DispensacionDto = z.discriminatedUnion('conReceta', [
+  DispensacionConRecetaDto,
+  DispensacionSinRecetaDto,
+]);
 
 export const AnularDto = z.object({ motivo: z.string().min(10).max(1000) });
 
-export const SustitucionCrearDto = z.object({ recetaId: z.uuid(), lineaOrden: z.number().int().positive(), cn: z.string().regex(/^\d{6}$/) });
+export const SustitucionCrearDto = z.object({
+  recetaId: z.uuid(),
+  lineaOrden: z.number().int().positive(),
+  cn: z.string().regex(/^\d{6}$/),
+});
 export const SustitucionAccionParams = z.object({
   id: z.uuid(),
-  accion: z.enum(['consentimiento', 'aviso-veterinario', 'autorizacion-garante', 'anotacion', 'firma-garante', 'rechazar']),
+  accion: z.enum([
+    'consentimiento',
+    'aviso-veterinario',
+    'autorizacion-garante',
+    'anotacion',
+    'firma-garante',
+    'rechazar',
+  ]),
 });
 export const SustitucionAccionDto = z
   .object({
@@ -93,20 +124,58 @@ export const RecepcionDto = z
     distribuidor: z.string().trim().min(2).max(120).optional(),
     albaran: z.string().max(60).nullable().default(null),
     fechaCompra: IsoDate.nullable().default(null),
+    /** Fecha en que llega la mercancía; por defecto, hoy. */
+    fechaRecepcion: IsoDate.nullable().default(null),
   })
-  .refine((b) => b.distribuidorId || b.distribuidor, { message: 'Indica el distribuidor', path: ['distribuidor'] });
+  .refine((b) => b.distribuidorId || b.distribuidor, {
+    message: 'Indica el distribuidor',
+    path: ['distribuidor'],
+  });
+
+/** Importe con coma o punto decimal ("12,50" o "12.50"), hasta 4 decimales; se guarda con punto. */
+const Importe = z.preprocess(
+  (v) => (typeof v === 'string' ? v.trim().replace(',', '.') : v),
+  z.string().regex(/^\d+(\.\d{1,4})?$/, 'escribe un importe como 12,50 (hasta 4 decimales)'),
+);
 export const LineaEntradaDto = z.object({
   tipo: z.enum(['medicamento', 'producto']).default('medicamento'),
-  cn: z.string().regex(/^\d{6,7}$/).nullable().default(null),
+  cn: z
+    .string()
+    .regex(/^\d{6,7}$/)
+    .nullable()
+    .default(null),
   nombre: z.string().max(300).nullable().default(null),
   lote: z.string().max(40).nullable().default(null),
   caducidad: IsoDate.nullable().default(null),
   unidades: z.number().int().positive().max(10000).default(1),
   serie: z.string().max(40).nullable().default(null),
-  gtin: z.string().regex(/^\d{8,14}$/).nullable().default(null),
-  cnEscaneado: z.string().regex(/^\d{6,7}$/).nullable().default(null),
-  precioNetoCompra: z.string().regex(/^\d+(\.\d{1,4})?$/).nullable().default(null),
+  gtin: z
+    .string()
+    .regex(/^\d{8,14}$/)
+    .nullable()
+    .default(null),
+  cnEscaneado: z
+    .string()
+    .regex(/^\d{6,7}$/)
+    .nullable()
+    .default(null),
+  precioNetoCompra: Importe.nullable().default(null),
   ivaPct: z.number().nullable().default(null),
+});
+
+/** Modificación de una línea de una recepción abierta (lo no indicado no cambia). */
+export const EditarLineaEntradaDto = z.object({
+  cn: z
+    .string()
+    .regex(/^\d{6,7}$/, 'el código nacional tiene 6 o 7 cifras')
+    .nullable()
+    .optional(),
+  nombre: z.string().max(300).nullable().optional(),
+  lote: z.string().max(40).nullable().optional(),
+  caducidad: IsoDate.nullable().optional(),
+  unidades: z.number().int().positive().max(10000).optional(),
+  precioNetoCompra: Importe.nullable().optional(),
+  ivaPct: z.number().nullable().optional(),
 });
 
 export const RegistrosQuery = z.object({
@@ -126,7 +195,10 @@ export const BuscarQuery = z.object({
   forma: z.coerce.number().int().optional(),
 });
 
-export const FefoQuery = z.object({ unidades: z.coerce.number().int().positive().default(1), duracionDias: z.coerce.number().int().positive().optional() });
+export const FefoQuery = z.object({
+  unidades: z.coerce.number().int().positive().default(1),
+  duracionDias: z.coerce.number().int().positive().optional(),
+});
 export const ScanDto = z.object({ raw: z.string().min(1).max(500) });
 export const ResolverDiscrepanciaDto = z.object({ nota: z.string().trim().min(10).max(1000) });
 export const PedidoDto = z.object({

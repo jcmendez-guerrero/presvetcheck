@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 41,
+      "nombre_empresa": "Distribuidora Veterinaria de Prueba S.L.",
+      "email_general": "pedidos@example.org",
+      "telefono_principal": "+34 910 000 000",
+      "tipo_relacion": "Proveedor",
+      "fecha_alta": "2025-03-01",
+      "ultimo_contacto": "2026-10-01"
+    },
+    {
+      "id": 42,
+      "nombre_empresa": "Cooperativa de Prueba",
+      "email_general": "info@example.org",
+      "telefono_principal": "+34 910 000 001",
+      "tipo_relacion": "Proveedor",
+      "fecha_alta": "2025-05-10",
+      "ultimo_contacto": "2026-09-20"
+    }
+  ],
+  "total": 2
+}

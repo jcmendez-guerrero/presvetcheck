@@ -1,12 +1,15 @@
 import { createHash } from 'node:crypto';
 import type { BlobServiceClient } from '@azure/storage-blob';
 
-/** Almacén de ficheros (imágenes de recetas, reportes). Azure Blob con inmutabilidad en producción. */
+/** Contenedores: imágenes de recetas, reportes y albaranes/facturas de proveedor leídos en las recepciones. */
+export type Contenedor = 'recetas' | 'reportes' | 'albaranes';
+
+/** Almacén de ficheros (imágenes de recetas, reportes, albaranes). Azure Blob con inmutabilidad en producción. */
 export interface BlobStore {
-  put(contenedor: 'recetas' | 'reportes', path: string, bytes: Uint8Array, mime: string): Promise<string>;
-  get(contenedor: 'recetas' | 'reportes', path: string): Promise<{ bytes: Uint8Array; mime: string } | null>;
+  put(contenedor: Contenedor, path: string, bytes: Uint8Array, mime: string): Promise<string>;
+  get(contenedor: Contenedor, path: string): Promise<{ bytes: Uint8Array; mime: string } | null>;
   /** Borrado por retención (> 5 años). La inmutabilidad temporal del contenedor impide borrar antes. */
-  delete(contenedor: 'recetas' | 'reportes', path: string): Promise<boolean>;
+  delete(contenedor: Contenedor, path: string): Promise<boolean>;
 }
 
 export class MemoryBlobStore implements BlobStore {
@@ -39,18 +42,18 @@ export class AzureBlobStore implements BlobStore {
     } else if (cfg.connectionString) {
       svc = BlobServiceClient.fromConnectionString(cfg.connectionString);
       // Solo en local (Azurite): crea los contenedores si no existen.
-      for (const c of ['recetas', 'reportes']) await svc.getContainerClient(c).createIfNotExists();
+      for (const c of ['recetas', 'reportes', 'albaranes']) await svc.getContainerClient(c).createIfNotExists();
     } else throw new Error('Sin configuración de Blob Storage');
     return new AzureBlobStore(svc);
   }
 
-  async put(c: 'recetas' | 'reportes', path: string, bytes: Uint8Array, mime: string) {
+  async put(c: Contenedor, path: string, bytes: Uint8Array, mime: string) {
     const blob = this.svc.getContainerClient(c).getBlockBlobClient(path);
     await blob.uploadData(Buffer.from(bytes), { blobHTTPHeaders: { blobContentType: mime } });
     return `${c}/${path}`;
   }
 
-  async get(c: 'recetas' | 'reportes', path: string) {
+  async get(c: Contenedor, path: string) {
     const blob = this.svc.getContainerClient(c).getBlockBlobClient(path);
     if (!(await blob.exists())) return null;
     const buf = await blob.downloadToBuffer();
@@ -58,7 +61,7 @@ export class AzureBlobStore implements BlobStore {
     return { bytes: new Uint8Array(buf), mime: props.contentType ?? 'application/octet-stream' };
   }
 
-  async delete(c: 'recetas' | 'reportes', path: string) {
+  async delete(c: Contenedor, path: string) {
     const r = await this.svc.getContainerClient(c).getBlockBlobClient(path).deleteIfExists();
     return r.succeeded;
   }

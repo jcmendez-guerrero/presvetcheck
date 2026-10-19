@@ -12,6 +12,10 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Garante | Farmacéutico garante del establecimiento. No usa la app: su autorización previa y su firma las registra el empleado; revisa el reporte semanal | — |
 | Dispensación | Entrega de un medicamento; registro de salida append-only | `dispensacion` |
 | Entrada / recepción | Recepción de mercancía de un distribuidor | `recepcion`, `recepcion_linea` |
+| Albarán | Documento del proveedor que acompaña a la mercancía (o factura); se puede leer con Document Intelligence para proponer las líneas | `LecturaAlbaran`, `albaranDesdeFactura` |
+| Fecha de recepción | Día en que llega la mercancía; puede ser posterior a la fecha de compra del albarán | `fechaRecepcion` |
+| Entrada caducada | Línea de entrada con caducidad anterior a hoy: no se puede registrar | `entradaCaducada`, `ENTRADA_CADUCADA` |
+| Recargo de equivalencia (RE) | Recargo del IVA que se suma al precio neto de compra para el coste; el precio neto se introduce sin IVA ni RE | `rePct`, `calcularPrecioCoste` |
 | Forzado | Dispensar pese a un defecto de forma, asumiendo la responsabilidad (SPEC §4.1.6) | `forzado`, `validarForzado` |
 | Defecto de forma | Incidencia `BLOQUEANTE_FORMA`: no se puede dispensar, pero se puede forzar | `BLOQUEANTE_FORMA` |
 | Bloqueo duro | Incidencia `BLOQUEANTE_DURO`: no se puede dispensar ni forzar | `BLOQUEANTE_DURO` |

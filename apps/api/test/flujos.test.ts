@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { auditEvent, discrepancia, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
@@ -627,5 +628,77 @@ describe('distribuidor en texto libre, titular con DNI y dirección, informes de
     expect(tipos.some((t: string) => t.startsWith('Salida'))).toBe(true);
     const x = await api(E.app, 'dev-empleado', 'GET', `/api/registros/movimientos?${q}&formato=xlsx`);
     expect(x.res.headers['content-type']).toContain('spreadsheetml');
+    // Un documento, dos hojas: entradas y salidas por separado.
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(x.res.rawPayload as never);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Entradas', 'Todas las salidas']);
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/registros/movimientos?${q}&formato=csv`)).status).toBe(400);
+  });
+});
+
+describe('recepción: validación previa, edición de líneas, fecha de recepción y lectura del albarán', () => {
+  const nueva = async () =>
+    (await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Distribuidora Veterinaria de Prueba S.L.', fechaCompra: '2026-10-12', fechaRecepcion: '2026-10-13' })).json.id as string;
+
+  it('guarda la fecha de recepción y propone los distribuidores conocidos', async () => {
+    const id = await nueva();
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${id}`)).json).toMatchObject({ fechaCompra: '2026-10-12', fechaRecepcion: '2026-10-13' });
+    const p = (await api(E.app, 'dev-empleado', 'GET', '/api/recepciones/proveedores')).json;
+    // Sin Siweb360 en los tests: solo los de la app.
+    expect(p.siwebDisponible).toBe(false);
+    expect(p.proveedores.map((x: { nombre: string }) => x.nombre)).toContain('Distribuidora Veterinaria de Prueba S.L.');
+  });
+
+  it('no deja añadir un producto caducado; explica qué campo falla; precio con coma; medicamento no encontrado', async () => {
+    const id = await nueva();
+    const caducado = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, { cn: '570016', lote: 'C1', caducidad: '2026-01-31' });
+    expect(caducado.status).toBe(422);
+    expect(caducado.json.error).toMatchObject({ code: 'ENTRADA_CADUCADA', detalles: { campo: 'caducidad' } });
+    expect(caducado.json.error.mensaje).toMatch(/El lote C1 caducó el 31\/01\/2026/);
+    const mal = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, { cn: '570016', unidades: 0, precioNetoCompra: '12;5' });
+    expect(mal.status).toBe(400);
+    const campos = (mal.json.error.detalles as { campo: string; mensaje: string }[]).map((x) => x.campo);
+    expect(campos).toEqual(expect.arrayContaining(['/unidades', '/precioNetoCompra']));
+    expect(JSON.stringify(mal.json.error.detalles)).toMatch(/importe como 12,50/);
+    const coma = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, { cn: '570016', lote: 'P1', caducidad: '2027-12-31', precioNetoCompra: '10,00', ivaPct: 10 });
+    expect(coma.status).toBe(201);
+    expect(coma.json.linea).toMatchObject({ precioNetoCompra: '10.0000', precioCoste: '10.1400' });
+    const noEsta = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, { cn: '999999', lote: 'X' });
+    expect(noEsta.json.error).toMatchObject({ code: 'MEDICAMENTO_NO_EN_SISTEMA', detalles: { campo: 'cn' } });
+    expect(noEsta.json.error.mensaje).toMatch(/No se ha encontrado ningún medicamento con el código nacional 999999/);
+  });
+
+  it('las líneas se modifican mientras la recepción está abierta (no a caducado; no tras finalizar)', async () => {
+    const id = await nueva();
+    const l = (await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, { cn: '570016', lote: 'E1', caducidad: '2027-12-31' })).json.linea;
+    const ed = await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${id}/lineas/${l.id}`, { lote: 'E1-B', unidades: 4, precioNetoCompra: '5,5', ivaPct: 10 });
+    expect(ed.status).toBe(200);
+    expect(ed.json.linea).toMatchObject({ lote: 'E1-B', unidades: 4, precioNetoCompra: '5.5000', nombreFarmaco: l.nombreFarmaco });
+    expect((await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${id}/lineas/${l.id}`, { caducidad: '2026-02-01' })).json.error.code).toBe('ENTRADA_CADUCADA');
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/finalizar`);
+    expect((await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${id}/lineas/${l.id}`, { unidades: 1 })).json.error.code).toBe('RECEPCION_NO_EDITABLE');
+  });
+
+  it('lee el albarán: propone líneas con su medicamento de CIMAVet y completa el nº de albarán; no añade nada solo', async () => {
+    const id = await nueva();
+    const { readFileSync } = await import('node:fs');
+    const pdf = readFileSync(resolve(__dirname, '../../../fixtures/albaranes/sintetico-1.pdf'));
+    const b = `----mmx${Date.now()}`;
+    const payload = Buffer.concat([
+      Buffer.from(`--${b}\r\nContent-Disposition: form-data; name="documento"; filename="albaran.pdf"\r\nContent-Type: application/pdf\r\n\r\n`),
+      pdf,
+      Buffer.from(`\r\n--${b}--\r\n`),
+    ]);
+    const r = await E.app.inject({ method: 'POST', url: `/api/recepciones/${id}/documento`, headers: { 'content-type': `multipart/form-data; boundary=${b}`, 'x-dev-user': 'dev-empleado' }, payload });
+    expect(r.statusCode).toBe(200);
+    const lec = r.json();
+    expect(lec).toMatchObject({ proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.', numero: 'ALB-2026-00417', fecha: '2026-10-15' });
+    // 570016 está en la muestra del Nomenclátor de los tests; 999999 no es un medicamento.
+    expect(lec.lineas[1]).toMatchObject({ cn: '570016', cantidad: 2, lote: 'CLV-2805', caducidad: '2028-05-31', candidato: { cn: '570016' } });
+    expect(lec.lineas[2].candidato).toBeNull();
+    const det = (await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${id}`)).json;
+    expect(det).toMatchObject({ albaran: 'ALB-2026-00417', lineas: [] });
+    expect(det.lectura.lineas).toHaveLength(3);
   });
 });

@@ -14,7 +14,7 @@ import {
   sugerirPrefijo,
   varianteCoincideCn,
 } from '../src/sku';
-import { acumularEscaneo, avisosEntrada, camposFaltantes, type LineaEntrada } from '../src/recepcion';
+import { acumularEscaneo, avisosEntrada, camposFaltantes, entradaCaducada, type LineaEntrada } from '../src/recepcion';
 import { planificarDispensacion, textoResguardo } from '../src/parcial';
 import { HOY, RULES, politica } from './builders';
 
@@ -130,6 +130,17 @@ describe('convención de SKU y CN (SPEC §5.2.2)', () => {
 });
 
 describe('recepción de mercancía (SPEC §4.9)', () => {
+  it.each`
+    caducidad       | hoy             | caducada
+    ${'2026-10-18'} | ${'2026-10-19'} | ${true}
+    ${'2026-10-19'} | ${'2026-10-19'} | ${false}
+    ${'2026-10-31'} | ${'2026-11-01'} | ${true}
+    ${'2027-02-28'} | ${'2026-10-19'} | ${false}
+    ${null}         | ${'2026-10-19'} | ${false}
+  `('entrada con caducidad $caducidad el $hoy → caducada=$caducada', ({ caducidad, hoy, caducada }) => {
+    expect(entradaCaducada(caducidad, hoy)).toBe(caducada);
+  });
+
   const linea = (o: Partial<LineaEntrada> = {}): LineaEntrada => ({
     tipo: 'medicamento',
     unidades: 1,

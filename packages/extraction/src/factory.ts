@@ -3,6 +3,10 @@ import { DomainError, type AppConfig } from '@mmx/shared';
 import { AzureRecipeExtractor } from './azure/extractor';
 import { DocumentIntelligenceClient } from './azure/docintel';
 import { FakeRecipeExtractor } from './fake';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { LectorAlbaranes, albaranDesdeFactura, type LecturaAlbaran } from './albaran';
+import type { AnalyzeResult } from './azure/docintel';
 
 /** Extractor desactivado: la app funciona (entrada manual de datos) pero no lee recetas solas. */
 export class DisabledRecipeExtractor implements RecipeExtractor {
@@ -32,10 +36,47 @@ export async function crearExtractor(
 ): Promise<RecipeExtractor> {
   if (config.EXTRACTOR === 'fake') return new FakeRecipeExtractor({ dir: deps.fixturesDir, hoy: deps.hoy });
   const faltan = (['DOCINTEL_ENDPOINT', 'DOCINTEL_MODEL_ID'] as const).filter((k) => !config[k]);
-  if (faltan.length) return new DisabledRecipeExtractor(`Falta configuración de Document Intelligence: ${faltan.join(', ')}`);
+  if (faltan.length)
+    return new DisabledRecipeExtractor(`Falta configuración de Document Intelligence: ${faltan.join(', ')}`);
   const getToken = deps.getToken ?? (await tokenProviderAzure());
   return new AzureRecipeExtractor(
-    new DocumentIntelligenceClient({ endpoint: config.DOCINTEL_ENDPOINT as string, getToken, apiVersion: config.DOCINTEL_API_VERSION }),
+    new DocumentIntelligenceClient({
+      endpoint: config.DOCINTEL_ENDPOINT as string,
+      getToken,
+      apiVersion: config.DOCINTEL_API_VERSION,
+    }),
     config.DOCINTEL_MODEL_ID as string,
   );
+}
+
+/** Lee albaranes y facturas de proveedor (recepción de mercancía). */
+export interface LectorDocumentosProveedor {
+  readonly simulado: boolean;
+  leer(bytes: Uint8Array, mime: string): Promise<LecturaAlbaran>;
+}
+
+/**
+ * Con Document Intelligence configurado, `prebuilt-invoice`; con EXTRACTOR=fake (demo y tests), la lectura
+ * de la fixture sintética (fixtures/albaranes/sintetico-1.invoice.json) sea cual sea el documento.
+ */
+export async function crearLectorAlbaranes(
+  config: Pick<AppConfig, 'EXTRACTOR' | 'DOCINTEL_ENDPOINT' | 'DOCINTEL_API_VERSION'>,
+  deps: { fixturesDir: string; getToken?: () => Promise<string> },
+): Promise<LectorDocumentosProveedor | null> {
+  if (config.EXTRACTOR === 'fake') {
+    const fixture = JSON.parse(
+      readFileSync(resolve(deps.fixturesDir, 'albaranes/sintetico-1.invoice.json'), 'utf8'),
+    ) as AnalyzeResult;
+    return { simulado: true, leer: async () => albaranDesdeFactura(fixture) };
+  }
+  if (!config.DOCINTEL_ENDPOINT) return null;
+  const getToken = deps.getToken ?? (await tokenProviderAzure());
+  const lector = new LectorAlbaranes(
+    new DocumentIntelligenceClient({
+      endpoint: config.DOCINTEL_ENDPOINT,
+      getToken,
+      apiVersion: config.DOCINTEL_API_VERSION,
+    }),
+  );
+  return { simulado: false, leer: (b, m) => lector.leer(b, m) };
 }

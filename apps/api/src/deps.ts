@@ -7,6 +7,7 @@ import type { LoadedRuleFile } from '@mmx/shared/node';
 import type { BandejaSiweb, OutboxService, SalesMovementsSource, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
 import type { BlobStore } from '@mmx/reports';
 import type { StockPort } from './puertos/stock';
+import type { LectorDocumentosProveedor } from '@mmx/extraction';
 
 /** Dependencias de la API (inyectadas: los tests usan PGlite, stock de demo y extractor falso). */
 export interface AppDeps {
@@ -25,6 +26,8 @@ export interface AppDeps {
     catalogo: SiwebCatalogWriter;
     outbox: OutboxService;
     stockActual: (variantId: number) => Promise<unknown>;
+    /** Nombres de los proveedores dados de alta en Siweb360 (para proponer el distribuidor). */
+    proveedores: () => Promise<string[]>;
   } | null;
   /**
    * Movimientos de venta (tickets del TPV) para conciliar las salidas: Siweb360, tickets simulados en la demo
@@ -32,6 +35,8 @@ export interface AppDeps {
    */
   ventas: SalesMovementsSource;
   extractor: RecipeExtractor;
+  /** Lectura de albaranes y facturas de proveedor (null si Document Intelligence no está configurado). */
+  lectorAlbaranes: LectorDocumentosProveedor | null;
   blob: BlobStore;
   cipher: ColumnCipher;
   /** Teléfono que figura en el resguardo para el tutor. */

@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import multipart from '@fastify/multipart';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -16,6 +17,9 @@ import { rutasRecetas } from './rutas/recetas';
 import { rutasRegistros } from './rutas/registros';
 import { rutasReportes } from './rutas/reportes';
 import { rutasSistema } from './rutas/sistema';
+
+// Mensajes de validación en español (se devuelven a la UI campo a campo).
+z.config(z.locales.es());
 
 /** Rutas de log que se redactan: nunca datos personales en logs (SPEC §9.2, §11). */
 export const REDACCION = [

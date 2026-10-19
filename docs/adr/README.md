@@ -14,3 +14,4 @@ Una ADR por fichero, a partir de la tabla de SPEC §1.
 - [ADR-10 · IaC en Bicep](./0010-iac-en-bicep.md)
 - [ADR-11 · Región spaincentral con excepciones por servicio](./0011-region-spaincentral-con-excepciones-por-servicio.md)
 - [ADR-12 · Extracción con un modelo personalizado de Document Intelligence](./0012-extraccion-con-modelo-personalizado-de-document-intelligence.md)
+- [ADR-13 · Lectura de albaranes y facturas de proveedor con `prebuilt-invoice`](./0013-lectura-de-albaranes-con-prebuilt-invoice.md)

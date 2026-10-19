@@ -48,6 +48,11 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
       http.get(`${BASE}inventory/variants/:id`, () => HttpResponse.json(fx('doc-variant.json'))),
       http.get(`${BASE}inventory/warehouses`, () => HttpResponse.json(fx('doc-warehouses.json'))),
       http.get(`${BASE}inventory/stock/low`, () => HttpResponse.json(fx('doc-low-stock.json'))),
+      http.get(`${BASE}contacts`, ({ request }) => {
+        // Solo proveedores (los clientes no son distribuidores).
+        expect(new URL(request.url).searchParams.get('tipo')).toBe('Proveedor');
+        return HttpResponse.json(fx('doc-contacts-proveedores.json'));
+      }),
     );
     const c = client();
     expect((await c.products())[0]).toMatchObject({ id: 3120, code: 'CAM-001', variants_count: 6 });
@@ -58,6 +63,7 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
     expect((await c.lots(8812))[0]).toMatchObject({ lot_code: 'L-2026-09', expiry_date: '2027-03-31' });
     expect((await c.warehouses()).map((w) => w.name)).toEqual(['Almacén central', 'Tienda Centro']);
     expect((await c.lowStock(14))[0]).toMatchObject({ sku: 'CAM-AZ-L' });
+    expect((await c.proveedores()).map((p) => p.nombre_empresa)).toEqual(['Distribuidora Veterinaria de Prueba S.L.', 'Cooperativa de Prueba']);
   });
 
   it('pagina según pagination.pages (documentado)', async () => {

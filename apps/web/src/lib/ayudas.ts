@@ -47,3 +47,21 @@ export const AYUDA = {
   cimavet: 'Medicamento y presentación exactos en CIMAVet. Comprueba que el nombre coincide con la receta: así se evita elegir otro por error.',
   comprobado: 'Confirma que has revisado con la receta original los datos para dispensar y que la receta trae el resto de datos obligatorios (titular, veterinario, indicación, posología). Esos datos se anotan después de dispensar; en animales de producción, antes.',
 } as const;
+
+/** Ayudas de la recepción de mercancía (registro de entradas). */
+export const AYUDA_RECEPCION = {
+  distribuidor: 'Proveedor que envía la mercancía, tal como figura en el albarán o la factura. Se proponen los ya usados y los proveedores de Siweb360; si es nuevo, se da de alta solo.',
+  albaran: 'Número del albarán o de la factura del proveedor: permite localizar la compra en una inspección.',
+  fechaCompra: 'Fecha del albarán o de la factura (fecha de compra). Figura en el registro de entradas.',
+  fechaRecepcion: 'Día en que llega la mercancía a la farmacia. Puede ser posterior a la fecha de compra.',
+  documento: 'Fotografía o PDF del albarán o la factura: se leen el proveedor, el número, la fecha y las líneas para proponerlas. Revisa cada línea antes de añadirla.',
+  medicamento: 'Busca por nombre o escanea el código del envase. Los datos (principio activo, forma) se toman de CIMAVet.',
+  producto: 'Productos que no son medicamentos (collares, piensos…): no se buscan en CIMAVet.',
+  lote: 'Lote impreso en el envase (o leído del código DataMatrix).',
+  caducidad: 'Fecha de caducidad del envase. No se puede dar entrada a un producto caducado; si caduca pronto se avisa.',
+  unidades: 'Número de envases recibidos de ese lote.',
+  precioNeto: 'Precio unitario de compra SIN IVA y SIN recargo de equivalencia (el recargo se calcula aparte). Usa coma para los decimales: 12,50.',
+  iva: 'Tipo de IVA del producto. El recargo de equivalencia correspondiente se añade al calcular el coste.',
+  escaneo: 'Escanea el DataMatrix del envase para rellenar el código nacional, el lote y la caducidad.',
+} as const;
+
