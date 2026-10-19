@@ -54,12 +54,24 @@ export function Campo({
   dudoso,
   ayuda,
   info,
+  error,
   ...p
-}: InputHTMLAttributes<HTMLInputElement> & { etiqueta: string; dudoso?: boolean | undefined; ayuda?: string | undefined; info?: string | undefined }) {
+}: InputHTMLAttributes<HTMLInputElement> & { etiqueta: string; dudoso?: boolean | undefined; ayuda?: string | undefined; info?: string | undefined; error?: string | null | undefined }) {
+  const id = useId();
   return (
     <label className="flex flex-col gap-1 text-sm">
       <Etiqueta texto={etiqueta} info={info} dudoso={dudoso} />
-      <input className={`min-h-11 rounded-lg border px-3 text-base ${dudoso ? 'border-dorado bg-dorado/10' : 'border-slate-300 bg-white'}`} {...p} />
+      <input
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? id : undefined}
+        className={`min-h-11 rounded-lg border px-3 text-base ${error ? 'border-noconforme bg-noconforme-bg' : dudoso ? 'border-dorado bg-dorado/10' : 'border-slate-300 bg-white'}`}
+        {...p}
+      />
+      {error && (
+        <span id={id} className="text-xs font-semibold text-noconforme">
+          {error}
+        </span>
+      )}
       {ayuda && <span className="text-xs text-slate-600">{ayuda}</span>}
     </label>
   );

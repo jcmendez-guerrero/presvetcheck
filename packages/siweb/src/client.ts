@@ -18,6 +18,8 @@ import {
   type TransferRequest,
   type Variant,
   type Warehouse,
+  ContactSchema,
+  type Contact,
 } from './schemas';
 
 export class SiwebValidationError extends Error {
@@ -136,6 +138,11 @@ export class SiwebClient {
   lowStock(warehouseId?: number) {
     return this.get(VariantSchema.partial().array(), 'inventory/stock/low', { warehouse_id: warehouseId });
   }
+  /** Proveedores dados de alta en Siweb360 (`GET contacts?tipo=Proveedor`), para proponer el distribuidor. */
+  proveedores(search?: string): Promise<Contact[]> {
+    return this.get(ContactSchema.array(), 'contacts', { tipo: 'Proveedor', activo: true, search, limit: 200 });
+  }
+
   warehouses(search?: string): Promise<Warehouse[]> {
     return this.get(WarehouseSchema.array(), 'inventory/warehouses', { search });
   }

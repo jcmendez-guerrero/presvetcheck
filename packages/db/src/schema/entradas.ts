@@ -1,4 +1,4 @@
-import { date, index, integer, numeric, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
+import { date, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { createdOnly, pk, timestamps } from './common';
 import { distribuidor } from './config';
 
@@ -13,6 +13,11 @@ export const recepcion = pgTable(
       .references(() => distribuidor.id),
     albaran: text(),
     fechaCompra: date().notNull(),
+    /** Fecha en que llega la mercancía (puede ser posterior a la de compra del albarán o factura). */
+    fechaRecepcion: date(),
+    /** Propuesta leída del albarán o la factura (Document Intelligence) y ruta del documento en Blob. */
+    lecturaDocumento: jsonb(),
+    documentoPath: text(),
     estado: text().notNull().default('ABIERTA'), // ABIERTA | FINALIZADA | SINCRONIZADA | ERROR_SINCRONIZACION
     empleado: text().notNull(),
     finalizadaAt: timestamp({ withTimezone: true }),

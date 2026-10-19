@@ -7,3 +7,4 @@ export * from './azure/docintel';
 export * from './azure/extractor';
 export * from './azure/reglas-layout';
 export * from './eval/metricas';
+export * from './albaran';

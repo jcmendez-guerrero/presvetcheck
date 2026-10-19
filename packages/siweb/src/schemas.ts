@@ -88,6 +88,16 @@ export const WarehouseSchema = z.looseObject({
   is_default: z.boolean().nullish(),
 });
 
+/** `GET contacts` (docs/ref/siweb360-openapi.json): contactos; los de `tipo_relacion` Proveedor son distribuidores. */
+export const ContactSchema = z.looseObject({
+  id: num,
+  nombre_empresa: z.string().nullish(),
+  email_general: z.string().nullish(),
+  telefono_principal: z.string().nullish(),
+  tipo_relacion: z.string().nullish(),
+});
+export type Contact = z.output<typeof ContactSchema>;
+
 export const AdjustmentResultSchema = z.looseObject({
   variant_id: numN,
   warehouse_id: numN,

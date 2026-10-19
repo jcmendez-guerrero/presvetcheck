@@ -55,6 +55,13 @@ resource reportes 'Microsoft.Storage/storageAccounts/blobServices/containers@202
   properties: { publicAccess: 'None' }
 }
 
+// Albaranes y facturas de proveedor leídos al recibir mercancía (justificante de la entrada).
+resource albaranes 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blob
+  name: 'albaranes'
+  properties: { publicAccess: 'None' }
+}
+
 resource ciclo 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
   parent: sa
   name: 'default'

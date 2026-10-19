@@ -38,6 +38,14 @@ export function avisosEntrada(l: LineaEntrada, hoy: FechaIso, minDias: number, p
 }
 
 /**
+ * Un producto ya caducado no se puede recibir: la caducidad es anterior a hoy (el día de caducidad todavía
+ * es válido). Se comprueba al añadir y al modificar la línea, antes de guardarla.
+ */
+export function entradaCaducada(caducidad: FechaIso | null, hoy: FechaIso): boolean {
+  return caducidad !== null && comparar(caducidad, hoy) < 0;
+}
+
+/**
  * Escanear varias veces el mismo lote suma unidades; si el envase trae nº de serie y ya estaba,
  * no suma (deduplicación).
  */

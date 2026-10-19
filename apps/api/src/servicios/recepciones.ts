@@ -1,9 +1,19 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, MAESTRA } from '@mmx/db';
-import { acumularEscaneo, avisosEntrada, calcularPrecioCoste, camposFaltantes, normalizarCn, type LineaEntrada } from '@mmx/domain';
+import {
+  acumularEscaneo,
+  avisosEntrada,
+  calcularPrecioCoste,
+  camposFaltantes,
+  entradaCaducada,
+  fechaEs,
+  normalizarCn,
+  type LineaEntrada,
+} from '@mmx/domain';
 import { DomainError, normalizeText } from '@mmx/shared';
 import { hoyDe, politica, type AppDeps } from '../deps';
 import { MedicamentosService } from './medicamentos';
+import { marcaPresente } from './identificacion';
 import type { ContextoPeticion } from './recetas';
 
 export interface NuevaLineaEntrada {
@@ -35,23 +45,155 @@ export class RecepcionesService {
     const existente = todos.find((x) => normalizeText(x.nombre) === normalizeText(limpio));
     if (existente) return existente;
     const [nuevo] = await this.d.db.insert(distribuidor).values({ nombre: limpio }).returning();
-    await appendAudit(this.d.db, { actor: c.usuario.id, accion: 'distribuidor_alta', entidad: 'distribuidor', entidadId: nuevo!.id, despues: { nombre: limpio }, ip: c.ip, userAgent: c.userAgent });
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'distribuidor_alta',
+      entidad: 'distribuidor',
+      entidadId: nuevo!.id,
+      despues: { nombre: limpio },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
     return nuevo!;
   }
 
-  async crear(b: { distribuidorId?: string | undefined; distribuidor?: string | undefined; albaran: string | null; fechaCompra: string | null }, c: ContextoPeticion) {
+  async crear(
+    b: {
+      distribuidorId?: string | undefined;
+      distribuidor?: string | undefined;
+      albaran: string | null;
+      fechaCompra: string | null;
+      fechaRecepcion?: string | null;
+    },
+    c: ContextoPeticion,
+  ) {
     const [dist] = b.distribuidor
       ? [await this.distribuidorPorNombre(b.distribuidor, c)]
-      : await this.d.db.select().from(distribuidor).where(and(eq(distribuidor.id, b.distribuidorId ?? ''), eq(distribuidor.activo, true)));
+      : await this.d.db
+          .select()
+          .from(distribuidor)
+          .where(and(eq(distribuidor.id, b.distribuidorId ?? ''), eq(distribuidor.activo, true)));
     if (!dist) throw new DomainError('VALIDACION', 'Distribuidor no válido');
     return this.d.db.transaction(async (tx) => {
       const [r] = await tx
         .insert(recepcion)
-        .values({ distribuidorId: dist.id, albaran: b.albaran, fechaCompra: b.fechaCompra ?? hoyDe(this.d), empleado: c.usuario.id })
+        .values({
+          distribuidorId: dist.id,
+          albaran: b.albaran,
+          fechaCompra: b.fechaCompra ?? hoyDe(this.d),
+          fechaRecepcion: b.fechaRecepcion ?? hoyDe(this.d),
+          empleado: c.usuario.id,
+        })
         .returning();
-      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_crear', entidad: 'recepcion', entidadId: r!.id, despues: { distribuidor: dist.nombre }, ip: c.ip, userAgent: c.userAgent });
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_crear',
+        entidad: 'recepcion',
+        entidadId: r!.id,
+        despues: { distribuidor: dist.nombre },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
       return r!;
     });
+  }
+
+  /**
+   * Distribuidores para elegir al empezar una recepción: los ya usados en la app y los proveedores de Siweb360
+   * (si Siweb360 no responde, solo los de la app). Sin duplicados (sin distinguir mayúsculas ni tildes).
+   */
+  async proveedores() {
+    const locales = (await this.d.db.select().from(distribuidor).where(eq(distribuidor.activo, true))).map(
+      (x) => ({ nombre: x.nombre, origen: 'app' as const }),
+    );
+    let siweb: { nombre: string; origen: 'siweb' }[] = [];
+    let siwebDisponible = this.d.siweb !== null;
+    if (this.d.siweb) {
+      try {
+        siweb = (await this.d.siweb.proveedores()).map((nombre) => ({ nombre, origen: 'siweb' as const }));
+      } catch {
+        siwebDisponible = false;
+      }
+    }
+    const vistos = new Set<string>();
+    const lista = [...locales, ...siweb].filter((p) => {
+      const k = normalizeText(p.nombre);
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
+    return { proveedores: lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), siwebDisponible };
+  }
+
+  /**
+   * Lee el albarán o la factura con Document Intelligence y guarda la PROPUESTA (proveedor, número, fecha y
+   * líneas con su medicamento de CIMAVet si se identifica). No añade ninguna línea: la persona revisa cada una
+   * con el envase. Si la cabecera no tenía nº de albarán, se completa con el leído. Se guarda el documento.
+   */
+  async leerDocumento(id: string, doc: { bytes: Uint8Array; mime: string }, c: ContextoPeticion) {
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
+    if (!this.d.lectorAlbaranes)
+      throw new DomainError(
+        'EXTRACTOR_NO_CONFIGURADO',
+        'La lectura de albaranes no está configurada (Document Intelligence)',
+      );
+    const lectura = await this.d.lectorAlbaranes.leer(doc.bytes, doc.mime);
+    const lineas = [];
+    for (const l of lectura.lineas) {
+      let candidato: { cn: string; nombre: string } | null = null;
+      if (l.cn) {
+        const p = await this.med.presentacion(l.cn);
+        if (p) candidato = { cn: p.cn, nombre: p.nombre };
+      }
+      if (!candidato && l.descripcion) {
+        // Sin código nacional válido: por nombre, solo si la marca del documento coincide (marcaPresente).
+        const m = (await this.d.cimavet.buscar(l.descripcion, { limite: 3 })).find(
+          (x) => x.puntuacion >= 0.5 && marcaPresente(l.descripcion as string, x),
+        );
+        if (m) candidato = { cn: m.cn, nombre: m.nombre };
+      }
+      lineas.push({
+        descripcion: l.descripcion,
+        cantidad: l.cantidad,
+        precioUnitario: l.precioUnitario,
+        cn: l.cn,
+        lote: l.lote,
+        caducidad: l.caducidad,
+        candidato,
+      });
+    }
+    const ext = doc.mime === 'application/pdf' ? 'pdf' : (doc.mime.split('/')[1] ?? 'bin');
+    const path = await this.d.blob.put('albaranes', `${id}/${Date.now()}.${ext}`, doc.bytes, doc.mime);
+    const guardada = {
+      proveedor: lectura.proveedor,
+      numero: lectura.numero,
+      fecha: lectura.fecha,
+      modelo: lectura.modelo,
+      simulada: this.d.lectorAlbaranes.simulado,
+      lineas,
+    };
+    await this.d.db.transaction(async (tx) => {
+      await tx
+        .update(recepcion)
+        .set({
+          lecturaDocumento: guardada,
+          documentoPath: path,
+          ...(r.albaran ? {} : { albaran: lectura.numero }),
+        })
+        .where(eq(recepcion.id, id));
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_leer_documento',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { lineas: lineas.length, modelo: lectura.modelo },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
+    });
+    return guardada;
   }
 
   async listar(limite = 50) {
@@ -62,16 +204,26 @@ export class RecepcionesService {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     const [dist] = await this.d.db.select().from(distribuidor).where(eq(distribuidor.id, r.distribuidorId));
-    const lineas = await this.d.db.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id)).orderBy(asc(recepcionLinea.numero));
+    const lineas = await this.d.db
+      .select()
+      .from(recepcionLinea)
+      .where(eq(recepcionLinea.recepcionId, id))
+      .orderBy(asc(recepcionLinea.numero));
     return {
       ...r,
       distribuidor: dist?.nombre ?? null,
+      lectura: r.lecturaDocumento ?? null,
       fechaCorte: this.d.config.ENTRY_CUTOVER_DATE ?? null,
       escrituraStock: this.d.config.SIWEB_STOCK_WRITE_MODE,
       lineas: lineas.map((l) => ({
         ...l,
         faltan: camposFaltantes(this.aEntrada(l)),
-        avisos: avisosEntrada(this.aEntrada(l), hoyDe(this.d), this.d.config.ENTRY_MIN_SHELF_LIFE_DAYS, politica(this.d)),
+        avisos: avisosEntrada(
+          this.aEntrada(l),
+          hoyDe(this.d),
+          this.d.config.ENTRY_MIN_SHELF_LIFE_DAYS,
+          politica(this.d),
+        ),
       })),
     };
   }
@@ -98,14 +250,24 @@ export class RecepcionesService {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
+    this.comprobarCaducidad(b.caducidad, b.lote);
     const cn = b.cn ? normalizarCn(b.cn) : null;
     if (b.tipo === 'medicamento' && cn && b.cnEscaneado && normalizarCn(b.cnEscaneado) !== cn) {
-      throw new DomainError('VALIDACION', 'El código nacional escaneado no coincide con el medicamento seleccionado', { cnEscaneado: b.cnEscaneado, cnSeleccionado: cn });
+      throw new DomainError(
+        'VALIDACION',
+        'El código nacional escaneado no coincide con el medicamento seleccionado',
+        { cnEscaneado: b.cnEscaneado, cnSeleccionado: cn },
+      );
     }
     const lineas = await this.d.db.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
-    const existente = lineas.find((l) => l.cn === cn && l.lote === b.lote && l.tipo === b.tipo && cn !== null);
+    const existente = lineas.find(
+      (l) => l.cn === cn && l.lote === b.lote && l.tipo === b.tipo && cn !== null,
+    );
     if (existente) {
-      const { linea, duplicado } = acumularEscaneo({ ...this.aEntrada(existente), unidades: existente.unidades }, b.serie);
+      const { linea, duplicado } = acumularEscaneo(
+        { ...this.aEntrada(existente), unidades: existente.unidades },
+        b.serie,
+      );
       if (duplicado) return { linea: existente, duplicado: true };
       const extra = b.unidades - 1;
       const [u] = await this.d.db
@@ -116,35 +278,8 @@ export class RecepcionesService {
       return { linea: u!, duplicado: false };
     }
 
-    let datos = { nregistro: null as string | null, nombre: b.nombre, pa: null as string | null, forma: null as string | null, origen: 'manual' as 'cimavet' | 'manual' };
-    let siwebVariantId: number | null = null;
-    if (b.tipo === 'medicamento' && cn) {
-      const pres = await this.med.presentacion(cn);
-      const m = pres ? await this.med.info(pres.nregistro) : null;
-      if (pres && m) {
-        datos = {
-          nregistro: m.nregistro,
-          nombre: pres.nombre,
-          pa: this.med.textoPrincipiosActivos(m),
-          forma: await this.med.nombreMaestra(MAESTRA.FORMAS, m.formaId),
-          origen: 'cimavet',
-        };
-        if (this.d.siweb) {
-          try {
-            const res = await this.d.siweb.resolver.resolver(cn, { nombre: m.nombre, labtitular: m.labtitular });
-            if (res.estado === 'MAPEADO') siwebVariantId = res.variantes[0]?.variantId ?? null;
-          } catch {
-            // Siweb360 no responde: la línea quedará PENDIENTE_ALTA_SIWEB al finalizar y se podrá mapear después.
-          }
-        }
-      }
-    }
-    if (!datos.nombre) throw new DomainError('VALIDACION', 'Indica el nombre del producto');
-    let precio: { coste: string; re: string; iva: string } | null = null;
-    if (b.precioNetoCompra) {
-      const p = calcularPrecioCoste(b.precioNetoCompra, b.ivaPct, this.d.rules.bundle.precios);
-      precio = { coste: p.costeAlmacen, re: p.rePct.toString(), iva: p.ivaPct.toString() };
-    }
+    const { datos, siwebVariantId } = await this.datosProducto(b.tipo, cn, b.nombre);
+    const precio = this.precio(b.precioNetoCompra, b.ivaPct);
     const numero = Math.max(0, ...lineas.map((l) => l.numero)) + 1;
     const [nueva] = await this.d.db
       .insert(recepcionLinea)
@@ -174,10 +309,174 @@ export class RecepcionesService {
     return { linea: nueva!, duplicado: false };
   }
 
+  /** Un producto caducado no se recibe (se comprueba antes de guardar la línea). */
+  private comprobarCaducidad(caducidad: string | null | undefined, lote: string | null | undefined) {
+    if (caducidad && entradaCaducada(caducidad, hoyDe(this.d))) {
+      throw new DomainError(
+        'ENTRADA_CADUCADA',
+        `${lote ? `El lote ${lote}` : 'El producto'} caducó el ${fechaEs(caducidad)}: no se puede dar entrada a un producto caducado.`,
+        {
+          campo: 'caducidad',
+        },
+      );
+    }
+  }
+
+  private precio(neto: string | null | undefined, iva: number | null | undefined) {
+    if (!neto) return null;
+    const p = calcularPrecioCoste(neto, iva ?? null, this.d.rules.bundle.precios);
+    return { coste: p.costeAlmacen, re: p.rePct.toString(), iva: p.ivaPct.toString() };
+  }
+
+  /**
+   * Datos del producto: de un medicamento, SIEMPRE de CIMAVet (principio activo y forma). Si el código nacional
+   * no está en CIMAVet se avisa de que no se ha encontrado (se puede registrar como «otro producto»).
+   */
+  private async datosProducto(tipo: 'medicamento' | 'producto', cn: string | null, nombre: string | null) {
+    let datos = {
+      nregistro: null as string | null,
+      nombre,
+      pa: null as string | null,
+      forma: null as string | null,
+      origen: 'manual' as 'cimavet' | 'manual',
+    };
+    let siwebVariantId: number | null = null;
+    if (tipo === 'medicamento' && cn) {
+      const pres = await this.med.presentacion(cn);
+      const m = pres ? await this.med.info(pres.nregistro) : null;
+      if (!pres || !m) {
+        if (!nombre)
+          throw new DomainError(
+            'MEDICAMENTO_NO_EN_SISTEMA',
+            `No se ha encontrado ningún medicamento con el código nacional ${cn} en CIMAVet. Comprueba el código o regístralo como «otro producto».`,
+            { campo: 'cn' },
+          );
+      } else {
+        datos = {
+          nregistro: m.nregistro,
+          nombre: pres.nombre,
+          pa: this.med.textoPrincipiosActivos(m),
+          forma: await this.med.nombreMaestra(MAESTRA.FORMAS, m.formaId),
+          origen: 'cimavet',
+        };
+        if (this.d.siweb) {
+          try {
+            const res = await this.d.siweb.resolver.resolver(cn, {
+              nombre: m.nombre,
+              labtitular: m.labtitular,
+            });
+            if (res.estado === 'MAPEADO') siwebVariantId = res.variantes[0]?.variantId ?? null;
+          } catch {
+            // Siweb360 no responde: la línea quedará PENDIENTE_ALTA_SIWEB al finalizar y se podrá mapear después.
+          }
+        }
+      }
+    }
+    const nombreFinal = datos.nombre;
+    if (!nombreFinal)
+      throw new DomainError(
+        'VALIDACION',
+        tipo === 'medicamento'
+          ? 'Elige el medicamento (búscalo por nombre o escanea su código)'
+          : 'Indica el nombre del producto',
+        { campo: tipo === 'medicamento' ? 'cn' : 'nombre' },
+      );
+    return { datos: { ...datos, nombre: nombreFinal }, siwebVariantId };
+  }
+
+  /**
+   * Modifica una línea mientras la recepción está abierta (después de finalizar, las líneas no se modifican:
+   * las correcciones son contramovimientos). Queda auditado qué campos cambian.
+   */
+  async editarLinea(
+    id: string,
+    lineaId: string,
+    b: {
+      cn?: string | null | undefined;
+      nombre?: string | null | undefined;
+      lote?: string | null | undefined;
+      caducidad?: string | null | undefined;
+      unidades?: number | undefined;
+      precioNetoCompra?: string | null | undefined;
+      ivaPct?: number | null | undefined;
+    },
+    c: ContextoPeticion,
+  ) {
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
+    const [l] = await this.d.db
+      .select()
+      .from(recepcionLinea)
+      .where(and(eq(recepcionLinea.id, lineaId), eq(recepcionLinea.recepcionId, id)));
+    if (!l) throw new DomainError('NO_ENCONTRADO');
+    const lote = b.lote !== undefined ? b.lote : l.lote;
+    const caducidad = b.caducidad !== undefined ? b.caducidad : l.caducidad;
+    this.comprobarCaducidad(caducidad, lote);
+    const cn = b.cn !== undefined ? (b.cn ? normalizarCn(b.cn) : null) : l.cn;
+    const cambiaProducto =
+      cn !== l.cn || (b.nombre !== undefined && b.nombre !== l.nombreFarmaco && l.tipo === 'producto');
+    const producto = cambiaProducto
+      ? await this.datosProducto(
+          l.tipo as 'medicamento' | 'producto',
+          cn,
+          b.nombre ?? (l.tipo === 'producto' ? l.nombreFarmaco : null),
+        )
+      : null;
+    const neto = b.precioNetoCompra !== undefined ? b.precioNetoCompra : l.precioNetoCompra;
+    const iva = b.ivaPct !== undefined ? b.ivaPct : l.ivaPct !== null ? Number(l.ivaPct) : null;
+    const precio = this.precio(neto, iva);
+    const cambios = {
+      lote,
+      caducidad,
+      unidades: b.unidades ?? l.unidades,
+      precioNetoCompra: neto,
+      ivaPct: precio?.iva ?? null,
+      rePct: precio?.re ?? null,
+      precioCoste: precio?.coste ?? null,
+      ...(producto
+        ? {
+            cn,
+            nregistro: producto.datos.nregistro,
+            nombreFarmaco: producto.datos.nombre,
+            principioActivoTxt: producto.datos.pa,
+            formaTxt: producto.datos.forma,
+            origenDatos: producto.datos.origen,
+            siwebVariantId: producto.siwebVariantId,
+          }
+        : {}),
+    };
+    const [u] = await this.d.db.transaction(async (tx) => {
+      const res = await tx
+        .update(recepcionLinea)
+        .set(cambios)
+        .where(eq(recepcionLinea.id, lineaId))
+        .returning();
+      const campos = Object.keys(cambios).filter(
+        (k) =>
+          String((cambios as Record<string, unknown>)[k] ?? '') !==
+          String((l as Record<string, unknown>)[k] ?? ''),
+      );
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_linea_editar',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { linea: l.numero, campos },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
+      return res;
+    });
+    return { linea: u! };
+  }
+
   async eliminarLinea(id: string, lineaId: string) {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r || r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
-    await this.d.db.delete(recepcionLinea).where(and(eq(recepcionLinea.id, lineaId), eq(recepcionLinea.recepcionId, id)));
+    await this.d.db
+      .delete(recepcionLinea)
+      .where(and(eq(recepcionLinea.id, lineaId), eq(recepcionLinea.recepcionId, id)));
   }
 
   /**
@@ -189,16 +488,37 @@ export class RecepcionesService {
     if (det.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
     if (!det.lineas.length) throw new DomainError('RECEPCION_INCOMPLETA', 'La recepción no tiene líneas');
     const incompletas = det.lineas.filter((l) => l.faltan.length);
-    if (incompletas.length) throw new DomainError('RECEPCION_INCOMPLETA', undefined, { lineas: incompletas.map((l) => ({ numero: l.numero, faltan: l.faltan })) });
+    if (incompletas.length)
+      throw new DomainError('RECEPCION_INCOMPLETA', undefined, {
+        lineas: incompletas.map((l) => ({ numero: l.numero, faltan: l.faltan })),
+      });
     const res = await this.d.db.transaction(async (tx) => {
-      await tx.update(recepcion).set({ estado: 'FINALIZADA', finalizadaAt: new Date(this.d.clock.now().epochMilliseconds) }).where(eq(recepcion.id, id));
-      const enc = this.d.siweb ? await this.d.siweb.outbox.encolarRecepcion(tx, id) : { encoladas: 0, pendientesAlta: 0, escrituraDesactivada: true };
-      if (!this.d.siweb) await tx.update(recepcion).set({ syncEstado: 'ESCRITURA_DESACTIVADA' }).where(eq(recepcion.id, id));
+      await tx
+        .update(recepcion)
+        .set({ estado: 'FINALIZADA', finalizadaAt: new Date(this.d.clock.now().epochMilliseconds) })
+        .where(eq(recepcion.id, id));
+      const enc = this.d.siweb
+        ? await this.d.siweb.outbox.encolarRecepcion(tx, id)
+        : { encoladas: 0, pendientesAlta: 0, escrituraDesactivada: true };
+      if (!this.d.siweb)
+        await tx.update(recepcion).set({ syncEstado: 'ESCRITURA_DESACTIVADA' }).where(eq(recepcion.id, id));
       const cns = det.lineas.map((l) => l.cn).filter((x): x is string => !!x);
       const pedidos = cns.length
-        ? await tx.update(pedidoPendiente).set({ estado: 'recibido' }).where(and(inArray(pedidoPendiente.cn, cns), eq(pedidoPendiente.estado, 'pendiente'))).returning({ id: pedidoPendiente.id })
+        ? await tx
+            .update(pedidoPendiente)
+            .set({ estado: 'recibido' })
+            .where(and(inArray(pedidoPendiente.cn, cns), eq(pedidoPendiente.estado, 'pendiente')))
+            .returning({ id: pedidoPendiente.id })
         : [];
-      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_finalizar', entidad: 'recepcion', entidadId: id, despues: { lineas: det.lineas.length, ...enc, pedidosRecibidos: pedidos.length }, ip: c.ip, userAgent: c.userAgent });
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_finalizar',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { lineas: det.lineas.length, ...enc, pedidosRecibidos: pedidos.length },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
       return { ...enc, pedidosRecibidos: pedidos.length };
     });
     // Disparo inmediato del dispatcher (sin bloquear la respuesta).

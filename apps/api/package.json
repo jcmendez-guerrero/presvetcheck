@@ -35,7 +35,8 @@
     "@js-temporal/polyfill": "^0.5.1"
   },
   "devDependencies": {
-    "tsup": "^8.5.0",
-    "msw": "^2.10.0"
+    "exceljs": "^4.4.0",
+    "msw": "^2.10.0",
+    "tsup": "^8.5.0"
   }
 }

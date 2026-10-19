@@ -4,7 +4,7 @@ import { CimavetClient, CimavetRepository, jobNomenclatorImport, verificarEnVivo
 import { ColumnCipher, createDb, runMigrations, seed, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
 import { hoy, type Clock } from '@mmx/domain';
 import { Temporal } from '@js-temporal/polyfill';
-import { crearExtractor } from '@mmx/extraction';
+import { crearExtractor, crearLectorAlbaranes } from '@mmx/extraction';
 import type { AppConfig } from '@mmx/shared';
 import { findUp, loadRules, secretoKeyVault } from '@mmx/shared/node';
 import {
@@ -64,6 +64,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
       catalogo: crearCatalogWriter({ catalogWrite: config.SIWEB_CATALOG_WRITE }, db, reservas),
       outbox: new OutboxService(db, sc, { modo: config.SIWEB_STOCK_WRITE_MODE, almacenId }),
       stockActual: (id) => sc.stock(id),
+      proveedores: async () => (await sc.proveedores()).map((c) => c.nombre_empresa?.trim() ?? '').filter(Boolean),
     };
     stock = new SiwebStockPort(resolver, new StockService(sc, almacenId), () => politica(deps0));
     // TODO(decision D-02b): validar con tickets reales que las líneas llevan el CN en el nombre.
@@ -94,6 +95,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     siweb,
     ventas,
     extractor: await crearExtractor(config, { fixturesDir: fixturesRecetas, hoy: () => hoy(clock) }),
+    lectorAlbaranes: await crearLectorAlbaranes(config, { fixturesDir: resolve(fixturesRecetas, '..') }),
     blob:
       !prod && config.BLOB_CONNECTION_STRING === 'memory'
         ? new MemoryBlobStore()

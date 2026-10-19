@@ -28,5 +28,6 @@
   "ANULACION_DUPLICADA": "Esta dispensación ya está anulada.",
   "MEDICAMENTO_NO_EN_SISTEMA": "Este medicamento no está en el sistema (no figura en CIMAVet veterinario) y puede ser de uso humano: no se puede dispensar.",
   "FRACCION_NO_VALIDA": "Esta fracción no se puede dispensar: solo se fraccionan presentaciones autorizadas, en múltiplos de la fracción del laboratorio (sin cortar blísteres) y sin superar las unidades de la receta.",
-  "DNI_RETIRA_OBLIGATORIO": "Es un psicótropo: comprueba la identidad de la persona que lo retira y anota su DNI o NIE (con la letra correcta)."
+  "DNI_RETIRA_OBLIGATORIO": "Es un psicótropo: comprueba la identidad de la persona que lo retira y anota su DNI o NIE (con la letra correcta).",
+  "ENTRADA_CADUCADA": "El producto está caducado: no se puede registrar su entrada."
 }

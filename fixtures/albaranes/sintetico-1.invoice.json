@@ -1,0 +1,2989 @@
+{
+ "apiVersion": "2024-11-30",
+ "modelId": "prebuilt-invoice",
+ "stringIndexType": "textElements",
+ "content": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.\nCIF B00000000 - C/ Ejemplo 1, 28000 Madrid\nALBARAN DE ENTREGA\nAlbaran n .: ALB-2026-00417\nFecha: 15/10/2026\nCliente: MUNDO MASCOTIX - Farmacia\nCodigo Descripcion\nCant. Precio Importe\n584159 AMODIP 1,25 MG 30 COMP MASTICABLES Lote AMD-2801 Cad. 01/2028 3 11,20 33,60\n570016 CLAVUBAY 400/100 MG 10 COMP Lote CLV-2805 Cad. 05/2028 2 6,85 13,70\n999999 COLLAR ANTIPARASITARIO PERRO GRANDE 1 9,90 9,90\nBase imponible: 57,20 IVA 10%: 5,72 Total: 62,92",
+ "pages": [
+  {
+   "pageNumber": 1,
+   "angle": -0.02019999921321869,
+   "width": 8.2639,
+   "height": 11.6944,
+   "unit": "inch",
+   "words": [
+    {
+     "content": "DISTRIBUIDORA",
+     "polygon": [
+      0.6894,
+      0.4169,
+      2.2168,
+      0.4164,
+      2.2165,
+      0.6094,
+      0.6888,
+      0.611
+     ],
+     "confidence": 0.993,
+     "span": {
+      "offset": 0,
+      "length": 13
+     }
+    },
+    {
+     "content": "VETERINARIA",
+     "polygon": [
+      2.2706,
+      0.4165,
+      3.5698,
+      0.4174,
+      3.5691,
+      0.6107,
+      2.2704,
+      0.6095
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 14,
+      "length": 11
+     }
+    },
+    {
+     "content": "DE",
+     "polygon": [
+      3.63,
+      0.4172,
+      3.8835,
+      0.4166,
+      3.882,
+      0.6103,
+      3.6291,
+      0.6106
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 26,
+      "length": 2
+     }
+    },
+    {
+     "content": "PRUEBA",
+     "polygon": [
+      3.9564,
+      0.4162,
+      4.7455,
+      0.4165,
+      4.7441,
+      0.6094,
+      3.9549,
+      0.6102
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 29,
+      "length": 6
+     }
+    },
+    {
+     "content": "S.L.",
+     "polygon": [
+      4.8057,
+      0.4168,
+      5.1511,
+      0.4162,
+      5.1498,
+      0.6105,
+      4.8044,
+      0.6096
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 36,
+      "length": 4
+     }
+    },
+    {
+     "content": "CIF",
+     "polygon": [
+      0.6872,
+      0.7206,
+      0.89,
+      0.7204,
+      0.8899,
+      0.8606,
+      0.687,
+      0.859
+     ],
+     "confidence": 0.989,
+     "span": {
+      "offset": 41,
+      "length": 3
+     }
+    },
+    {
+     "content": "B00000000",
+     "polygon": [
+      0.9343,
+      0.7204,
+      1.5638,
+      0.7202,
+      1.5633,
+      0.8622,
+      0.9341,
+      0.8608
+     ],
+     "confidence": 0.993,
+     "span": {
+      "offset": 45,
+      "length": 9
+     }
+    },
+    {
+     "content": "-",
+     "polygon": [
+      1.6011,
+      0.7202,
+      1.6454,
+      0.7205,
+      1.6448,
+      0.8622,
+      1.6006,
+      0.8622
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 55,
+      "length": 1
+     }
+    },
+    {
+     "content": "C/",
+     "polygon": [
+      1.6827,
+      0.7208,
+      1.8062,
+      0.7215,
+      1.8057,
+      0.8622,
+      1.6821,
+      0.8622
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 57,
+      "length": 2
+     }
+    },
+    {
+     "content": "Ejemplo",
+     "polygon": [
+      1.8435,
+      0.7215,
+      2.2888,
+      0.7203,
+      2.2884,
+      0.8622,
+      1.843,
+      0.8622
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 60,
+      "length": 7
+     }
+    },
+    {
+     "content": "1,",
+     "polygon": [
+      2.3331,
+      0.7201,
+      2.4216,
+      0.7202,
+      2.421,
+      0.8622,
+      2.3327,
+      0.8622
+     ],
+     "confidence": 0.99,
+     "span": {
+      "offset": 68,
+      "length": 2
+     }
+    },
+    {
+     "content": "28000",
+     "polygon": [
+      2.4636,
+      0.7203,
+      2.8086,
+      0.7205,
+      2.8075,
+      0.8622,
+      2.4629,
+      0.8622
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 71,
+      "length": 5
+     }
+    },
+    {
+     "content": "Madrid",
+     "polygon": [
+      2.8529,
+      0.7207,
+      3.2439,
+      0.72,
+      3.2439,
+      0.8622,
+      2.8518,
+      0.8622
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 77,
+      "length": 6
+     }
+    },
+    {
+     "content": "ALBARAN",
+     "polygon": [
+      0.6858,
+      1.1206,
+      1.5864,
+      1.1187,
+      1.5864,
+      1.305,
+      0.6855,
+      1.3023
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 84,
+      "length": 7
+     }
+    },
+    {
+     "content": "DE",
+     "polygon": [
+      1.6655,
+      1.1188,
+      1.918,
+      1.1182,
+      1.9178,
+      1.3038,
+      1.6655,
+      1.3047
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 92,
+      "length": 2
+     }
+    },
+    {
+     "content": "ENTREGA",
+     "polygon": [
+      1.991,
+      1.1179,
+      2.9298,
+      1.1155,
+      2.9298,
+      1.3027,
+      1.9908,
+      1.3036
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 95,
+      "length": 7
+     }
+    },
+    {
+     "content": "Albaran",
+     "polygon": [
+      0.6841,
+      1.4382,
+      1.1639,
+      1.4379,
+      1.163,
+      1.576,
+      0.6835,
+      1.576
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 103,
+      "length": 7
+     }
+    },
+    {
+     "content": "n",
+     "polygon": [
+      1.2137,
+      1.4377,
+      1.2454,
+      1.4377,
+      1.2445,
+      1.5758,
+      1.2128,
+      1.5758
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 111,
+      "length": 1
+     }
+    },
+    {
+     "content": ".:",
+     "polygon": [
+      1.2725,
+      1.4377,
+      1.3563,
+      1.4378,
+      1.3555,
+      1.5752,
+      1.2717,
+      1.5757
+     ],
+     "confidence": 0.984,
+     "span": {
+      "offset": 113,
+      "length": 2
+     }
+    },
+    {
+     "content": "ALB-2026-00417",
+     "polygon": [
+      1.3993,
+      1.4379,
+      2.4615,
+      1.4344,
+      2.4615,
+      1.5733,
+      1.3984,
+      1.5749
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 116,
+      "length": 14
+     }
+    },
+    {
+     "content": "Fecha:",
+     "polygon": [
+      4.8553,
+      1.4354,
+      5.2771,
+      1.4362,
+      5.2768,
+      1.5724,
+      4.8549,
+      1.573
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 131,
+      "length": 6
+     }
+    },
+    {
+     "content": "15/10/2026",
+     "polygon": [
+      5.331,
+      1.4355,
+      6.0252,
+      1.4333,
+      6.0252,
+      1.5709,
+      5.3307,
+      1.5722
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 138,
+      "length": 10
+     }
+    },
+    {
+     "content": "Cliente:",
+     "polygon": [
+      0.6877,
+      1.6878,
+      1.1543,
+      1.6869,
+      1.1541,
+      1.8292,
+      0.6878,
+      1.8288
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 149,
+      "length": 8
+     }
+    },
+    {
+     "content": "MUNDO",
+     "polygon": [
+      1.2083,
+      1.6869,
+      1.7241,
+      1.6844,
+      1.7236,
+      1.8283,
+      1.208,
+      1.8292
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 158,
+      "length": 5
+     }
+    },
+    {
+     "content": "MASCOTIX",
+     "polygon": [
+      1.7734,
+      1.6844,
+      2.4909,
+      1.6847,
+      2.4898,
+      1.8281,
+      1.7729,
+      1.8282
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 164,
+      "length": 8
+     }
+    },
+    {
+     "content": "-",
+     "polygon": [
+      2.5284,
+      1.6849,
+      2.5753,
+      1.6852,
+      2.5743,
+      1.8282,
+      2.5273,
+      1.8282
+     ],
+     "confidence": 0.977,
+     "span": {
+      "offset": 173,
+      "length": 1
+     }
+    },
+    {
+     "content": "Farmacia",
+     "polygon": [
+      2.6222,
+      1.6855,
+      3.2039,
+      1.6857,
+      3.2039,
+      1.8291,
+      2.6212,
+      1.8283
+     ],
+     "confidence": 0.993,
+     "span": {
+      "offset": 175,
+      "length": 8
+     }
+    },
+    {
+     "content": "Codigo",
+     "polygon": [
+      0.6911,
+      2.1447,
+      1.0864,
+      2.1455,
+      1.0864,
+      2.2834,
+      0.6909,
+      2.2803
+     ],
+     "confidence": 0.998,
+     "span": {
+      "offset": 184,
+      "length": 6
+     }
+    },
+    {
+     "content": "Descripcion",
+     "polygon": [
+      1.1965,
+      2.1459,
+      1.8561,
+      2.1433,
+      1.8561,
+      2.2822,
+      1.1964,
+      2.2832
+     ],
+     "confidence": 0.993,
+     "span": {
+      "offset": 191,
+      "length": 11
+     }
+    },
+    {
+     "content": "Cant.",
+     "polygon": [
+      3.0631,
+      2.1417,
+      3.3538,
+      2.1434,
+      3.3536,
+      2.2746,
+      3.0631,
+      2.2737
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 203,
+      "length": 5
+     }
+    },
+    {
+     "content": "Precio",
+     "polygon": [
+      3.4709,
+      2.1443,
+      3.8158,
+      2.1445,
+      3.8153,
+      2.2769,
+      3.4705,
+      2.2742
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 209,
+      "length": 6
+     }
+    },
+    {
+     "content": "Importe",
+     "polygon": [
+      3.9654,
+      2.1459,
+      4.3918,
+      2.1453,
+      4.3918,
+      2.2808,
+      3.9653,
+      2.2784
+     ],
+     "confidence": 0.988,
+     "span": {
+      "offset": 216,
+      "length": 7
+     }
+    },
+    {
+     "content": "584159",
+     "polygon": [
+      0.6844,
+      2.3989,
+      1.0609,
+      2.4009,
+      1.0608,
+      2.5276,
+      0.6843,
+      2.5255
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 224,
+      "length": 6
+     }
+    },
+    {
+     "content": "AMODIP",
+     "polygon": [
+      1.1508,
+      2.4003,
+      1.5921,
+      2.3985,
+      1.592,
+      2.5269,
+      1.1508,
+      2.5273
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 231,
+      "length": 6
+     }
+    },
+    {
+     "content": "1,25",
+     "polygon": [
+      1.6318,
+      2.3985,
+      1.8305,
+      2.3982,
+      1.8303,
+      2.527,
+      1.6317,
+      2.5269
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 238,
+      "length": 4
+     }
+    },
+    {
+     "content": "MG",
+     "polygon": [
+      1.8556,
+      2.3982,
+      2.048,
+      2.3978,
+      2.0477,
+      2.5261,
+      1.8554,
+      2.5269
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 243,
+      "length": 2
+     }
+    },
+    {
+     "content": "30",
+     "polygon": [
+      2.0836,
+      2.3977,
+      2.2028,
+      2.3977,
+      2.2025,
+      2.5257,
+      2.0833,
+      2.5259
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 246,
+      "length": 2
+     }
+    },
+    {
+     "content": "COMP",
+     "polygon": [
+      2.2362,
+      2.3977,
+      2.5479,
+      2.3983,
+      2.5476,
+      2.5261,
+      2.236,
+      2.5257
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 249,
+      "length": 4
+     }
+    },
+    {
+     "content": "MASTICABLES",
+     "polygon": [
+      2.5834,
+      2.3982,
+      3.3761,
+      2.3984,
+      3.3757,
+      2.5251,
+      2.5832,
+      2.526
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 254,
+      "length": 11
+     }
+    },
+    {
+     "content": "Lote",
+     "polygon": [
+      3.443,
+      2.3984,
+      3.6542,
+      2.3982,
+      3.6541,
+      2.5248,
+      3.4427,
+      2.5251
+     ],
+     "confidence": 0.989,
+     "span": {
+      "offset": 266,
+      "length": 4
+     }
+    },
+    {
+     "content": "AMD-2801",
+     "polygon": [
+      3.6856,
+      2.3982,
+      4.2022,
+      2.3971,
+      4.2018,
+      2.5249,
+      3.6855,
+      2.5248
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 271,
+      "length": 8
+     }
+    },
+    {
+     "content": "Cad.",
+     "polygon": [
+      4.2524,
+      2.3969,
+      4.4783,
+      2.3963,
+      4.4778,
+      2.5251,
+      4.252,
+      2.5249
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 280,
+      "length": 4
+     }
+    },
+    {
+     "content": "01/2028",
+     "polygon": [
+      4.5138,
+      2.3962,
+      4.9154,
+      2.3965,
+      4.915,
+      2.5253,
+      4.5134,
+      2.5251
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 285,
+      "length": 7
+     }
+    },
+    {
+     "content": "3",
+     "polygon": [
+      5.0116,
+      2.3969,
+      5.0701,
+      2.3971,
+      5.0698,
+      2.5256,
+      5.0112,
+      2.5255
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 293,
+      "length": 1
+     }
+    },
+    {
+     "content": "11,20",
+     "polygon": [
+      5.1705,
+      2.3975,
+      5.4403,
+      2.3986,
+      5.4393,
+      2.5249,
+      5.17,
+      2.5254
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 295,
+      "length": 5
+     }
+    },
+    {
+     "content": "33,60",
+     "polygon": [
+      5.5365,
+      2.3986,
+      5.8196,
+      2.3984,
+      5.8196,
+      2.526,
+      5.5356,
+      2.5252
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 301,
+      "length": 5
+     }
+    },
+    {
+     "content": "570016",
+     "polygon": [
+      0.682,
+      2.6214,
+      1.0623,
+      2.6219,
+      1.0622,
+      2.7479,
+      0.6819,
+      2.7488
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 307,
+      "length": 6
+     }
+    },
+    {
+     "content": "CLAVUBAY",
+     "polygon": [
+      1.1574,
+      2.6217,
+      1.7485,
+      2.6201,
+      1.7483,
+      2.7477,
+      1.1573,
+      2.7479
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 314,
+      "length": 8
+     }
+    },
+    {
+     "content": "400/100",
+     "polygon": [
+      1.7774,
+      2.6201,
+      2.1701,
+      2.6212,
+      2.1698,
+      2.7486,
+      1.7772,
+      2.7477
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 323,
+      "length": 7
+     }
+    },
+    {
+     "content": "MG",
+     "polygon": [
+      2.1949,
+      2.6214,
+      2.3872,
+      2.6219,
+      2.3868,
+      2.7488,
+      2.1946,
+      2.7487
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 331,
+      "length": 2
+     }
+    },
+    {
+     "content": "10",
+     "polygon": [
+      2.4306,
+      2.6217,
+      2.5422,
+      2.6213,
+      2.5419,
+      2.7481,
+      2.4302,
+      2.7486
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 334,
+      "length": 2
+     }
+    },
+    {
+     "content": "COMP",
+     "polygon": [
+      2.5794,
+      2.6212,
+      2.9059,
+      2.6221,
+      2.9053,
+      2.7469,
+      2.5791,
+      2.7479
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 337,
+      "length": 4
+     }
+    },
+    {
+     "content": "Lote",
+     "polygon": [
+      2.9721,
+      2.6223,
+      3.187,
+      2.6224,
+      3.1865,
+      2.7469,
+      2.9714,
+      2.7467
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 342,
+      "length": 4
+     }
+    },
+    {
+     "content": "CLV-2805",
+     "polygon": [
+      3.2201,
+      2.6224,
+      3.7182,
+      2.6215,
+      3.7176,
+      2.7465,
+      3.2196,
+      2.7469
+     ],
+     "confidence": 0.998,
+     "span": {
+      "offset": 347,
+      "length": 8
+     }
+    },
+    {
+     "content": "Cad.",
+     "polygon": [
+      3.7513,
+      2.6216,
+      3.9766,
+      2.6216,
+      3.9758,
+      2.747,
+      3.7507,
+      2.7465
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 356,
+      "length": 4
+     }
+    },
+    {
+     "content": "05/2028",
+     "polygon": [
+      4.0159,
+      2.6215,
+      4.4148,
+      2.6215,
+      4.4139,
+      2.7478,
+      4.015,
+      2.7471
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 361,
+      "length": 7
+     }
+    },
+    {
+     "content": "2",
+     "polygon": [
+      4.5078,
+      2.6216,
+      4.5698,
+      2.6217,
+      4.5691,
+      2.7481,
+      4.507,
+      2.748
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 369,
+      "length": 1
+     }
+    },
+    {
+     "content": "6,85",
+     "polygon": [
+      4.6628,
+      2.6219,
+      4.8798,
+      2.6226,
+      4.8791,
+      2.7477,
+      4.6621,
+      2.7481
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 371,
+      "length": 4
+     }
+    },
+    {
+     "content": "13,70",
+     "polygon": [
+      4.9811,
+      2.6228,
+      5.2622,
+      2.6228,
+      5.2615,
+      2.7489,
+      4.9804,
+      2.7478
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 376,
+      "length": 5
+     }
+    },
+    {
+     "content": "999999",
+     "polygon": [
+      0.6816,
+      2.8452,
+      1.0616,
+      2.8463,
+      1.0614,
+      2.9693,
+      0.6814,
+      2.9693
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 382,
+      "length": 6
+     }
+    },
+    {
+     "content": "COLLAR",
+     "polygon": [
+      1.1576,
+      2.8461,
+      1.5988,
+      2.8446,
+      1.5988,
+      2.969,
+      1.1574,
+      2.9693
+     ],
+     "confidence": 0.999,
+     "span": {
+      "offset": 389,
+      "length": 6
+     }
+    },
+    {
+     "content": "ANTIPARASITARIO",
+     "polygon": [
+      1.6274,
+      2.8445,
+      2.6264,
+      2.844,
+      2.626,
+      2.9692,
+      1.6274,
+      2.9691
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 396,
+      "length": 15
+     }
+    },
+    {
+     "content": "PERRO",
+     "polygon": [
+      2.6673,
+      2.844,
+      3.0554,
+      2.8438,
+      3.0551,
+      2.9674,
+      2.6668,
+      2.9691
+     ],
+     "confidence": 0.995,
+     "span": {
+      "offset": 412,
+      "length": 5
+     }
+    },
+    {
+     "content": "GRANDE",
+     "polygon": [
+      3.0922,
+      2.8439,
+      3.562,
+      2.8451,
+      3.5611,
+      2.9681,
+      3.0918,
+      2.9675
+     ],
+     "confidence": 0.998,
+     "span": {
+      "offset": 418,
+      "length": 6
+     }
+    },
+    {
+     "content": "1",
+     "polygon": [
+      3.6622,
+      2.8451,
+      3.701,
+      2.8452,
+      3.7001,
+      2.969,
+      3.6613,
+      2.9687
+     ],
+     "confidence": 0.997,
+     "span": {
+      "offset": 425,
+      "length": 1
+     }
+    },
+    {
+     "content": "9,90",
+     "polygon": [
+      3.8113,
+      2.8452,
+      4.0258,
+      2.8449,
+      4.0248,
+      2.9693,
+      3.8104,
+      2.9693
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 427,
+      "length": 4
+     }
+    },
+    {
+     "content": "9,90",
+     "polygon": [
+      4.1198,
+      2.8449,
+      4.3461,
+      2.8459,
+      4.3461,
+      2.9693,
+      4.1188,
+      2.9693
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 432,
+      "length": 4
+     }
+    },
+    {
+     "content": "Base",
+     "polygon": [
+      4.156,
+      3.2535,
+      4.4319,
+      3.2538,
+      4.4316,
+      3.3966,
+      4.1555,
+      3.3948
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 437,
+      "length": 4
+     }
+    },
+    {
+     "content": "imponible:",
+     "polygon": [
+      4.4595,
+      3.2539,
+      5.0458,
+      3.2532,
+      5.0452,
+      3.3939,
+      4.4592,
+      3.3965
+     ],
+     "confidence": 0.993,
+     "span": {
+      "offset": 442,
+      "length": 10
+     }
+    },
+    {
+     "content": "57,20",
+     "polygon": [
+      5.0918,
+      3.2534,
+      5.3976,
+      3.2522,
+      5.3972,
+      3.3934,
+      5.0913,
+      3.3942
+     ],
+     "confidence": 0.996,
+     "span": {
+      "offset": 453,
+      "length": 5
+     }
+    },
+    {
+     "content": "IVA",
+     "polygon": [
+      5.5126,
+      3.2529,
+      5.7103,
+      3.2535,
+      5.7099,
+      3.3931,
+      5.5124,
+      3.3934
+     ],
+     "confidence": 0.992,
+     "span": {
+      "offset": 459,
+      "length": 3
+     }
+    },
+    {
+     "content": "10%:",
+     "polygon": [
+      5.7517,
+      3.2534,
+      6.0184,
+      3.2514,
+      6.0179,
+      3.3914,
+      5.7512,
+      3.3929
+     ],
+     "confidence": 0.977,
+     "span": {
+      "offset": 463,
+      "length": 4
+     }
+    },
+    {
+     "content": "5,72",
+     "polygon": [
+      6.0644,
+      3.2514,
+      6.3013,
+      3.2524,
+      6.3007,
+      3.3915,
+      6.0639,
+      3.3913
+     ],
+     "confidence": 0.991,
+     "span": {
+      "offset": 468,
+      "length": 4
+     }
+    },
+    {
+     "content": "Total:",
+     "polygon": [
+      6.407,
+      3.2526,
+      6.7152,
+      3.2534,
+      6.714,
+      3.3913,
+      6.4065,
+      3.3917
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 473,
+      "length": 6
+     }
+    },
+    {
+     "content": "62,92",
+     "polygon": [
+      6.7588,
+      3.2537,
+      7.0807,
+      3.2514,
+      7.0796,
+      3.3916,
+      6.7577,
+      3.3918
+     ],
+     "confidence": 0.994,
+     "span": {
+      "offset": 480,
+      "length": 5
+     }
+    }
+   ],
+   "lines": [
+    {
+     "content": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.",
+     "polygon": [
+      0.6888,
+      0.4158,
+      5.1471,
+      0.415,
+      5.1472,
+      0.6072,
+      0.6888,
+      0.608
+     ],
+     "spans": [
+      {
+       "offset": 0,
+       "length": 40
+      }
+     ]
+    },
+    {
+     "content": "CIF B00000000 - C/ Ejemplo 1, 28000 Madrid",
+     "polygon": [
+      0.687,
+      0.7205,
+      3.2401,
+      0.719,
+      3.2401,
+      0.8615,
+      0.687,
+      0.8622
+     ],
+     "spans": [
+      {
+       "offset": 41,
+       "length": 42
+      }
+     ]
+    },
+    {
+     "content": "ALBARAN DE ENTREGA",
+     "polygon": [
+      0.6853,
+      1.1202,
+      2.928,
+      1.115,
+      2.9284,
+      1.2996,
+      0.6855,
+      1.3048
+     ],
+     "spans": [
+      {
+       "offset": 84,
+       "length": 18
+      }
+     ]
+    },
+    {
+     "content": "Albaran n .: ALB-2026-00417",
+     "polygon": [
+      0.6831,
+      1.438,
+      2.4571,
+      1.4336,
+      2.4575,
+      1.571,
+      0.6835,
+      1.5754
+     ],
+     "spans": [
+      {
+       "offset": 103,
+       "length": 27
+      }
+     ]
+    },
+    {
+     "content": "Fecha: 15/10/2026",
+     "polygon": [
+      4.8547,
+      1.4354,
+      6.0231,
+      1.4333,
+      6.0234,
+      1.5695,
+      4.8549,
+      1.5716
+     ],
+     "spans": [
+      {
+       "offset": 131,
+       "length": 17
+      }
+     ]
+    },
+    {
+     "content": "Cliente: MUNDO MASCOTIX - Farmacia",
+     "polygon": [
+      0.6877,
+      1.6842,
+      3.1993,
+      1.6844,
+      3.1993,
+      1.8273,
+      0.6877,
+      1.8272
+     ],
+     "spans": [
+      {
+       "offset": 149,
+       "length": 34
+      }
+     ]
+    },
+    {
+     "content": "Codigo Descripcion",
+     "polygon": [
+      0.6907,
+      2.1447,
+      1.8516,
+      2.1429,
+      1.8518,
+      2.2805,
+      0.691,
+      2.2822
+     ],
+     "spans": [
+      {
+       "offset": 184,
+       "length": 18
+      }
+     ]
+    },
+    {
+     "content": "Cant. Precio Importe",
+     "polygon": [
+      3.0631,
+      2.1417,
+      4.3887,
+      2.1453,
+      4.3884,
+      2.2785,
+      3.0628,
+      2.2749
+     ],
+     "spans": [
+      {
+       "offset": 203,
+       "length": 20
+      }
+     ]
+    },
+    {
+     "content": "584159 AMODIP 1,25 MG 30 COMP MASTICABLES Lote AMD-2801 Cad. 01/2028 3 11,20 33,60",
+     "polygon": [
+      0.6842,
+      2.3973,
+      5.8175,
+      2.3955,
+      5.8176,
+      2.5238,
+      0.6843,
+      2.5256
+     ],
+     "spans": [
+      {
+       "offset": 224,
+       "length": 82
+      }
+     ]
+    },
+    {
+     "content": "570016 CLAVUBAY 400/100 MG 10 COMP Lote CLV-2805 Cad. 05/2028 2 6,85 13,70",
+     "polygon": [
+      0.6819,
+      2.6199,
+      5.26,
+      2.6206,
+      5.26,
+      2.7474,
+      0.6819,
+      2.7467
+     ],
+     "spans": [
+      {
+       "offset": 307,
+       "length": 74
+      }
+     ]
+    },
+    {
+     "content": "999999 COLLAR ANTIPARASITARIO PERRO GRANDE 1 9,90 9,90",
+     "polygon": [
+      0.6814,
+      2.8435,
+      4.3416,
+      2.8435,
+      4.3416,
+      2.9688,
+      0.6814,
+      2.9687
+     ],
+     "spans": [
+      {
+       "offset": 382,
+       "length": 54
+      }
+     ]
+    },
+    {
+     "content": "Base imponible: 57,20 IVA 10%: 5,72 Total: 62,92",
+     "polygon": [
+      4.1553,
+      3.2535,
+      7.0761,
+      3.25,
+      7.0763,
+      3.3914,
+      4.1555,
+      3.3948
+     ],
+     "spans": [
+      {
+       "offset": 437,
+       "length": 48
+      }
+     ]
+    }
+   ],
+   "spans": [
+    {
+     "offset": 0,
+     "length": 485
+    }
+   ]
+  }
+ ],
+ "tables": [
+  {
+   "rowCount": 4,
+   "columnCount": 6,
+   "cells": [
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 0,
+     "content": "Codigo",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6225,
+        2.0842,
+        1.1137,
+        2.0842,
+        1.1137,
+        2.3412,
+        0.6225,
+        2.3412
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 184,
+       "length": 6
+      }
+     ]
+    },
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 1,
+     "content": "Descripcion",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.1137,
+        2.0842,
+        2.9583,
+        2.0842,
+        2.9583,
+        2.3355,
+        1.1137,
+        2.3412
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 191,
+       "length": 11
+      }
+     ]
+    },
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 2,
+     "content": "Cant.",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        2.9583,
+        2.0842,
+        3.4095,
+        2.0785,
+        3.4095,
+        2.3355,
+        2.9583,
+        2.3355
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 203,
+       "length": 5
+      }
+     ]
+    },
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 3,
+     "content": "Precio",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        3.4095,
+        2.0785,
+        3.8892,
+        2.0785,
+        3.8949,
+        2.3355,
+        3.4095,
+        2.3355
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 209,
+       "length": 6
+      }
+     ]
+    },
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 4,
+     "content": "Importe",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        3.8892,
+        2.0785,
+        5.4769,
+        2.0785,
+        5.4769,
+        2.3355,
+        3.8949,
+        2.3355
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 216,
+       "length": 7
+      }
+     ]
+    },
+    {
+     "kind": "columnHeader",
+     "rowIndex": 0,
+     "columnIndex": 5,
+     "content": "",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        5.4769,
+        2.0785,
+        5.8595,
+        2.0785,
+        5.8595,
+        2.3355,
+        5.4769,
+        2.3355
+       ]
+      }
+     ],
+     "spans": []
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 0,
+     "content": "584159",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6225,
+        2.3412,
+        1.1137,
+        2.3412,
+        1.1137,
+        2.5696,
+        0.6168,
+        2.5696
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 224,
+       "length": 6
+      }
+     ]
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 1,
+     "content": "AMODIP 1,25 MG 30 COMP",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.1137,
+        2.3412,
+        2.9583,
+        2.3355,
+        2.9583,
+        2.5696,
+        1.1137,
+        2.5696
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 231,
+       "length": 22
+      }
+     ]
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 2,
+     "content": "MASTICABLES",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        2.9583,
+        2.3355,
+        3.4095,
+        2.3355,
+        3.4095,
+        2.5696,
+        2.9583,
+        2.5696
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 254,
+       "length": 11
+      }
+     ]
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 3,
+     "content": "Lote",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        3.4095,
+        2.3355,
+        3.8949,
+        2.3355,
+        3.8949,
+        2.5696,
+        3.4095,
+        2.5696
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 266,
+       "length": 4
+      }
+     ]
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 4,
+     "columnSpan": 2,
+     "content": "AMD-2801 Cad. 01/2028 3 11,20 33,60",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        3.8949,
+        2.3355,
+        5.8595,
+        2.3355,
+        5.8595,
+        2.5696,
+        3.8949,
+        2.5696
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 271,
+       "length": 35
+      }
+     ]
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 0,
+     "content": "570016",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6168,
+        2.5696,
+        1.1137,
+        2.5696,
+        1.1079,
+        2.7923,
+        0.6168,
+        2.7923
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 307,
+       "length": 6
+      }
+     ]
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 1,
+     "content": "CLAVUBAY 400/100 MG 10 COMP",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.1137,
+        2.5696,
+        2.9583,
+        2.5696,
+        2.9583,
+        2.7923,
+        1.1079,
+        2.7923
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 314,
+       "length": 27
+      }
+     ]
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 2,
+     "columnSpan": 2,
+     "content": "Lote CLV-2805 Cad.",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        2.9583,
+        2.5696,
+        3.8949,
+        2.5696,
+        3.8949,
+        2.7923,
+        2.9583,
+        2.7923
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 342,
+       "length": 18
+      }
+     ]
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 4,
+     "content": "05/2028 2 6,85 13,70",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        3.8949,
+        2.5696,
+        5.4769,
+        2.5696,
+        5.4826,
+        2.7923,
+        3.8949,
+        2.7923
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 361,
+       "length": 20
+      }
+     ]
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 5,
+     "content": "",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        5.4769,
+        2.5696,
+        5.8595,
+        2.5696,
+        5.8595,
+        2.7923,
+        5.4826,
+        2.7923
+       ]
+      }
+     ],
+     "spans": []
+    },
+    {
+     "rowIndex": 3,
+     "columnIndex": 0,
+     "content": "999999",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6168,
+        2.7923,
+        1.1079,
+        2.7923,
+        1.1079,
+        3.015,
+        0.6168,
+        3.015
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 382,
+       "length": 6
+      }
+     ]
+    },
+    {
+     "rowIndex": 3,
+     "columnIndex": 1,
+     "content": "COLLAR ANTIPARASITARIO PERRO",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.1079,
+        2.7923,
+        2.9583,
+        2.7923,
+        2.9583,
+        3.015,
+        1.1079,
+        3.015
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 389,
+       "length": 28
+      }
+     ]
+    },
+    {
+     "rowIndex": 3,
+     "columnIndex": 2,
+     "columnSpan": 4,
+     "content": "GRANDE 1 9,90 9,90",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        2.9583,
+        2.7923,
+        5.8595,
+        2.7923,
+        5.8595,
+        3.015,
+        2.9583,
+        3.015
+       ]
+      }
+     ],
+     "spans": [
+      {
+       "offset": 418,
+       "length": 18
+      }
+     ]
+    }
+   ],
+   "boundingRegions": [
+    {
+     "pageNumber": 1,
+     "polygon": [
+      0.6504,
+      2.1082,
+      5.8323,
+      2.1084,
+      5.832,
+      2.9895,
+      0.6508,
+      2.9893
+     ]
+    }
+   ],
+   "spans": [
+    {
+     "offset": 184,
+     "length": 252
+    }
+   ]
+  }
+ ],
+ "styles": [],
+ "documents": [
+  {
+   "docType": "invoice",
+   "boundingRegions": [
+    {
+     "pageNumber": 1,
+     "polygon": [
+      0,
+      0,
+      8.2639,
+      0,
+      8.2639,
+      11.6944,
+      0,
+      11.6944
+     ]
+    }
+   ],
+   "fields": {
+    "CustomerName": {
+     "type": "string",
+     "valueString": "MUNDO MASCOTIX - Farmacia",
+     "content": "MUNDO MASCOTIX - Farmacia",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.2081,
+        1.6836,
+        3.204,
+        1.6853,
+        3.2039,
+        1.8309,
+        1.208,
+        1.8292
+       ]
+      }
+     ],
+     "confidence": 0.571,
+     "spans": [
+      {
+       "offset": 158,
+       "length": 25
+      }
+     ]
+    },
+    "InvoiceDate": {
+     "type": "date",
+     "valueDate": "2026-10-15",
+     "content": "15/10/2026",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        5.331,
+        1.4355,
+        6.0252,
+        1.4333,
+        6.0252,
+        1.5709,
+        5.3307,
+        1.5722
+       ]
+      }
+     ],
+     "confidence": 0.985,
+     "spans": [
+      {
+       "offset": 138,
+       "length": 10
+      }
+     ]
+    },
+    "InvoiceId": {
+     "type": "string",
+     "valueString": "ALB-2026-00417",
+     "content": "ALB-2026-00417",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.3993,
+        1.4379,
+        2.4615,
+        1.4344,
+        2.4615,
+        1.5733,
+        1.3984,
+        1.5749
+       ]
+      }
+     ],
+     "confidence": 0.451,
+     "spans": [
+      {
+       "offset": 116,
+       "length": 14
+      }
+     ]
+    },
+    "InvoiceTotal": {
+     "type": "currency",
+     "valueCurrency": {
+      "amount": 62.92,
+      "currencyCode": "EUR"
+     },
+     "content": "62,92",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        6.7588,
+        3.2537,
+        7.0807,
+        3.2514,
+        7.0796,
+        3.3916,
+        6.7577,
+        3.3918
+       ]
+      }
+     ],
+     "confidence": 0.986,
+     "spans": [
+      {
+       "offset": 480,
+       "length": 5
+      }
+     ]
+    },
+    "Items": {
+     "type": "array",
+     "valueArray": [
+      {
+       "type": "object",
+       "valueObject": {
+        "Amount": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 33.6,
+          "currencyCode": "EUR"
+         },
+         "content": "33,60",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            5.5365,
+            2.3986,
+            5.8196,
+            2.3984,
+            5.8196,
+            2.526,
+            5.5356,
+            2.5252
+           ]
+          }
+         ],
+         "confidence": 0.824,
+         "spans": [
+          {
+           "offset": 301,
+           "length": 5
+          }
+         ]
+        },
+        "Description": {
+         "type": "string",
+         "valueString": "AMODIP 1,25 MG 30 COMP MASTICABLES",
+         "content": "AMODIP 1,25 MG 30 COMP MASTICABLES",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            1.1507,
+            2.3982,
+            3.3761,
+            2.3971,
+            3.3762,
+            2.5262,
+            1.1508,
+            2.5273
+           ]
+          }
+         ],
+         "confidence": 0.936,
+         "spans": [
+          {
+           "offset": 231,
+           "length": 34
+          }
+         ]
+        },
+        "ProductCode": {
+         "type": "string",
+         "valueString": "584159",
+         "content": "584159",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            0.6844,
+            2.3989,
+            1.0609,
+            2.4009,
+            1.0608,
+            2.5276,
+            0.6843,
+            2.5255
+           ]
+          }
+         ],
+         "confidence": 0.957,
+         "spans": [
+          {
+           "offset": 224,
+           "length": 6
+          }
+         ]
+        },
+        "Quantity": {
+         "type": "number",
+         "valueNumber": 3,
+         "content": "3",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            5.0116,
+            2.3969,
+            5.0701,
+            2.3971,
+            5.0698,
+            2.5256,
+            5.0112,
+            2.5255
+           ]
+          }
+         ],
+         "confidence": 0.667,
+         "spans": [
+          {
+           "offset": 293,
+           "length": 1
+          }
+         ]
+        },
+        "UnitPrice": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 11.2,
+          "currencyCode": "EUR"
+         },
+         "content": "11,20",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            5.1705,
+            2.3975,
+            5.4403,
+            2.3986,
+            5.4393,
+            2.5249,
+            5.17,
+            2.5254
+           ]
+          }
+         ],
+         "confidence": 0.948,
+         "spans": [
+          {
+           "offset": 295,
+           "length": 5
+          }
+         ]
+        }
+       },
+       "content": "584159 AMODIP 1,25 MG 30 COMP MASTICABLES Lote AMD-2801 Cad. 01/2028 3 11,20 33,60",
+       "boundingRegions": [
+        {
+         "pageNumber": 1,
+         "polygon": [
+          0.6842,
+          2.3979,
+          5.8196,
+          2.3956,
+          5.8197,
+          2.526,
+          0.6843,
+          2.5283
+         ]
+        }
+       ],
+       "confidence": 0.877,
+       "spans": [
+        {
+         "offset": 224,
+         "length": 82
+        }
+       ]
+      },
+      {
+       "type": "object",
+       "valueObject": {
+        "Amount": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 13.7,
+          "currencyCode": "EUR"
+         },
+         "content": "13,70",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            4.9811,
+            2.6228,
+            5.2622,
+            2.6228,
+            5.2615,
+            2.7489,
+            4.9804,
+            2.7478
+           ]
+          }
+         ],
+         "confidence": 0.952,
+         "spans": [
+          {
+           "offset": 376,
+           "length": 5
+          }
+         ]
+        },
+        "Description": {
+         "type": "string",
+         "valueString": "CLAVUBAY 400/100 MG 10 COMP",
+         "content": "CLAVUBAY 400/100 MG 10 COMP",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            1.1573,
+            2.6202,
+            2.9059,
+            2.6199,
+            2.9059,
+            2.7487,
+            1.1573,
+            2.749
+           ]
+          }
+         ],
+         "confidence": 0.937,
+         "spans": [
+          {
+           "offset": 314,
+           "length": 27
+          }
+         ]
+        },
+        "ProductCode": {
+         "type": "string",
+         "valueString": "570016",
+         "content": "570016",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            0.682,
+            2.6214,
+            1.0623,
+            2.6219,
+            1.0622,
+            2.7479,
+            0.6819,
+            2.7488
+           ]
+          }
+         ],
+         "confidence": 0.956,
+         "spans": [
+          {
+           "offset": 307,
+           "length": 6
+          }
+         ]
+        },
+        "UnitPrice": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 6.85,
+          "currencyCode": "EUR"
+         },
+         "content": "6,85",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            4.6628,
+            2.6219,
+            4.8798,
+            2.6226,
+            4.8791,
+            2.7477,
+            4.6621,
+            2.7481
+           ]
+          }
+         ],
+         "confidence": 0.949,
+         "spans": [
+          {
+           "offset": 371,
+           "length": 4
+          }
+         ]
+        }
+       },
+       "content": "570016 CLAVUBAY 400/100 MG 10 COMP Lote CLV-2805 Cad. 05/2028 2 6,85 13,70",
+       "boundingRegions": [
+        {
+         "pageNumber": 1,
+         "polygon": [
+          0.682,
+          2.6189,
+          5.2622,
+          2.6221,
+          5.2621,
+          2.752,
+          0.6819,
+          2.7488
+         ]
+        }
+       ],
+       "confidence": 0.923,
+       "spans": [
+        {
+         "offset": 307,
+         "length": 74
+        }
+       ]
+      },
+      {
+       "type": "object",
+       "valueObject": {
+        "Amount": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 9.9,
+          "currencyCode": "EUR"
+         },
+         "content": "9,90",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            4.1198,
+            2.8449,
+            4.3461,
+            2.8459,
+            4.3461,
+            2.9693,
+            4.1188,
+            2.9693
+           ]
+          }
+         ],
+         "confidence": 0.957,
+         "spans": [
+          {
+           "offset": 432,
+           "length": 4
+          }
+         ]
+        },
+        "Description": {
+         "type": "string",
+         "valueString": "COLLAR ANTIPARASITARIO PERRO GRANDE",
+         "content": "COLLAR ANTIPARASITARIO PERRO GRANDE",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            1.1574,
+            2.8442,
+            3.562,
+            2.8437,
+            3.562,
+            2.969,
+            1.1574,
+            2.9695
+           ]
+          }
+         ],
+         "confidence": 0.937,
+         "spans": [
+          {
+           "offset": 389,
+           "length": 35
+          }
+         ]
+        },
+        "ProductCode": {
+         "type": "string",
+         "valueString": "999999",
+         "content": "999999",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            0.6816,
+            2.8452,
+            1.0616,
+            2.8463,
+            1.0614,
+            2.9693,
+            0.6814,
+            2.9693
+           ]
+          }
+         ],
+         "confidence": 0.955,
+         "spans": [
+          {
+           "offset": 382,
+           "length": 6
+          }
+         ]
+        },
+        "Quantity": {
+         "type": "number",
+         "valueNumber": 1,
+         "content": "1",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            3.6622,
+            2.8451,
+            3.701,
+            2.8452,
+            3.7001,
+            2.969,
+            3.6613,
+            2.9687
+           ]
+          }
+         ],
+         "confidence": 0.952,
+         "spans": [
+          {
+           "offset": 425,
+           "length": 1
+          }
+         ]
+        },
+        "UnitPrice": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 9.9,
+          "currencyCode": "EUR"
+         },
+         "content": "9,90",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            3.8113,
+            2.8452,
+            4.0258,
+            2.8449,
+            4.0248,
+            2.9693,
+            3.8104,
+            2.9693
+           ]
+          }
+         ],
+         "confidence": 0.957,
+         "spans": [
+          {
+           "offset": 427,
+           "length": 4
+          }
+         ]
+        }
+       },
+       "content": "999999 COLLAR ANTIPARASITARIO PERRO GRANDE 1 9,90 9,90",
+       "boundingRegions": [
+        {
+         "pageNumber": 1,
+         "polygon": [
+          0.6816,
+          2.8399,
+          4.3463,
+          2.8452,
+          4.3461,
+          2.9746,
+          0.6814,
+          2.9693
+         ]
+        }
+       ],
+       "confidence": 0.926,
+       "spans": [
+        {
+         "offset": 382,
+         "length": 54
+        }
+       ]
+      }
+     ]
+    },
+    "SubTotal": {
+     "type": "currency",
+     "valueCurrency": {
+      "amount": 57.2,
+      "currencyCode": "EUR"
+     },
+     "content": "57,20",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        5.0918,
+        3.2534,
+        5.3976,
+        3.2522,
+        5.3972,
+        3.3934,
+        5.0913,
+        3.3942
+       ]
+      }
+     ],
+     "confidence": 0.982,
+     "spans": [
+      {
+       "offset": 453,
+       "length": 5
+      }
+     ]
+    },
+    "TaxDetails": {
+     "type": "array",
+     "valueArray": [
+      {
+       "type": "object",
+       "valueObject": {
+        "Amount": {
+         "type": "currency",
+         "valueCurrency": {
+          "amount": 5.72,
+          "currencyCode": "EUR"
+         },
+         "content": "5,72",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            6.0644,
+            3.2514,
+            6.3013,
+            3.2524,
+            6.3007,
+            3.3915,
+            6.0639,
+            3.3913
+           ]
+          }
+         ],
+         "confidence": 0.957,
+         "spans": [
+          {
+           "offset": 468,
+           "length": 4
+          }
+         ]
+        },
+        "Rate": {
+         "type": "string",
+         "valueString": "10%:",
+         "content": "10%:",
+         "boundingRegions": [
+          {
+           "pageNumber": 1,
+           "polygon": [
+            5.7517,
+            3.2534,
+            6.0184,
+            3.2514,
+            6.0179,
+            3.3914,
+            5.7512,
+            3.3929
+           ]
+          }
+         ],
+         "confidence": 0.957,
+         "spans": [
+          {
+           "offset": 463,
+           "length": 4
+          }
+         ]
+        }
+       },
+       "content": "IVA 10%: 5,72",
+       "boundingRegions": [
+        {
+         "pageNumber": 1,
+         "polygon": [
+          5.5125,
+          3.251,
+          6.3013,
+          3.2516,
+          6.3012,
+          3.394,
+          5.5124,
+          3.3934
+         ]
+        }
+       ],
+       "confidence": 0.898,
+       "spans": [
+        {
+         "offset": 459,
+         "length": 13
+        }
+       ]
+      }
+     ]
+    },
+    "TotalTax": {
+     "type": "currency",
+     "valueCurrency": {
+      "amount": 5.72,
+      "currencyCode": "EUR"
+     },
+     "content": "5,72",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        6.0644,
+        3.2514,
+        6.3013,
+        3.2524,
+        6.3007,
+        3.3915,
+        6.0639,
+        3.3913
+       ]
+      }
+     ],
+     "confidence": 0.986,
+     "spans": [
+      {
+       "offset": 468,
+       "length": 4
+      }
+     ]
+    },
+    "VendorAddress": {
+     "type": "address",
+     "content": "C/ Ejemplo 1, 28000 Madrid",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        1.6821,
+        0.7195,
+        3.2439,
+        0.72,
+        3.2439,
+        0.8627,
+        1.6821,
+        0.8622
+       ]
+      }
+     ],
+     "confidence": 0.625,
+     "spans": [
+      {
+       "offset": 57,
+       "length": 26
+      }
+     ],
+     "valueAddress": {
+      "houseNumber": "1",
+      "road": "C/ Ejemplo",
+      "postalCode": "28000",
+      "city": "Madrid",
+      "streetAddress": "1 C/ Ejemplo"
+     }
+    },
+    "VendorAddressRecipient": {
+     "type": "string",
+     "valueString": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.",
+     "content": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6887,
+        0.4169,
+        5.1511,
+        0.4155,
+        5.1512,
+        0.6105,
+        0.6888,
+        0.6119
+       ]
+      }
+     ],
+     "confidence": 0.683,
+     "spans": [
+      {
+       "offset": 0,
+       "length": 40
+      }
+     ]
+    },
+    "VendorName": {
+     "type": "string",
+     "valueString": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.",
+     "content": "DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.",
+     "boundingRegions": [
+      {
+       "pageNumber": 1,
+       "polygon": [
+        0.6887,
+        0.4169,
+        5.1511,
+        0.4155,
+        5.1512,
+        0.6105,
+        0.6888,
+        0.6119
+       ]
+      }
+     ],
+     "confidence": 0.683,
+     "spans": [
+      {
+       "offset": 0,
+       "length": 40
+      }
+     ]
+    }
+   },
+   "confidence": 1,
+   "spans": [
+    {
+     "offset": 0,
+     "length": 485
+    }
+   ]
+  }
+ ],
+ "contentFormat": "text"
+}

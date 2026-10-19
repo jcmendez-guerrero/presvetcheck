@@ -13,6 +13,7 @@ de prueba.
 | `doc-lots.json` | `GET inventory/variants/{id}/lots` |
 | `doc-warehouses.json`, `doc-low-stock.json` | almacenes y bajo mínimo |
 | `doc-adjustment.json`, `doc-transfer.json` | `POST inventory/stock/adjustments` / `transfers` |
+| `doc-contacts-proveedores.json` | `GET contacts?tipo=Proveedor` (mismos campos que el ejemplo de la especificación) |
 | `doc-tickets.json`, `doc-ticket-700x.json` | `GET tickets` y `GET tickets/{id}` (líneas con `nombre` y `cantidad`; sin variante ni lote) |
 | `farmacia-*.json` | Mismas estructuras con medicamentos para los flujos de la app |
 | `demo-stock.json` | Stock **sintético** por CN para `pnpm demo` sin token (nunca en producción) |

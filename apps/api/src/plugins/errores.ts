@@ -28,7 +28,9 @@ export function registrarErrores(app: FastifyInstance) {
     if (err instanceof DomainError) {
       const status = ESTADO[err.code] ?? 422;
       if (status >= 500) req.log.warn({ code: err.code }, 'error de dependencia');
-      return reply.status(status).send({ error: { code: err.code, mensaje: textoError(err.code), detalles: err.details ?? null } });
+      // El mensaje concreto del dominio ("Indica el nombre del producto") si lo hay; si no, el genérico del código.
+      const mensaje = err.message && err.message !== err.code ? err.message : textoError(err.code);
+      return reply.status(status).send({ error: { code: err.code, mensaje, detalles: err.details ?? null } });
     }
     if (hasZodFastifySchemaValidationErrors(err)) {
       return reply.status(400).send({

@@ -5,7 +5,7 @@ import { CimavetRepository, jobNomenclatorImport, type RegistroCache } from '@mm
 import { ColumnCipher, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { fixedClock, hoy, type LoteStock } from '@mmx/domain';
-import { FakeRecipeExtractor } from '@mmx/extraction';
+import { FakeRecipeExtractor, crearLectorAlbaranes } from '@mmx/extraction';
 import { loadConfig, normalizeText, type RecetaConfirmadaInput } from '@mmx/shared';
 import { loadRules } from '@mmx/shared/node';
 import { buildApp } from '../src/app';
@@ -103,6 +103,7 @@ export async function entorno(o: { config?: Record<string, string>; stock?: Reco
     siweb: null,
     // Tickets simulados (como la demo): POST /api/demo/tpv.
     ventas: new DemoSalesMovementsSource(h.db),
+    lectorAlbaranes: await crearLectorAlbaranes({ EXTRACTOR: 'fake', DOCINTEL_ENDPOINT: undefined, DOCINTEL_API_VERSION: '2024-11-30' }, { fixturesDir: resolve(ROOT, 'fixtures') }),
     extractor: new FakeRecipeExtractor({ dir: resolve(ROOT, 'fixtures/recetas'), hoy: () => hoy(CLOCK) }),
     blob: new MemoryBlobStore(),
     cipher: new ColumnCipher(Buffer.alloc(32, 3).toString('base64')),
