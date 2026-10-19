@@ -104,9 +104,11 @@ describe('registro de salidas (SPEC §4.8)', () => {
 describe('entradas y psicótropos', () => {
   it('tabla de entradas', () => {
     const t = tablaEntradas([
-      { recepcionId: 'r', distribuidor: 'D', albaran: 'A1', fechaCompra: '2026-10-14', nombreFarmaco: 'X', principioActivo: 'pa', forma: 'f', cn: '1', lote: 'L', caducidad: '2027-01-31', unidades: 3, precioNetoCompra: '10.0000', ivaPct: '10', rePct: '1.4', precioCoste: '10.1400', seriales: ['s1'], origenDatos: 'cimavet', empleado: 'e' },
+      { recepcionId: 'r', distribuidor: 'D', albaran: 'A1', fechaCompra: '2026-10-14', nombreFarmaco: 'X', principioActivo: 'pa', forma: 'f', cn: '1', lote: 'L', caducidad: '2027-01-31', unidades: 3, precioNetoCompra: '10.0000', ivaPct: '10', rePct: '1.4', precioCoste: '10.1400', seriales: ['s1'], origenDatos: 'cimavet', empleado: 'e', fechaRecepcion: '2026-10-15' },
     ]);
-    expect(t.filas[0]).toEqual(['X', 'pa', 'f', '14/10/2026', '31/01/2027', 'L', '1', 3, 'D', 'A1', '10.0000', '10', '1.4', '10.1400', 's1', 'cimavet', 'e']);
+    expect(t.filas[0]).toEqual(['X', 'pa', 'f', '14/10/2026', '31/01/2027', 'L', '1', 3, 'D', 'A1', '10.0000', '10', '1.4', '10.1400', 's1', 'cimavet', 'e', '15/10/2026']);
+    expect(t.columnas.at(-1)).toBe('FECHA RECEPCIÓN');
+    expect(t.columnas).toContain('PRECIO NETO COMPRA (sin IVA ni RE)');
   });
   it('registro de psicótropos con saldo por medicamento y lote', () => {
     const t = tablaPsicotropos([

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
 import { eq, sql } from 'drizzle-orm';
 import { CimavetClient, CimavetRepository } from '@mmx/cimavet';
-import { ColumnCipher, discrepancia, dispensacion, distribuidor, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
+import { ColumnCipher, discrepancia, dispensacion, distribuidor, entradaImportada, importacion, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { fixedClock } from '@mmx/domain';
 import { ConsoleMailer, MemoryBlobStore, semanaAnterior } from '@mmx/reports';
@@ -131,11 +131,21 @@ describe('worker', () => {
     await h.db.insert(recepcionLinea).values({ recepcionId: rc!.id, numero: 1, nombreFarmaco: 'X', unidades: 1, empleado: 'e', origenDatos: 'manual', createdAt: viejo });
     await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, rc!.id));
 
+    // Registros anteriores importados: uno antiguo (se purga) y uno reciente (se queda).
+    const [imp] = await h.db.insert(importacion).values({ tipo: 'entradas', fichero: 'antiguo.xlsx', sha256: 'h', filas: 2, creadaPor: 'e', createdAt: viejo }).returning();
+    const ent = { importacionId: imp!.id, distribuidor: 'D', nombreFarmaco: 'X', unidades: 1 };
+    const [ev] = await h.db.insert(entradaImportada).values({ ...ent, fila: 2, fecha: '2019-06-01' }).returning();
+    await h.db.insert(entradaImportada).values({ ...ent, fila: 3, fecha: '2026-06-01' });
+    // De solo inserción: ni se modifican ni se borran fuera de la purga.
+    await expect(h.db.update(entradaImportada).set({ unidades: 9 }).where(eq(entradaImportada.id, ev!.id))).rejects.toThrow();
+    await expect(h.db.delete(entradaImportada).where(eq(entradaImportada.id, ev!.id))).rejects.toThrow();
+
     // Sin la marca de purga la base de datos no deja borrar ni lo antiguo.
     await expect(h.db.delete(dispensacion).where(eq(dispensacion.id, dv!.id))).rejects.toThrow();
 
     const res = (await JOBS['retention-sweep']!(ctx, { anios: '1' })) as Record<string, unknown>;
-    expect(res).toMatchObject({ dispensaciones: 1, recetas: 1, propietarios: 1, recepciones: 1, blobsBorrados: 1 });
+    expect(res).toMatchObject({ dispensaciones: 1, recetas: 1, propietarios: 1, recepciones: 1, blobsBorrados: 1, importadas: 1 });
+    expect((await h.db.select().from(entradaImportada)).map((x) => x.fecha)).toEqual(['2026-06-01']);
     expect(await h.db.select().from(receta).where(eq(receta.id, r!.id))).toEqual([]);
     expect(await h.db.select().from(propietario).where(eq(propietario.id, p!.id))).toEqual([]);
     expect(await h.db.select().from(dispensacion).where(eq(dispensacion.id, o!.id))).toHaveLength(1);

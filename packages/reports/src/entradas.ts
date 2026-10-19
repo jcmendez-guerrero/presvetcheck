@@ -20,6 +20,8 @@ export interface Entrada {
   seriales: string[];
   origenDatos: string;
   empleado: string;
+  /** Día de llegada de la mercancía (si se registró). */
+  fechaRecepcion?: string | null;
 }
 
 export const COLUMNAS_ENTRADAS = [
@@ -33,13 +35,14 @@ export const COLUMNAS_ENTRADAS = [
   'UNIDADES',
   'DISTRIBUIDOR',
   'Nº ALBARÁN',
-  'PRECIO NETO COMPRA (sin IVA)',
+  'PRECIO NETO COMPRA (sin IVA ni RE)',
   'IVA %',
   'RE %',
   'PRECIO COSTE',
   'Nº SERIE',
   'ORIGEN DATOS',
   'EMPLEADO',
+  'FECHA RECEPCIÓN',
 ] as const;
 
 export function tablaEntradas(entradas: Entrada[]): Tabla {
@@ -64,6 +67,7 @@ export function tablaEntradas(entradas: Entrada[]): Tabla {
       e.seriales.join(', '),
       e.origenDatos,
       e.empleado,
+      fechaEs(e.fechaRecepcion ?? null),
     ]),
   };
 }

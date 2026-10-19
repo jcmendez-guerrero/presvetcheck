@@ -13,6 +13,7 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Dispensación | Entrega de un medicamento; registro de salida append-only | `dispensacion` |
 | Entrada / recepción | Recepción de mercancía de un distribuidor | `recepcion`, `recepcion_linea` |
 | Albarán | Documento del proveedor que acompaña a la mercancía (o factura); se puede leer con Document Intelligence para proponer las líneas | `LecturaAlbaran`, `albaranDesdeFactura` |
+| Importación | Lote de entradas o salidas anteriores a la app cargado de un Excel/CSV; se anula, nunca se modifica | `importacion`, `entrada_importada`, `salida_importada` |
 | Fecha de recepción | Día en que llega la mercancía; puede ser posterior a la fecha de compra del albarán | `fechaRecepcion` |
 | Entrada caducada | Línea de entrada con caducidad anterior a hoy: no se puede registrar | `entradaCaducada`, `ENTRADA_CADUCADA` |
 | Recargo de equivalencia (RE) | Recargo del IVA que se suma al precio neto de compra para el coste; el precio neto se introduce sin IVA ni RE | `rePct`, `calcularPrecioCoste` |

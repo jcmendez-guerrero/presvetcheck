@@ -6,3 +6,4 @@ export * from './blob';
 export * from './mailer';
 export * from './semanal';
 export * from './movimientos';
+export * from './importar';

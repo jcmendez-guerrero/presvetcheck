@@ -3,6 +3,9 @@ import {
   appendAudit,
   discrepancia,
   dispensacion,
+  entradaImportada,
+  importacion,
+  salidaImportada,
   outbox,
   pedidoPendiente,
   propietario,
@@ -76,6 +79,14 @@ export async function retentionSweep(ctx: Contexto, args: Record<string, string>
       await tx.delete(recepcion).where(inArray(recepcion.id, recs));
     }
 
+    // 4b. Registros anteriores importados: por la fecha del movimiento (el trigger lo exige con la marca de
+    // purga); después, las importaciones que se han quedado sin filas.
+    const dia = limite.toISOString().slice(0, 10);
+    const entImp = await tx.delete(entradaImportada).where(lt(entradaImportada.fecha, dia)).returning({ id: entradaImportada.id });
+    const salImp = await tx.delete(salidaImportada).where(lt(salidaImportada.fecha, dia)).returning({ id: salidaImportada.id });
+    const conFilas = sql`exists (select 1 from entrada_importada e where e.importacion_id = ${importacion.id}) or exists (select 1 from salida_importada s where s.importacion_id = ${importacion.id})`;
+    await tx.delete(importacion).where(and(lt(importacion.createdAt, limite), sql`not (${conFilas})`));
+
     // 5. Resto: pedidos sin línea, outbox cerrado, discrepancias y reportes.
     await tx.delete(pedidoPendiente).where(and(lt(pedidoPendiente.createdAt, limite), isNull(pedidoPendiente.recetaLineaId)));
     await tx.delete(outbox).where(and(lt(outbox.createdAt, limite), inArray(outbox.status, ['sent', 'failed'])));
@@ -83,7 +94,7 @@ export async function retentionSweep(ctx: Contexto, args: Record<string, string>
     const reps = await tx.delete(reportRun).where(lt(reportRun.generadoAt, limite)).returning({ path: reportRun.blobPath });
     blobs.push(...reps.filter((r) => r.path).map((r) => ({ c: 'reportes' as const, path: (r.path as string).replace(/^reportes\//, '') })));
 
-    const resumen = { dispensaciones: purgados.dispensaciones, ajustesEntrada: purgados.ajustes, recetas: recetas.length, propietarios: props.length, recepciones: recs.length, reportes: reps.length };
+    const resumen = { dispensaciones: purgados.dispensaciones, ajustesEntrada: purgados.ajustes, recetas: recetas.length, propietarios: props.length, recepciones: recs.length, reportes: reps.length, importadas: entImp.length + salImp.length };
     await appendAudit(tx, { actor: 'retention-sweep', accion: 'retencion_eliminar', entidad: 'sistema', entidadId: null, despues: { ...resumen, limite: limite.toISOString() } });
     return resumen;
   });

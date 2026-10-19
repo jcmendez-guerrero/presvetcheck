@@ -14,6 +14,8 @@ import { ROLES, exigirMfa, requiereRol, usuario } from '../plugins/auth';
 import { IdParam, RegistrosQuery, ResolverDiscrepanciaDto } from '../schemas';
 import { PendientesService } from '../servicios/pendientes';
 import { ConciliacionService } from '../servicios/conciliacion';
+import { ImportacionesService } from '../servicios/importaciones';
+import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { IsoDate } from '@mmx/shared';
 import { RegistrosService } from '@mmx/reports';
@@ -183,6 +185,42 @@ export async function rutasRegistros(app: App, d: AppDeps) {
           aCsv(t),
         );
       return { tablas: [t] };
+    },
+  );
+
+  // ── Importación de registros anteriores a la app ───────────────────────────────────
+  // Cambia el registro legal: solo la veterinaria responsable y administración.
+  const imp = new ImportacionesService(d);
+  const importa = requiereRol('veterinaria_responsable', 'admin');
+  const leerFichero = async (req: FastifyRequest) => {
+    let tipo: string | null = null;
+    let plantilla: string | null = null;
+    let fichero: { nombre: string; bytes: Uint8Array } | null = null;
+    for await (const part of req.parts()) {
+      if (part.type === 'file') fichero = { nombre: part.filename, bytes: new Uint8Array(await part.toBuffer()) };
+      else if (part.fieldname === 'tipo') tipo = String(part.value);
+      else if (part.fieldname === 'plantilla') plantilla = String(part.value) || null;
+    }
+    if (tipo !== 'entradas' && tipo !== 'salidas') throw new DomainError('VALIDACION', 'Indica si el fichero es de entradas o de salidas', { campo: 'tipo' });
+    if (plantilla !== null && !['A', 'B', 'C'].includes(plantilla)) throw new DomainError('VALIDACION', 'Plantilla de salidas no válida', { campo: 'plantilla' });
+    if (!fichero) throw new DomainError('VALIDACION', 'Adjunta el fichero (Excel o CSV)', { campo: 'fichero' });
+    return { tipo: tipo as 'entradas' | 'salidas', plantilla: plantilla as 'A' | 'B' | 'C' | null, fichero };
+  };
+  app.post('/api/importaciones/vista-previa', { preHandler: importa, schema: { tags: ['importacion'], summary: 'Analiza un fichero de entradas o salidas anteriores (sin guardar)', consumes: ['multipart/form-data'] } }, async (req) => {
+    const f = await leerFichero(req);
+    return imp.vistaPrevia(f.tipo, f.fichero, f.plantilla);
+  });
+  app.post('/api/importaciones', { preHandler: importa, schema: { tags: ['importacion'], summary: 'Importa entradas o salidas anteriores (solo si el fichero no tiene errores)', consumes: ['multipart/form-data'] } }, async (req, reply) => {
+    const f = await leerFichero(req);
+    return reply.status(201).send(await imp.importar(f.tipo, f.fichero, f.plantilla, ctx(req)));
+  });
+  app.get('/api/importaciones', { preHandler: importa, schema: { tags: ['importacion'] } }, async () => imp.listar());
+  app.post(
+    '/api/importaciones/:id/anular',
+    { preHandler: importa, schema: { tags: ['importacion'], summary: 'Anula una importación (deja de contar; no se borra)', params: IdParam, body: z.object({ motivo: z.string().max(500) }) } },
+    async (req, reply) => {
+      await imp.anular(req.params.id, req.body.motivo, ctx(req));
+      return reply.status(204).send();
     },
   );
 

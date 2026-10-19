@@ -1,6 +1,9 @@
 import { and, asc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   cimavetMedicamento,
+  entradaImportada,
+  importacion,
+  salidaImportada,
   conciliacion,
   discrepancia,
   dispensacion,
@@ -67,7 +70,7 @@ export class RegistrosService {
         .filter(Boolean),
     );
     const c = this.d.cipher;
-    return filas.map(({ d, r, v, p, pl, s, cc }) => {
+    const propias: Salida[] = filas.map(({ d, r, v, p, pl, s, cc }) => {
       const dni = p ? c.decrypt(p.dniEnc) : null;
       const firma = (s?.autorizacion as { firma?: { garante?: string } } | null)?.firma?.garante ?? null;
       return {
@@ -109,6 +112,56 @@ export class RegistrosService {
         conciliacion: cc ? 'conciliada' : conDiscrepancia.has(d.id) ? 'discrepancia' : 'pendiente',
       };
     });
+    return [...propias, ...(await this.salidasImportadas(desde, hasta, opts))].sort((a, b) => new Date(a.fechaVenta).getTime() - new Date(b.fechaVenta).getTime());
+  }
+
+  /** Salidas anteriores a la app importadas de Excel (sin las importaciones anuladas). */
+  private async salidasImportadas(desde: string, hasta: string, opts: { incluirPropietario: boolean; dniCompleto: boolean }): Promise<Salida[]> {
+    const filas = await this.d.db
+      .select({ s: salidaImportada, i: importacion })
+      .from(salidaImportada)
+      .innerJoin(importacion, eq(importacion.id, salidaImportada.importacionId))
+      .where(and(gte(salidaImportada.fecha, desde), sql`${salidaImportada.fecha} <= ${hasta}`, sql`${importacion.anuladaAt} is null`))
+      .orderBy(asc(salidaImportada.fecha), asc(salidaImportada.fila));
+    const c = this.d.cipher;
+    return filas.map(({ s, i }) => {
+      const dni = c.decrypt(s.propietarioDniEnc);
+      const prop = { nombre: c.decrypt(s.propietarioNombreEnc), movil: c.decrypt(s.propietarioMovilEnc), dni: opts.dniCompleto ? dni : maskDni(dni), direccion: c.decrypt(s.propietarioDireccionEnc) };
+      return {
+        id: s.id,
+        canal: s.plantilla === 'C' ? 'online' : 'presencial',
+        conReceta: s.plantilla === 'A',
+        nombreFarmaco: s.nombreFarmaco,
+        principioActivo: s.principioActivo,
+        forma: s.forma,
+        especie: s.especie,
+        fechaVenta: s.fecha,
+        caducidad: s.caducidad,
+        lote: s.lote ?? '',
+        cn: s.cn ?? '',
+        unidades: s.unidades ?? 0,
+        unidadesTexto: s.unidadesTexto,
+        fechaReceta: s.fechaReceta,
+        numeroReceta: s.numeroReceta,
+        veterinario: s.veterinario,
+        numColegiado: s.numColegiado,
+        clinica: s.clinica,
+        direccionVeterinario: s.direccionVeterinario,
+        propietario: opts.incluirPropietario && Object.values(prop).some(Boolean) ? prop : null,
+        tipoReceta: null,
+        plataforma: null,
+        esSustitucion: false,
+        forzado: false,
+        defectosForzados: [],
+        medicamentoPrescrito: null,
+        autorizadoPor: null,
+        empleado: i.creadaPor,
+        metodoCaptura: 'importado',
+        anulada: false,
+        registro: 'completo',
+        conciliacion: 'no aplica',
+      } satisfies Salida;
+    });
   }
 
   async entradas(desde: string, hasta: string): Promise<Entrada[]> {
@@ -119,7 +172,7 @@ export class RegistrosService {
       .innerJoin(distribuidor, eq(distribuidor.id, recepcion.distribuidorId))
       .where(and(gte(recepcion.fechaCompra, desde), sql`${recepcion.fechaCompra} <= ${hasta}`, inArray(recepcion.estado, ['FINALIZADA', 'SINCRONIZADA', 'ERROR_SINCRONIZACION'])))
       .orderBy(asc(recepcion.fechaCompra), asc(recepcionLinea.numero));
-    return filas.map(({ l, r, dist }) => ({
+    const propias: Entrada[] = filas.map(({ l, r, dist }) => ({
       recepcionId: r.id,
       distribuidor: dist.nombre,
       albaran: r.albaran,
@@ -138,7 +191,37 @@ export class RegistrosService {
       seriales: l.seriales ?? [],
       origenDatos: l.origenDatos,
       empleado: l.empleado,
+      fechaRecepcion: r.fechaRecepcion,
     }));
+    // Entradas anteriores a la app importadas de Excel (sin las importaciones anuladas).
+    const importadas = await this.d.db
+      .select({ e: entradaImportada, i: importacion })
+      .from(entradaImportada)
+      .innerJoin(importacion, eq(importacion.id, entradaImportada.importacionId))
+      .where(and(gte(entradaImportada.fecha, desde), sql`${entradaImportada.fecha} <= ${hasta}`, sql`${importacion.anuladaAt} is null`))
+      .orderBy(asc(entradaImportada.fecha), asc(entradaImportada.fila));
+    const otras: Entrada[] = importadas.map(({ e, i }) => ({
+      recepcionId: i.id,
+      distribuidor: e.distribuidor,
+      albaran: e.albaran,
+      fechaCompra: e.fecha,
+      fechaRecepcion: e.fechaRecepcion,
+      nombreFarmaco: e.nombreFarmaco,
+      principioActivo: e.principioActivo,
+      forma: e.forma,
+      cn: e.cn,
+      lote: e.lote,
+      caducidad: e.caducidad,
+      unidades: e.unidades,
+      precioNetoCompra: e.precioNetoCompra,
+      ivaPct: e.ivaPct,
+      rePct: e.rePct,
+      precioCoste: e.precioCoste,
+      seriales: [],
+      origenDatos: 'importado',
+      empleado: i.creadaPor,
+    }));
+    return [...propias, ...otras].sort((a, b) => a.fechaCompra.localeCompare(b.fechaCompra));
   }
 
   /** Movimientos de psicótropos (entradas, salidas, anulaciones) para el registro del garante. TODO(decision D-06b) */
