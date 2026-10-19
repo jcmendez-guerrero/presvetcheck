@@ -702,3 +702,52 @@ describe('recepción: validación previa, edición de líneas, fecha de recepci�
     expect(det.lectura.lineas).toHaveLength(3);
   });
 });
+
+describe('importación de entradas y salidas anteriores a la app', () => {
+  const subir = async (url: string, campos: Record<string, string>, nombre: string, contenido: string, u = 'dev-veterinaria') => {
+    const b = `----mmx${Math.random().toString(16).slice(2)}`;
+    const partes = [
+      ...Object.entries(campos).map(([k, v]) => `--${b}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`),
+      `--${b}\r\nContent-Disposition: form-data; name="fichero"; filename="${nombre}"\r\nContent-Type: text/csv\r\n\r\n${contenido}\r\n`,
+      `--${b}--\r\n`,
+    ];
+    const r = await E.app.inject({ method: 'POST', url, headers: { 'content-type': `multipart/form-data; boundary=${b}`, 'x-dev-user': u }, payload: Buffer.from(partes.join('')) });
+    return { status: r.statusCode, json: r.json() };
+  };
+  const entradasCsv = 'FECHA COMPRA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;CADUCIDAD;UNIDADES;DISTRIBUIDOR;Nº ALBARÁN;PRECIO NETO COMPRA (sin IVA)\r\n03/02/2025;AMODIP 1,25 MG;584159;OLD-1;31/12/2026;4;Distribuidor Antiguo;A-9;11,20\r\n';
+  const salidasCsv = 'FECHA;TIPO DE SALIDA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;UNIDADES DISPENSADAS;Nº RECETA;VETERINARIO;Nº COLEGIADO\r\n05/02/2025;Con receta;AMODIP 1,25 MG;584159;OLD-1;1 caja 30 comprimidos;R-OLD;Vet Antiguo;28/9\r\n';
+
+  it('vista previa con errores por fila; solo veterinaria responsable o administración', async () => {
+    expect((await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'e.csv', entradasCsv, 'dev-empleado')).status).toBe(403);
+    const mal = await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'e.csv', entradasCsv.replace('03/02/2025', '31/02/2025'));
+    expect(mal.json).toMatchObject({ validas: 0, totalErrores: 1, errores: [{ fila: 2, mensajes: ['Fecha de compra no válida (usa dd/mm/aaaa)'] }] });
+    expect((await subir('/api/importaciones', { tipo: 'entradas' }, 'e.csv', entradasCsv.replace('03/02/2025', '31/02/2025'))).json.error.code).toBe('VALIDACION');
+    const ok = await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'e.csv', entradasCsv);
+    expect(ok.json).toMatchObject({ validas: 1, totalErrores: 0, muestra: [{ cn: '584159', unidades: 4, precioNetoCompra: '11.20' }] });
+  });
+
+  it('importa, aparece en los registros como importado, no se repite el mismo fichero y se puede anular', async () => {
+    const e = await subir('/api/importaciones', { tipo: 'entradas' }, 'entradas-2025.csv', entradasCsv);
+    expect(e.status).toBe(201);
+    expect(e.json.filas).toBe(1);
+    expect((await subir('/api/importaciones', { tipo: 'entradas' }, 'otra-vez.csv', entradasCsv)).json.error.code).toBe('CONFLICTO');
+    const s = await subir('/api/importaciones', { tipo: 'salidas' }, 'salidas-2025.csv', salidasCsv);
+    expect(s.status).toBe(201);
+
+    const q = 'desde=2025-01-01&hasta=2025-12-31';
+    const ent = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/entradas?${q}`)).json.tablas[0];
+    expect(ent.filas).toEqual([expect.arrayContaining(['AMODIP 1,25 MG', '03/02/2025', 'OLD-1', 'Distribuidor Antiguo', 'importado'])]);
+    const sal = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/salidas?${q}&plantilla=A`)).json.tablas[0];
+    expect(sal.filas).toEqual([expect.arrayContaining(['AMODIP 1,25 MG', '05/02/2025', '1 caja 30 comprimidos', 'R-OLD', 'Vet Antiguo'])]);
+    const todas = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}`)).json.tablas[0];
+    expect(todas.filas[0].at(-1)).toBe('no aplica');
+
+    const lista = (await api(E.app, 'dev-veterinaria', 'GET', '/api/importaciones')).json as { id: string; tipo: string }[];
+    const idEnt = lista.find((x) => x.tipo === 'entradas')!.id;
+    expect((await api(E.app, 'dev-veterinaria', 'POST', `/api/importaciones/${idEnt}/anular`, { motivo: 'corto' })).status).toBe(400);
+    expect((await api(E.app, 'dev-veterinaria', 'POST', `/api/importaciones/${idEnt}/anular`, { motivo: 'Fichero de otra tienda, importado por error' })).status).toBe(204);
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/registros/entradas?${q}`)).json.tablas[0].filas).toEqual([]);
+    // Anulada, el mismo fichero se puede volver a importar.
+    expect((await subir('/api/importaciones', { tipo: 'entradas' }, 'entradas-2025.csv', entradasCsv)).status).toBe(201);
+  });
+});
