@@ -22,6 +22,15 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     if (!d.siweb) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado (modo demo)');
     return d.siweb;
   };
+  /** Llamadas a Siweb360 desde la operativa: si no responde, un error claro en lugar de un error interno. */
+  const conSiweb = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e instanceof DomainError) throw e;
+      throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no responde ahora. Vuelve a intentarlo en unos segundos.');
+    }
+  };
 
   // ── Distribuidores ─────────────────────────────────────────────────────────────
   app.get('/api/admin/distribuidores', { preHandler: requiereRol(...ROLES.operativa, 'admin'), schema: { tags: ['admin'] } }, async () =>
@@ -104,7 +113,7 @@ export async function rutasAdmin(app: App, d: AppDeps) {
   app.post('/api/admin/mapeo-siweb/resolver', { preHandler: requiereRol(...ROLES.operativa, 'admin'), schema: { tags: ['admin'], body: z.object({ cn: z.string().regex(/^\d{6,7}$/) }) } }, async (req) => {
     const pres = await d.cimavet.presentacion(req.body.cn);
     const m = pres ? await d.cimavet.medicamento(pres.nregistro) : null;
-    return siweb().resolver.resolver(req.body.cn, m ? { nombre: m.nombre, labtitular: m.labtitular } : null);
+    return conSiweb(() => siweb().resolver.resolver(req.body.cn, m ? { nombre: m.nombre, labtitular: m.labtitular } : null));
   });
   app.put(
     '/api/admin/mapeo-siweb',
@@ -112,7 +121,8 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     async (req) => {
       const c = ctx(req);
       const s = siweb();
-      const r = req.body.variantId !== undefined ? await s.resolver.mapearVariante(req.body.cn, req.body.variantId, c.usuario.id) : await s.resolver.mapearPorSku(req.body.cn, req.body.sku ?? '', c.usuario.id);
+      if (req.body.variantId === undefined && !req.body.sku?.trim()) throw new DomainError('VALIDACION', 'Indica el SKU de Siweb360', { campo: 'sku' });
+      const r = await conSiweb(() => (req.body.variantId !== undefined ? s.resolver.mapearVariante(req.body.cn, req.body.variantId, c.usuario.id) : s.resolver.mapearPorSku(req.body.cn, req.body.sku ?? '', c.usuario.id)));
       await d.db.transaction((tx) => appendAudit(tx, { actor: c.usuario.id, accion: 'siweb_mapeo_manual', entidad: 'siweb_variant_map', entidadId: req.body.cn, despues: { variantId: r.variante.id, sku: r.variante.sku } }));
       const reencoladas = await s.outbox.reencolarPendientesAlta(req.body.cn, r.variante.id);
       return { ...r, reencoladas, preguntarRenombrado: !r.cumpleConvencion };

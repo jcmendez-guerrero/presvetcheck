@@ -1,7 +1,7 @@
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { siwebVariantMap, type Db } from '@mmx/db';
 import { normalizarCn, nombreCumpleConvencion, skuCumpleConvencion, varianteCoincideCn, extraerCn } from '@mmx/domain';
-import { normalizeText } from '@mmx/shared';
+import { DomainError, normalizeText } from '@mmx/shared';
 import type { SiwebClient } from './client';
 import type { Variant } from './schemas';
 
@@ -90,7 +90,7 @@ export class VariantResolver {
   /** Mapeo manual por SKU: se valida que existe en Siweb360 con ese valor exacto. */
   async mapearPorSku(cn: string, sku: string, actor: string): Promise<{ variante: Variant; cumpleConvencion: boolean }> {
     const v = (await this.client.variants({ search: sku })).find((x) => (x.sku ?? '').toUpperCase() === sku.trim().toUpperCase());
-    if (!v) throw new Error(`No existe ninguna variante con SKU ${sku} en Siweb360`);
+    if (!v) throw new DomainError('NO_ENCONTRADO', `No existe ningún producto con el SKU «${sku.trim()}» en Siweb360. Revisa que esté bien escrito.`);
     await this.guardar(cn, v, 'manual', actor);
     return { variante: v, cumpleConvencion: this.cumpleConvencion(cn, v) };
   }

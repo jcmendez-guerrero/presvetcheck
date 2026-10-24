@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Camera, Check, Image as ImageIcon, ScanLine, Send } from 'lucide-react';
+import { Camera, Check, Image as ImageIcon, Loader2, ScanLine, Send } from 'lucide-react';
 import { textoError, type CodigoError } from '@mmx/shared';
 import { EscanerCamara } from '../componentes/escaner';
 import { Boton, Mensaje, Tarjeta } from '../componentes/ui';
@@ -82,20 +82,33 @@ export function PaginaMovil() {
 function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
   const [paginas, setPaginas] = useState<PaginaPreparada[]>([]);
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviada'>('listo');
+  const [preparando, setPreparando] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const ocupado = preparando > 0 || estado === 'enviando';
 
-  const anadir = async (files: FileList | null) => {
+  // Preparar la foto (girarla, reducirla y comprimirla) tarda unos segundos en el móvil: se muestra
+  // «Procesando la foto…» y se bloquean los botones para que no se añada ni se envíe dos veces.
+  const anadir = async (input: HTMLInputElement) => {
+    const files = Array.from(input.files ?? []);
+    input.value = ''; // permite volver a elegir la misma foto si se quitó
+    if (!files.length) return;
     setEstado('listo');
-    for (const f of Array.from(files ?? [])) {
+    setError(null);
+    setPreparando(files.length);
+    for (const f of files) {
       try {
         const p = await prepararPagina(f);
         setPaginas((x) => [...x, p]);
+        navigator.vibrate?.(60);
       } catch {
-        setError('No se ha podido leer la foto');
+        setError('No se ha podido leer la foto. Vuelve a hacerla.');
+      } finally {
+        setPreparando((n) => n - 1);
       }
     }
   };
   const enviar = async () => {
+    if (ocupado) return;
     setEstado('enviando');
     setError(null);
     const fd = new FormData();
@@ -116,22 +129,37 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
     <Tarjeta titulo="Receta">
       <p className="mb-3 text-slate-700">Fotografía la receta entera, sobre fondo liso y con buena luz. Si tiene varias páginas, añádelas todas.</p>
       <div className="flex flex-wrap gap-3">
-        <label className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-marca px-5 py-4 font-semibold text-white">
+        <label className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-marca px-5 py-4 font-semibold text-white ${ocupado ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
           <Camera aria-hidden className="h-5 w-5" /> {paginas.length ? 'Otra página' : 'Hacer foto'}
-          <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void anadir(e.target.files)} />
+          <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={ocupado} onChange={(e) => void anadir(e.currentTarget)} />
         </label>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-marca px-4 py-4 font-semibold text-marca">
+        <label className={`inline-flex items-center gap-2 rounded-xl border-2 border-marca px-4 py-4 font-semibold text-marca ${ocupado ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
           <ImageIcon aria-hidden className="h-5 w-5" /> Galería
-          <input type="file" accept="image/*,application/pdf" multiple className="sr-only" onChange={(e) => void anadir(e.target.files)} />
+          <input type="file" accept="image/*,application/pdf" multiple className="sr-only" disabled={ocupado} onChange={(e) => void anadir(e.currentTarget)} />
         </label>
       </div>
+      {preparando > 0 && (
+        <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-pedir-bg px-3 py-3 font-semibold text-pedir">
+          <Loader2 aria-hidden className="h-5 w-5 animate-spin" /> Procesando la foto… espera antes de hacer otra
+        </p>
+      )}
+      {paginas.length > 0 && preparando === 0 && estado !== 'enviando' && (
+        <p role="status" className="mt-3 font-semibold text-dispensar">
+          <Check aria-hidden className="inline h-4 w-4" /> {paginas.length === 1 ? '1 página lista' : `${paginas.length} páginas listas`}. Pulsa «Enviar al ordenador».
+        </p>
+      )}
+      {estado === 'enviando' && (
+        <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-pedir-bg px-3 py-3 font-semibold text-pedir">
+          <Loader2 aria-hidden className="h-5 w-5 animate-spin" /> Enviando y leyendo la receta… puede tardar hasta un minuto. No la envíes de nuevo.
+        </p>
+      )}
       {paginas.length > 0 && (
         <ol className="mt-3 grid grid-cols-3 gap-2">
           {paginas.map((p, i) => (
             <li key={i} className="rounded-lg bg-fondo p-1 text-center text-xs">
               {p.vista ? <img src={p.vista} alt={`Página ${i + 1}`} className="max-h-28 w-full rounded object-contain" /> : `Página ${i + 1}`}
               {p.calidad?.aviso && <p className="font-semibold text-sustituir">{p.calidad.aviso}</p>}
-              <button type="button" className="underline" onClick={() => setPaginas((x) => x.filter((_, j) => j !== i))}>
+              <button type="button" className="underline" disabled={ocupado} onClick={() => setPaginas((x) => x.filter((_, j) => j !== i))}>
                 Quitar
               </button>
             </li>
@@ -145,7 +173,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
         </Mensaje>
       )}
       <div className="mt-3">
-        <Boton className="w-full" disabled={!paginas.length || estado === 'enviando'} onClick={() => void enviar()}>
+        <Boton className="w-full" disabled={!paginas.length || ocupado} onClick={() => void enviar()}>
           <Send aria-hidden className="h-5 w-5" /> {estado === 'enviando' ? 'Leyendo la receta… (hasta un minuto)' : 'Enviar al ordenador'}
         </Boton>
       </div>

@@ -255,7 +255,8 @@ describe('resolución CN → variante (SPEC §5.2.2)', () => {
     const res = new VariantResolver(h.db, client(), PATRON);
     const m = await res.mapearPorSku('590000', 'amx-viejo', 'dev-empleado');
     expect(m).toMatchObject({ variante: { id: 7 }, cumpleConvencion: false });
-    await expect(res.mapearPorSku('590000', 'NO-EXISTE', 'dev-empleado')).rejects.toThrow(/No existe/);
+    // Error de dominio (404 con mensaje legible en la pantalla de dispensación), no un error interno.
+    await expect(res.mapearPorSku('590000', 'NO-EXISTE', 'dev-empleado')).rejects.toMatchObject({ code: 'NO_ENCONTRADO', message: expect.stringMatching(/SKU «NO-EXISTE»/) });
     expect((await res.mapearVariante('590000', 8, 'dev-empleado')).cumpleConvencion).toBe(true);
     const filas = await h.db.select().from(siwebVariantMap).where(eq(siwebVariantMap.cn, '590000'));
     expect(filas.map((f) => [f.variantId, f.metodo])).toEqual([

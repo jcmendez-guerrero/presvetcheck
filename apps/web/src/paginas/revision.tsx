@@ -6,6 +6,7 @@ import type { RecetaConfirmadaInput } from '@mmx/shared';
 import { ApiError, get, post, put } from '../lib/api';
 import { CN } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
+import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { TextoReconocido, VisorReceta } from '../componentes/visor-receta';
 
 export { TextoReconocido };
@@ -823,7 +824,14 @@ function LineaForm({
             ) : (
               <p className="animate-pulse text-sm text-slate-600">Consultando CIMAVet…</p>
             )}
-            <PanelStock s={stock.data} cargando={stock.isLoading} pedidos={l.cantidadEnvases ?? null} />
+            <PanelStock
+              s={stock.data}
+              cargando={stock.isLoading}
+              fallo={stock.isError}
+              pedidos={l.cantidadEnvases ?? null}
+              cn={l.cn}
+              onRelacionado={() => void stock.refetch()}
+            />
             <p className="text-sm text-slate-600">
               {CN} <strong>{l.cn}</strong> · nº de registro {l.nregistro}{' '}
               <Boton variante="texto" onClick={() => setBuscar(true)}>
@@ -930,19 +938,34 @@ function EstadoBusqueda({
 function PanelStock({
   s,
   cargando,
+  fallo,
   pedidos,
+  cn,
+  onRelacionado,
 }: {
   s: StockFefo | undefined;
   cargando: boolean;
+  fallo: boolean;
   pedidos: number | null;
+  cn: string;
+  onRelacionado: () => void;
 }) {
-  if (cargando) return <p className="mt-2 animate-pulse text-sm">Consultando el stock…</p>;
-  if (!s) return null;
-  if (s.estado !== 'OK' || !s.propuesta)
+  if (cargando) return <p className="mt-2 animate-pulse text-sm">Consultando el stock en Siweb360…</p>;
+  if (!s && !fallo) return null;
+  if (!s || s.estado !== 'OK' || !s.propuesta)
     return (
-      <p className="mt-2 rounded-lg bg-sustituir-bg px-2 py-1 text-sm font-semibold text-sustituir">
-        No se ha podido consultar el stock ahora
-      </p>
+      <>
+        <p className="mt-2 rounded-lg bg-sustituir-bg px-2 py-1 text-sm font-semibold text-sustituir">
+          {s?.estado === 'SIN_MAPEO'
+            ? 'Sin relación con Siweb360: no se puede validar el stock'
+            : 'No se ha podido validar el stock en Siweb360 ahora'}
+        </p>
+        <RelacionarSiweb
+          cn={cn}
+          estado={s?.estado === 'SIN_MAPEO' ? 'SIN_MAPEO' : 'NO_DISPONIBLE'}
+          onRelacionado={onRelacionado}
+        />
+      </>
     );
   const hay = s.propuesta.disponibleTotal;
   const falta = pedidos !== null && hay < pedidos;
