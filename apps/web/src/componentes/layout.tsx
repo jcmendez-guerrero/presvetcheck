@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link, Outlet } from '@tanstack/react-router';
-import { ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { USUARIOS_DEV, useAuth } from '../lib/auth';
-import { ProveedorMovil } from '../lib/movil';
+import { ProveedorMovil, useMovil } from '../lib/movil';
 import { AvisosMovil, BotonMovil } from './movil-pc';
 
 const NAV = [
@@ -80,6 +80,7 @@ export function Layout() {
                   <span>{usuario?.nombre}</span>
                 )}
                 {usuario?.mfa && <ShieldCheck aria-label="Sesión con MFA" className="h-5 w-5 text-dorado" />}
+                {usuario && config?.authMode === 'entra' && <BotonSalir />}
               </div>
             </div>
           </div>
@@ -105,6 +106,26 @@ export function Layout() {
         </main>
       </div>
     </ProveedorMovil>
+  );
+}
+
+/** Cierra la sesión de Entra (autenticación integrada de Container Apps); antes desconecta el móvil emparejado. */
+function BotonSalir() {
+  const movil = useMovil();
+  const salir = async () => {
+    await movil?.cerrar().catch(() => {});
+    window.location.href = `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent('/')}`;
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void salir()}
+      className="flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-marca-2"
+      title="Cerrar la sesión en este equipo"
+    >
+      <LogOut aria-hidden className="h-4 w-4" />
+      Cerrar sesión
+    </button>
   );
 }
 
