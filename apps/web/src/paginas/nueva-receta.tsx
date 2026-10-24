@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Loader2, Upload } from 'lucide-react';
 import { ApiError, api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { prepararPagina, type PaginaPreparada } from '../lib/imagen';
@@ -17,15 +17,20 @@ export function NuevaReceta() {
   const [fixture, setFixture] = useState(DEMOS[0]!);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [preparando, setPreparando] = useState(0);
 
-  const anadir = async (files: FileList | null) => {
-    if (!files) return;
-    for (const f of Array.from(files)) {
+  const anadir = async (input: HTMLInputElement) => {
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    setPreparando((n) => n + files.length);
+    for (const f of files) {
       try {
         const p = await prepararPagina(f);
         setPaginas((x) => [...x, p]);
       } catch {
         setError(`No se ha podido leer ${f.name}`);
+      } finally {
+        setPreparando((n) => n - 1);
       }
     }
   };
@@ -54,11 +59,11 @@ export function NuevaReceta() {
         <div className="flex flex-wrap gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-marca px-5 py-3 font-semibold text-white">
             <Camera aria-hidden className="h-5 w-5" /> Hacer foto
-            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void anadir(e.target.files)} />
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void anadir(e.currentTarget)} />
           </label>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-marca px-5 py-3 font-semibold text-marca">
             <Upload aria-hidden className="h-5 w-5" /> Subir fichero (PDF, JPEG, PNG, HEIC)
-            <input data-testid="subir-receta" type="file" accept="image/*,application/pdf" multiple className="sr-only" onChange={(e) => void anadir(e.target.files)} />
+            <input data-testid="subir-receta" type="file" accept="image/*,application/pdf" multiple className="sr-only" onChange={(e) => void anadir(e.currentTarget)} />
           </label>
         </div>
         {config?.extractor === 'fake' && (
@@ -82,9 +87,14 @@ export function NuevaReceta() {
             </li>
           ))}
         </ol>
+        {preparando > 0 && (
+          <p role="status" className="mt-3 flex items-center gap-2 font-semibold text-pedir">
+            <Loader2 aria-hidden className="h-5 w-5 animate-spin" /> Procesando la foto…
+          </p>
+        )}
         {error && <Mensaje tipo="error">{error}</Mensaje>}
         <div className="mt-4">
-          <Boton data-testid="enviar-receta" disabled={!paginas.length || enviando} onClick={() => void enviar()}>
+          <Boton data-testid="enviar-receta" disabled={!paginas.length || enviando || preparando > 0} onClick={() => void enviar()}>
             {enviando ? 'Leyendo la receta…' : 'Continuar a la revisión'}
           </Boton>
         </div>

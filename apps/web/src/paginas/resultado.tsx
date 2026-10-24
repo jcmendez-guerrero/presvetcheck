@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CodigoIncidencia } from '@mmx/shared';
 import { ApiError, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -10,6 +10,7 @@ import type { Evaluacion, LineaEvaluada } from '../lib/tipos';
 import { EstadoDecision, ListaMotivos } from '../componentes/estado';
 import { ModalForzado } from '../componentes/forzado';
 import { Pagina } from '../componentes/layout';
+import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { ConReceta } from '../componentes/visor-receta';
 import { Boton, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
 
@@ -56,6 +57,7 @@ function TarjetaLinea({
   todas: LineaEvaluada[];
 }) {
   const nav = useNavigate();
+  const qc = useQueryClient();
   const { usuario } = useAuth();
   const [forzar, setForzar] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
@@ -172,9 +174,19 @@ function TarjetaLinea({
         </div>
       )}
       {decision === 'PENDIENTE_STOCK' && (
-        <p className="mt-3">
-          No se ha podido confirmar el stock en Siweb360. Vuelve a comprobar en unos segundos.
-        </p>
+        <>
+          <p className="mt-3">
+            No se ha podido confirmar el stock en Siweb360. Si sabes qué producto de Siweb360 vas a dispensar,
+            relaciónalo y se vuelve a comprobar.
+          </p>
+          {ev.cn && (
+            <RelacionarSiweb
+              cn={ev.cn}
+              estado={null}
+              onRelacionado={() => void qc.invalidateQueries({ queryKey: ['evaluacion', recetaId] })}
+            />
+          )}
+        </>
       )}
       {l.opcionesSoloPA && (
         <div className="mt-3">
