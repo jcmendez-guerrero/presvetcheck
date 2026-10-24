@@ -78,6 +78,13 @@
       "when": 1792834443213,
       "tag": "0010_permisos_app",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792836113501,
+      "tag": "0011_permisos_app_corregidos",
+      "breakpoints": true
     }
   ]
 }
