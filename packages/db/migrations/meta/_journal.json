@@ -85,6 +85,13 @@
       "when": 1792836113501,
       "tag": "0011_permisos_app_corregidos",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792836331612,
+      "tag": "0012_revocar_registros",
+      "breakpoints": true
     }
   ]
 }
