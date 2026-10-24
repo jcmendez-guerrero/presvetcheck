@@ -4,7 +4,7 @@ import { ColumnCipher, createDb, type Db, type DbHandle } from '@mmx/db';
 import type { Clock } from '@mmx/domain';
 import { AcsMailer, AzureBlobStore, ConsoleMailer, MemoryBlobStore, SmtpMailer, type BlobStore, type Mailer } from '@mmx/reports';
 import type { AppConfig, RulesBundle } from '@mmx/shared';
-import { loadRules, secretoKeyVault } from '@mmx/shared/node';
+import { loadRules, secretoKeyVault, tokenPostgresEntra } from '@mmx/shared/node';
 import { NotConfiguredSalesMovementsSource,
   TicketsSalesMovementsSource, OutboxService, SiwebClient, StockService, VariantResolver, resolverAlmacen, type SalesMovementsSource } from '@mmx/siweb';
 
@@ -31,7 +31,7 @@ export const relojSistema: Clock = { now: () => Temporal.Now.instant() };
 export const logJson: Log = (mensaje, datos) => console.error(JSON.stringify({ t: new Date().toISOString(), nivel: 'info', mensaje, ...datos }));
 
 export async function crearContexto(config: AppConfig, log: Log = logJson): Promise<{ ctx: Contexto; handle: DbHandle }> {
-  const handle = await createDb(config.DATABASE_URL, { max: 2 });
+  const handle = await createDb(config.DATABASE_URL, { max: 2, ...(config.DATABASE_AUTH === 'entra' ? { password: tokenPostgresEntra() } : {}) });
   const kv = config.KEY_VAULT_URL;
   const clave = config.COLUMN_ENCRYPTION_KEY ?? (kv ? await secretoKeyVault(kv, config.KV_SECRETO_CIFRADO) : undefined);
   if (!clave) throw new Error('Falta la clave de cifrado de columnas');

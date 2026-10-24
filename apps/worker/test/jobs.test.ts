@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
 import { eq, sql } from 'drizzle-orm';
 import { CimavetClient, CimavetRepository } from '@mmx/cimavet';
-import { ColumnCipher, discrepancia, dispensacion, distribuidor, entradaImportada, importacion, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
+import { ColumnCipher, procedimientoAprobado, discrepancia, dispensacion, distribuidor, entradaImportada, importacion, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { fixedClock } from '@mmx/domain';
 import { ConsoleMailer, MemoryBlobStore, semanaAnterior } from '@mmx/reports';
@@ -52,7 +52,7 @@ afterAll(async () => {
 
 describe('worker', () => {
   it('parsea argumentos y expone todos los jobs de AGENTS.md', () => {
-    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'db-migrate', 'nomenclator-import', 'outbox-dispatcher', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
+    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'db-migrate', 'nomenclator-import', 'outbox-dispatcher', 'procedimiento-cargar', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
     expect(parsearArgs(['weekly-reports', '--', '--desde', '2026-10-01', '--muestra'])).toEqual({ job: 'weekly-reports', args: { desde: '2026-10-01', muestra: '' } });
   });
 
@@ -107,6 +107,17 @@ describe('worker', () => {
     // Repetir el cierre no duplica la discrepancia.
     expect(await JOBS['sales-reconciliation']!(conVentas, {})).toEqual({ conciliadas: 0, loteSinVerificar: 0, discrepancias: 0 });
     expect(await h.db.select().from(discrepancia)).toHaveLength(1);
+  });
+
+  it('procedimiento-cargar: la nueva versión queda vigente y la anterior no; exige texto y autor', async () => {
+    const texto = 'Directrices de sustitución de prueba: equivalente con la misma composición, forma y dosis.';
+    await expect(JOBS['procedimiento-cargar']!(ctx, { version: '1' })).rejects.toThrow(/Uso: procedimiento-cargar/);
+    await JOBS['procedimiento-cargar']!(ctx, { version: '1', 'aprobado-por': 'Garante (firma en papel)', 'texto-b64': Buffer.from(texto).toString('base64') });
+    const r = await JOBS['procedimiento-cargar']!(ctx, { version: '2', 'aprobado-por': 'Garante', texto: `${texto} Revisión 2.`, 'aprobado-el': '2026-10-20' });
+    expect(r).toMatchObject({ codigo: 'SUSTITUCION', version: '2' });
+    const todos = await h.db.select().from(procedimientoAprobado);
+    expect(todos.filter((p) => p.vigente).map((p) => p.version)).toEqual(['2']);
+    expect(todos.find((p) => p.version === '2')).toMatchObject({ soloDesarrollo: false, aprobadoPor: 'Garante' });
   });
 
   it('outbox-dispatcher inactivo sin Siweb360 o con escritura desactivada', async () => {

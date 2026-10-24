@@ -9,6 +9,7 @@ import { crearContexto, logJson, type Contexto } from './contexto';
 import { cimavetDelta, cimavetFull, nomenclatorImport } from './jobs/cimavet';
 import { outboxDispatcher } from './jobs/outbox';
 import { salesReconciliation } from './jobs/conciliacion';
+import { cargarProcedimiento } from './jobs/procedimiento';
 import { weeklyReports } from './jobs/reportes';
 import { retentionSweep } from './jobs/retencion';
 import { runMigrations } from '@mmx/db';
@@ -22,6 +23,7 @@ export const JOBS: Record<string, (ctx: Contexto, args: Record<string, string>) 
   'weekly-reports': weeklyReports,
   'retention-sweep': retentionSweep,
   /** Se ejecuta antes de activar una nueva revisión (SPEC §10.3). */
+  'procedimiento-cargar': cargarProcedimiento,
   'db-migrate': async (ctx) => {
     await runMigrations({ db: ctx.db, kind: ctx.config.DATABASE_URL.startsWith('pglite://') ? 'pglite' : 'postgres', close: async () => {} });
     return { ok: true };
