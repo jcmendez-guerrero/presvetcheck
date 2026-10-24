@@ -96,8 +96,10 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
           window.location.href = `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(location.pathname)}`;
           return {};
         }
-        // Con token store se envía el id_token; sin él, la plataforma inyecta X-MS-CLIENT-PRINCIPAL.
-        const [s] = (await r.json()) as Array<{ id_token?: string }>;
+        // Con token store se envía el id_token. Sin él, /.auth/me no lo atiende la plataforma (llega a la app y
+        // devuelve HTML) y basta la cabecera X-MS-CLIENT-PRINCIPAL que inyecta en cada petición a la API.
+        if (!(r.headers.get('content-type') ?? '').includes('json')) return {};
+        const [s] = ((await r.json().catch(() => [])) as Array<{ id_token?: string }>) ?? [];
         return s?.id_token ? { Authorization: `Bearer ${s.id_token}` } : {};
       });
     }
