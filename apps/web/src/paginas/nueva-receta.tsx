@@ -36,7 +36,7 @@ export function NuevaReceta() {
     const fd = new FormData();
     if (config?.extractor === 'fake') fd.append('fixture', fixture);
     paginas.forEach((p) => fd.append('phash', p.phash ?? ''));
-    paginas.forEach((p, i) => fd.append('pagina', p.blob, `pagina-${i + 1}.${p.mime === 'application/pdf' ? 'pdf' : 'png'}`));
+    paginas.forEach((p, i) => fd.append('pagina', p.blob, `pagina-${i + 1}.${p.mime === 'application/pdf' ? 'pdf' : p.mime === 'image/jpeg' ? 'jpg' : 'png'}`));
     try {
       const r = await api<{ id: string; aviso: string | null }>('POST', '/api/recetas', fd);
       await nav({ to: '/recetas/$id/revision', params: { id: r.id } });

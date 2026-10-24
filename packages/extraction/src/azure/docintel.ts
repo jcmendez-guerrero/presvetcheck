@@ -36,10 +36,26 @@ export interface AnalyzeResult {
   modelId?: string;
   apiVersion?: string;
   content?: string;
-  pages?: { pageNumber: number; words?: { content: string; confidence: number; polygon?: number[]; span?: { offset: number; length: number } }[] }[];
+  pages?: {
+    pageNumber: number;
+    words?: {
+      content: string;
+      confidence: number;
+      polygon?: number[];
+      span?: { offset: number; length: number };
+    }[];
+  }[];
   documents?: { docType?: string; confidence?: number; fields?: Record<string, CampoDocIntel> }[];
   /** Solo con `features=keyValuePairs` (modelo `prebuilt-layout`). */
-  keyValuePairs?: { key: { content: string }; value?: { content?: string; boundingRegions?: { pageNumber: number; polygon?: number[] }[]; spans?: { offset: number; length: number }[] }; confidence?: number }[];
+  keyValuePairs?: {
+    key: { content: string };
+    value?: {
+      content?: string;
+      boundingRegions?: { pageNumber: number; polygon?: number[] }[];
+      spans?: { offset: number; length: number }[];
+    };
+    confidence?: number;
+  }[];
 }
 
 export class DocumentIntelligenceClient {
@@ -54,16 +70,33 @@ export class DocumentIntelligenceClient {
   }
 
   /** `documentModels/{modelo}:analyze` + sondeo de la operación. */
-  async analizar(modelo: string, bytes: Uint8Array, mime: string, features: string[] = []): Promise<AnalyzeResult> {
+  async analizar(
+    modelo: string,
+    bytes: Uint8Array,
+    mime: string,
+    features: string[] = [],
+  ): Promise<AnalyzeResult> {
     const base = this.o.endpoint.replace(/\/$/, '');
     const extra = features.length ? `&features=${features.join(',')}` : '';
-    const res = await fetch(`${base}/documentintelligence/documentModels/${encodeURIComponent(modelo)}:analyze?api-version=${this.apiVersion}&locale=es-ES${extra}`, {
-      method: 'POST',
-      headers: await this.headers({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ base64Source: Buffer.from(bytes).toString('base64') }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (res.status !== 202) throw new Error(`Document Intelligence respondió ${res.status} (${mime})`);
+    const res = await fetch(
+      `${base}/documentintelligence/documentModels/${encodeURIComponent(modelo)}:analyze?api-version=${this.apiVersion}&locale=es-ES${extra}`,
+      {
+        method: 'POST',
+        headers: await this.headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ base64Source: Buffer.from(bytes).toString('base64') }),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    if (res.status !== 202) {
+      // Solo el código de error del servicio (p. ej. InvalidContentLength): nunca contenido del documento.
+      const cuerpo = (await res.json().catch(() => null)) as {
+        error?: { code?: string; innererror?: { code?: string } };
+      } | null;
+      const codigo = cuerpo?.error?.innererror?.code ?? cuerpo?.error?.code;
+      throw new Error(
+        `Document Intelligence respondió ${res.status} (${mime}, ${bytes.byteLength} bytes${codigo ? `, ${codigo}` : ''})`,
+      );
+    }
     const op = res.headers.get('operation-location');
     if (!op) throw new Error('Document Intelligence no devolvió Operation-Location');
     const sleep = this.o.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
@@ -78,9 +111,14 @@ export class DocumentIntelligenceClient {
         espera = Math.min(espera * 2, 10_000);
         continue;
       }
-      const body = (await r.json()) as { status: string; analyzeResult?: AnalyzeResult; error?: { message?: string } };
+      const body = (await r.json()) as {
+        status: string;
+        analyzeResult?: AnalyzeResult;
+        error?: { message?: string };
+      };
       if (body.status === 'succeeded') return body.analyzeResult ?? {};
-      if (body.status === 'failed') throw new Error(`Document Intelligence falló: ${body.error?.message ?? 'sin detalle'}`);
+      if (body.status === 'failed')
+        throw new Error(`Document Intelligence falló: ${body.error?.message ?? 'sin detalle'}`);
       espera = Number(r.headers.get('retry-after')) * 1000 || (this.o.pollMs ?? 1000);
     }
     throw new Error('Document Intelligence: tiempo de espera agotado');
