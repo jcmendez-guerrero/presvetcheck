@@ -741,52 +741,20 @@ function LineaForm({
   });
   const k = (c: string) => dud(`lineas.${i}.${c}`);
   const txt = (s: string) => (s.trim() === '' ? null : s);
+  // Nombre y búsqueda en CIMAVet van juntos mientras no se separen: se escribe una sola vez (en cualquiera de
+  // los dos) y el otro se rellena solo. Si la persona los cambia por separado, cada uno conserva lo suyo.
+  const enSincronia = (l.medicamentoTexto ?? '') === busqueda || !l.medicamentoTexto;
+  const cambiarBusqueda = (v: string) => {
+    if (enSincronia) setLinea(i, { medicamentoTexto: txt(v) });
+    setBusqueda(v);
+  };
+  const cambiarNombre = (v: string) => {
+    if (buscar && (busqueda === (l.medicamentoTexto ?? '') || !busqueda)) setBusqueda(v);
+    setLinea(i, { medicamentoTexto: txt(v) });
+  };
   return (
     <Tarjeta titulo={`Medicamento ${l.orden}`}>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Campo
-          etiqueta="Nombre del medicamento"
-          info={AYUDA.medicamento}
-          dudoso={k('medicamento')}
-          value={l.medicamentoTexto ?? ''}
-          onChange={(e) => setLinea(i, { medicamentoTexto: txt(e.target.value) })}
-        />
-        <Campo
-          etiqueta="Nº de envases que pone la receta"
-          info={AYUDA.envasesReceta}
-          type="number"
-          min={1}
-          dudoso={k('cantidadEnvases')}
-          value={l.cantidadEnvases ?? ''}
-          onChange={(e) => setLinea(i, { cantidadEnvases: e.target.value ? Number(e.target.value) : null })}
-        />
-        <Campo
-          etiqueta="Unidades (comprimidos, pipetas…) — solo si la receta las indica"
-          info={AYUDA.unidades}
-          type="number"
-          min={1}
-          value={l.unidadesForma ?? ''}
-          onChange={(e) => setLinea(i, { unidadesForma: e.target.value ? Number(e.target.value) : null })}
-        />
-      </div>
-      <label className="mt-3 flex items-center gap-3">
-        <input
-          type="checkbox"
-          className="h-6 w-6"
-          checked={!!l.declaracionAntimicrobiano?.declarada}
-          onChange={(e) =>
-            setLinea(i, {
-              declaracionAntimicrobiano: e.target.checked ? { declarada: true, finalidad: null } : null,
-            })
-          }
-        />
-        <span>
-          Consta la declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6 (antimicrobianos){' '}
-          <Info texto={AYUDA.declaracion} />
-        </span>
-      </label>
-
-      <div className="mt-4 rounded-xl bg-fondo p-3">
+      <div className="mb-4 rounded-xl bg-fondo p-3">
         <p className="font-semibold">
           Medicamento en CIMAVet <Info texto={AYUDA.cimavet} />
         </p>
@@ -846,7 +814,8 @@ function LineaForm({
                 aria-label="Buscar medicamento"
                 className="min-h-11 flex-1 rounded-lg border px-3"
                 value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Escribe el nombre o el principio activo"
+                onChange={(e) => cambiarBusqueda(e.target.value)}
               />
               <Search aria-hidden className="h-6 w-6 self-center text-marca" />
             </div>
@@ -890,6 +859,48 @@ function LineaForm({
           </>
         )}
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo
+          etiqueta="Nombre del medicamento (como pone la receta)"
+          info={AYUDA.medicamento}
+          dudoso={k('medicamento')}
+          value={l.medicamentoTexto ?? ''}
+          onChange={(e) => cambiarNombre(e.target.value)}
+        />
+        <Campo
+          etiqueta="Nº de envases que pone la receta"
+          info={AYUDA.envasesReceta}
+          type="number"
+          min={1}
+          dudoso={k('cantidadEnvases')}
+          value={l.cantidadEnvases ?? ''}
+          onChange={(e) => setLinea(i, { cantidadEnvases: e.target.value ? Number(e.target.value) : null })}
+        />
+        <Campo
+          etiqueta="Unidades (comprimidos, pipetas…) — solo si la receta las indica"
+          info={AYUDA.unidades}
+          type="number"
+          min={1}
+          value={l.unidadesForma ?? ''}
+          onChange={(e) => setLinea(i, { unidadesForma: e.target.value ? Number(e.target.value) : null })}
+        />
+      </div>
+      <label className="mt-3 flex items-center gap-3">
+        <input
+          type="checkbox"
+          className="h-6 w-6"
+          checked={!!l.declaracionAntimicrobiano?.declarada}
+          onChange={(e) =>
+            setLinea(i, {
+              declaracionAntimicrobiano: e.target.checked ? { declarada: true, finalidad: null } : null,
+            })
+          }
+        />
+        <span>
+          Consta la declaración del art. 107.3 y 4 del Reglamento (UE) 2019/6 (antimicrobianos){' '}
+          <Info texto={AYUDA.declaracion} />
+        </span>
+      </label>
     </Tarjeta>
   );
 }
