@@ -193,6 +193,7 @@ var envBase = [
   { name: 'DOCINTEL_MODEL_ID', value: 'prebuilt-layout' }
   { name: 'SIWEB_STOCK_WRITE_MODE', value: 'off' }
   { name: 'SUBSTITUTION_APPROVAL_MODE', value: 'POST' }
+  { name: 'SUBSTITUTION_SIGN_MAX_DAYS', value: '35' } // firma del farmacéutico garante en su visita mensual
   // Sin correo por ahora: los reportes se descargan desde la app (SMTP en una segunda fase).
   { name: 'MAILER', value: 'console' }
   { name: 'WEB_DIST_DIR', value: '/app/web' }
