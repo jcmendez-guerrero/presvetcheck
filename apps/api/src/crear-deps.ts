@@ -6,7 +6,7 @@ import { hoy, type Clock } from '@mmx/domain';
 import { Temporal } from '@js-temporal/polyfill';
 import { crearExtractor, crearLectorAlbaranes } from '@mmx/extraction';
 import type { AppConfig } from '@mmx/shared';
-import { findUp, loadRules, secretoKeyVault } from '@mmx/shared/node';
+import { findUp, loadRules, secretoKeyVault, tokenPostgresEntra } from '@mmx/shared/node';
 import {
   BandejaSiweb,
   DemoSalesMovementsSource,
@@ -33,7 +33,7 @@ export const relojSistema: Clock = { now: () => Temporal.Now.instant() };
  */
 export async function crearDeps(config: AppConfig, log: (m: string) => void): Promise<{ deps: AppDeps; handle: DbHandle }> {
   const prod = config.NODE_ENV === 'production';
-  const handle = await createDb(config.DATABASE_URL);
+  const handle = await createDb(config.DATABASE_URL, config.DATABASE_AUTH === 'entra' ? { password: tokenPostgresEntra() } : {});
   const db = handle.db;
   const rules = loadRules();
   if (process.env.DEV_BOOTSTRAP === '1') {

@@ -38,6 +38,8 @@ export const envSchema = z
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
     DATABASE_URL: z.string().min(1, 'DATABASE_URL es obligatoria'),
+    /** `entra`: PostgreSQL con la identidad gestionada (token de Entra, sin contraseña en DATABASE_URL). */
+    DATABASE_AUTH: z.enum(['password', 'entra']).default('password'),
     BLOB_CONNECTION_STRING: optStr,
     BLOB_ACCOUNT_URL: optStr,
     KEY_VAULT_URL: optStr,

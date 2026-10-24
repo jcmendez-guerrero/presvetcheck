@@ -71,6 +71,13 @@
       "when": 1792411388597,
       "tag": "0009_importacion",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792834443213,
+      "tag": "0010_permisos_app",
+      "breakpoints": true
     }
   ]
 }

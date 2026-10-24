@@ -19,13 +19,18 @@ export interface DbHandle {
 
 const migracionesJunto = resolve(dirname(fileURLToPath(import.meta.url)), '../migrations');
 /** Carpeta de migraciones: junto al código fuente o, en la imagen empaquetada, buscada desde el cwd. */
-export const MIGRATIONS_DIR = existsSync(migracionesJunto) ? migracionesJunto : (findUp('packages/db/migrations', process.cwd()) ?? migracionesJunto);
+export const MIGRATIONS_DIR = existsSync(migracionesJunto)
+  ? migracionesJunto
+  : (findUp('packages/db/migrations', process.cwd()) ?? migracionesJunto);
 
 /**
  * Crea la conexión. `pglite://memory` o `pglite://<directorio>` usan PGlite (PostgreSQL en
  * WASM, sin Docker) para tests y demos; cualquier otra URL usa postgres-js.
  */
-export async function createDb(url: string, opts: { max?: number } = {}): Promise<DbHandle> {
+export async function createDb(
+  url: string,
+  opts: { max?: number; password?: () => Promise<string> } = {},
+): Promise<DbHandle> {
   if (url.startsWith('pglite://')) {
     const { PGlite } = await import('@electric-sql/pglite');
     const { pg_trgm } = await import('@electric-sql/pglite/contrib/pg_trgm');
@@ -39,7 +44,12 @@ export async function createDb(url: string, opts: { max?: number } = {}): Promis
   }
   const { default: postgres } = await import('postgres');
   const { drizzle } = await import('drizzle-orm/postgres-js');
-  const client = postgres(url, { max: opts.max ?? 10, onnotice: () => {} });
+  // Con `password` (token de Entra de la identidad gestionada) cada conexión pide un token vigente.
+  const client = postgres(url, {
+    max: opts.max ?? 10,
+    onnotice: () => {},
+    ...(opts.password ? { password: opts.password } : {}),
+  });
   const db = drizzle(client, { schema, casing: 'snake_case' }) as unknown as Db;
   return { db, kind: 'postgres', close: () => client.end() };
 }
