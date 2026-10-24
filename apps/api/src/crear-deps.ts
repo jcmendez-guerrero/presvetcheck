@@ -41,12 +41,12 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     await arranqueDesarrollo(handle, rules, log);
   }
   const clock = relojSistema;
-  const claveCifrado = config.COLUMN_ENCRYPTION_KEY ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, 'column-encryption-key') : undefined);
+  const claveCifrado = config.COLUMN_ENCRYPTION_KEY ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, config.KV_SECRETO_CIFRADO) : undefined);
   if (!claveCifrado) throw new Error('Falta la clave de cifrado de columnas (COLUMN_ENCRYPTION_KEY o Key Vault)');
   const cimavet = new CimavetRepository(db);
   const client = new CimavetClient({ baseUrl: config.CIMAVET_BASE_URL, rps: config.CIMAVET_RPS });
 
-  const tokenSiweb = config.SIWEB_TOKEN ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, 'siweb-token').catch(() => undefined) : undefined);
+  const tokenSiweb = config.SIWEB_TOKEN ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, config.KV_SECRETO_SIWEB_TOKEN).catch(() => undefined) : undefined);
   let siweb: AppDeps['siweb'] = null;
   let stock: AppDeps['stock'];
   let ventas: AppDeps['ventas'] = new NotConfiguredSalesMovementsSource();

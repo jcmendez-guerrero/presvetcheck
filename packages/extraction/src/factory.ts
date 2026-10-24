@@ -64,10 +64,12 @@ export async function crearLectorAlbaranes(
   deps: { fixturesDir: string; getToken?: () => Promise<string> },
 ): Promise<LectorDocumentosProveedor | null> {
   if (config.EXTRACTOR === 'fake') {
-    const fixture = JSON.parse(
-      readFileSync(resolve(deps.fixturesDir, 'albaranes/sintetico-1.invoice.json'), 'utf8'),
-    ) as AnalyzeResult;
-    return { simulado: true, leer: async () => albaranDesdeFactura(fixture) };
+    // Se lee al usarla (no al arrancar): la imagen de producción no lleva las fixtures.
+    const ruta = resolve(deps.fixturesDir, 'albaranes/sintetico-1.invoice.json');
+    return {
+      simulado: true,
+      leer: async () => albaranDesdeFactura(JSON.parse(readFileSync(ruta, 'utf8')) as AnalyzeResult),
+    };
   }
   if (!config.DOCINTEL_ENDPOINT) return null;
   const getToken = deps.getToken ?? (await tokenProviderAzure());

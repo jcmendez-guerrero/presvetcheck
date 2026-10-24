@@ -41,6 +41,10 @@ export const envSchema = z
     BLOB_CONNECTION_STRING: optStr,
     BLOB_ACCOUNT_URL: optStr,
     KEY_VAULT_URL: optStr,
+    /** Nombres de los secretos en Key Vault (para reutilizar un almacén compartido con otros nombres). */
+    KV_SECRETO_SIWEB_TOKEN: z.string().default('siweb-token'),
+    KV_SECRETO_CIFRADO: z.string().default('column-encryption-key'),
+    KV_SECRETO_SMTP: z.string().default('smtp-password'),
 
     CIMAVET_BASE_URL: z.string().url().default('https://cimavet.aemps.es/cimavet/rest/'),
     CIMAVET_RPS: num(3),

@@ -33,9 +33,9 @@ export const logJson: Log = (mensaje, datos) => console.error(JSON.stringify({ t
 export async function crearContexto(config: AppConfig, log: Log = logJson): Promise<{ ctx: Contexto; handle: DbHandle }> {
   const handle = await createDb(config.DATABASE_URL, { max: 2 });
   const kv = config.KEY_VAULT_URL;
-  const clave = config.COLUMN_ENCRYPTION_KEY ?? (kv ? await secretoKeyVault(kv, 'column-encryption-key') : undefined);
+  const clave = config.COLUMN_ENCRYPTION_KEY ?? (kv ? await secretoKeyVault(kv, config.KV_SECRETO_CIFRADO) : undefined);
   if (!clave) throw new Error('Falta la clave de cifrado de columnas');
-  const token = config.SIWEB_TOKEN ?? (kv ? await secretoKeyVault(kv, 'siweb-token').catch(() => undefined) : undefined);
+  const token = config.SIWEB_TOKEN ?? (kv ? await secretoKeyVault(kv, config.KV_SECRETO_SIWEB_TOKEN).catch(() => undefined) : undefined);
   let siweb: Contexto['siweb'] = null;
   if (token) {
     const client = new SiwebClient({ baseUrl: config.SIWEB_BASE_URL, token });
@@ -50,7 +50,7 @@ export async function crearContexto(config: AppConfig, log: Log = logJson): Prom
   }
   let mailer: Mailer = new ConsoleMailer((m) => log(m));
   if (config.MAILER === 'smtp') {
-    const password = config.SMTP_PASSWORD ?? (kv ? await secretoKeyVault(kv, 'smtp-password').catch(() => undefined) : undefined);
+    const password = config.SMTP_PASSWORD ?? (kv ? await secretoKeyVault(kv, config.KV_SECRETO_SMTP).catch(() => undefined) : undefined);
     mailer = new SmtpMailer({ host: config.SMTP_HOST as string, port: config.SMTP_PORT, user: config.SMTP_USER, password, from: config.SMTP_FROM as string });
   } else if (config.MAILER === 'acs') mailer = new AcsMailer({ endpoint: config.ACS_ENDPOINT as string, remitente: config.ACS_SENDER as string });
   const blob =
