@@ -818,10 +818,10 @@ function LineaForm({
                   </p>
                 )}
               </>
+            ) : ficha.isError ? (
+              <p className="text-sm font-semibold text-red-800">Este código nacional no está en CIMAVet</p>
             ) : (
-              ficha.isError && (
-                <p className="text-sm font-semibold text-red-800">Este código nacional no está en CIMAVet</p>
-              )
+              <p className="animate-pulse text-sm text-slate-600">Consultando CIMAVet…</p>
             )}
             <PanelStock s={stock.data} cargando={stock.isLoading} pedidos={l.cantidadEnvases ?? null} />
             <p className="text-sm text-slate-600">
@@ -845,6 +845,12 @@ function LineaForm({
             <p className="mt-1 text-xs text-slate-600">
               Elige el medicamento y la presentación exactos. Nunca se elige solo.
             </p>
+            <EstadoBusqueda
+              texto={busqueda}
+              buscando={cand.isFetching}
+              error={cand.isError}
+              resultados={cand.data?.length ?? null}
+            />
             <ul className="mt-2 flex flex-col gap-2">
               {cand.data?.map((c, j) => (
                 <li
@@ -878,6 +884,46 @@ function LineaForm({
       </div>
     </Tarjeta>
   );
+}
+
+/** Estado de la búsqueda en CIMAVet: que se vea que está buscando (puede tardar) o que no ha encontrado nada. */
+function EstadoBusqueda({
+  texto,
+  buscando,
+  error,
+  resultados,
+}: {
+  texto: string;
+  buscando: boolean;
+  error: boolean;
+  resultados: number | null;
+}) {
+  if (texto.trim().length < 3)
+    return (
+      <p className="mt-2 text-sm text-slate-600">
+        Escribe al menos 3 letras del nombre o del principio activo.
+      </p>
+    );
+  if (buscando)
+    return (
+      <p role="status" className="mt-2 animate-pulse text-sm font-semibold text-marca">
+        Buscando «{texto.trim()}» en CIMAVet…
+      </p>
+    );
+  if (error)
+    return (
+      <p role="status" className="mt-2 text-sm font-semibold text-red-800">
+        No se ha podido consultar CIMAVet ahora. Vuelve a intentarlo en unos segundos.
+      </p>
+    );
+  if (resultados === 0)
+    return (
+      <p role="status" className="mt-2 text-sm font-semibold text-sustituir">
+        No se ha encontrado ningún medicamento con «{texto.trim()}» en CIMAVet. Prueba con otra parte del
+        nombre o con el principio activo.
+      </p>
+    );
+  return null;
 }
 
 /** Stock en la farmacia del medicamento elegido, comparado con los envases que pide la receta. */
@@ -949,7 +995,11 @@ function CimavetRegistro({
     enabled: !!l.cn,
   });
   if (!f.data)
-    return f.isError ? <Mensaje tipo="error">Este código nacional no está en CIMAVet</Mensaje> : null;
+    return f.isError ? (
+      <Mensaje tipo="error">Este código nacional no está en CIMAVet</Mensaje>
+    ) : f.isFetching ? (
+      <p className="mb-3 animate-pulse text-sm text-slate-600">Consultando CIMAVet…</p>
+    ) : null;
   const d = f.data;
   const filas: [string, string | null, string | null | undefined][] = [
     ['Principio(s) activo(s)', d.principiosActivos, l.principioActivoTexto],

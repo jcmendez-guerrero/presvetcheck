@@ -101,7 +101,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
     const fd = new FormData();
     if (demo) fd.append('fixture', 'demo-compania-papel');
     paginas.forEach((p) => fd.append('phash', p.phash ?? ''));
-    paginas.forEach((p, i) => fd.append('pagina', p.blob, `pagina-${i + 1}.${p.mime === 'application/pdf' ? 'pdf' : 'png'}`));
+    paginas.forEach((p, i) => fd.append('pagina', p.blob, `pagina-${i + 1}.${p.mime === 'application/pdf' ? 'pdf' : p.mime === 'image/jpeg' ? 'jpg' : 'png'}`));
     try {
       await llamar(token, 'POST', '/api/movil/m/recetas', fd);
       setPaginas([]);
