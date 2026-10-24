@@ -9,12 +9,25 @@ export function normalizarCn(cn: string): string {
   return d.length === 7 ? d.slice(0, 6) : d;
 }
 
-/** Extrae el CN de un SKU (patrón anclado al final) o de un nombre (sin anclar). */
+/**
+ * CN escrito a mano en un nombre: «CN 584187.8», «CN: 584187», «C.N. 5841878», «CN584187-8»… El 7.º dígito
+ * (control) es opcional y se descarta.
+ */
+const CN_AL_FINAL = /C\.?N[\s.:#-]*(\d{6})(?:[.-]?\d)?$/i;
+const CN_EN_NOMBRE = /\bC\.?\s?N\.?\s*[:#-]?\s*(\d{6})(?:[.\-\s]?\d)?(?!\d)/i;
+
+/**
+ * Extrae el CN de un SKU (patrón configurado, anclado al final) o de un nombre (sin anclar). Si no cumple el
+ * patrón, se acepta también el CN escrito con espacios, puntos, guiones o dígito de control
+ * (p. ej. SKU «DECHRA-00002-CN-584187.8», nombre «… CN 584187.8»).
+ */
 export function extraerCn(texto: string | null | undefined, patron: string, anclado: boolean): string | null {
   if (!texto) return null;
   const src = anclado ? patron : patron.replace(/\$$/, '');
   const m = new RegExp(src, 'i').exec(texto.trim());
-  return m?.[1] ? normalizarCn(m[1]) : null;
+  if (m?.[1]) return normalizarCn(m[1]);
+  const n = (anclado ? CN_AL_FINAL : CN_EN_NOMBRE).exec(texto.trim());
+  return n?.[1] ?? null;
 }
 
 /** ¿La variante corresponde a este CN por SKU o por nombre? */

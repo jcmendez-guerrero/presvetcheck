@@ -23,7 +23,7 @@ export function similitudNombre(a: string, b: string): number {
 /**
  * Resolución CN → variante(s) de Siweb360 (SPEC §5.2.2):
  *  1. mapeo verificado en `siweb_variant_map`;
- *  2. búsqueda `CN{cn}` filtrando por SKU o nombre con el patrón: una → mapeo automático; varias → elegir;
+ *  2. búsqueda `CN{cn}` y `{cn}` filtrando por SKU o nombre (patrón o «CN 584187.8»): una → mapeo automático; varias → elegir;
  *  3. sin coincidencia: hasta 5 candidatos por nombre del medicamento y laboratorio.
  */
 export class VariantResolver {
@@ -46,7 +46,10 @@ export class VariantResolver {
     if (existentes.length) {
       return { estado: 'MAPEADO', variantes: existentes.map((m) => ({ variantId: m.variantId, sku: m.sku, metodo: m.metodo })) };
     }
-    const porCn = (await this.client.variants({ search: `CN${c}` })).filter((v) =>
+    // `CN{cn}` (convención) y el CN solo: así se encuentran también nombres como «… CN 584187.8».
+    const vistas = new Map<number, Variant>();
+    for (const search of [`CN${c}`, c]) for (const v of await this.client.variants({ search })) vistas.set(v.id, v);
+    const porCn = [...vistas.values()].filter((v) =>
       varianteCoincideCn({ sku: v.sku ?? null, name: v.name ?? null, productName: v.product_name ?? null }, c, this.patron),
     );
     if (porCn.length === 1) {

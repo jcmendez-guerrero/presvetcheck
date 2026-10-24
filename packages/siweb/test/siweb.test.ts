@@ -206,20 +206,35 @@ describe('stock por lote (SPEC §5.2.3) y FEFO', () => {
 
 describe('resolución CN → variante (SPEC §5.2.2)', () => {
   it('busca CN{cn}, filtra por patrón y guarda el mapeo automático sin confirmación', async () => {
-    let busqueda: string | null = null;
+    const busquedas: (string | null)[] = [];
     server.use(
       http.get(`${BASE}inventory/variants`, ({ request }) => {
-        busqueda = new URL(request.url).searchParams.get('search');
+        busquedas.push(new URL(request.url).searchParams.get('search'));
         return HttpResponse.json(fx('farmacia-variants-cn570016.json'));
       }),
     );
     const res = new VariantResolver(h.db, client(), PATRON);
     const r = await res.resolver('570016', null);
-    expect(busqueda).toBe('CN570016');
+    expect(busquedas).toEqual(['CN570016', '570016']);
     expect(r).toEqual({ estado: 'MAPEADO', variantes: [{ variantId: 9001, sku: 'NORBROOK-0001-CN570016', metodo: 'auto_sku' }] });
     // Segunda vez: desde la tabla, sin llamar a Siweb360.
     server.resetHandlers();
     expect((await res.resolver('5700163', null)).estado).toBe('MAPEADO');
+  });
+
+  it('CN escrito a mano en el nombre («CN 584187.8») con un SKU sin convención → mapeo automático por nombre', async () => {
+    server.use(
+      http.get(`${BASE}inventory/variants`, ({ request }) => {
+        const s = new URL(request.url).searchParams.get('search');
+        // Siweb360 busca por texto: «CN584187» no aparece en el nombre, «584187» sí.
+        return HttpResponse.json({
+          success: true,
+          data: s === '584187' ? [{ id: 31, sku: 'DECHRA-00002', name: 'AMOXIBACTIN 250 10 COMPRIMIDOS- CN 584187.8', product_name: 'AMOXIBACTIN 250 10 COMPRIMIDOS- CN 584187.8' }] : [],
+        });
+      }),
+    );
+    const res = new VariantResolver(h.db, client(), PATRON);
+    expect(await res.resolver('584187', null)).toEqual({ estado: 'MAPEADO', variantes: [{ variantId: 31, sku: 'DECHRA-00002', metodo: 'auto_nombre' }] });
   });
 
   it('varias variantes con el CN → la persona elige; ninguna → candidatos por nombre', async () => {

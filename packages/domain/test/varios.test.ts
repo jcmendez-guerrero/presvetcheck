@@ -97,6 +97,14 @@ describe('convención de SKU y CN (SPEC §5.2.2)', () => {
     ${'ZOETIS-0007-CN1234567'}     | ${true}  | ${'123456'}
     ${'CN123456-OTRO'}             | ${true}  | ${null}
     ${'Amoxivet 500 CN570016 caja'} | ${false} | ${'570016'}
+    ${'AMOXIBACTIN 250 10 COMPRIMIDOS- CN 584187.8'} | ${false} | ${'584187'}
+    ${'Producto C.N.: 5841878'}    | ${false} | ${'584187'}
+    ${'Producto CN584187-8 caja'}  | ${false} | ${'584187'}
+    ${'Lote 12345678 sin código'}  | ${false} | ${null}
+    ${'CN 58418'}                  | ${false} | ${null}
+    ${'DECHRA-00002'}              | ${true}  | ${null}
+    ${'DECHRA-00002-CN-584187.8'}  | ${true}  | ${'584187'}
+    ${'DECHRA-00002-CN584187.8'}   | ${true}  | ${'584187'}
     ${'SKU-ANTIGUO-77'}            | ${true}  | ${null}
     ${null}                        | ${true}  | ${null}
   `('extraerCn($texto) = $cn', ({ texto, anclado, cn }) => {
