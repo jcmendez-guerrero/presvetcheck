@@ -1,0 +1,561 @@
+openapi: 3.1.0
+info:
+  title: CIMAVet REST API (AEMPS) — medicamentos veterinarios
+  version: '1.4'
+  summary: Descripción OpenAPI no oficial de la API pública de CIMAVet.
+  description: |
+    Descripción **no oficial** de la API REST pública de CIMAVet (Centro de Información de Medicamentos
+    Veterinarios de la AEMPS), para usarla desde otros sistemas (generadores de clientes, Postman, API
+    Management, etc.).
+
+    Fuentes:
+    - Especificación oficial «CIMAVet REST API v1.4» (`docs/ref/CIMAVet_REST_API.pdf`).
+    - Respuestas reales de la API, observadas el 14/10/2026 y el 25/10/2026 (`docs/ref/cimavet-respuestas.md`).
+      Cuando la API real y la v1.4 no coinciden, este documento describe **la API real** y lo indica.
+
+    Diferencias con la v1.4 que conviene conocer:
+    - **Listas paginadas** (`medicamentos`, `presentaciones`, `maestras`, `registroCambios`): envoltorio
+      `{ totalFilas, pagina, tamanioPagina, resultados }`, 25 elementos por página, `pagina` empieza en 1.
+      Una página fuera de rango devuelve `resultados: []` (y `totalFilas: 0`).
+    - **Fechas**: enteros en milisegundos desde 1970 correspondientes a la **medianoche de Madrid**
+      (1207778400000 = 2008-04-10 00:00 CEST). Para obtener el día, conviértalas en la zona Europe/Madrid, no en UTC.
+    - **Forma farmacéutica**: `formasFarmaceuticas[]` (la v1.4 dice `forma`).
+    - **Registro de cambios**: el campo es `cambio` (la v1.4 dice `cambios`).
+    - **Medicamento inexistente** (`medicamento?cn=` / `?nregistro=`): `204 No Content` sin cuerpo.
+    - **Notas de seguridad** de un medicamento sin notas: `404` con una página HTML (trátese como lista vacía).
+    - Las claves vienen en *camelCase* (`comerc`, `id`), aunque la v1.4 escriba `Comerc` o `Id`.
+    - La composición (`principiosActivos[].unidad`) no incluye la base de la concentración (p. ej. «mg» y no
+      «mg/comprimido»); ese dato y la dispensación fraccionada solo están en el Nomenclátor (descarga XML).
+
+    La API es pública, de solo lectura y no requiere autenticación. Responde en JSON (UTF-8).
+  contact:
+    name: AEMPS — CIMAVet
+    url: https://cimavet.aemps.es/cimavet/publico/home.html
+  license:
+    name: Datos públicos de la AEMPS (condiciones de reutilización de la AEMPS)
+    url: https://www.aemps.gob.es/aviso-legal/
+externalDocs:
+  description: CIMAVet — buscador público y Nomenclátor
+  url: https://cimavet.aemps.es/cimavet/publico/nomenclator.html
+servers:
+  - url: https://cimavet.aemps.es/cimavet/rest
+    description: Producción (AEMPS)
+tags:
+  - name: Medicamentos
+  - name: Presentaciones
+  - name: Notas de seguridad
+  - name: Maestras
+  - name: Registro de cambios
+security: []
+
+paths:
+  /medicamentos:
+    get:
+      tags: [Medicamentos]
+      operationId: buscarMedicamentos
+      summary: Busca medicamentos
+      description: |
+        Lista paginada de medicamentos que cumplen todas las condiciones. Los filtros de texto buscan por
+        coincidencia parcial y sin distinguir mayúsculas. Cada resultado es un resumen (sin composición ni
+        especies; para el detalle, `GET /medicamento`).
+      parameters:
+        - $ref: '#/components/parameters/pagina'
+        - { name: nombre, in: query, description: Nombre del medicamento, schema: { type: string }, example: amoxibactin }
+        - { name: laboratorio, in: query, description: Nombre del laboratorio, schema: { type: string } }
+        - { name: practiv1, in: query, description: Nombre del principio activo, schema: { type: string }, example: amoxicilina }
+        - { name: practiv2, in: query, description: Nombre de un segundo principio activo, schema: { type: string } }
+        - { name: idpractiv1, in: query, description: ID del principio activo (maestra 1), schema: { type: integer } }
+        - { name: idpractiv2, in: query, description: ID de un segundo principio activo (maestra 1), schema: { type: integer } }
+        - { name: cn, in: query, description: Código nacional, schema: { $ref: '#/components/schemas/CodigoNacional' } }
+        - { name: atc, in: query, description: Código ATC o su descripción, schema: { type: string } }
+        - { name: nregistro, in: query, description: Nº de registro exacto, schema: { type: string }, example: 1868 ESP }
+        - { name: nregistrobusq, in: query, description: Nº de registro con comodines y sin tener en cuenta espacios, schema: { type: string } }
+        - { name: excipiente, in: query, description: Nombre del excipiente, schema: { type: string } }
+        - { name: idExcipiente, in: query, description: ID del excipiente (maestra 6), schema: { type: integer } }
+        - { name: especie, in: query, description: Nombre de la especie de destino, schema: { type: string }, example: bovino }
+        - { name: idEspecie, in: query, description: ID de la especie de destino (maestra 7), schema: { type: integer } }
+        - name: comerc
+          in: query
+          description: '1: comercializados; 0: no comercializados; vacío: todos'
+          schema: { type: integer, enum: [0, 1] }
+        - name: sitadm
+          in: query
+          description: 'Situación administrativa. 1: autorizados; 2: suspendidos; 3: anulados; vacío: todos'
+          schema: { type: integer, enum: [1, 2, 3] }
+        - { name: idVia, in: query, description: ID de la vía de administración (maestra 3), schema: { type: integer } }
+        - { name: via, in: query, description: Nombre de la vía de administración, schema: { type: string } }
+        - { name: IdForma, in: query, description: ID de la forma farmacéutica (maestra 2), schema: { type: integer } }
+        - { name: forma, in: query, description: Nombre de la forma farmacéutica, schema: { type: string } }
+        - name: tipoMed
+          in: query
+          description: '1: farmacológico; 2: inmunológico; 3: mixto; 4: homeopático; vacío: todos'
+          schema: { type: integer, enum: [1, 2, 3, 4] }
+        - name: administracion
+          in: query
+          description: '1: solo por el veterinario; 2: bajo control veterinario; vacío: todos'
+          schema: { type: integer, enum: [1, 2] }
+        - name: estupefaciente
+          in: query
+          description: '1: estupefacientes; 0: no estupefacientes; vacío: todos'
+          schema: { type: integer, enum: [0, 1] }
+        - name: psicotropo
+          in: query
+          description: '1: psicótropos; 0: no psicótropos; vacío: todos'
+          schema: { type: integer, enum: [0, 1] }
+        - name: dispensacion
+          in: query
+          description: '1: sujeto a prescripción; 2: no sujeto a prescripción; vacío: todos'
+          schema: { type: integer, enum: [1, 2] }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagina'
+                  - type: object
+                    properties:
+                      resultados:
+                        type: array
+                        items: { $ref: '#/components/schemas/MedicamentoResumen' }
+
+  /medicamento:
+    get:
+      tags: [Medicamentos]
+      operationId: obtenerMedicamento
+      summary: Detalle de un medicamento
+      description: |
+        Ficha completa de un medicamento por nº de registro o por el código nacional de cualquiera de sus
+        presentaciones. Hay que indicar uno de los dos parámetros. Incluye composición, especies, indicaciones,
+        contraindicaciones, tiempos de espera y presentaciones.
+      parameters:
+        - { name: nregistro, in: query, description: Nº de registro, schema: { type: string }, example: 1868 ESP }
+        - { name: cn, in: query, description: Código nacional de una presentación, schema: { $ref: '#/components/schemas/CodigoNacional' }, example: '584187' }
+      responses:
+        '200':
+          description: Medicamento
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Medicamento' }
+        '204':
+          description: No existe ningún medicamento con ese nº de registro o código nacional (sin cuerpo).
+
+  /presentaciones:
+    get:
+      tags: [Presentaciones]
+      operationId: buscarPresentaciones
+      summary: Busca presentaciones
+      description: Lista paginada de presentaciones (formatos con código nacional) que cumplen las condiciones.
+      parameters:
+        - $ref: '#/components/parameters/pagina'
+        - { name: cn, in: query, description: Código nacional, schema: { $ref: '#/components/schemas/CodigoNacional' } }
+        - { name: nregistro, in: query, description: Nº de registro del medicamento, schema: { type: string }, example: 1868 ESP }
+        - name: comerc
+          in: query
+          description: '`S`: solo comercializadas; vacío: todas'
+          schema: { type: string, enum: [S] }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagina'
+                  - type: object
+                    properties:
+                      resultados:
+                        type: array
+                        items: { $ref: '#/components/schemas/Presentacion' }
+
+  /presentacion/{cn}:
+    get:
+      tags: [Presentaciones]
+      operationId: obtenerPresentacion
+      summary: Detalle de una presentación
+      parameters:
+        - name: cn
+          in: path
+          required: true
+          description: Código nacional (6 dígitos, sin dígito de control)
+          schema: { $ref: '#/components/schemas/CodigoNacional' }
+          example: '570016'
+      responses:
+        '200':
+          description: Presentación (repite los datos principales del medicamento)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Presentacion' }
+        '204':
+          description: No existe ninguna presentación con ese código nacional (sin cuerpo).
+
+  /notas/{nregistro}:
+    get:
+      tags: [Notas de seguridad]
+      operationId: notasDeSeguridad
+      summary: Notas de seguridad de un medicamento
+      description: |
+        Notas de seguridad o informativas publicadas por la AEMPS sobre un medicamento. Si el medicamento
+        no tiene notas, la API real responde **404 con una página HTML**: trátese como lista vacía.
+        El esquema `Nota` procede de la especificación v1.4.
+      parameters:
+        - name: nregistro
+          in: path
+          required: true
+          description: Nº de registro (con el espacio codificado, p. ej. `1868%20ESP`)
+          schema: { type: string }
+          example: 1868 ESP
+      responses:
+        '200':
+          description: Notas del medicamento
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Nota' }
+        '404':
+          description: El medicamento no tiene notas (o no existe). Cuerpo HTML.
+          content:
+            text/html:
+              schema: { type: string }
+
+  /maestras:
+    get:
+      tags: [Maestras]
+      operationId: maestras
+      summary: Tablas maestras
+      description: |
+        Elementos de una tabla maestra (catálogos de identificadores usados en los filtros y en las fichas).
+        Cada maestra devuelve `id`, `codigo` o ambos (ver `ItemMaestra`).
+      parameters:
+        - $ref: '#/components/parameters/pagina'
+        - name: maestra
+          in: query
+          required: true
+          description: |
+            1: principios activos · 2: formas farmacéuticas · 3: vías de administración · 4: laboratorios ·
+            5: códigos ATC · 6: excipientes · 7: especies de destino · 8: medicamentos · 9: interacciones ·
+            10: contraindicaciones · 11: indicaciones · 12: reacciones adversas
+          schema: { type: integer, enum: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+          example: 7
+        - { name: nombre, in: query, description: Nombre del elemento, schema: { type: string } }
+        - { name: id, in: query, description: ID del elemento, schema: { type: integer } }
+        - { name: codigo, in: query, description: Código del elemento, schema: { type: string } }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagina'
+                  - type: object
+                    properties:
+                      resultados:
+                        type: array
+                        items: { $ref: '#/components/schemas/ItemMaestra' }
+
+  /registroCambios:
+    get:
+      tags: [Registro de cambios]
+      operationId: registroCambios
+      summary: Medicamentos dados de alta, de baja o modificados desde una fecha
+      parameters:
+        - $ref: '#/components/parameters/pagina'
+        - name: fecha
+          in: query
+          required: true
+          description: Fecha desde la que se buscan cambios, en formato `dd/mm/aaaa`
+          schema: { type: string, pattern: '^\d{2}/\d{2}/\d{4}$' }
+          example: 20/10/2026
+        - name: nregistro
+          in: query
+          description: Limita la búsqueda a estos medicamentos (se repite el parámetro por cada uno)
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagina'
+                  - type: object
+                    properties:
+                      resultados:
+                        type: array
+                        items: { $ref: '#/components/schemas/RegistroCambio' }
+    post:
+      tags: [Registro de cambios]
+      operationId: registroCambiosPost
+      summary: Igual que el GET, con los parámetros en el cuerpo de un formulario
+      description: Útil cuando se piden muchos `nregistro` y la URL sería demasiado larga (v1.4 «GET/POST»).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [fecha]
+              properties:
+                fecha: { type: string, pattern: '^\d{2}/\d{2}/\d{4}$', example: 20/10/2026 }
+                nregistro: { type: array, items: { type: string } }
+                pagina: { type: integer, minimum: 1 }
+            encoding:
+              nregistro: { style: form, explode: true }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Pagina'
+                  - type: object
+                    properties:
+                      resultados:
+                        type: array
+                        items: { $ref: '#/components/schemas/RegistroCambio' }
+
+components:
+  parameters:
+    pagina:
+      name: pagina
+      in: query
+      description: Página de resultados (empieza en 1; 25 elementos por página)
+      schema: { type: integer, minimum: 1, default: 1 }
+
+  schemas:
+    CodigoNacional:
+      type: string
+      description: Código nacional de la presentación (6 dígitos; el 7.º dígito de control no se usa en la API)
+      pattern: '^\d{6}$'
+      example: '584187'
+
+    FechaMadrid:
+      type: integer
+      format: int64
+      description: Milisegundos desde 1970 que corresponden a la medianoche de Madrid de ese día (zona Europe/Madrid).
+      example: 1207778400000
+
+    Pagina:
+      type: object
+      required: [totalFilas, pagina, tamanioPagina, resultados]
+      properties:
+        totalFilas: { type: integer, description: Total de resultados de la búsqueda }
+        pagina: { type: integer, description: Página devuelta }
+        tamanioPagina: { type: integer, description: Elementos por página, example: 25 }
+        resultados: { type: array, items: {} }
+
+    Item:
+      type: object
+      description: Elemento de una maestra embebido en una ficha
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+      example: { id: 7, nombre: Perros }
+
+    ItemMaestra:
+      type: object
+      description: |
+        Elemento de una tabla maestra. Según la maestra se devuelve `id`, `codigo` o ambos
+        (observado: 1, 3, 9 y 10 con id y código; 5 ATC solo código; el resto solo id).
+      properties:
+        id: { type: integer }
+        codigo: { type: string }
+        nombre: { type: string }
+
+    Estado:
+      type: object
+      description: Fechas del estado de registro. Si está autorizado solo trae `aut`; suspendido añade `susp`; anulado/revocado añade `rev`.
+      properties:
+        aut: { $ref: '#/components/schemas/FechaMadrid' }
+        susp: { $ref: '#/components/schemas/FechaMadrid' }
+        rev: { $ref: '#/components/schemas/FechaMadrid' }
+
+    Documento:
+      type: object
+      properties:
+        tipo:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: '1: ficha técnica; 2: prospecto; 3: informe público de evaluación; 4: plan de gestión de riesgos'
+        url: { type: string, format: uri }
+        secc: { type: boolean, description: El documento está disponible en HTML por secciones }
+        fecha: { $ref: '#/components/schemas/FechaMadrid' }
+
+    Atc:
+      type: object
+      properties:
+        codigo: { type: string, example: QJ01CA04 }
+        nombre: { type: string }
+        nivel: { type: integer }
+        antibiotico: { type: boolean, description: No figura en la v1.4; observado en la API real }
+
+    PrincipioActivo:
+      type: object
+      properties:
+        id: { type: integer }
+        codigo: { type: string }
+        nombre: { type: string }
+        cantidad: { type: string, description: Cantidad como texto (p. ej. «250») }
+        unidad: { type: string, description: Unidad sin base de concentración (p. ej. «mg») }
+        orden: { type: integer }
+
+    Excipiente:
+      type: object
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        doe: { type: boolean, description: Declaración obligatoria (según v1.4; no siempre presente) }
+        cantidad: { type: string }
+        unidad: { type: string }
+        orden: { type: integer }
+
+    ItemPorEspecie:
+      type: object
+      description: Indicación, contraindicación o interacción (la especie puede no venir)
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        especie: { $ref: '#/components/schemas/Item' }
+
+    ReaccionAdversa:
+      allOf:
+        - $ref: '#/components/schemas/ItemPorEspecie'
+        - type: object
+          properties:
+            frecuencia: { $ref: '#/components/schemas/Item' }
+
+    TiempoEspera:
+      type: object
+      description: |
+        Tiempo de espera por especie, tejido, forma y vía. `tejido`, `cantidad` y `unidadTiempo` no vienen
+        cuando no aplican (p. ej. animales de compañía).
+      properties:
+        especie: { $ref: '#/components/schemas/Item' }
+        tejido: { $ref: '#/components/schemas/Item' }
+        cantidad: { type: string, description: Cantidad como texto (p. ej. «7»; «0» = sin tiempo de espera) }
+        unidadTiempo: { $ref: '#/components/schemas/Item' }
+        formaFarmaceutica: { $ref: '#/components/schemas/Item' }
+        viaAdministracion: { $ref: '#/components/schemas/Item' }
+      example:
+        especie: { id: 1, nombre: Bovino }
+        tejido: { id: 39, nombre: Carne }
+        cantidad: '7'
+        unidadTiempo: { id: 804, nombre: Días }
+        formaFarmaceutica: { id: 6, nombre: SUSPENSIÓN ORAL }
+        viaAdministracion: { id: 48, nombre: VÍA ORAL }
+
+    MedicamentoResumen:
+      type: object
+      required: [nregistro, nombre]
+      properties:
+        nregistro: { type: string, example: 3189 ESP }
+        nombre: { type: string }
+        pactivos: { type: string, description: Principios activos separados por «;» }
+        excip: { type: string, description: Excipientes separados por «;» }
+        labtitular: { type: string, description: Laboratorio titular }
+        labcomercializador: { type: string, description: Laboratorio comercializador (no figura en la v1.4) }
+        dispensacion: { $ref: '#/components/schemas/Item' }
+        tipoMedicamento: { $ref: '#/components/schemas/Item' }
+        administracion: { $ref: '#/components/schemas/Item' }
+        primeraAutorizacion: { $ref: '#/components/schemas/FechaMadrid' }
+        estado: { $ref: '#/components/schemas/Estado' }
+        comerc: { type: boolean, description: Tiene alguna presentación comercializada }
+        psum: { type: boolean, description: Tiene problemas de suministro }
+        receta: { type: boolean, description: Necesita receta }
+        estupefaciente: { type: boolean }
+        psicotropo: { type: boolean }
+        antibiotico: { type: boolean }
+        notas: { type: boolean, description: 'Tiene notas de seguridad (`GET /notas/{nregistro}`)' }
+        ema: { type: boolean, description: Autorizado por procedimiento centralizado (EMA) }
+        docs: { type: array, items: { $ref: '#/components/schemas/Documento' } }
+        atcs: { type: array, items: { $ref: '#/components/schemas/Atc' } }
+        formasFarmaceuticas:
+          type: array
+          description: Forma(s) farmacéutica(s). La v1.4 habla de un campo `forma`.
+          items: { $ref: '#/components/schemas/Item' }
+        viasAdministracion: { type: array, items: { $ref: '#/components/schemas/Item' } }
+
+    Medicamento:
+      allOf:
+        - $ref: '#/components/schemas/MedicamentoResumen'
+        - type: object
+          properties:
+            principiosActivos: { type: array, items: { $ref: '#/components/schemas/PrincipioActivo' } }
+            excipientes: { type: array, items: { $ref: '#/components/schemas/Excipiente' } }
+            especies: { type: array, description: Especies de destino autorizadas, items: { $ref: '#/components/schemas/Item' } }
+            indicaciones: { type: array, items: { $ref: '#/components/schemas/ItemPorEspecie' } }
+            contraindicaciones: { type: array, items: { $ref: '#/components/schemas/ItemPorEspecie' } }
+            interacciones: { type: array, items: { $ref: '#/components/schemas/ItemPorEspecie' } }
+            reaccionesAdversas: { type: array, items: { $ref: '#/components/schemas/ReaccionAdversa' } }
+            tiemposEspera: { type: array, items: { $ref: '#/components/schemas/TiempoEspera' } }
+            presentaciones: { type: array, items: { $ref: '#/components/schemas/PresentacionResumen' } }
+
+    PresentacionResumen:
+      type: object
+      required: [cn]
+      properties:
+        cn: { $ref: '#/components/schemas/CodigoNacional' }
+        nombre: { type: string, description: Nombre de la presentación (incluye el formato del envase) }
+        estado: { $ref: '#/components/schemas/Estado' }
+        comerc: { type: boolean, description: Presentación comercializada }
+        psum: { type: boolean, description: Problemas de suministro de la presentación }
+
+    Presentacion:
+      type: object
+      description: Presentación con los datos principales de su medicamento
+      required: [cn, nregistro]
+      properties:
+        nregistro: { type: string }
+        cn: { $ref: '#/components/schemas/CodigoNacional' }
+        nombre: { type: string }
+        pactivos: { type: string }
+        excip: { type: string }
+        labtitular: { type: string }
+        labcomercializador: { type: string }
+        dispensacion: { $ref: '#/components/schemas/Item' }
+        tipoMedicamento: { $ref: '#/components/schemas/Item' }
+        administracion: { $ref: '#/components/schemas/Item' }
+        estado: { $ref: '#/components/schemas/Estado' }
+        comerc: { type: boolean }
+        receta: { type: boolean }
+        estupefaciente: { type: boolean }
+        psicotropo: { type: boolean }
+        notas: { type: boolean }
+        ema: { type: boolean }
+        docs: { type: array, items: { $ref: '#/components/schemas/Documento' } }
+        principiosActivos: { type: array, items: { $ref: '#/components/schemas/PrincipioActivo' } }
+
+    Nota:
+      type: object
+      description: Nota de seguridad o informativa (esquema de la v1.4)
+      properties:
+        tipo: { type: integer, description: '1: nota de seguridad' }
+        num: { type: string, description: Número de la nota }
+        ref: { type: string, description: Referencia }
+        asunto: { type: string }
+        fecha: { $ref: '#/components/schemas/FechaMadrid' }
+        url: { type: string, format: uri }
+
+    RegistroCambio:
+      type: object
+      required: [nregistro, fecha, tipoCambio]
+      properties:
+        nregistro: { type: string }
+        fecha: { type: integer, format: int64, description: Fecha y hora del cambio en milisegundos desde 1970 }
+        tipoCambio:
+          type: integer
+          enum: [1, 2, 3]
+          description: '1: nuevo; 2: baja; 3: modificado'
+        cambio:
+          type: array
+          description: |
+            Qué ha cambiado (la v1.4 lo llama `cambios`): `estado` (autorización), `comerc` (comercialización),
+            `prosp` (prospecto), `ft` (ficha técnica), `otros`.
+          items: { type: string, enum: [estado, comerc, prosp, ft, otros] }
+      example: { nregistro: EU/2/10/119/001, fecha: 1792630837000, tipoCambio: 3, cambio: [otros] }
