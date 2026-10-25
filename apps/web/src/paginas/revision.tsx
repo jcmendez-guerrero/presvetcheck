@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
 import { ApiError, get, post, put } from '../lib/api';
-import { CN } from '../lib/textos';
+import { CN, type Motivo } from '../lib/textos';
+import { ListaMotivos } from '../componentes/estado';
 import { Pagina } from '../componentes/layout';
 import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { TextoReconocido, VisorReceta } from '../componentes/visor-receta';
@@ -94,6 +95,8 @@ export function Revision() {
   });
   const [r, setR] = useState<RecetaConfirmadaInput | null>(null);
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
+  const [faltan, setFaltan] = useState<Motivo[] | null>(null);
+  const [comprobando, setComprobando] = useState(false);
   const plataformas = useQuery({
     queryKey: ['plataformas'],
     queryFn: () =>
@@ -152,15 +155,28 @@ export function Revision() {
     set((x) => ({ ...x, lineas: (x.lineas ?? []).map((y, j) => (j === i ? { ...y, ...l } : y)) }));
   const txt = (s: string) => (s.trim() === '' ? null : s);
 
-  const evaluar = async () => {
+  // Datos obligatorios (firma, fechas, colegiado…) que impiden dispensar: se avisan aquí, antes de seguir,
+  // para corregirlos con la receta delante. `continuar` permite ver el resultado igualmente.
+  const evaluar = async (continuar = false) => {
+    setComprobando(true);
     try {
       await put(`/api/recetas/${id}/confirmacion`, r);
+      if (!continuar) {
+        const c = await post<{ incidencias: Motivo[] }>(`/api/recetas/${id}/comprobar`);
+        if (c.incidencias.length) {
+          setFaltan(c.incidencias);
+          return;
+        }
+      }
+      setFaltan(null);
       await nav({ to: '/recetas/$id/resultado', params: { id } });
     } catch (e) {
       setMsg({
         t: 'error',
         m: e instanceof ApiError ? `${e.message} ${JSON.stringify(e.detalles ?? '')}` : 'Error al guardar',
       });
+    } finally {
+      setComprobando(false);
     }
   };
 
@@ -474,10 +490,32 @@ export function Revision() {
               </span>
             </label>
             {msg && <Mensaje tipo={msg.t}>{msg.m}</Mensaje>}
+            {faltan && (
+              <div data-testid="faltan-datos" role="alert" className="mt-4 flex flex-col gap-2">
+                <p className="font-semibold text-noconforme">
+                  Antes de seguir, revisa {faltan.length === 1 ? 'esto' : `estas ${faltan.length} cosas`} con
+                  la receta original:
+                </p>
+                <ListaMotivos motivos={faltan} />
+                <p className="text-sm text-slate-600">
+                  Corrige los datos arriba y vuelve a pulsar «Ver qué dispensar». Si de verdad no consta en la
+                  receta, puedes continuar: el resultado lo indicará.
+                </p>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap gap-3">
-              <Boton data-testid="evaluar" disabled={!r.comprobadoConOriginal} onClick={() => void evaluar()}>
-                Ver qué dispensar
+              <Boton
+                data-testid="evaluar"
+                disabled={!r.comprobadoConOriginal || comprobando}
+                onClick={() => void evaluar()}
+              >
+                {comprobando ? 'Comprobando…' : 'Ver qué dispensar'}
               </Boton>
+              {faltan && (
+                <Boton variante="secundario" disabled={comprobando} onClick={() => void evaluar(true)}>
+                  Continuar igualmente
+                </Boton>
+              )}
               <Boton
                 variante="secundario"
                 onClick={() =>
