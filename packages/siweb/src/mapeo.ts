@@ -3,6 +3,7 @@ import { siwebVariantMap, type Db } from '@mmx/db';
 import { normalizarCn, nombreCumpleConvencion, skuCumpleConvencion, varianteCoincideCn, extraerCn } from '@mmx/domain';
 import { DomainError, normalizeText } from '@mmx/shared';
 import type { SiwebClient } from './client';
+import type { IndiceCatalogo } from './indice';
 import type { Variant } from './schemas';
 
 export type ResultadoResolucion =
@@ -23,7 +24,7 @@ export function similitudNombre(a: string, b: string): number {
 /**
  * Resolución CN → variante(s) de Siweb360 (SPEC §5.2.2):
  *  1. mapeo verificado en `siweb_variant_map`;
- *  2. búsqueda `CN{cn}` y `{cn}` filtrando por SKU o nombre (patrón o «CN 584187.8»): una → mapeo automático; varias → elegir;
+ *  2. índice del catálogo (o búsqueda `CN{cn}` y `{cn}`) filtrando por SKU o nombre (patrón o «CN 584187.8»): una → mapeo automático; varias → elegir;
  *  3. sin coincidencia: hasta 5 candidatos por nombre del medicamento y laboratorio.
  */
 export class VariantResolver {
@@ -31,6 +32,7 @@ export class VariantResolver {
     private readonly db: Db,
     private readonly client: SiwebClient,
     private readonly patron: string,
+    private readonly indice: IndiceCatalogo | null = null,
   ) {}
 
   async mapeos(cn: string) {
@@ -46,12 +48,16 @@ export class VariantResolver {
     if (existentes.length) {
       return { estado: 'MAPEADO', variantes: existentes.map((m) => ({ variantId: m.variantId, sku: m.sku, metodo: m.metodo })) };
     }
-    // `CN{cn}` (convención) y el CN solo: así se encuentran también nombres como «… CN 584187.8».
-    const vistas = new Map<number, Variant>();
-    for (const search of [`CN${c}`, c]) for (const v of await this.client.variants({ search })) vistas.set(v.id, v);
-    const porCn = [...vistas.values()].filter((v) =>
-      varianteCoincideCn({ sku: v.sku ?? null, name: v.name ?? null, productName: v.product_name ?? null }, c, this.patron),
-    );
+    // Primero el índice del catálogo (sin llamadas). Si no está disponible, o no encuentra el CN del medicamento
+    // prescrito (puede ser un producto recién creado), búsqueda directa: `CN{cn}` (convención) y el CN solo, para
+    // encontrar también nombres como «… CN 584187.8». Los equivalentes (sin `medicamento`) solo usan el índice.
+    let porCn = (await this.indice?.porCn(c)) ?? null;
+    if (porCn === null || (!porCn.length && medicamento)) {
+      const vistas = new Map<number, Variant>();
+      for (const search of [`CN${c}`, c]) for (const v of await this.client.variants({ search })) vistas.set(v.id, v);
+      porCn = [...vistas.values()];
+    }
+    porCn = porCn.filter((v) => varianteCoincideCn({ sku: v.sku ?? null, name: v.name ?? null, productName: v.product_name ?? null }, c, this.patron));
     if (porCn.length === 1) {
       const v = porCn[0]!;
       const metodo = extraerCn(v.sku ?? null, this.patron, true) === c ? 'auto_sku' : 'auto_nombre';

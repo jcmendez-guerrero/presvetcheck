@@ -11,6 +11,7 @@ import { SiwebClient, SiwebValidationError } from '../src/client';
 import { AlmacenError, resolverAlmacen } from '../src/warehouse';
 import { StockService } from '../src/stock';
 import { VariantResolver, similitudNombre } from '../src/mapeo';
+import { IndiceCatalogo } from '../src/indice';
 import { BandejaSiweb, ManualTaskCatalogWriter, SkuReservas, crearCatalogWriter } from '../src/tareas';
 import { OutboxService, claveEntrada, exigirEntrada } from '../src/outbox';
 import { LecturaTicketsIncompleta, NotConfiguredSalesMovementsSource, TicketsSalesMovementsSource } from '../src/ventas';
@@ -235,6 +236,47 @@ describe('resolución CN → variante (SPEC §5.2.2)', () => {
     );
     const res = new VariantResolver(h.db, client(), PATRON);
     expect(await res.resolver('584187', null)).toEqual({ estado: 'MAPEADO', variantes: [{ variantId: 31, sku: 'DECHRA-00002', metodo: 'auto_nombre' }] });
+  });
+
+  it('índice del catálogo: los equivalentes se resuelven sin buscar en Siweb360; el prescrito no indexado sí busca', async () => {
+    const busquedas: (string | null)[] = [];
+    server.use(
+      http.get(`${BASE}inventory/variants`, ({ request }) => {
+        const s = new URL(request.url).searchParams.get('search');
+        busquedas.push(s);
+        if (s === null)
+          return HttpResponse.json({
+            success: true,
+            pagination: { page: 1, limit: 200, total: 2, pages: 1 },
+            data: [
+              { id: 41, sku: 'DECHRA-00003-CN-584177.4', name: 'OTRO 10 COMPRIMIDOS- CN 584177.4' },
+              { id: 42, sku: 'PIENSO-0001', name: 'Pienso gato' },
+            ],
+          });
+        return HttpResponse.json({ success: true, data: s === '599999' ? [{ id: 43, sku: 'NUEVO-0001-CN599999' }] : [] });
+      }),
+    );
+    const res = new VariantResolver(h.db, client(), PATRON, new IndiceCatalogo(client(), PATRON));
+    expect(await res.resolver('584177', null)).toMatchObject({ estado: 'MAPEADO', variantes: [{ variantId: 41 }] });
+    // Equivalente que no está en el catálogo: sin búsquedas.
+    expect(await res.resolver('570099', null)).toEqual({ estado: 'NO_ENCONTRADO', candidatos: [] });
+    expect(busquedas).toEqual([null]);
+    // Prescrito recién creado en Siweb360 (aún no indexado): búsqueda directa.
+    expect(await res.resolver('599999', { nombre: 'NUEVO', labtitular: null })).toMatchObject({ estado: 'MAPEADO', variantes: [{ variantId: 43 }] });
+  });
+
+  it('índice no disponible (Siweb360 falla al cargarlo) → búsqueda directa', async () => {
+    server.use(
+      http.get(`${BASE}inventory/variants`, ({ request }) => {
+        const s = new URL(request.url).searchParams.get('search');
+        if (s === null) return HttpResponse.json({ error: 'caído' }, { status: 503 });
+        return HttpResponse.json({ success: true, data: s === '584188' ? [{ id: 44, sku: 'X', name: 'Producto CN 584188.5' }] : [] });
+      }),
+    );
+    const indice = new IndiceCatalogo(client(), PATRON);
+    expect(await indice.porCn('584188')).toBeNull();
+    const res = new VariantResolver(h.db, client(), PATRON, indice);
+    expect(await res.resolver('584188', null)).toMatchObject({ estado: 'MAPEADO', variantes: [{ variantId: 44 }] });
   });
 
   it('varias variantes con el CN → la persona elige; ninguna → candidatos por nombre', async () => {

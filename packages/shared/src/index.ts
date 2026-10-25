@@ -8,3 +8,4 @@ export * from './madrid';
 export * from './schemas/receta';
 export * from './schemas/extraccion';
 export * from './i18n';
+export * from './concurrencia';
