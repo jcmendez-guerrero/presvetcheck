@@ -67,6 +67,17 @@ describe('receta → revisión → resultado → dispensación', () => {
     expect(ev.json.lineas[0].resultado.evidencias.forzable).toBe(false);
   });
 
+  it('comprobar (antes de «Ver qué dispensar»): avisa de la firma sin confirmar y no evalúa ni guarda', async () => {
+    await confirmar(E.app, id, (r) => ({ ...recetaCorrecta('R-SIN-FIRMA')(r), firmaConfirmada: false }));
+    const c = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/comprobar`);
+    expect(c.status).toBe(200);
+    expect(c.json.incidencias.map((i: { code: string }) => i.code)).toContain('FIRMA_FALTA');
+    expect(c.json.incidencias.every((i: { severidad: string }) => i.severidad !== 'AVISO')).toBe(true);
+    expect((await api(E.app, 'dev-empleado', 'GET', `/api/recetas/${id}`)).json.estado).toBe('CONFIRMADA'); // no pasa a EVALUADA
+    await confirmar(E.app, id, recetaCorrecta('R-SIN-FIRMA'));
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/comprobar`)).json.incidencias).toEqual([]);
+  });
+
   it('receta de compañía completa con stock → DISPENSAR con el lote FEFO', async () => {
     await confirmar(E.app, id, recetaCorrecta('R-COMPLETA'));
     const ev = await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});

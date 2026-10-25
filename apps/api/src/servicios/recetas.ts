@@ -34,7 +34,7 @@ import {
 import { borradorDesdeExtraccion } from '@mmx/extraction';
 import { identificarMedicamentos } from './identificacion';
 import type { ExtractionResult} from '@mmx/shared';
-import { DomainError, RecetaConfirmada, type RecetaConfirmadaInput } from '@mmx/shared';
+import { DomainError, RecetaConfirmada, enParalelo, type RecetaConfirmadaInput } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
 import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
@@ -429,7 +429,12 @@ export class RecetasService {
    * Ejecuta reglas + resolución + stock → decisión por línea (SPEC §4.1–4.3). El forzado se valida
    * aquí (API), nunca solo en la UI.
    */
-  async evaluar(id: string, c: ContextoPeticion, forzados: Record<number, SolicitudForzado> = {}, persistir = true): Promise<EvaluacionReceta> {
+  /**
+   * Comprobación documental de la receta confirmada (campos obligatorios, validez, duplicados, plataforma):
+   * reglas puras del dominio, sin stock ni decisiones. La usa la evaluación completa y la revisión para avisar
+   * antes de «Ver qué dispensar».
+   */
+  private async evaluacionDocumental(id: string) {
     const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     const conf = this.descifrarConfirmacion(r.confirmacion);
@@ -494,6 +499,17 @@ export class RecetasService {
       politica: pol,
       rules: this.d.rules.bundle,
     });
+    return { r, conf, pol, especieId, receta2, lineas, ev };
+  }
+
+  /** Incidencias que impiden dispensar y que se corrigen en la revisión (para avisar antes de seguir). */
+  async comprobar(id: string) {
+    const { ev } = await this.evaluacionDocumental(id);
+    return { incidencias: ev.incidencias.filter((i) => i.severidad !== 'AVISO') };
+  }
+
+  async evaluar(id: string, c: ContextoPeticion, forzados: Record<number, SolicitudForzado> = {}, persistir = true): Promise<EvaluacionReceta> {
+    const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(id);
 
     const resultado: LineaEvaluada[] = [];
     for (const l of conf.lineas) {
@@ -607,11 +623,13 @@ export class RecetasService {
     if (p.estado !== 'OK') return { stock: 'NO_DISPONIBLE', avisos: p.avisos, sinMapeo: p.estado === 'SIN_MAPEO' };
     const stock: Record<string, typeof p.lotes> = { [cn]: p.lotes };
     const avisos = [...p.avisos];
-    for (const o of otros) {
-      const s = await this.d.stock.lotes(o, null);
+    // Los equivalentes pueden ser decenas: se leen a la vez (máx. 4) para no tardar minutos.
+    const leidos = await enParalelo(otros, 4, (o) => this.d.stock.lotes(o, null));
+    otros.forEach((o, i) => {
+      const s = leidos[i]!;
       stock[o] = s.estado === 'OK' ? s.lotes : [];
       avisos.push(...s.avisos);
-    }
+    });
     return { stock, avisos, sinMapeo: false };
   }
 

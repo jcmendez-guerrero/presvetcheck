@@ -77,6 +77,12 @@ export async function rutasRecetas(app: App, d: AppDeps) {
   );
 
   app.post(
+    '/api/recetas/:id/comprobar',
+    { preHandler: pre, schema: { tags: ['recetas'], summary: 'Comprobación documental (datos obligatorios, validez…) de lo guardado, sin stock ni decisiones', params: IdParam } },
+    async (req) => svc.comprobar(req.params.id),
+  );
+
+  app.post(
     '/api/recetas/:id/evaluar',
     { preHandler: pre, schema: { tags: ['recetas'], summary: 'Reglas + resolución + stock → decisión por línea', params: IdParam, body: EvaluarBody } },
     async (req) => {
