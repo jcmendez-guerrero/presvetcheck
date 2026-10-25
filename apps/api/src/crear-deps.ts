@@ -8,6 +8,7 @@ import { crearExtractor, crearLectorAlbaranes } from '@mmx/extraction';
 import type { AppConfig } from '@mmx/shared';
 import { findUp, loadRules, secretoKeyVault, tokenPostgresEntra } from '@mmx/shared/node';
 import {
+  IndiceCatalogo,
   BandejaSiweb,
   DemoSalesMovementsSource,
   NotConfiguredSalesMovementsSource,
@@ -56,7 +57,10 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     let almacen: number | null = null;
     const almacenId = async () => (almacen ??= (await resolverAlmacen(sc, { nombre: config.SIWEB_WAREHOUSE_NAME, id: config.SIWEB_WAREHOUSE_ID })).id);
     if (prod) await almacenId(); // En producción la app no arranca sin almacén "Farmacia" único.
-    const resolver = new VariantResolver(db, sc, config.SIWEB_SKU_CN_REGEX);
+    // Índice del catálogo por CN: se carga al arrancar (en segundo plano) y se refresca cada 15 min.
+    const indice = new IndiceCatalogo(sc, config.SIWEB_SKU_CN_REGEX, { log: (m, d) => log(`${m} ${JSON.stringify(d ?? {})}`) });
+    indice.precargar();
+    const resolver = new VariantResolver(db, sc, config.SIWEB_SKU_CN_REGEX, indice);
     const reservas = new SkuReservas(db, sc);
     siweb = {
       resolver,

@@ -3,6 +3,7 @@ export * from './client';
 export * from './warehouse';
 export * from './stock';
 export * from './mapeo';
+export * from './indice';
 export * from './tareas';
 export * from './outbox';
 export * from './ventas';

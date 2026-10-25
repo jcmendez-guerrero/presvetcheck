@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { cimavetMaestra, MAESTRA } from '@mmx/db';
 import type { Candidato, MedicamentoInfo, PresentacionInfo } from '@mmx/domain';
-import { normalizeText } from '@mmx/shared';
+import { enParalelo, normalizeText } from '@mmx/shared';
 import type { AppDeps } from '../deps';
 
 /** Acceso a la caché de CIMAVet para los servicios (SPEC §4.2). */
@@ -113,14 +113,17 @@ export class MedicamentosService {
     const nregs = await this.d.cimavet.nregistrosConPa(paIds);
     const meds = await this.d.cimavet.medicamentos(nregs);
     const pres = await this.d.cimavet.presentacionesDe(nregs);
-    const out = [];
-    for (const p of pres) {
+    const validas = pres.flatMap((p) => {
       const m = meds.get(p.nregistro);
-      if (!m || m.estado !== 'autorizado') continue;
-      if (especieId !== null && !m.especieIds.includes(especieId)) continue;
-      const s = await this.d.stock.lotes(p.cn, { nombre: m.nombre, labtitular: m.labtitular });
-      out.push({ cn: p.cn, nregistro: p.nregistro, nombre: p.nombre, labtitular: m.labtitular, comerc: p.comerc, enStock: s.lotes.some((l) => l.disponible > 0) });
-    }
+      if (!m || m.estado !== 'autorizado') return [];
+      if (especieId !== null && !m.especieIds.includes(especieId)) return [];
+      return [{ p, m }];
+    });
+    const out = await enParalelo(validas, 4, async ({ p, m }) => {
+      // Sin datos del medicamento: solo se mira el índice del catálogo (sin búsquedas por nombre en Siweb360).
+      const s = await this.d.stock.lotes(p.cn, null);
+      return { cn: p.cn, nregistro: p.nregistro, nombre: p.nombre, labtitular: m.labtitular, comerc: p.comerc, enStock: s.lotes.some((l) => l.disponible > 0) };
+    });
     return out.sort((a, b) => Number(b.enStock) - Number(a.enStock) || Number(b.comerc) - Number(a.comerc));
   }
 
