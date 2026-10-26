@@ -205,6 +205,10 @@ interface VistaPrevia {
   validas: number;
   totalErrores: number;
   errores: { fila: number; mensajes: string[] }[];
+  totalAvisos: number;
+  avisos: { fila: number; mensajes: string[] }[];
+  totalOmitidas: number;
+  omitidas: { fila: number; nombre: string }[];
 }
 interface Importacion {
   id: string;
@@ -259,10 +263,10 @@ function ImportarAnteriores() {
   const importar = async () => {
     setOcupado(true);
     try {
-      const r = (await enviar('/api/importaciones')) as { filas: number };
+      const r = (await enviar('/api/importaciones')) as { filas: number; omitidas: number };
       setMsg({
         t: 'ok',
-        m: `Importadas ${r.filas} filas. Ya aparecen en los registros e informes como «importado».`,
+        m: `Importados ${r.filas} medicamento(s)${r.omitidas ? ` (${r.omitidas} fila(s) omitidas por no ser medicamentos)` : ''}. Ya aparecen en los registros e informes como «importado».`,
       });
       setVista(null);
       setFichero(null);
@@ -287,8 +291,9 @@ function ImportarAnteriores() {
     <Tarjeta titulo="Importar datos anteriores">
       <p className="mb-3 text-sm text-slate-700">
         Para incorporar las entradas y salidas que llevabais antes de la app. Usa un Excel (.xlsx) o CSV con
-        las mismas columnas que exporta la app (en cualquier orden). Primero se analiza y se enseñan los
-        errores fila a fila; solo se importa si no hay ninguno.
+        las mismas columnas que exporta la app (en cualquier orden). Primero se analiza: cada fila se valida
+        contra CIMAVet y se enseñan los errores fila a fila; solo se importa si no hay ninguno. Las filas que
+        no son medicamentos se omiten.
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm">
@@ -369,7 +374,34 @@ function ImportarAnteriores() {
               </ul>
             </Mensaje>
           ) : (
-            <Mensaje tipo="ok">Sin errores: {vista.validas} fila(s) listas para importar.</Mensaje>
+            <Mensaje tipo="ok">
+              Sin errores: {vista.validas} medicamento(s) validados en CIMAVet, listos para importar.
+            </Mensaje>
+          )}
+          {vista.totalOmitidas > 0 && (
+            <Mensaje tipo="info">
+              {vista.totalOmitidas} fila(s) no son medicamentos (no están en CIMAVet) y no se importan: el
+              registro de entradas y salidas solo es obligatorio para medicamentos.
+              <ul className="mt-1 list-disc pl-5">
+                {vista.omitidas.slice(0, 15).map((o) => (
+                  <li key={o.fila}>
+                    Fila {o.fila}: {o.nombre}
+                  </li>
+                ))}
+              </ul>
+            </Mensaje>
+          )}
+          {vista.totalAvisos > 0 && (
+            <Mensaje tipo="aviso">
+              {vista.totalAvisos} aviso(s) (se pueden importar, pero revísalos):
+              <ul className="mt-1 list-disc pl-5">
+                {vista.avisos.slice(0, 30).map((e) => (
+                  <li key={e.fila}>
+                    Fila {e.fila}: {e.mensajes.join(' · ')}
+                  </li>
+                ))}
+              </ul>
+            </Mensaje>
           )}
           <Boton
             disabled={ocupado || vista.totalErrores > 0 || vista.validas === 0}

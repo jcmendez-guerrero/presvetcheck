@@ -729,8 +729,8 @@ describe('importación de entradas y salidas anteriores a la app', () => {
     const r = await E.app.inject({ method: 'POST', url, headers: { 'content-type': `multipart/form-data; boundary=${b}`, 'x-dev-user': u }, payload: Buffer.from(partes.join('')) });
     return { status: r.statusCode, json: r.json() };
   };
-  const entradasCsv = 'FECHA COMPRA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;CADUCIDAD;UNIDADES;DISTRIBUIDOR;Nº ALBARÁN;PRECIO NETO COMPRA (sin IVA)\r\n03/02/2025;AMODIP 1,25 MG;584159;OLD-1;31/12/2026;4;Distribuidor Antiguo;A-9;11,20\r\n';
-  const salidasCsv = 'FECHA;TIPO DE SALIDA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;UNIDADES DISPENSADAS;Nº RECETA;VETERINARIO;Nº COLEGIADO\r\n05/02/2025;Con receta;AMODIP 1,25 MG;584159;OLD-1;1 caja 30 comprimidos;R-OLD;Vet Antiguo;28/9\r\n';
+  const entradasCsv = 'FECHA COMPRA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;CADUCIDAD;UNIDADES;DISTRIBUIDOR;Nº ALBARÁN;PRECIO NETO COMPRA (sin IVA)\r\n03/02/2025;CLAVUBAY 400 MG/100 MG;570016;OLD-1;31/12/2026;4;Distribuidor Antiguo;A-9;11,20\r\n';
+  const salidasCsv = 'FECHA;TIPO DE SALIDA;NOMBRE DEL FÁRMACO;CÓDIGO NACIONAL;LOTE;UNIDADES DISPENSADAS;Nº RECETA;VETERINARIO;Nº COLEGIADO\r\n05/02/2025;Con receta;CLAVUBAY 400 MG/100 MG;570016;OLD-1;1 caja 30 comprimidos;R-OLD;Vet Antiguo;28/9\r\n';
 
   it('vista previa con errores por fila; solo veterinaria responsable o administración', async () => {
     expect((await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'e.csv', entradasCsv, 'dev-empleado')).status).toBe(403);
@@ -738,7 +738,23 @@ describe('importación de entradas y salidas anteriores a la app', () => {
     expect(mal.json).toMatchObject({ validas: 0, totalErrores: 1, errores: [{ fila: 2, mensajes: ['Fecha de compra no válida (usa dd/mm/aaaa)'] }] });
     expect((await subir('/api/importaciones', { tipo: 'entradas' }, 'e.csv', entradasCsv.replace('03/02/2025', '31/02/2025'))).json.error.code).toBe('VALIDACION');
     const ok = await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'e.csv', entradasCsv);
-    expect(ok.json).toMatchObject({ validas: 1, totalErrores: 0, muestra: [{ cn: '584159', unidades: 4, precioNetoCompra: '11.20' }] });
+    expect(ok.json).toMatchObject({ validas: 1, totalErrores: 0, muestra: [{ cn: '570016', unidades: 4, precioNetoCompra: '11.20' }] });
+    // Validación contra CIMAVet: el principio activo y la forma vacíos se completan con los de CIMAVet.
+    expect(ok.json.muestra[0].principioActivo).toMatch(/amoxicilina/);
+    expect(ok.json.muestra[0].forma).toBe('COMPRIMIDO');
+  });
+
+  it('valida contra CIMAVet: CN inexistente → error; sin CN y medicamento → aviso; no medicamento → se omite', async () => {
+    const csv =
+      entradasCsv +
+      '04/02/2025;PRODUCTO INVENTADO;999990;L-2;31/12/2026;1;Distribuidor Antiguo;A-9;1,00\r\n' +
+      '04/02/2025;CLAVUBAY 400 MG/100 MG COMPRIMIDOS;;L-3;31/12/2026;2;Distribuidor Antiguo;A-9;6,00\r\n' +
+      '04/02/2025;COLLAR ANTIPARASITARIO PERRO GRANDE;;L-4;31/12/2026;1;Distribuidor Antiguo;A-9;9,90\r\n';
+    const v = (await subir('/api/importaciones/vista-previa', { tipo: 'entradas' }, 'cimavet.csv', csv)).json;
+    expect(v.errores).toEqual([{ fila: 3, mensajes: ['El código nacional 999990 no está en CIMAVet: revísalo'] }]);
+    expect(v.avisos).toEqual([{ fila: 4, mensajes: [expect.stringMatching(/^Sin código nacional: se identifica como CLAVUBAY/)] }]);
+    expect(v.omitidas).toEqual([{ fila: 5, nombre: 'COLLAR ANTIPARASITARIO PERRO GRANDE' }]);
+    expect(v.validas).toBe(2);
   });
 
   it('importa, aparece en los registros como importado, no se repite el mismo fichero y se puede anular', async () => {
@@ -751,9 +767,9 @@ describe('importación de entradas y salidas anteriores a la app', () => {
 
     const q = 'desde=2025-01-01&hasta=2025-12-31';
     const ent = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/entradas?${q}`)).json.tablas[0];
-    expect(ent.filas).toEqual([expect.arrayContaining(['AMODIP 1,25 MG', '03/02/2025', 'OLD-1', 'Distribuidor Antiguo', 'importado'])]);
+    expect(ent.filas).toEqual([expect.arrayContaining(['CLAVUBAY 400 MG/100 MG', '03/02/2025', 'OLD-1', 'Distribuidor Antiguo', 'importado'])]);
     const sal = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/salidas?${q}&plantilla=A`)).json.tablas[0];
-    expect(sal.filas).toEqual([expect.arrayContaining(['AMODIP 1,25 MG', '05/02/2025', '1 caja 30 comprimidos', 'R-OLD', 'Vet Antiguo'])]);
+    expect(sal.filas).toEqual([expect.arrayContaining(['CLAVUBAY 400 MG/100 MG', '05/02/2025', '1 caja 30 comprimidos', 'R-OLD', 'Vet Antiguo'])]);
     const todas = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}`)).json.tablas[0];
     expect(todas.filas[0].at(-1)).toBe('no aplica');
 
