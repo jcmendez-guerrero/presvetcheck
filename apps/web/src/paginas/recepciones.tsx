@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Pencil, Trash2 } from 'lucide-react';
+import { Camera, FileText, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { ApiError, api, get, post, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { AYUDA_RECEPCION as AY } from '../lib/ayudas';
 import { CN, fecha, hoyIso, textoMotivo, type Motivo } from '../lib/textos';
 import { CampoEscaneo } from '../componentes/escaner';
+import { prepararPagina } from '../lib/imagen';
 import { Pagina } from '../componentes/layout';
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
 
@@ -53,6 +54,8 @@ interface Recepcion {
     fecha: string | null;
     lineas: LineaLeida[];
   } | null;
+  /** Foto o PDF del albarán guardado (contenedor `albaranes`). */
+  documento: { url: string; pdf: boolean } | null;
   lineas: LineaRecepcion[];
 }
 
@@ -92,8 +95,43 @@ function erroresDe(e: unknown): { campos: Record<string, string>; mensaje: strin
   return { campos: { ...e.campos, ...campo }, mensaje: e.message };
 }
 
+interface Duplicado {
+  id: string;
+  albaran: string | null;
+  fechaCompra: string;
+  estado: string;
+}
+interface AlbaranLeido {
+  documentoId: string;
+  lectura: { proveedor: string | null; numero: string | null; fecha: string | null; lineas: LineaLeida[] };
+  distribuidorSugerido: string | null;
+  duplicados: Duplicado[];
+  mismoFichero: { recepcionId: string } | null;
+}
+
+/** Recepciones del mismo albarán y distribuidor ya registradas (con enlace), para no duplicar la entrada. */
+function AvisoDuplicados({ duplicados }: { duplicados: Duplicado[] }) {
+  if (!duplicados.length) return null;
+  return (
+    <Mensaje tipo="aviso">
+      Ya hay {duplicados.length === 1 ? 'una recepción' : `${duplicados.length} recepciones`} de este albarán
+      y distribuidor:
+      <ul className="mt-1 list-disc pl-5">
+        {duplicados.map((x) => (
+          <li key={x.id}>
+            <Link to="/recepciones/$id" params={{ id: x.id }} className="text-marca underline">
+              {x.albaran} · compra {fecha(x.fechaCompra)} · {x.estado}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Mensaje>
+  );
+}
+
 export function Recepciones() {
   const nav = useNavigate();
+  const { config } = useAuth();
   const lista = useQuery({
     queryKey: ['recepciones'],
     queryFn: () =>
@@ -114,6 +152,11 @@ export function Recepciones() {
         '/api/recepciones/proveedores',
       ),
   });
+  const [modo, setModo] = useState<'elegir' | 'albaran' | 'manual'>('elegir');
+  const [leido, setLeido] = useState<AlbaranLeido | null>(null);
+  const [leyendo, setLeyendo] = useState(false);
+  const [duplicados, setDuplicados] = useState<Duplicado[]>([]);
+  const [confirmar, setConfirmar] = useState(false);
   const [d, setD] = useState({
     distribuidor: '',
     albaran: '',
@@ -136,83 +179,231 @@ export function Recepciones() {
     return Object.keys(e).length === 0;
   };
 
+  /** Lee el albarán: rellena la cabecera con lo leído y enseña los posibles duplicados. */
+  const leer = async (input: HTMLInputElement) => {
+    const f = input.files?.[0];
+    input.value = '';
+    if (!f) return;
+    setLeyendo(true);
+    setMsg(null);
+    setConfirmar(false);
+    try {
+      const fd = new FormData();
+      const p = f.type.startsWith('image/') ? await prepararPagina(f) : null;
+      fd.append('documento', p?.blob ?? f, p ? 'albaran.jpg' : f.name);
+      const r = await post<AlbaranLeido>('/api/recepciones/albaranes', fd);
+      setLeido(r);
+      setDuplicados(r.duplicados);
+      setD({
+        distribuidor: r.distribuidorSugerido ?? r.lectura.proveedor ?? '',
+        albaran: r.lectura.numero ?? '',
+        fechaCompra: r.lectura.fecha && r.lectura.fecha <= hoyIso() ? r.lectura.fecha : hoyIso(),
+        fechaRecepcion: hoyIso(),
+      });
+      setErrores({});
+    } catch (e) {
+      setMsg(e instanceof ApiError ? e.message : 'No se ha podido leer el documento');
+    } finally {
+      setLeyendo(false);
+    }
+  };
+
+  const crear = async () => {
+    setMsg(null);
+    if (!validar()) return;
+    try {
+      const r = await post<{ id: string }>('/api/recepciones', {
+        distribuidor: d.distribuidor.trim(),
+        albaran: d.albaran.trim() || null,
+        fechaCompra: d.fechaCompra,
+        fechaRecepcion: d.fechaRecepcion,
+        documentoId: leido?.documentoId ?? null,
+        confirmarDuplicado: confirmar,
+      });
+      await nav({ to: '/recepciones/$id', params: { id: r.id } });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && Array.isArray(e.detalles?.duplicados)) {
+        setDuplicados(e.detalles.duplicados as Duplicado[]);
+        setMsg(
+          'Este albarán ya está registrado para ese distribuidor. Si es otro albarán distinto, márcalo abajo.',
+        );
+        return;
+      }
+      const x = erroresDe(e);
+      setErrores(x.campos);
+      setMsg(x.mensaje);
+    }
+  };
+
+  const conLote = leido?.lectura.lineas.filter((x) => x.lote || x.caducidad).length ?? 0;
+  const sinLector = config?.extractor === 'desactivado';
+
   return (
     <Pagina titulo="Recepción de mercancía">
       <Tarjeta titulo="Nueva recepción">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Campo
-            etiqueta="Distribuidor"
-            info={AY.distribuidor}
-            list="distribuidores"
-            autoComplete="off"
-            value={d.distribuidor}
-            error={errores.distribuidor}
-            onChange={(e) => setD({ ...d, distribuidor: e.target.value })}
-          />
-          <datalist id="distribuidores">
-            {prov.data?.proveedores.map((x) => (
-              <option key={x.nombre} value={x.nombre}>
-                {x.origen === 'siweb' ? 'Siweb360' : ''}
-              </option>
-            ))}
-          </datalist>
-          <Campo
-            etiqueta="Nº de albarán o factura"
-            info={AY.albaran}
-            value={d.albaran}
-            error={errores.albaran}
-            onChange={(e) => setD({ ...d, albaran: e.target.value })}
-          />
-          <Campo
-            etiqueta="Fecha de compra"
-            info={AY.fechaCompra}
-            type="date"
-            max={hoyIso()}
-            value={d.fechaCompra}
-            error={errores.fechaCompra}
-            onChange={(e) => setD({ ...d, fechaCompra: e.target.value })}
-          />
-          <Campo
-            etiqueta="Fecha de recepción"
-            info={AY.fechaRecepcion}
-            type="date"
-            max={hoyIso()}
-            value={d.fechaRecepcion}
-            error={errores.fechaRecepcion}
-            onChange={(e) => setD({ ...d, fechaRecepcion: e.target.value })}
-          />
-        </div>
-        {prov.data && !prov.data.siwebDisponible && (
-          <p className="mt-1 text-xs text-slate-600">
-            Proveedores de Siweb360 no disponibles ahora: se proponen los ya usados en la app.
-          </p>
+        {modo === 'elegir' && (
+          <div className="flex flex-col gap-3">
+            <p className="text-slate-700">
+              Lee el albarán o la factura para rellenar los datos y proponer las líneas con su lote y
+              caducidad, o regístrala a mano.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Boton disabled={sinLector} onClick={() => setModo('albaran')}>
+                <FileText aria-hidden className="h-5 w-5" /> Leer el albarán o la factura
+              </Boton>
+              <Boton variante="secundario" onClick={() => setModo('manual')}>
+                <Pencil aria-hidden className="h-5 w-5" /> Registrar a mano
+              </Boton>
+            </div>
+            {sinLector && (
+              <p className="text-sm text-slate-600">
+                La lectura de documentos no está configurada: registra la recepción a mano.
+              </p>
+            )}
+          </div>
         )}
-        <p className="mt-2 text-sm text-slate-600">
-          En el siguiente paso puedes leer el albarán o la factura para proponer las líneas.
-        </p>
-        {msg && <Mensaje tipo="error">{msg}</Mensaje>}
-        <Boton
-          className="mt-3"
-          onClick={async () => {
-            setMsg(null);
-            if (!validar()) return;
-            try {
-              const r = await post<{ id: string }>('/api/recepciones', {
-                distribuidor: d.distribuidor.trim(),
-                albaran: d.albaran.trim() || null,
-                fechaCompra: d.fechaCompra,
-                fechaRecepcion: d.fechaRecepcion,
-              });
-              await nav({ to: '/recepciones/$id', params: { id: r.id } });
-            } catch (e) {
-              const x = erroresDe(e);
-              setErrores(x.campos);
-              setMsg(x.mensaje);
-            }
-          }}
-        >
-          Empezar recepción
-        </Boton>
+        {modo !== 'elegir' && (
+          <div className="flex flex-col gap-3">
+            {modo === 'albaran' && (
+              <div className="flex flex-wrap items-center gap-3">
+                <label
+                  className={`inline-flex items-center gap-2 rounded-xl bg-marca px-5 py-3 font-semibold text-white ${leyendo ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
+                >
+                  {leyendo ? (
+                    <Loader2 aria-hidden className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Camera aria-hidden className="h-5 w-5" />
+                  )}
+                  {leyendo
+                    ? 'Leyendo el documento… (hasta un minuto)'
+                    : leido
+                      ? 'Leer otro documento'
+                      : 'Foto o PDF del albarán'}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="sr-only"
+                    disabled={leyendo}
+                    onChange={(e) => void leer(e.currentTarget)}
+                  />
+                </label>
+                <Info texto={AY.documento} />
+              </div>
+            )}
+            {leido && (
+              <Mensaje tipo="info">
+                Leído: nº <strong>{leido.lectura.numero ?? '—'}</strong> · proveedor{' '}
+                <strong>{leido.lectura.proveedor ?? '—'}</strong> · fecha{' '}
+                <strong>{leido.lectura.fecha ? fecha(leido.lectura.fecha) : '—'}</strong> ·{' '}
+                {leido.lectura.lineas.length} línea(s)
+                {leido.lectura.lineas.length ? `, ${conLote} con lote o caducidad` : ''}. Revisa la cabecera:
+                las líneas se revisan una a una con el envase en el siguiente paso.
+              </Mensaje>
+            )}
+            {leido?.mismoFichero && (
+              <Mensaje tipo="error">
+                Este mismo documento ya se registró en{' '}
+                <Link
+                  to="/recepciones/$id"
+                  params={{ id: leido.mismoFichero.recepcionId }}
+                  className="underline"
+                >
+                  otra recepción
+                </Link>
+                . Comprueba que no estás repitiendo la entrada.
+              </Mensaje>
+            )}
+            {(modo === 'manual' || leido) && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Campo
+                    etiqueta="Distribuidor"
+                    info={AY.distribuidor}
+                    list="distribuidores"
+                    autoComplete="off"
+                    value={d.distribuidor}
+                    error={errores.distribuidor}
+                    onChange={(e) => {
+                      setD({ ...d, distribuidor: e.target.value });
+                      setDuplicados([]);
+                      setConfirmar(false);
+                    }}
+                  />
+                  <datalist id="distribuidores">
+                    {prov.data?.proveedores.map((x) => (
+                      <option key={x.nombre} value={x.nombre}>
+                        {x.origen === 'siweb' ? 'Siweb360' : ''}
+                      </option>
+                    ))}
+                  </datalist>
+                  <Campo
+                    etiqueta="Nº de albarán o factura"
+                    info={AY.albaran}
+                    value={d.albaran}
+                    error={errores.albaran}
+                    onChange={(e) => {
+                      setD({ ...d, albaran: e.target.value });
+                      setDuplicados([]);
+                      setConfirmar(false);
+                    }}
+                  />
+                  <Campo
+                    etiqueta="Fecha de compra"
+                    info={AY.fechaCompra}
+                    type="date"
+                    max={hoyIso()}
+                    value={d.fechaCompra}
+                    error={errores.fechaCompra}
+                    onChange={(e) => setD({ ...d, fechaCompra: e.target.value })}
+                  />
+                  <Campo
+                    etiqueta="Fecha de recepción"
+                    info={AY.fechaRecepcion}
+                    type="date"
+                    max={hoyIso()}
+                    value={d.fechaRecepcion}
+                    error={errores.fechaRecepcion}
+                    onChange={(e) => setD({ ...d, fechaRecepcion: e.target.value })}
+                  />
+                </div>
+                {prov.data && !prov.data.siwebDisponible && (
+                  <p className="text-xs text-slate-600">
+                    Proveedores de Siweb360 no disponibles ahora: se proponen los ya usados en la app.
+                  </p>
+                )}
+                <AvisoDuplicados duplicados={duplicados} />
+                {duplicados.length > 0 && (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={confirmar}
+                      onChange={(e) => setConfirmar(e.target.checked)}
+                    />
+                    Es otro albarán distinto (mismo número por casualidad): crear la recepción igualmente
+                  </label>
+                )}
+                {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+                <div className="flex flex-wrap gap-3">
+                  <Boton disabled={duplicados.length > 0 && !confirmar} onClick={() => void crear()}>
+                    Empezar recepción
+                  </Boton>
+                  <Boton
+                    variante="texto"
+                    onClick={() => {
+                      setModo('elegir');
+                      setLeido(null);
+                      setDuplicados([]);
+                      setMsg(null);
+                    }}
+                  >
+                    Volver
+                  </Boton>
+                </div>
+              </>
+            )}
+            {modo === 'albaran' && !leido && msg && <Mensaje tipo="error">{msg}</Mensaje>}
+          </div>
+        )}
       </Tarjeta>
       <Tarjeta titulo="Recepciones recientes">
         <ul className="divide-y">
@@ -809,6 +1000,7 @@ function LeerDocumento({
         />
       </label>
       {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+      {recepcion.documento && <VerDocumento documento={recepcion.documento} />}
       {lec && (
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-sm">
@@ -859,5 +1051,32 @@ function LeerDocumento({
         </div>
       )}
     </Tarjeta>
+  );
+}
+
+/** Foto o PDF del albarán guardado, para comprobar lo leído (se carga con la sesión, como las recetas). */
+function VerDocumento({ documento }: { documento: { url: string; pdf: boolean } }) {
+  const [abierto, setAbierto] = useState(true);
+  const q = useQuery({
+    queryKey: ['albaran-doc', documento.url],
+    queryFn: async () => URL.createObjectURL(await get<Blob>(documento.url)),
+    staleTime: Infinity,
+  });
+  return (
+    <div className="mt-3">
+      <Boton variante="texto" onClick={() => setAbierto((x) => !x)}>
+        {abierto ? 'Ocultar el documento' : 'Ver el documento'}
+      </Boton>
+      {abierto &&
+        (q.data ? (
+          documento.pdf ? (
+            <iframe title="Albarán" src={q.data} className="mt-2 h-[32rem] w-full rounded-lg border" />
+          ) : (
+            <img src={q.data} alt="Albarán" className="mt-2 max-h-[32rem] w-auto rounded-lg border" />
+          )
+        ) : (
+          <p className="mt-2 animate-pulse text-sm text-slate-600">Cargando el documento…</p>
+        ))}
+    </div>
   );
 }

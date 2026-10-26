@@ -71,3 +71,24 @@ export const recepcionAjuste = pgTable('recepcion_ajuste', {
   empleado: text().notNull(),
   ...createdOnly,
 });
+
+/**
+ * Albarán o factura de proveedor leído con Document Intelligence antes de crear la recepción (o dentro de ella):
+ * el fichero (contenedor `albaranes`), lo leído y la recepción a la que pertenece. Sirve para conservar la foto y
+ * los datos leídos, y para avisar si el mismo fichero ya se registró.
+ */
+export const albaranDocumento = pgTable(
+  'albaran_documento',
+  {
+    id: pk(),
+    sha256: text().notNull(),
+    /** Ruta dentro del contenedor `albaranes`. */
+    documentoPath: text().notNull(),
+    mime: text().notNull(),
+    lectura: jsonb().notNull(),
+    recepcionId: uuid().references(() => recepcion.id),
+    creadoPor: text().notNull(),
+    ...createdOnly,
+  },
+  (t) => [index().on(t.sha256), index().on(t.recepcionId)],
+);

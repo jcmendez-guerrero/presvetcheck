@@ -126,6 +126,10 @@ export const RecepcionDto = z
     fechaCompra: IsoDate.nullable().default(null),
     /** Fecha en que llega la mercancía; por defecto, hoy. */
     fechaRecepcion: IsoDate.nullable().default(null),
+    /** Albarán leído antes (POST /api/recepciones/albaranes). */
+    documentoId: z.uuid().nullable().optional(),
+    /** Confirma que es otro albarán aunque el número coincida con uno ya registrado del mismo distribuidor. */
+    confirmarDuplicado: z.boolean().optional(),
   })
   .refine((b) => b.distribuidorId || b.distribuidor, {
     message: 'Indica el distribuidor',

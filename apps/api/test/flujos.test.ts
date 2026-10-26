@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { auditEvent, discrepancia, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
-import { api, confirmar, crearReceta, entorno, recetaCorrecta, type Entorno } from './entorno';
+import { api, confirmar, crearReceta, entorno, multipart, recetaCorrecta, type Entorno } from './entorno';
 
 let E: Entorno;
 beforeAll(async () => {
@@ -780,5 +780,46 @@ describe('importación de entradas y salidas anteriores a la app', () => {
     expect((await api(E.app, 'dev-empleado', 'GET', `/api/registros/entradas?${q}`)).json.tablas[0].filas).toEqual([]);
     // Anulada, el mismo fichero se puede volver a importar.
     expect((await subir('/api/importaciones', { tipo: 'entradas' }, 'entradas-2025.csv', entradasCsv)).status).toBe(201);
+  });
+});
+
+describe('recepción desde el albarán: lectura, foto, duplicados', () => {
+  const subirAlbaran = async (bytes: Buffer) => {
+    const m = multipart({}, [{ nombre: 'albaran.pdf', mime: 'application/pdf', bytes }]);
+    const r = await E.app.inject({ method: 'POST', url: '/api/recepciones/albaranes', headers: { ...m.headers, 'x-dev-user': 'dev-empleado' }, payload: m.payload });
+    return { status: r.statusCode, json: r.json() };
+  };
+  const pdf = Buffer.from('%PDF-1.4 albarán sintético de prueba');
+
+  it('lee número, proveedor y líneas con lote y caducidad; avisa de duplicados y crea la recepción con su foto', async () => {
+    // Un test anterior ya registró el albarán ALB-2026-00417 de «Distribuidora Veterinaria de Prueba S.L.».
+    const l1 = await subirAlbaran(pdf);
+    expect(l1.status).toBe(201);
+    expect(l1.json.lectura).toMatchObject({ numero: 'ALB-2026-00417', proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.' });
+    expect(l1.json.lectura.lineas[0]).toMatchObject({ lote: 'AMD-2801', caducidad: '2028-01-31' });
+    expect(l1.json).toMatchObject({ distribuidorSugerido: 'Distribuidora Veterinaria de Prueba S.L.', mismoFichero: null });
+    expect(l1.json.duplicados).toEqual([expect.objectContaining({ albaran: 'ALB-2026-00417' })]);
+
+    // Crearla exige confirmar que es otro albarán (el número se compara sin guiones ni mayúsculas).
+    const cuerpo = { distribuidor: 'Distribuidora Veterinaria de Prueba S.L.', albaran: 'alb 2026 00417', fechaCompra: '2026-10-14', documentoId: l1.json.documentoId };
+    const dup = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', cuerpo);
+    expect(dup.status).toBe(409);
+    expect(dup.json.error.detalles.duplicados[0].id).toBe(l1.json.duplicados[0].id);
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { ...cuerpo, confirmarDuplicado: true });
+    expect(r.status).toBe(201);
+
+    const det = (await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${r.json.id}`)).json;
+    expect(det.lectura.numero).toBe('ALB-2026-00417');
+    expect(det.documento).toMatchObject({ pdf: true });
+    const foto = await E.app.inject({ method: 'GET', url: det.documento.url, headers: { 'x-dev-user': 'dev-empleado' } });
+    expect(foto.headers['content-type']).toBe('application/pdf');
+    expect(foto.rawPayload.equals(pdf)).toBe(true);
+
+    // El mismo fichero otra vez: se avisa de que ya se registró en esa recepción.
+    const l2 = await subirAlbaran(pdf);
+    expect(l2.json.mismoFichero).toEqual({ recepcionId: r.json.id });
+    expect(l2.json.duplicados).toHaveLength(2);
+    // Un documento ya usado no se enlaza a otra recepción.
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Otro distribuidor', albaran: null, documentoId: l1.json.documentoId })).status).toBe(400);
   });
 });

@@ -85,9 +85,42 @@ function lineaDeTexto(contenido: string, fila: Record<string, Campo>): string {
   return contenido.slice(desde, hasta < 0 ? undefined : hasta);
 }
 
+type Celda = { rowIndex: number; columnIndex: number; kind?: string; content?: string };
+type Tabla = { rowCount: number; columnCount: number; cells: Celda[] };
+
+const sinTildes = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const RE_COL_LOTE = /^(n[º°o.]?\s*(de\s+)?)?lote?s?\.?$/;
+const RE_COL_CAD = /(cad|caducidad|venc|vto|exp|f\.?\s*cad)/;
+
+/**
+ * Lote y caducidad en columnas de una tabla del documento («Lote», «F. Cad.», «Caducidad», «Vto.»): filas con
+ * su texto completo para emparejarlas con las líneas del modelo por código o descripción.
+ */
+export function lotesDeTablas(tablas: Tabla[] | undefined): { texto: string; lote: string | null; caducidad: string | null }[] {
+  const out: { texto: string; lote: string | null; caducidad: string | null }[] = [];
+  for (const t of tablas ?? []) {
+    const cab = t.cells.filter((c) => c.kind === 'columnHeader' || c.rowIndex === 0);
+    const colLote = cab.find((c) => RE_COL_LOTE.test(sinTildes(c.content ?? '').trim()))?.columnIndex;
+    const colCad = cab.find((c) => RE_COL_CAD.test(sinTildes(c.content ?? '').trim()))?.columnIndex;
+    if (colLote === undefined && colCad === undefined) continue;
+    const filasCab = new Set(cab.map((c) => c.rowIndex));
+    const porFila = new Map<number, Celda[]>();
+    for (const c of t.cells) if (!filasCab.has(c.rowIndex)) porFila.set(c.rowIndex, [...(porFila.get(c.rowIndex) ?? []), c]);
+    for (const celdas of porFila.values()) {
+      const en = (col: number | undefined) => (col === undefined ? null : (celdas.find((c) => c.columnIndex === col)?.content ?? '').trim() || null);
+      const lote = en(colLote);
+      const caducidad = caducidadDeTexto(en(colCad));
+      if (!lote && !caducidad) continue;
+      out.push({ texto: celdas.sort((a, b) => a.columnIndex - b.columnIndex).map((c) => c.content ?? '').join(' '), lote, caducidad });
+    }
+  }
+  return out;
+}
+
 export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
   const f = (r.documents?.[0]?.fields ?? {}) as Record<string, Campo>;
   const contenido = r.content ?? '';
+  const deTablas = lotesDeTablas((r as AnalyzeResult & { tables?: Tabla[] }).tables);
   const lineas = (f.Items?.valueArray ?? []).map((it): LineaAlbaran => {
     const o = it.valueObject ?? {};
     const fila = lineaDeTexto(contenido, o);
@@ -106,14 +139,20 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
       const q = new Decimal(importe).div(precio);
       cantidad = q.isInteger() ? q.toNumber() : null;
     }
+    const desc = texto(o.Description);
+    // En la línea de texto («Lote AMD-2801 Cad. 01/2028») o, si no, en las columnas de la tabla (misma fila por
+    // código del producto o por el principio de la descripción).
+    const enTabla = deTablas.find(
+      (t) => (codigo && t.texto.includes(codigo)) || (desc && sinTildes(t.texto).includes(sinTildes(desc).slice(0, 15))),
+    );
     return {
-      descripcion: texto(o.Description),
+      descripcion: desc,
       codigo,
       cn: cnBruto ? cnBruto.slice(0, 6) : null,
       cantidad: cantidad !== null && Number.isFinite(cantidad) ? cantidad : null,
       precioUnitario: precio,
-      lote: /\blote?\s*:?\s*([A-Z0-9][A-Z0-9-/.]{1,30})/i.exec(fila)?.[1] ?? null,
-      caducidad: caducidadDeTexto(/\b(?:cad(?:ucidad)?|exp|vto)\.?\s*:?\s*([\d/.-]{6,10})/i.exec(fila)?.[1]),
+      lote: /\blote?\s*:?\s*([A-Z0-9][A-Z0-9-/.]{1,30})/i.exec(fila)?.[1] ?? enTabla?.lote ?? null,
+      caducidad: caducidadDeTexto(/\b(?:cad(?:ucidad)?|exp|vto)\.?\s*:?\s*([\d/.-]{6,10})/i.exec(fila)?.[1]) ?? enTabla?.caducidad ?? null,
     };
   });
   return {

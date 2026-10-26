@@ -1,5 +1,7 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
-import { appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, MAESTRA } from '@mmx/db';
+import { and, asc, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { albaranDocumento, appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, MAESTRA } from '@mmx/db';
+import { sha256 } from '@mmx/reports';
+import type { LecturaAlbaran } from '@mmx/extraction';
 import {
   acumularEscaneo,
   avisosEntrada,
@@ -64,9 +66,15 @@ export class RecepcionesService {
       albaran: string | null;
       fechaCompra: string | null;
       fechaRecepcion?: string | null;
+      /** Albarán ya leído (POST /api/recepciones/albaranes): se enlaza con su foto y lo leído. */
+      documentoId?: string | null | undefined;
+      /** La persona confirma que es otro albarán aunque coincida el número con uno ya registrado. */
+      confirmarDuplicado?: boolean | undefined;
     },
     c: ContextoPeticion,
   ) {
+    const [doc] = b.documentoId ? await this.d.db.select().from(albaranDocumento).where(eq(albaranDocumento.id, b.documentoId)) : [];
+    if (b.documentoId && (!doc || doc.recepcionId)) throw new DomainError('VALIDACION', 'El documento leído no existe o ya pertenece a otra recepción', { campo: 'documentoId' });
     const [dist] = b.distribuidor
       ? [await this.distribuidorPorNombre(b.distribuidor, c)]
       : await this.d.db
@@ -74,6 +82,15 @@ export class RecepcionesService {
           .from(distribuidor)
           .where(and(eq(distribuidor.id, b.distribuidorId ?? ''), eq(distribuidor.activo, true)));
     if (!dist) throw new DomainError('VALIDACION', 'Distribuidor no válido');
+    if (b.albaran && !b.confirmarDuplicado) {
+      const dup = await this.duplicados(dist.id, b.albaran);
+      if (dup.length)
+        throw new DomainError(
+          'CONFLICTO',
+          `Ya hay una recepción del albarán ${b.albaran} de ${dist.nombre} (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`,
+          { duplicados: dup },
+        );
+    }
     return this.d.db.transaction(async (tx) => {
       const [r] = await tx
         .insert(recepcion)
@@ -83,14 +100,16 @@ export class RecepcionesService {
           fechaCompra: b.fechaCompra ?? hoyDe(this.d),
           fechaRecepcion: b.fechaRecepcion ?? hoyDe(this.d),
           empleado: c.usuario.id,
+          ...(doc ? { lecturaDocumento: doc.lectura, documentoPath: doc.documentoPath } : {}),
         })
         .returning();
+      if (doc) await tx.update(albaranDocumento).set({ recepcionId: r!.id }).where(eq(albaranDocumento.id, doc.id));
       await appendAudit(tx, {
         actor: c.usuario.id,
         accion: 'recepcion_crear',
         entidad: 'recepcion',
         entidadId: r!.id,
-        despues: { distribuidor: dist.nombre },
+        despues: { distribuidor: dist.nombre, albaran: b.albaran, documento: doc?.id ?? null, duplicadoConfirmado: !!b.confirmarDuplicado },
         ip: c.ip,
         userAgent: c.userAgent,
       });
@@ -140,6 +159,41 @@ export class RecepcionesService {
         'La lectura de albaranes no está configurada (Document Intelligence)',
       );
     const lectura = await this.d.lectorAlbaranes.leer(doc.bytes, doc.mime);
+    const lineas = await this.proponerLineas(lectura);
+    const path = await this.guardarFichero(doc, `${id}/${Date.now()}`);
+    const guardada = {
+      proveedor: lectura.proveedor,
+      numero: lectura.numero,
+      fecha: lectura.fecha,
+      modelo: lectura.modelo,
+      simulada: this.d.lectorAlbaranes.simulado,
+      lineas,
+    };
+    await this.d.db.transaction(async (tx) => {
+      await tx.insert(albaranDocumento).values({ sha256: sha256(doc.bytes), documentoPath: path, mime: doc.mime, lectura: guardada, recepcionId: id, creadoPor: c.usuario.id });
+      await tx
+        .update(recepcion)
+        .set({
+          lecturaDocumento: guardada,
+          documentoPath: path,
+          ...(r.albaran ? {} : { albaran: lectura.numero }),
+        })
+        .where(eq(recepcion.id, id));
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_leer_documento',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { lineas: lineas.length, modelo: lectura.modelo },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
+    });
+    return guardada;
+  }
+
+  /** Líneas leídas → propuesta con su medicamento de CIMAVet (por código nacional o, si no, por la marca). */
+  private async proponerLineas(lectura: LecturaAlbaran) {
     const lineas = [];
     for (const l of lectura.lineas) {
       let candidato: { cn: string; nombre: string } | null = null;
@@ -164,36 +218,89 @@ export class RecepcionesService {
         candidato,
       });
     }
+    return lineas;
+  }
+
+  /** Guarda el albarán en el contenedor `albaranes`; devuelve la ruta dentro del contenedor. */
+  private async guardarFichero(doc: { bytes: Uint8Array; mime: string }, base: string) {
     const ext = doc.mime === 'application/pdf' ? 'pdf' : (doc.mime.split('/')[1] ?? 'bin');
-    const path = await this.d.blob.put('albaranes', `${id}/${Date.now()}.${ext}`, doc.bytes, doc.mime);
+    const path = `${base}.${ext}`;
+    await this.d.blob.put('albaranes', path, doc.bytes, doc.mime);
+    return path;
+  }
+
+  /** Recepciones del mismo distribuidor con el mismo nº de albarán (sin distinguir espacios, guiones ni mayúsculas). */
+  async duplicados(distribuidorId: string, numero: string) {
+    const clave = (x: string) => normalizeText(x).replace(/[^a-z0-9]/g, '');
+    if (!clave(numero)) return [];
+    const filas = await this.d.db.select().from(recepcion).where(eq(recepcion.distribuidorId, distribuidorId));
+    return filas
+      .filter((r) => r.albaran && clave(r.albaran) === clave(numero))
+      .map((r) => ({ id: r.id, albaran: r.albaran, fechaCompra: r.fechaCompra, estado: r.estado }));
+  }
+
+  /** Distribuidor de la app (o proveedor de Siweb360) que mejor encaja con el proveedor leído del documento. */
+  private async distribuidorSugerido(proveedor: string | null) {
+    if (!proveedor) return null;
+    const palabras = (x: string) => new Set(normalizeText(x).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !['s l', 'sl', 'sa', 'slu', 'the'].includes(w)));
+    const leido = palabras(proveedor);
+    let mejor: { nombre: string; parecido: number } | null = null;
+    for (const p of (await this.proveedores()).proveedores) {
+      const otro = palabras(p.nombre);
+      const comunes = [...otro].filter((w) => leido.has(w)).length;
+      const parecido = otro.size ? comunes / Math.min(otro.size, leido.size || 1) : 0;
+      if (parecido >= 0.5 && (!mejor || parecido > mejor.parecido)) mejor = { nombre: p.nombre, parecido };
+    }
+    if (!mejor) return null;
+    const todos = await this.d.db.select().from(distribuidor);
+    const local = todos.find((x) => normalizeText(x.nombre) === normalizeText(mejor!.nombre));
+    return { nombre: mejor.nombre, id: local?.id ?? null };
+  }
+
+  /**
+   * Primer paso de una recepción desde el documento: lee el albarán o la factura (número, proveedor, fecha y
+   * líneas con lote y caducidad), lo guarda con su foto en el contenedor `albaranes` y avisa si ya hay una
+   * recepción del mismo albarán y distribuidor (o si este mismo fichero ya se registró). No crea la recepción:
+   * la persona revisa la cabecera y la crea con `documentoId`.
+   */
+  async leerAlbaran(doc: { bytes: Uint8Array; mime: string }, c: ContextoPeticion) {
+    if (!this.d.lectorAlbaranes)
+      throw new DomainError('EXTRACTOR_NO_CONFIGURADO', 'La lectura de albaranes no está configurada (Document Intelligence): registra la recepción a mano');
+    const hash = sha256(doc.bytes);
+    const [mismo] = await this.d.db
+      .select({ recepcionId: albaranDocumento.recepcionId })
+      .from(albaranDocumento)
+      .where(and(eq(albaranDocumento.sha256, hash), isNotNull(albaranDocumento.recepcionId)))
+      .limit(1);
+    const lectura = await this.d.lectorAlbaranes.leer(doc.bytes, doc.mime);
     const guardada = {
       proveedor: lectura.proveedor,
       numero: lectura.numero,
       fecha: lectura.fecha,
       modelo: lectura.modelo,
       simulada: this.d.lectorAlbaranes.simulado,
-      lineas,
+      lineas: await this.proponerLineas(lectura),
     };
-    await this.d.db.transaction(async (tx) => {
-      await tx
-        .update(recepcion)
-        .set({
-          lecturaDocumento: guardada,
-          documentoPath: path,
-          ...(r.albaran ? {} : { albaran: lectura.numero }),
-        })
-        .where(eq(recepcion.id, id));
-      await appendAudit(tx, {
-        actor: c.usuario.id,
-        accion: 'recepcion_leer_documento',
-        entidad: 'recepcion',
-        entidadId: id,
-        despues: { lineas: lineas.length, modelo: lectura.modelo },
-        ip: c.ip,
-        userAgent: c.userAgent,
-      });
-    });
-    return guardada;
+    const path = await this.guardarFichero(doc, `lecturas/${Date.now()}-${hash.slice(0, 12)}`);
+    const [fila] = await this.d.db.insert(albaranDocumento).values({ sha256: hash, documentoPath: path, mime: doc.mime, lectura: guardada, creadoPor: c.usuario.id }).returning();
+    await appendAudit(this.d.db, { actor: c.usuario.id, accion: 'albaran_leer', entidad: 'albaran_documento', entidadId: fila!.id, despues: { lineas: guardada.lineas.length, modelo: lectura.modelo }, ip: c.ip, userAgent: c.userAgent });
+    const sugerido = await this.distribuidorSugerido(lectura.proveedor);
+    return {
+      documentoId: fila!.id,
+      lectura: guardada,
+      distribuidorSugerido: sugerido?.nombre ?? null,
+      duplicados: sugerido?.id && lectura.numero ? await this.duplicados(sugerido.id, lectura.numero) : [],
+      mismoFichero: mismo?.recepcionId ? { recepcionId: mismo.recepcionId } : null,
+    };
+  }
+
+  /** Foto o PDF del albarán de una recepción. */
+  async documento(id: string) {
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r?.documentoPath) throw new DomainError('NO_ENCONTRADO');
+    const b = await this.d.blob.get('albaranes', r.documentoPath.replace(/^albaranes\//, ''));
+    if (!b) throw new DomainError('NO_ENCONTRADO');
+    return b;
   }
 
   async listar(limite = 50) {
@@ -213,6 +320,7 @@ export class RecepcionesService {
       ...r,
       distribuidor: dist?.nombre ?? null,
       lectura: r.lecturaDocumento ?? null,
+      documento: r.documentoPath ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') } : null,
       fechaCorte: this.d.config.ENTRY_CUTOVER_DATE ?? null,
       escrituraStock: this.d.config.SIWEB_STOCK_WRITE_MODE,
       lineas: lineas.map((l) => ({
