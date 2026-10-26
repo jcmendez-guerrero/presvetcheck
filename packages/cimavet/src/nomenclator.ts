@@ -59,6 +59,19 @@ export function estadoNomenclator(cod: string | null): EstadoAutorizacion {
 
 export type ResultadoRegistro = { ok: true; registro: RegistroCache } | { ok: false; motivo: string; cn: string | null };
 
+/**
+ * Corrección del diccionario de unidades del Nomenclátor (ADR-15): DICCIONARIO_UNIDAD_COMPOSICION trae «l» en el
+ * código 3, pero la API de CIMAVet da «µg» para los principios activos con ese código (CANITROID 400 microgramos,
+ * GALASTOP 50 microgramos/ml, RECEPTAL, vacunas…; comprobado el 26/10/2026). Solo se corrige la unidad de la
+ * composición, que es donde está comprobado.
+ */
+export const CORRECCION_UNIDAD_PRINCIPIO_ACTIVO: Record<number, string> = { 3: 'µg' };
+
+function unidadPrincipioActivo(cod: string | null, delDiccionario: (cod: string | null) => string | null): string | null {
+  const n = cod === null ? null : Number(cod);
+  return (n !== null && CORRECCION_UNIDAD_PRINCIPIO_ACTIVO[n]) || delDiccionario(cod);
+}
+
 /** Convierte un `<prescription>` a registro de caché. Puro (salvo diccionarios). */
 export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetchedAt: Date): ResultadoRegistro {
   const cn = xmlText(node, 'cod_nacion');
@@ -81,7 +94,7 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
         paId,
         nombre: dic.principiosActivos.get(paId) ?? null,
         cantidad: xmlText(pa, 'cantidad'),
-        unidad: unidad(xmlText(pa, 'cod_unidad_cantidad')),
+        unidad: unidadPrincipioActivo(xmlText(pa, 'cod_unidad_cantidad'), unidad),
       };
     }),
   );

@@ -120,6 +120,18 @@ describe('importador del Nomenclátor (muestra real, streaming)', () => {
     expect(estadoNomenclator(null)).toBe('autorizado');
   });
 
+  it('unidad del principio activo: el código 3 es «µg» aunque el diccionario diga «l» (ADR-15)', () => {
+    const dic = { unidades: new Map([[3, 'l'], [4, 'mg']]), principiosActivos: new Map([[1, 'LEVOTIROXINA SODICA']]), laboratorios: new Map(), indicaciones: new Map() };
+    const nodo = {
+      cod_nacion: ['999995'],
+      nro_definitivo: ['9999 ESP'],
+      nombre_med: ['MEDICAMENTO DE PRUEBA 400 microgramos COMPRIMIDOS'],
+      formafarmaceutica: [{ principiosactivos: [{ cod_principio_activo: ['1'], cantidad: ['400'], cod_unidad_cantidad: ['3'] }, { cod_principio_activo: ['1'], cantidad: ['5'], cod_unidad_cantidad: ['4'] }] }],
+    };
+    const r = registroDesdeNomenclator(nodo as never, dic as never, new Date());
+    expect(r.ok && r.registro.principiosActivos?.map((p) => p.unidadRaw)).toEqual(['µg', 'mg']);
+  });
+
   it('conversión de tiempos de espera a días (conservadora)', () => {
     expect(diasEspera('28', 'Días')).toBe(28);
     expect(diasEspera('36', 'Horas')).toBe(2);
