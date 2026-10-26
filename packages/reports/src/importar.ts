@@ -95,7 +95,7 @@ const COL_SALIDAS: Record<string, string[]> = {
   numeroReceta: ['n receta', 'numero receta', 'numero de receta'],
   veterinario: ['veterinario'],
   numColegiado: ['n colegiado', 'numero de colegiado'],
-  clinica: ['nombre clinica', 'clinica'],
+  clinica: ['nombre clinica', 'clinica', 'centro veterinario', 'nombre centro veterinario', 'clinica veterinaria', 'nombre de la clinica'],
   direccionVeterinario: ['direccion veterinario'],
   propNombre: ['nombre propietario', 'propietario', 'titular'],
   propMovil: ['movil', 'telefono'],
