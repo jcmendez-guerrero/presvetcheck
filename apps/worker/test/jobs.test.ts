@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import ExcelJS from 'exceljs';
 import { eq, sql } from 'drizzle-orm';
 import { CimavetClient, CimavetRepository } from '@mmx/cimavet';
-import { ColumnCipher, procedimientoAprobado, discrepancia, dispensacion, distribuidor, entradaImportada, importacion, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
+import { ColumnCipher, salidaImportada, procedimientoAprobado, discrepancia, dispensacion, distribuidor, entradaImportada, importacion, propietario, receta, recetaImagen, recetaLinea, recepcion, recepcionLinea, reportRun, auditEvent, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { fixedClock } from '@mmx/domain';
 import { ConsoleMailer, MemoryBlobStore, semanaAnterior } from '@mmx/reports';
@@ -52,7 +52,7 @@ afterAll(async () => {
 
 describe('worker', () => {
   it('parsea argumentos y expone todos los jobs de AGENTS.md', () => {
-    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'db-migrate', 'nomenclator-import', 'outbox-dispatcher', 'procedimiento-cargar', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
+    expect(Object.keys(JOBS).sort()).toEqual(['cimavet-delta', 'cimavet-full', 'db-migrate', 'importaciones-corregir', 'nomenclator-import', 'outbox-dispatcher', 'procedimiento-cargar', 'retention-sweep', 'sales-reconciliation', 'weekly-reports']);
     expect(parsearArgs(['weekly-reports', '--', '--desde', '2026-10-01', '--muestra'])).toEqual({ job: 'weekly-reports', args: { desde: '2026-10-01', muestra: '' } });
   });
 
@@ -181,4 +181,31 @@ describe('worker', () => {
     const r = (await JOBS['nomenclator-import']!(ctx, { muestra: '' })) as { leidos: number };
     expect(r.leidos).toBe(REGISTROS_MUESTRA);
   }, 120_000);
+
+  it('importaciones-corregir: sin --aplicar solo informa; con --aplicar crea la corregida con CIMAVet y anula la original', async () => {
+    await JOBS['nomenclator-import']!(ctx, { muestra: '' });
+    const [imp] = await h.db.insert(importacion).values({ tipo: 'salidas', fichero: 'antiguo.csv', sha256: 'x-corregir', filas: 2, creadaPor: 'dev-veterinaria' }).returning();
+    const enc = ctx.cipher.encrypt('Titular de prueba');
+    await h.db.insert(salidaImportada).values([
+      { importacionId: imp!.id, fila: 2, fecha: '2025-02-05', plantilla: 'A', nombreFarmaco: 'clavubay 400', principioActivo: 'amoxicilina', forma: 'comp', cn: '570016', lote: 'L1', unidades: 1, clinica: 'Clínica de prueba', propietarioNombreEnc: enc },
+      { importacionId: imp!.id, fila: 3, fecha: '2025-02-06', plantilla: 'B', nombreFarmaco: 'Sin código', cn: null, lote: 'L2', unidades: 1 },
+    ]);
+    const prueba = (await JOBS['importaciones-corregir']!(ctx, { importacion: imp!.id })) as { aplicado: boolean; importaciones: { cambios: Record<string, number>; sinCn: number; corregida: string | null }[] };
+    expect(prueba.aplicado).toBe(false);
+    expect(prueba.importaciones[0]).toMatchObject({ cambios: { nombre: 1, principioActivo: 1, forma: 1 }, sinCn: 1, corregida: null });
+    expect((await h.db.select().from(importacion).where(eq(importacion.id, imp!.id)))[0]!.anuladaAt).toBeNull();
+
+    const r = (await JOBS['importaciones-corregir']!(ctx, { importacion: imp!.id, aplicar: '' })) as typeof prueba;
+    const nueva = r.importaciones[0]!.corregida!;
+    expect((await h.db.select().from(importacion).where(eq(importacion.id, imp!.id)))[0]!.motivoAnulacion).toContain(nueva);
+    const filas = await h.db.select().from(salidaImportada).where(eq(salidaImportada.importacionId, nueva));
+    const f2 = filas.find((f) => f.fila === 2)!;
+    expect(f2).toMatchObject({ forma: 'COMPRIMIDO', clinica: 'Clínica de prueba', lote: 'L1' });
+    expect(f2.nombreFarmaco).toMatch(/^CLAVUBAY/);
+    expect(f2.principioActivo).toMatch(/amoxicilina trihidrato/);
+    expect(ctx.cipher.decrypt(f2.propietarioNombreEnc)).toBe('Titular de prueba');
+    expect(filas.find((f) => f.fila === 3)).toMatchObject({ nombreFarmaco: 'Sin código', cn: null });
+    // La original sigue guardada (no se borra ni se modifica).
+    expect(await h.db.select().from(salidaImportada).where(eq(salidaImportada.importacionId, imp!.id))).toHaveLength(2);
+  });
 });
