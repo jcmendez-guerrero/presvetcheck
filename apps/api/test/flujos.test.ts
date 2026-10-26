@@ -426,6 +426,10 @@ describe('recepción de mercancía (SPEC §4.9)', () => {
     await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { tipo: 'producto', nombre: 'Collar antiparasitario', unidades: 2 });
     const fin = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/finalizar`);
     expect(fin.json).toMatchObject({ escrituraDesactivada: true });
+    // El registro de entradas solo lleva medicamentos: el collar (otro producto) no aparece.
+    const reg = (await api(E.app, 'dev-empleado', 'GET', '/api/registros/entradas?desde=2026-10-01&hasta=2026-10-31')).json.tablas[0];
+    expect(JSON.stringify(reg.filas)).not.toContain('Collar antiparasitario');
+    expect(JSON.stringify(reg.filas)).toContain('E1');
     expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, { cn: '570016', lote: 'X' })).json.error.code).toBe('RECEPCION_NO_EDITABLE');
   });
 
