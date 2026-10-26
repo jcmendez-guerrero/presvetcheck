@@ -110,12 +110,8 @@ export async function rutasRegistros(app: App, d: AppDeps) {
       },
     },
     async (req, reply) => {
-      const t = tablaTodasSalidas(
-        await reg.salidas(req.query.desde, req.query.hasta, {
-          incluirPropietario: false,
-          dniCompleto: false,
-        }),
-      );
+      const incluirPropietario = req.query.incluirPropietario === '1';
+      const t = tablaTodasSalidas(await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario, dniCompleto: false }), { incluirPropietario });
       const base = `todas-las-salidas-${req.query.desde}_${req.query.hasta}`;
       if (req.query.formato === 'csv')
         return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(t));
@@ -135,10 +131,8 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     },
     async (req, reply) => {
       const entradas = await reg.entradas(req.query.desde, req.query.hasta);
-      const salidas = await reg.salidas(req.query.desde, req.query.hasta, {
-        incluirPropietario: false,
-        dniCompleto: false,
-      });
+      const incluirPropietario = req.query.incluirPropietario === '1';
+      const salidas = await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario, dniCompleto: false });
       const base = `entradas-y-salidas-${req.query.desde}_${req.query.hasta}`;
       // Un mismo documento con las entradas y las salidas en hojas distintas (no mezcladas).
       if (req.query.formato === 'xlsx')
@@ -146,7 +140,7 @@ export async function rutasRegistros(app: App, d: AppDeps) {
           reply,
           `${base}.xlsx`,
           XLSX,
-          await aXlsx([tablaEntradas(entradas), tablaTodasSalidas(salidas)]),
+          await aXlsx([tablaEntradas(entradas), tablaTodasSalidas(salidas, { incluirPropietario })]),
         );
       if (req.query.formato === 'csv')
         throw new DomainError(

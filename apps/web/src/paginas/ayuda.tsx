@@ -317,7 +317,8 @@ const SECCIONES: Seccion[] = [
         />
         <P>
           Los informes se descargan y se envían después (por ahora la app no los manda por correo). Solo
-          incluyen medicamentos.
+          incluyen medicamentos. Los datos del propietario (nombre, móvil, DNI enmascarado y dirección) solo
+          salen si marcas «Incluir datos del propietario»; vale para todas las exportaciones de salidas.
         </P>
       </>
     ),
