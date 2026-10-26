@@ -637,6 +637,12 @@ describe('distribuidor en texto libre, titular con DNI y dirección, informes de
     const todas = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}`)).json.tablas[0];
     expect(todas.columnas[1]).toBe('TIPO DE SALIDA');
     expect(new Set(todas.filas.map((f: string[]) => f[1]))).toContain('Con receta');
+    // Sin pedirlo, sin datos del propietario; marcándolo, al final y con el DNI enmascarado.
+    expect(todas.columnas).not.toContain('NOMBRE PROPIETARIO');
+    const conProp = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}&incluirPropietario=1`)).json.tablas[0];
+    expect(conProp.columnas.slice(-4)).toEqual(['NOMBRE PROPIETARIO', 'MÓVIL', 'DNI', 'DIRECCIÓN']);
+    expect(conProp.filas.some((f: string[]) => f.at(-4))).toBe(true);
+    expect(conProp.filas.every((f: string[]) => !f.at(-2) || /\*/.test(f.at(-2)!))).toBe(true);
     const mov = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/movimientos?${q}`)).json.tablas[0];
     const tipos = mov.filas.map((f: string[]) => f[1]);
     expect(tipos).toContain('Entrada');

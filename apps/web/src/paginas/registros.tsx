@@ -68,7 +68,7 @@ export function Registros() {
               checked={f.incluirPropietario}
               onChange={(e) => setF({ ...f, incluirPropietario: e.target.checked })}
             />
-            Incluir datos del propietario
+            Incluir datos del propietario (en todas las exportaciones de salidas; DNI enmascarado)
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
@@ -101,7 +101,8 @@ export function Registros() {
       </Tarjeta>
       <Tarjeta titulo="Informes de conjunto">
         <p className="mb-3 text-sm text-slate-700">
-          Para el periodo elegido arriba. Sin datos del propietario.
+          Para el periodo elegido arriba. Llevan los datos del propietario si marcas «Incluir datos del
+          propietario».
         </p>
         <div className="flex flex-wrap gap-3">
           <Boton onClick={() => void ver('todas-salidas')}>Todas las salidas</Boton>

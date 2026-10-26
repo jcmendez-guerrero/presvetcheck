@@ -1,10 +1,11 @@
 import { type Entrada } from './entradas';
 import { fechaEs, type Tabla } from './formato';
-import { plantillaDe, type Salida } from './salidas';
+import { COLUMNAS_PROPIETARIO, plantillaDe, type Salida } from './salidas';
 
 /**
  * Informes de conjunto (además de los registros por plantilla): todas las salidas en una sola tabla y todos
- * los movimientos (entradas y salidas) ordenados por fecha. Sin datos del propietario (SPEC §9.2).
+ * los movimientos (entradas y salidas) ordenados por fecha. Los datos del propietario solo se añaden (al final, con el
+ * DNI enmascarado) si se piden expresamente, como en la plantilla A (SPEC §9.2).
  */
 const TIPO_SALIDA = { A: 'Con receta', B: 'Sin receta (presencial)', C: 'Sin receta (online)' } as const;
 const sn = (b: boolean) => (b ? 'S' : 'N');
@@ -35,10 +36,11 @@ export const COLUMNAS_TODAS_SALIDAS = [
 
 const ordenFecha = (a: Date | string, b: Date | string) => new Date(a).getTime() - new Date(b).getTime();
 
-export function tablaTodasSalidas(salidas: Salida[]): Tabla {
+export function tablaTodasSalidas(salidas: Salida[], o: { incluirPropietario?: boolean } = {}): Tabla {
+  const prop = (x: Salida) => (o.incluirPropietario ? [x.propietario?.nombre ?? '', x.propietario?.movil ?? '', x.propietario?.dni ?? '', x.propietario?.direccion ?? ''] : []);
   return {
     nombre: 'Todas las salidas',
-    columnas: [...COLUMNAS_TODAS_SALIDAS],
+    columnas: [...COLUMNAS_TODAS_SALIDAS, ...(o.incluirPropietario ? COLUMNAS_PROPIETARIO : [])],
     filas: [...salidas]
       .sort((a, b) => ordenFecha(a.fechaVenta, b.fechaVenta))
       .map((s) => [
@@ -63,6 +65,7 @@ export function tablaTodasSalidas(salidas: Salida[]): Tabla {
         s.empleado,
         s.registro ?? '',
         s.conciliacion ?? '',
+        ...prop(s),
       ]),
   };
 }
