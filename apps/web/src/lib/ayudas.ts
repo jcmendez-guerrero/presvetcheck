@@ -20,6 +20,7 @@ export const AYUDA = {
   vetTelefono: 'Teléfono de contacto del veterinario o de la clínica.',
   vetCorreo: 'Correo electrónico del veterinario o de la clínica, si figura.',
   vetClinica: 'Nombre de la clínica u hospital veterinario.',
+  vetDireccion: 'Dirección profesional del veterinario prescriptor (la de la clínica que figura en la receta). Va en el registro de salidas.',
   talonario: 'Márcalo si la receta es de un talonario oficial del colegio con numeración que incluye el nº de colegiado.',
   firma: 'Comprueba que la firma es manuscrita en el original. Una fotocopia o una impresión de la firma no vale.',
   titularNombre: 'Nombre y apellidos del propietario o responsable del animal.',

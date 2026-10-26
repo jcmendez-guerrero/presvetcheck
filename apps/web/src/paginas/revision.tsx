@@ -594,6 +594,13 @@ export function DatosRegistro({
           onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, clinica: txt(e.target.value) } }))}
         />
         <Campo
+          etiqueta="Dirección del veterinario o de la clínica"
+          info={AYUDA.vetDireccion}
+          dudoso={dud('receta.veterinarioDireccion')}
+          value={v.direccion ?? ''}
+          onChange={(e) => set((x) => ({ ...x, veterinario: { ...v, direccion: txt(e.target.value) } }))}
+        />
+        <Campo
           etiqueta="Nombre del titular"
           info={AYUDA.titularNombre}
           dudoso={dud('receta.titularNombre')}

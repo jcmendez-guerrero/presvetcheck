@@ -128,6 +128,35 @@ export function titularDesdeTexto(contenido: string): Partial<Record<'titularNom
   return out;
 }
 
+/**
+ * Datos del veterinario leídos del bloque del prescriptor («DATOS DEL PRESCRIPTOR», «PRESCRIPTOR:»), hasta el
+ * bloque del cliente o de la mascota. Solo dentro del bloque: fuera, «Nombre:» o «Dirección:» son ambiguos.
+ */
+const INICIO_PRESCRIPTOR = /(?:^|\n|\s)(?:datos\s+del\s+(?:prescriptor|veterinario)|prescriptor)\s*:?/i;
+const FIN_PRESCRIPTOR = /(?:^|\n|\s)(?:datos\s+del\s+(?:cliente|propietario|titular)|datos\s+de\s+la\s+mascota|cliente|propietario|titular|mascota|paciente|diagn[oó]stico)\s*:?(?=\s|$)/i;
+const ETIQUETAS_PRESCRIPTOR = `nombre|n[º°o]\\.?\\s*col\\w*|direcci[oó]n|domicilio|c\\.?\\s?p|c[oó]digo postal|poblaci[oó]n|localidad|provincia|tel[eé]fono|tlf|m[oó]vil|e-?mail|correo`;
+
+export function prescriptorDesdeTexto(contenido: string): Partial<Record<'veterinarioNombre' | 'veterinarioDireccion' | 'veterinarioTelefono' | 'veterinarioEmail', string>> {
+  const ini = INICIO_PRESCRIPTOR.exec(contenido);
+  if (!ini) return {};
+  const resto = contenido.slice(ini.index + ini[0].length);
+  const fin = FIN_PRESCRIPTOR.exec(resto);
+  const bloque = (fin ? resto.slice(0, fin.index) : resto.slice(0, 400)).replace(/\n/g, ' ');
+  const valor = (etiqueta: string) =>
+    limpiarValor(new RegExp(`(?:^|\\s)(?:${etiqueta})\\s*\\.?\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_PRESCRIPTOR})\\s*\\.?\\s*:|$)`, 'i').exec(bloque)?.[1] ?? null);
+  const out: Partial<Record<'veterinarioNombre' | 'veterinarioDireccion' | 'veterinarioTelefono' | 'veterinarioEmail', string>> = {};
+  const nombre = valor('nombre');
+  if (nombre) out.veterinarioNombre = nombre;
+  const cp = valor('c\\.?\\s?p|c[oó]digo postal');
+  const dir = [valor('direcci[oó]n|domicilio'), [cp, valor('poblaci[oó]n|localidad')].filter(Boolean).join(' '), valor('provincia')].filter(Boolean).join(', ');
+  if (dir) out.veterinarioDireccion = dir;
+  const tel = valor('tel[eé]fono|tlf|m[oó]vil');
+  if (tel && /\d{9}/.test(tel.replace(/\s/g, ''))) out.veterinarioTelefono = tel;
+  const email = valor('e-?mail|correo');
+  if (email && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) out.veterinarioEmail = email.toLowerCase();
+  return out;
+}
+
 const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\s*\.?\s*:?\s*(\d{6})/i;
 const RE_COLEGIADO = /n[º°o.]?\s*(?:de\s+)?colegiado\s*:?\s*(\d{3,})/i;
 
@@ -205,6 +234,12 @@ export function camposDesdeLayout(
   }
   // Titular: solo dentro de su bloque («CLIENTE:», «PROPIETARIO:», «TITULAR:»), donde «Nombre:» no es ambiguo.
   for (const [nombre, texto] of Object.entries(titularDesdeTexto(contenido))) {
+    if (receta[nombre] || !texto) continue;
+    const c = campo(nombre, texto, CONF_TITULAR, null, []);
+    if (c) receta[nombre] = c;
+  }
+  // Veterinario: dirección, teléfono y correo de su bloque (con confianza baja, como el titular).
+  for (const [nombre, texto] of Object.entries(prescriptorDesdeTexto(contenido))) {
     if (receta[nombre] || !texto) continue;
     const c = campo(nombre, texto, CONF_TITULAR, null, []);
     if (c) receta[nombre] = c;

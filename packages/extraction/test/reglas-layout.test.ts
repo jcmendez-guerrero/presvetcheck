@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { camposDesdeLayout, titularDesdeTexto, destinoDeEtiqueta, limpiarValor, separarEtiqueta } from '../src/azure/reglas-layout';
+import { camposDesdeLayout, prescriptorDesdeTexto, titularDesdeTexto, destinoDeEtiqueta, limpiarValor, separarEtiqueta } from '../src/azure/reglas-layout';
 
 const region = [{ pageNumber: 1, polygon: [0, 0, 1, 0, 1, 1, 0, 1] }];
 const kv = (key: string, value: string | null, confidence = 0.99) => ({ key: { content: key }, ...(value === null ? {} : { value: { content: value, boundingRegions: region } }), confidence });
@@ -118,5 +118,23 @@ describe('titular: solo dentro de su bloque', () => {
     expect(m.receta.titularNombre).toMatchObject({ valor: 'ANA PRUEBA' });
     expect(m.receta.titularNombre!.confianza).toBeLessThan(0.85);
     expect(m.receta.titularTelefono?.valor).toBe('600000000');
+  });
+
+  it('datos del veterinario de su bloque («DATOS DEL PRESCRIPTOR»), incluida la dirección', () => {
+    const texto =
+      'Receta nº 99 Fecha: 13/10/2026\nDATOS DEL PRESCRIPTOR\nNombre: VETERINARIA DE PRUEBA Nº Col: 2800000\nDirección: CALLE FALSA, 1 LOCAL 2\nCP: 28000 Población: MADRID Provincia: MADRID\nTeléfono: 910000000 / 600 00 00 00 Email: CONSULTA@CLINICA-PRUEBA.ES\nDATOS DEL CLIENTE\nNombre: TITULAR DE PRUEBA\nDirección: OTRA CALLE 5';
+    expect(prescriptorDesdeTexto(texto)).toEqual({
+      veterinarioNombre: 'VETERINARIA DE PRUEBA',
+      veterinarioDireccion: 'CALLE FALSA, 1 LOCAL 2, 28000 MADRID, MADRID',
+      veterinarioTelefono: '910000000 / 600 00 00 00',
+      veterinarioEmail: 'consulta@clinica-prueba.es',
+    });
+    const m = camposDesdeLayout({ content: texto }, 1, []);
+    expect(m.receta.veterinarioDireccion?.valor).toBe('CALLE FALSA, 1 LOCAL 2, 28000 MADRID, MADRID');
+    expect(m.receta.veterinarioDireccion!.confianza).toBeLessThan(0.85);
+  });
+
+  it('sin bloque del prescriptor no se toma ninguna dirección como del veterinario', () => {
+    expect(prescriptorDesdeTexto('CLIENTE: Nombre: ANA\nDirección: C/ FALSA 1')).toEqual({});
   });
 });

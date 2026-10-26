@@ -170,7 +170,15 @@ export class RegistrosService {
       .from(recepcionLinea)
       .innerJoin(recepcion, eq(recepcion.id, recepcionLinea.recepcionId))
       .innerJoin(distribuidor, eq(distribuidor.id, recepcion.distribuidorId))
-      .where(and(gte(recepcion.fechaCompra, desde), sql`${recepcion.fechaCompra} <= ${hasta}`, inArray(recepcion.estado, ['FINALIZADA', 'SINCRONIZADA', 'ERROR_SINCRONIZACION'])))
+      // Solo medicamentos: el registro de entradas es obligatorio para ellos; los demás productos no van (SPEC §4.9).
+      .where(
+        and(
+          gte(recepcion.fechaCompra, desde),
+          sql`${recepcion.fechaCompra} <= ${hasta}`,
+          inArray(recepcion.estado, ['FINALIZADA', 'SINCRONIZADA', 'ERROR_SINCRONIZACION']),
+          eq(recepcionLinea.tipo, 'medicamento'),
+        ),
+      )
       .orderBy(asc(recepcion.fechaCompra), asc(recepcionLinea.numero));
     const propias: Entrada[] = filas.map(({ l, r, dist }) => ({
       recepcionId: r.id,
