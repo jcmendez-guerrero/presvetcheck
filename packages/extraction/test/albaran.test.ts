@@ -43,3 +43,42 @@ describe('importes y caducidades escritos en el documento', () => {
     ['', null],
   ])('caducidad %s → %s', (t, v) => expect(caducidadDeTexto(t)).toBe(v));
 });
+
+describe('lote y caducidad en columnas de la tabla del albarán', () => {
+  // Estructura de `tables` igual que en la respuesta real (fixtures/albaranes/sintetico-1.invoice.json); valores ficticios.
+  const celda = (rowIndex: number, columnIndex: number, content: string, kind?: string) => ({ rowIndex, columnIndex, content, ...(kind ? { kind } : {}) });
+  const r = {
+    content: 'ALBARAN 77\nCodigo Descripcion Lote F. Cad. Cant.\n570016 CLAVUBAY 400/100 MG 10 COMP CLV-9 31/05/2028 2\n',
+    tables: [
+      {
+        rowCount: 2,
+        columnCount: 5,
+        cells: [
+          celda(0, 0, 'Código', 'columnHeader'),
+          celda(0, 1, 'Descripción', 'columnHeader'),
+          celda(0, 2, 'Lote', 'columnHeader'),
+          celda(0, 3, 'F. Cad.', 'columnHeader'),
+          celda(0, 4, 'Cant.', 'columnHeader'),
+          celda(1, 0, '570016'),
+          celda(1, 1, 'CLAVUBAY 400/100 MG 10 COMP'),
+          celda(1, 2, 'CLV-9'),
+          celda(1, 3, '05/2028'),
+          celda(1, 4, '2'),
+        ],
+      },
+    ],
+    documents: [
+      {
+        fields: {
+          InvoiceId: { valueString: '77' },
+          Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016' }, Description: { valueString: 'CLAVUBAY 400/100 MG 10 COMP' }, Quantity: { valueNumber: 2 } } }] },
+        },
+      },
+    ],
+  } as unknown as AnalyzeResult;
+
+  it('toma lote y caducidad de las columnas («Lote», «F. Cad.») emparejando la fila por el código', () => {
+    const l = albaranDesdeFactura(r).lineas[0]!;
+    expect(l).toMatchObject({ cn: '570016', lote: 'CLV-9', caducidad: '2028-05-31', cantidad: 2 });
+  });
+});

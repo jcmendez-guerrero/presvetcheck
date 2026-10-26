@@ -111,6 +111,32 @@ export async function rutasOperativa(app: App, d: AppDeps) {
     },
     async () => rec.proveedores(),
   );
+  const MIMES_ALBARAN = ['image/png', 'image/jpeg', 'image/heic', 'image/webp', 'application/pdf'];
+  app.post(
+    '/api/recepciones/albaranes',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Lee el albarán o la factura antes de crear la recepción: número, proveedor, fecha, líneas y posibles duplicados',
+        consumes: ['multipart/form-data'],
+      },
+    },
+    async (req, reply) => {
+      const f = await req.file();
+      if (!f) throw new DomainError('VALIDACION', 'Adjunta el albarán o la factura (foto o PDF)');
+      if (!MIMES_ALBARAN.includes(f.mimetype)) throw new DomainError('VALIDACION', `Tipo de fichero no admitido: ${f.mimetype}`);
+      return reply.status(201).send(await rec.leerAlbaran({ bytes: new Uint8Array(await f.toBuffer()), mime: f.mimetype }, ctx(req)));
+    },
+  );
+  app.get(
+    '/api/recepciones/:id/documento',
+    { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Foto o PDF del albarán de la recepción', params: IdParam } },
+    async (req, reply) => {
+      const b = await rec.documento(req.params.id);
+      return reply.header('Content-Type', b.mime).header('Cache-Control', 'private, max-age=300').send(Buffer.from(b.bytes));
+    },
+  );
   app.get('/api/recepciones', { preHandler: pre, schema: { tags: ['recepciones'] } }, async () =>
     rec.listar(),
   );
