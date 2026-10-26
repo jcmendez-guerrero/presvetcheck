@@ -18,12 +18,17 @@ import { PaginaPendientes } from './paginas/pendientes';
 import { Registros } from './paginas/registros';
 import { Admin } from './paginas/admin';
 import { PaginaMovil } from './paginas/movil';
+import { Ayuda } from './paginas/ayuda';
 
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
 const r1 = createRoute({ getParentRoute: () => raiz, path: '/recetas/nueva', component: NuevaReceta });
 const r2 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/revision', component: Revision });
-const rRegistro = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/registro', component: Registro });
+const rRegistro = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recetas/$id/registro',
+  component: Registro,
+});
 const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resultado', component: Resultado });
 const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
 const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
@@ -31,18 +36,28 @@ const r6 = createRoute({ getParentRoute: () => raiz, path: '/recepciones/$id', c
 const r7 = createRoute({ getParentRoute: () => raiz, path: '/pendientes', component: PaginaPendientes });
 const r8 = createRoute({ getParentRoute: () => raiz, path: '/registros', component: Registros });
 const r9 = createRoute({ getParentRoute: () => raiz, path: '/admin', component: Admin });
+const rAyuda = createRoute({ getParentRoute: () => raiz, path: '/ayuda', component: Ayuda });
 const rDisp = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/dispensar/$linea',
   component: Dispensacion,
-  validateSearch: (s: Record<string, unknown>): { pendientes?: string; forzado?: string; sustitucion?: string } => ({
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { pendientes?: string; forzado?: string; sustitucion?: string } => ({
     ...(typeof s.pendientes === 'string' ? { pendientes: s.pendientes } : {}),
     ...(s.forzado ? { forzado: String(s.forzado) } : {}),
     ...(typeof s.sustitucion === 'string' ? { sustitucion: s.sustitucion } : {}),
   }),
 });
-const rVenta = createRoute({ getParentRoute: () => raiz, path: '/venta', component: Venta, validateSearch: (s: Record<string, unknown>) => ({ canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const) }) });
-const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta];
+const rVenta = createRoute({
+  getParentRoute: () => raiz,
+  path: '/venta',
+  component: Venta,
+  validateSearch: (s: Record<string, unknown>) => ({
+    canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const),
+  }),
+});
+const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
   interface Register {

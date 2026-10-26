@@ -11,6 +11,7 @@ const NAV = [
   { a: '/pendientes', t: 'Pendientes', roles: ['empleado', 'veterinaria_responsable'] },
   { a: '/registros', t: 'Registros', roles: ['empleado', 'veterinaria_responsable', 'admin'] },
   { a: '/admin', t: 'Administración', roles: ['admin'] },
+  { a: '/ayuda', t: 'Ayuda', roles: null },
 ] as const;
 
 export function Layout() {
