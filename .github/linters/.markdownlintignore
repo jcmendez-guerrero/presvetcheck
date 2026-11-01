@@ -1,0 +1,8 @@
+**/.github/agents/**/*.md
+**/.github/instructions/**/*.md
+**/.github/skills/**/*.md
+**/.github/linters/**/*.md
+**/CHANGELOG.md
+**/.specify/**
+**/.github/copilot-instructions.md
+**/.github/workflows/common-workflow.yml
