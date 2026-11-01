@@ -81,23 +81,23 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 
 ### Tests for User Story 2 (escribir primero; los patológicos deben fallar o tardar antes de corregir)
 
-- [ ] T017 [P] [US2] PR2 · Añadir casos patológicos para `nombreComercial` (`packages/domain/src/formato.ts`) y `parseCantidadTexto` (`packages/domain/src/unidades.ts`) en `packages/domain/test/unidades-formato.test.ts`
-- [ ] T018 [P] [US2] PR2 · Añadir casos patológicos para `extraerCn` con `anclado` `true` y `false` (`packages/domain/src/sku.ts`, `CN_AL_FINAL` y `CN_EN_NOMBRE`) en `packages/domain/test/varios.test.ts`
-- [ ] T019 [P] [US2] PR2 · Añadir casos patológicos para `parseGs1` (`packages/gs1/src/index.ts`, recorte de `\r\n` final) en `packages/gs1/test/gs1.test.ts`, p. ej. `'\r\n'.repeat(5e4) + 'x'`
-- [ ] T020 [P] [US2] PR2 · Añadir casos patológicos para `plazo` (`packages/extraction/src/borrador.ts`) en `packages/extraction/test/extraction.test.ts`
-- [ ] T021 [P] [US2] PR2 · Añadir casos patológicos para el respaldo por texto de `RE_CN` y `RE_COLEGIADO` (`packages/extraction/src/azure/reglas-layout.ts`, líneas ~160–161, usadas en ~201 y ~247) en `packages/extraction/test/reglas-layout.test.ts`
+- [X] T017 [P] [US2] PR2 · Añadir casos patológicos para `nombreComercial` (`packages/domain/src/formato.ts`) y `parseCantidadTexto` (`packages/domain/src/unidades.ts`) en `packages/domain/test/unidades-formato.test.ts`
+- [X] T018 [P] [US2] PR2 · Añadir casos patológicos para `extraerCn` con `anclado` `true` y `false` (`packages/domain/src/sku.ts`, `CN_AL_FINAL` y `CN_EN_NOMBRE`) en `packages/domain/test/varios.test.ts`
+- [X] T019 [P] [US2] PR2 · Añadir casos patológicos para `parseGs1` (`packages/gs1/src/index.ts`, recorte de `\r\n` final) en `packages/gs1/test/gs1.test.ts`, p. ej. `'\r\n'.repeat(5e4) + 'x'`
+- [X] T020 [P] [US2] PR2 · Añadir casos patológicos para `plazo` (`packages/extraction/src/borrador.ts`) en `packages/extraction/test/extraction.test.ts`
+- [X] T021 [P] [US2] PR2 · Añadir casos patológicos para el respaldo por texto de `RE_CN` y `RE_COLEGIADO` (`packages/extraction/src/azure/reglas-layout.ts`, líneas ~160–161, usadas en ~201 y ~247) en `packages/extraction/test/reglas-layout.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T022 [P] [US2] PR2 · Reescribir la división de `nombreComercial` en `packages/domain/src/formato.ts:18` (`/(?:^|\s+)\d|,/`) para que sea lineal (p. ej. recorrido que busca el primer dígito precedido de espacio o inicio, o la primera coma), con el mismo resultado en todos los casos de `unidades-formato.test.ts`
-- [ ] T023 [P] [US2] PR2 · Reescribir `CN_AL_FINAL` y `CN_EN_NOMBRE` en `packages/domain/src/sku.ts` sin `\s*`/`[\s.:#-]*` solapados con los tokens vecinos (p. ej. una sola clase separadora acotada `{0,5}` o comprobación manual tras `lastIndexOf`), manteniendo `extraerCn` y `varianteCoincideCn`
-- [ ] T024 [P] [US2] PR2 · Reescribir la expresión de `parseCantidadTexto` en `packages/domain/src/unidades.ts:58` (`/^\s*(\d+(?:[.,]\d+)?)\s*([^\d\s].*?)\s*$/`) haciendo `trim()` primero y separando número y unidad sin `.*?\s*$`
-- [ ] T025 [P] [US2] PR2 · Sustituir `raw.replace(/[\r\n]+$/g, '')` en `packages/gs1/src/index.ts:116` por un recorte desde el final con bucle sobre los códigos de `\r` y `\n`
-- [ ] T026 [P] [US2] PR2 · Reescribir la expresión de `plazo` en `packages/extraction/src/borrador.ts:43` (`/(\d+)\s*(d[ií]as?|mes(?:es)?)/i`) para que no reintente desde cada dígito de una serie larga (p. ej. limitar `\s{0,3}` y `\d{1,4}`, o buscar primero la palabra y leer el número anterior)
-- [ ] T027 [P] [US2] PR2 · Reescribir `RE_CN` y `RE_COLEGIADO` en `packages/extraction/src/azure/reglas-layout.ts` acotando los separadores (`\s{0,3}`, `\.?` único) para que el coste sea lineal sobre el contenido completo del documento
-- [ ] T028 [US2] PR2 · Ejecutar `pnpm --filter @mmx/domain --filter @mmx/gs1 --filter @mmx/extraction test` y la cobertura del dominio (≥ 90 % líneas y ramas, FR-009); ningún valor esperado preexistente puede cambiar (FR-007); commit `fix(seguridad): expresiones regulares de coste lineal (CodeQL js/polynomial-redos)`
-- [ ] T029 [US2] PR2 · Revisión ampliada (FR-006a): listar todas las expresiones de `packages/domain/src`, `packages/gs1/src`, `packages/extraction/src`, `packages/cimavet/src` y `packages/siweb/src` (`grep -rnE "new RegExp|/[^/]+/[gimsuy]*\.(exec|test)|\.match\(|\.replace\(/|\.split\(/"`, ~112 sitios) y clasificar cada una: recibe texto externo (sí/no) y tiene cuantificadores que pueden casar los mismos caracteres (sí/no); guardar la tabla en el directorio temporal para la descripción del PR
-- [ ] T030 [US2] PR2 · Corregir cada expresión clasificada como vulnerable en T029 en su fichero de `src/`, con su caso patológico en el `test/` del mismo paquete (mismos criterios que T017–T027); commit `fix(seguridad): expresiones regulares adicionales de la revisión`
+- [X] T022 [P] [US2] PR2 · Reescribir la división de `nombreComercial` en `packages/domain/src/formato.ts:18` (`/(?:^|\s+)\d|,/`) para que sea lineal (p. ej. recorrido que busca el primer dígito precedido de espacio o inicio, o la primera coma), con el mismo resultado en todos los casos de `unidades-formato.test.ts`
+- [X] T023 [P] [US2] PR2 · Reescribir `CN_AL_FINAL` y `CN_EN_NOMBRE` en `packages/domain/src/sku.ts` sin `\s*`/`[\s.:#-]*` solapados con los tokens vecinos (p. ej. una sola clase separadora acotada `{0,5}` o comprobación manual tras `lastIndexOf`), manteniendo `extraerCn` y `varianteCoincideCn`
+- [X] T024 [P] [US2] PR2 · Reescribir la expresión de `parseCantidadTexto` en `packages/domain/src/unidades.ts:58` (`/^\s*(\d+(?:[.,]\d+)?)\s*([^\d\s].*?)\s*$/`) haciendo `trim()` primero y separando número y unidad sin `.*?\s*$`
+- [X] T025 [P] [US2] PR2 · Sustituir `raw.replace(/[\r\n]+$/g, '')` en `packages/gs1/src/index.ts:116` por un recorte desde el final con bucle sobre los códigos de `\r` y `\n`
+- [X] T026 [P] [US2] PR2 · Reescribir la expresión de `plazo` en `packages/extraction/src/borrador.ts:43` (`/(\d+)\s*(d[ií]as?|mes(?:es)?)/i`) para que no reintente desde cada dígito de una serie larga (p. ej. limitar `\s{0,3}` y `\d{1,4}`, o buscar primero la palabra y leer el número anterior)
+- [X] T027 [P] [US2] PR2 · Reescribir `RE_CN` y `RE_COLEGIADO` en `packages/extraction/src/azure/reglas-layout.ts` acotando los separadores (`\s{0,3}`, `\.?` único) para que el coste sea lineal sobre el contenido completo del documento
+- [X] T028 [US2] PR2 · Ejecutar `pnpm --filter @mmx/domain --filter @mmx/gs1 --filter @mmx/extraction test` y la cobertura del dominio (≥ 90 % líneas y ramas, FR-009); ningún valor esperado preexistente puede cambiar (FR-007); commit `fix(seguridad): expresiones regulares de coste lineal (CodeQL js/polynomial-redos)`
+- [X] T029 [US2] PR2 · Revisión ampliada (FR-006a): listar todas las expresiones de `packages/domain/src`, `packages/gs1/src`, `packages/extraction/src`, `packages/cimavet/src` y `packages/siweb/src` (`grep -rnE "new RegExp|/[^/]+/[gimsuy]*\.(exec|test)|\.match\(|\.replace\(/|\.split\(/"`, ~112 sitios) y clasificar cada una: recibe texto externo (sí/no) y tiene cuantificadores que pueden casar los mismos caracteres (sí/no); guardar la tabla en el directorio temporal para la descripción del PR
+- [X] T030 [US2] PR2 · Corregir cada expresión clasificada como vulnerable en T029 en su fichero de `src/`, con su caso patológico en el `test/` del mismo paquete (mismos criterios que T017–T027); commit `fix(seguridad): expresiones regulares adicionales de la revisión`
 - [ ] T031 [US2] PR2 · Abrir PR2 con la tabla de T029 en la descripción, la lista de tablas de casos del dominio afectadas (revisión explícita exigida por la constitución) y `Co-Authored-By`/atribución según las instrucciones del repo
 
 **Checkpoint**: US2 lista; al fusionar, CodeQL debe cerrar las 7 alertas.
@@ -155,9 +155,9 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 
 ### Implementation for User Story 5
 
-- [ ] T047 [P] [US5] PR3 · Crear `.github/dependabot.yml` según `specs/001-fix-github-vulnerabilities/contracts/ci-seguridad.md`: `npm` en `/` semanal con grupos `produccion` (`dependency-type: production`) y `desarrollo` (`development`), `commit-message.prefix` `fix(deps)` / `chore(deps)`; `github-actions` en `/` semanal con prefijo `ci`
-- [ ] T048 [US5] PR3 · Añadir a `.github/workflows/ci.yml` el job `dependencias` (solo `pull_request`, permisos `contents: read` y `pull-requests: write`) con dos pasos `actions/dependency-review-action@v4`: (1) `fail-on-severity: high`, `fail-on-scopes: runtime`; (2) `fail-on-severity: critical`, `fail-on-scopes: development`; ambos con `allow-ghsas` igual a los GHSA de las filas `descarte` vigentes de la ADR 0016 y `comment-summary-in-pr: on-failure`
-- [ ] T049 [US5] PR3 · Ampliar `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` con la política de CI (tabla de casos de `contracts/ci-seguridad.md`) y la regla de que `allow-ghsas` debe coincidir con la tabla de excepciones (FR-013a)
+- [X] T047 [P] [US5] PR3 · Crear `.github/dependabot.yml` según `specs/001-fix-github-vulnerabilities/contracts/ci-seguridad.md`: `npm` en `/` semanal con grupos `produccion` (`dependency-type: production`) y `desarrollo` (`development`), `commit-message.prefix` `fix(deps)` / `chore(deps)`; `github-actions` en `/` semanal con prefijo `ci`
+- [X] T048 [US5] PR3 · Añadir a `.github/workflows/ci.yml` el job `dependencias` (solo `pull_request`, permisos `contents: read` y `pull-requests: write`) con dos pasos `actions/dependency-review-action@v4`: (1) `fail-on-severity: high`, `fail-on-scopes: runtime`; (2) `fail-on-severity: critical`, `fail-on-scopes: development`; ambos con `allow-ghsas` igual a los GHSA de las filas `descarte` vigentes de la ADR 0016 y `comment-summary-in-pr: on-failure`
+- [X] T049 [US5] PR3 · Ampliar `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` con la política de CI (tabla de casos de `contracts/ci-seguridad.md`) y la regla de que `allow-ghsas` debe coincidir con la tabla de excepciones (FR-013a)
 - [ ] T050 [US5] PR3 · Verificar en una rama de prueba (sin fusionar, borrar al terminar): añadir una versión de ejecución con vulnerabilidad alta conocida (p. ej. `nodemailer@9.0.0` en `packages/reports/package.json`) → el job falla; cambiarla por una con vulnerabilidad media → el job pasa con aviso
 - [ ] T051 [US5] PR3 · Commit `ci: Dependabot agrupado y revisión de dependencias en PR`, abrir PR3 e indicar en la descripción el ajuste manual pendiente: marcar `dependencias` como comprobación obligatoria en la protección de `main`
 
@@ -167,7 +167,7 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T052 [P] Actualizar `AGENTS.md` con una referencia breve a la ADR 0016 (cómo añadir o retirar un forzado o un descarte) para mantenerlo coherente con la constitución
+- [X] T052 [P] Actualizar `AGENTS.md` con una referencia breve a la ADR 0016 (cómo añadir o retirar un forzado o un descarte) para mantenerlo coherente con la constitución
 - [ ] T053 Cambiar el estado de la ADR 0016 a «aceptada (fecha)» cuando los 3 PR estén fusionados
 - [ ] T054 Validación final según `specs/001-fix-github-vulnerabilities/quickstart.md`: 0 alertas Dependabot abiertas (descartadas solo con `EXC-NN`), 0 alertas CodeQL abiertas en `main`, `pnpm audit --prod --audit-level high` limpio (SC-001, SC-002)
 
