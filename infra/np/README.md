@@ -40,3 +40,11 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 4. Asignar a cada usuario su rol en la aplicación empresarial `mmx-recetas-np`.
 
 Correo: `MAILER=console` (los reportes se descargan desde la app); SMTP en una segunda fase.
+
+## Asistente de consultas (opcional)
+`ASSISTANT=off` por defecto. No crea recursos ni claves: usa un despliegue de chat de Azure OpenAI o Foundry **ya
+existente en la UE** al que la identidad `azu-umi-presvetcheck-np-01` tiene acceso. Para activarlo, en la fase 2:
+`ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>` (el límite
+mensual de tokens es `asistenteLimiteTokens`, 3.000.000 por defecto). Antes de activarlo: ADR-16 aprobado y el RAT de
+Facilita actualizado (DUDA-29). El aviso del 80 % usa `REPORT_RECIPIENTS`.
+

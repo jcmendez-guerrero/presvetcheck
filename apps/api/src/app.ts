@@ -10,6 +10,7 @@ import type { AppDeps } from './deps';
 import { registrarAuth, type OpcionesAuth } from './plugins/auth';
 import { registrarErrores } from './plugins/errores';
 import { rutasAdmin } from './rutas/admin';
+import { rutasAsistente } from './rutas/asistente';
 import { rutasMedicamentos } from './rutas/medicamentos';
 import { rutasMovil } from './rutas/movil';
 import { rutasOperativa } from './rutas/operativa';
@@ -34,6 +35,10 @@ export const REDACCION = [
   '*.dniRetira',
   '*.movil',
   '*.telefono',
+  '*.pregunta',
+  '*.respuesta',
+  '*.texto',
+  '*.comentario',
   '*.direccion',
   '*.propietario',
   '*.titular',
@@ -82,6 +87,7 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   await rutasAdmin(app, deps);
   await rutasReportes(app, deps);
   await rutasMovil(app, deps);
+  await rutasAsistente(app, deps);
 
   // SPA estática (PWA) en producción: misma app "mmx-api" (SPEC §1.1).
   const web = deps.config.WEB_DIST_DIR;

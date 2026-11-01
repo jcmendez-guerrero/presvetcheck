@@ -38,3 +38,6 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Outbox | Cola de escrituras en Siweb360 con reconciliación manual | `OutboxService` |
 | Contramovimiento | Corrección por fila nueva (nunca `UPDATE`) | `anula_dispensacion_id` |
 | D-xx | Decisión de SPEC §13; las pendientes llevan `TODO(decision D-xx)` | — |
+| Asistente (de consultas) | Chat en español que explica las reglas y el resultado de una receta; solo informa, nunca decide ni autoriza (ADR-16) | `@mmx/assistant`, `ChatOrchestrator` |
+| Simulación | Evaluación de un caso hipotético por el motor de reglas (por ejemplo, «receta del 3 de octubre con antibiótico»); no crea ni modifica ninguna receta | `packages/domain/src/simulacion.ts`, `simular_*` |
+| Fuente de referencia | Documento o regla versionada que el asistente cita y se puede abrir: regla del motor (`regla:`), guía de la receta (`guia:`), Ayuda (`ayuda:`), medicamento de CIMAVet (`cimavet:`) o resultado del motor (`motor:`) | `FuenteCitada` |

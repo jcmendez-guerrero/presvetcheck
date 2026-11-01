@@ -7,3 +7,7 @@ param imagen = readEnvironmentVariable('IMAGEN', '')
 param entraClientId = readEnvironmentVariable('ENTRA_CLIENT_ID', '7c8ffd38-97ae-41aa-8889-96cc27648d72')
 param inicioPresupuesto = '2026-10-01'
 param correosAlertas = ['juanchocol69@gmail.com']
+// Asistente de consultas: off por defecto. Para activarlo: ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>.
+param asistente = readEnvironmentVariable('ASISTENTE', 'off')
+param asistenteEndpoint = readEnvironmentVariable('ASISTENTE_ENDPOINT', '')
+param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', '')

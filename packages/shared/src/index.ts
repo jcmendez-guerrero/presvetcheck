@@ -9,3 +9,6 @@ export * from './schemas/receta';
 export * from './schemas/extraccion';
 export * from './i18n';
 export * from './concurrencia';
+export * from './schemas/asistente';
+export * from './ayuda/preguntas-ejemplo';
+export * from './ayuda/secciones';

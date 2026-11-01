@@ -17,7 +17,8 @@ Sesión de consulta de un empleado.
 | Campo | Tipo | Reglas |
 |---|---|---|
 | `id` | uuid PK | |
-| `usuario_oid` | text → `usuario.entra_oid` | obligatorio; propietario de la conversación |
+| `usuario_oid` | text | obligatorio; propietario de la conversación. Sin FK a `usuario` (solo la *seed* la rellena; el resto de registros guarda el id de Entra como texto) |
+| `usuario_nombre` | text | nombre del empleado al abrirla (para el histórico) |
 | `contexto_tipo` | text | `general` \| `linea` \| `medicamento` |
 | `receta_linea_id` | uuid → `receta_linea.id`, nullable | obligatorio si `contexto_tipo='linea'`. Sin `ON DELETE CASCADE`: la purga a 5 años de recetas exige antes que la conversación (1 año) ya no exista |
 | `nregistro` | text, nullable | si `contexto_tipo='medicamento'` y ya se ha elegido el medicamento |

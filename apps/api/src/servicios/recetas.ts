@@ -58,6 +58,8 @@ function aplanar(o: unknown, prefijo = ''): Record<string, unknown> {
 
 export interface LineaEvaluada {
   orden: number;
+  /** Id de la línea guardada (para preguntar al asistente sobre ella); null si la línea aún no se ha guardado. */
+  lineaId: string | null;
   resultado: ResultadoDecision;
   incidencias: Incidencia[];
   forzado: ForzadoAceptado | null;
@@ -512,6 +514,7 @@ export class RecetasService {
     const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(id);
 
     const resultado: LineaEvaluada[] = [];
+    const idsLinea = new Map((await this.d.db.select({ id: recetaLinea.id, orden: recetaLinea.orden }).from(recetaLinea).where(eq(recetaLinea.recetaId, id))).map((x) => [x.orden, x.id]));
     for (const l of conf.lineas) {
       const ctxL = lineas.find((x) => x.orden === l.orden)!;
       const incs = ev.porLinea[l.orden] ?? [];
@@ -568,6 +571,7 @@ export class RecetasService {
       const soloPA = incs.some((i) => i.code === 'PRESCRIPCION_SOLO_PA');
       resultado.push({
         orden: l.orden,
+        lineaId: idsLinea.get(l.orden) ?? null,
         resultado: res,
         incidencias: incs,
         forzado,

@@ -1,4 +1,5 @@
 import { DemoSalesMovementsSource } from '@mmx/siweb';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { CimavetRepository, jobNomenclatorImport, type RegistroCache } from '@mmx/cimavet';
@@ -8,7 +9,9 @@ import { fixedClock, hoy, type LoteStock } from '@mmx/domain';
 import { FakeRecipeExtractor, crearLectorAlbaranes } from '@mmx/extraction';
 import { loadConfig, normalizeText, type RecetaConfirmadaInput } from '@mmx/shared';
 import { loadRules } from '@mmx/shared/node';
+import { FakeAssistantModel, IndiceFuentes, crearHerramientas, type AssistantModel, type Guion } from '@mmx/assistant';
 import { buildApp } from '../src/app';
+import { ContextoLineaService } from '../src/servicios/asistente-contexto';
 import type { AppDeps } from '../src/deps';
 import { MemoryBlobStore } from '@mmx/reports';
 import type { StockPort } from '../src/puertos/stock';
@@ -88,15 +91,24 @@ async function insertarGenericoClavubay(repo: CimavetRepository) {
   await repo.upsert([reg]);
 }
 
-export async function entorno(o: { config?: Record<string, string>; stock?: Record<string, Partial<LoteStock>[]> } = {}): Promise<Entorno> {
+/** Guiones mínimos del asistente en los tests de API (sin herramientas). */
+export const GUIONES_BASE: Guion[] = [
+  { cuando: /ejemplo/i, rondas: [], final: () => ({ tipo: 'fuera_de_ambito', texto: 'Esto es un ejemplo.', fuentes: [], simulaciones: [], usaContextoLinea: false }) },
+];
+
+export async function entorno(o: { config?: Record<string, string>; stock?: Record<string, Partial<LoteStock>[]>; asistente?: AssistantModel | null } = {}): Promise<Entorno> {
   const h = await bd();
   const config = loadConfig({ NODE_ENV: 'test', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'x', AUTH_MODE: 'dev', ...o.config });
   const stock = new MapStockPort(o.stock ?? { '570016': [{ lote: 'CLV-2611', caducidad: '2026-11-30', disponible: 2 }, { lote: 'CLV-2705', caducidad: '2027-05-31', disponible: 4 }] });
+  const rules = loadRules(resolve(ROOT, 'config/rules'));
+  const indice = new IndiceFuentes(readFileSync(resolve(ROOT, 'docs/ref/guia-receta-veterinaria.md'), 'utf8'));
+  const cipher = new ColumnCipher(Buffer.alloc(32, 3).toString('base64'));
+  const contextoLinea = new ContextoLineaService({ db: h.db, cipher, cimavet: new CimavetRepository(h.db), rules });
   const deps: AppDeps = {
     config,
     db: h.db,
     clock: CLOCK,
-    rules: loadRules(resolve(ROOT, 'config/rules')),
+    rules,
     cimavet: new CimavetRepository(h.db),
     verificarEnVivo: null,
     stock,
@@ -106,9 +118,10 @@ export async function entorno(o: { config?: Record<string, string>; stock?: Reco
     lectorAlbaranes: await crearLectorAlbaranes({ EXTRACTOR: 'fake', DOCINTEL_ENDPOINT: undefined, DOCINTEL_API_VERSION: '2024-11-30' }, { fixturesDir: resolve(ROOT, 'fixtures') }),
     extractor: new FakeRecipeExtractor({ dir: resolve(ROOT, 'fixtures/recetas'), hoy: () => hoy(CLOCK) }),
     blob: new MemoryBlobStore(),
-    cipher: new ColumnCipher(Buffer.alloc(32, 3).toString('base64')),
+    cipher,
     telefonoFarmacia: '900 000 000',
     nombreFarmacia: 'Mundo Mascotix',
+    asistente: { modelo: o.asistente === null ? null : (o.asistente ?? new FakeAssistantModel(GUIONES_BASE)), herramientas: crearHerramientas({ rules: rules.bundle, clock: CLOCK, indice, cimavet: new CimavetRepository(h.db), permitirCambioFormato: config.ALLOW_PACK_SIZE_CHANGE, maxEdadCimavetH: config.CIMAVET_LIVE_CHECK_MAX_AGE_H, cargarContextoLinea: (id) => contextoLinea.cargar(id) }), fuentes: indice, mailer: null, existeLinea: (id) => contextoLinea.existe(id), cargarLinea: (id) => contextoLinea.cargar(id), conocidosLinea: (id) => contextoLinea.conocidos(id) },
   };
   const app = await buildApp({ deps, logger: false });
   return { app, deps, h, stock };

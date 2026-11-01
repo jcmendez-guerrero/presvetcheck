@@ -10,6 +10,7 @@ import { pitido } from '../lib/sonido';
 import { CN, fecha } from '../lib/textos';
 import type { Evaluacion } from '../lib/tipos';
 import { BandaPsicotropo, BandaSustitucion, RecordatorioTpv } from '../componentes/bandas';
+import { BotonPreguntarLinea } from '../componentes/asistente';
 import { CampoEscaneo } from '../componentes/escaner';
 import { TrasDispensar } from '../componentes/tras-dispensar';
 import { ConReceta } from '../componentes/visor-receta';
@@ -352,6 +353,7 @@ export function Dispensacion() {
             )}
           </div>
           <ListaMotivos motivos={l.resultado.motivos.filter((m) => m.severidad === 'AVISO')} />
+          {l.lineaId && <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />}
           <Tarjeta titulo="Lote recomendado (caduca antes)">
             {objetivo.lote ? (
               <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">

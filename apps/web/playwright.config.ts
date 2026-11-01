@@ -15,7 +15,7 @@ export default defineConfig({
       url: 'http://localhost:3101/api/ready',
       timeout: 120_000,
       reuseExistingServer: false,
-      env: { DEV_BOOTSTRAP: '1', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'memory', AUTH_MODE: 'dev', EXTRACTOR: 'fake', PORT: '3101', LOG_LEVEL: 'warn', NODE_ENV: 'development' },
+      env: { DEV_BOOTSTRAP: '1', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'memory', AUTH_MODE: 'dev', EXTRACTOR: 'fake', ASSISTANT: 'fake', PORT: '3101', LOG_LEVEL: 'warn', NODE_ENV: 'development' },
     },
     {
       command: `${NODE} node_modules/vite/bin/vite.js --port 5174 --strictPort`,

@@ -40,4 +40,4 @@
 - Punto a vigilar en la planificación: DUDA-27 retiró Azure OpenAI de código, configuración e infraestructura; esta
   funcionalidad lo reintroduce (o introduce Foundry) y requiere ADR y actualización del RAT.
 - Decisiones tomadas por defecto (revisables con `/speckit-clarify`): disponible para todos los roles; retención de
-  conversaciones de 5 años; el asistente es solo informativo; los cálculos siempre del motor.
+  conversaciones de 1 año (aclaración Q2); el asistente es solo informativo; los cálculos siempre del motor.
