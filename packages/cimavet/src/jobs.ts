@@ -20,13 +20,21 @@ export async function refrescarDesdeApi(deps: DepsCimavet, nregistro: string): P
   const now = (deps.now ?? (() => new Date()))();
   const med = await deps.client.medicamento({ nregistro });
   if (!med) return false;
-  const pres = med.data.presentaciones?.length ? undefined : (await deps.client.presentaciones({ nregistro })).map((p) => p.data);
+  const pres = med.data.presentaciones?.length
+    ? undefined
+    : (await deps.client.presentaciones({ nregistro })).map((p) => p.data);
   await deps.repo.upsert([registroDesdeApi(med.data, med.raw, now, pres)]);
   if (med.data.notas) {
     const notas = await deps.client.notas(nregistro);
     await deps.repo.guardarNotas(
       nregistro,
-      notas.map((n) => ({ num: n.data.num, ref: n.data.ref ?? null, asunto: n.data.asunto ?? null, fecha: fechaCimavet(n.data.fecha), url: n.data.url ?? null })),
+      notas.map((n) => ({
+        num: n.data.num,
+        ref: n.data.ref ?? null,
+        asunto: n.data.asunto ?? null,
+        fecha: fechaCimavet(n.data.fecha),
+        url: n.data.url ?? null,
+      })),
     );
   }
   return true;
@@ -60,7 +68,12 @@ export async function jobCimavetDelta(deps: DepsCimavet) {
         deps.log?.('cimavet-delta: error en un medicamento', { nregistro, error: (e as Error).message });
       }
     }
-    await deps.repo.finalizarSync(runId, now(), contadores, contadores.errores ? `${contadores.errores} errores` : null);
+    await deps.repo.finalizarSync(
+      runId,
+      now(),
+      contadores,
+      contadores.errores ? `${contadores.errores} errores` : null,
+    );
     return contadores;
   } catch (e) {
     await deps.repo.finalizarSync(runId, now(), contadores, (e as Error).message);
@@ -88,7 +101,11 @@ export async function jobCimavetFull(deps: DepsCimavet & { nomenclatorPath?: str
         contadores.maestras += await deps.repo.upsertMaestras(
           maestra,
           items
-            .map((i) => ({ id: idNum(i.data.id), codigo: i.data.codigo ?? null, nombre: i.data.nombre ?? '' }))
+            .map((i) => ({
+              id: idNum(i.data.id),
+              codigo: i.data.codigo ?? null,
+              nombre: i.data.nombre ?? '',
+            }))
             .filter((i) => i.nombre),
         );
       } catch (e) {
@@ -96,7 +113,10 @@ export async function jobCimavetFull(deps: DepsCimavet & { nomenclatorPath?: str
         deps.log?.('cimavet-full: error en maestra', { maestra, error: (e as Error).message });
       }
     }
-    const antiguos = await deps.repo.nregistrosAntiguos(new Date(inicio.getTime() - 7 * DIA), deps.limite ?? 5000);
+    const antiguos = await deps.repo.nregistrosAntiguos(
+      new Date(inicio.getTime() - 7 * DIA),
+      deps.limite ?? 5000,
+    );
     for (const nregistro of antiguos) {
       try {
         if (await refrescarDesdeApi(deps, nregistro)) contadores.refrescados++;
@@ -106,7 +126,12 @@ export async function jobCimavetFull(deps: DepsCimavet & { nomenclatorPath?: str
         deps.log?.('cimavet-full: error en un medicamento', { nregistro, error: (e as Error).message });
       }
     }
-    await deps.repo.finalizarSync(runId, now(), contadores, contadores.errores ? `${contadores.errores} errores` : null);
+    await deps.repo.finalizarSync(
+      runId,
+      now(),
+      contadores,
+      contadores.errores ? `${contadores.errores} errores` : null,
+    );
     return contadores;
   } catch (e) {
     await deps.repo.finalizarSync(runId, now(), contadores, (e as Error).message);
@@ -115,7 +140,11 @@ export async function jobCimavetFull(deps: DepsCimavet & { nomenclatorPath?: str
 }
 
 /** Carga inicial desde el Nomenclátor (job manual `nomenclator-import`). */
-export async function jobNomenclatorImport(deps: { repo: CimavetRepository; path: string; now?: () => Date }): Promise<InformeCarga> {
+export async function jobNomenclatorImport(deps: {
+  repo: CimavetRepository;
+  path: string;
+  now?: () => Date;
+}): Promise<InformeCarga> {
   const now = deps.now ?? (() => new Date());
   const runId = await deps.repo.iniciarSync('nomenclator', now());
   try {
@@ -143,7 +172,8 @@ export async function verificarEnVivo(
   const actual = await deps.repo.medicamento(nregistro);
   // Caché reciente y con el suministro conocido: no hace falta CIMAVet. El Nomenclátor no trae `psum`, así
   // que un medicamento cargado de él se consulta en vivo aunque sea reciente.
-  if (actual && actual.psum !== null && now.getTime() - actual.fetchedAt.getTime() <= maxAgeH * 3600 * 1000) return { actualizado: false, cacheDesde: null };
+  if (actual && actual.psum !== null && now.getTime() - actual.fetchedAt.getTime() <= maxAgeH * 3600 * 1000)
+    return { actualizado: false, cacheDesde: null };
   try {
     const ok = await refrescarDesdeApi(deps, nregistro);
     return { actualizado: ok, cacheDesde: ok ? null : (actual?.fetchedAt ?? null) };

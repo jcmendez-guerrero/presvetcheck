@@ -24,7 +24,10 @@ export function claveEntrada(recepcionId: string, numeroLinea: number): string {
 /** Garantía: el outbox solo admite entradas de stock. */
 export function exigirEntrada(p: AdjustmentRequest): void {
   if (!(p.quantity > 0) || (p.mode ?? 'delta') !== 'delta' || p.reason !== 'purchase_receipt') {
-    throw new DomainError('SIWEB_SALIDAS_PROHIBIDAS', 'El outbox solo admite entradas (purchase_receipt, delta, cantidad > 0)');
+    throw new DomainError(
+      'SIWEB_SALIDAS_PROHIBIDAS',
+      'El outbox solo admite entradas (purchase_receipt, delta, cantidad > 0)',
+    );
   }
 }
 
@@ -53,10 +56,17 @@ export class OutboxService {
    * finalización). Las líneas sin variante mapeada quedan en PENDIENTE_ALTA_SIWEB.
    */
   async encolarRecepcion(tx: DbOrTx, recepcionId: string): Promise<ResultadoEncolado> {
-    const lineas = await tx.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, recepcionId)).orderBy(asc(recepcionLinea.numero));
+    const lineas = await tx
+      .select()
+      .from(recepcionLinea)
+      .where(eq(recepcionLinea.recepcionId, recepcionId))
+      .orderBy(asc(recepcionLinea.numero));
     const meds = lineas.filter((l) => l.tipo === 'medicamento');
     if (this.cfg.modo === 'off') {
-      await tx.update(recepcion).set({ syncEstado: 'ESCRITURA_DESACTIVADA' }).where(eq(recepcion.id, recepcionId));
+      await tx
+        .update(recepcion)
+        .set({ syncEstado: 'ESCRITURA_DESACTIVADA' })
+        .where(eq(recepcion.id, recepcionId));
       return { encoladas: 0, pendientesAlta: 0, escrituraDesactivada: true };
     }
     const almacen = await this.cfg.almacenId();
@@ -65,11 +75,17 @@ export class OutboxService {
     for (const l of meds) {
       // La persona puede decidir no dar entrada de stock de una línea («Actualizar stock» desmarcado).
       if (!l.actualizarStock) {
-        await tx.update(recepcionLinea).set({ estado: 'SIN_ACTUALIZAR_STOCK' }).where(eq(recepcionLinea.id, l.id));
+        await tx
+          .update(recepcionLinea)
+          .set({ estado: 'SIN_ACTUALIZAR_STOCK' })
+          .where(eq(recepcionLinea.id, l.id));
         continue;
       }
       if (l.siwebVariantId === null) {
-        await tx.update(recepcionLinea).set({ estado: 'PENDIENTE_ALTA_SIWEB' }).where(eq(recepcionLinea.id, l.id));
+        await tx
+          .update(recepcionLinea)
+          .set({ estado: 'PENDIENTE_ALTA_SIWEB' })
+          .where(eq(recepcionLinea.id, l.id));
         pendientesAlta++;
         continue;
       }
@@ -78,7 +94,9 @@ export class OutboxService {
     }
     await tx
       .update(recepcion)
-      .set({ syncEstado: pendientesAlta ? 'PENDIENTE_ALTA_SIWEB' : encoladas ? 'ENCOLADA' : 'SIN_MEDICAMENTOS' })
+      .set({
+        syncEstado: pendientesAlta ? 'PENDIENTE_ALTA_SIWEB' : encoladas ? 'ENCOLADA' : 'SIN_MEDICAMENTOS',
+      })
       .where(eq(recepcion.id, recepcionId));
     return { encoladas, pendientesAlta, escrituraDesactivada: false };
   }
@@ -98,7 +116,13 @@ export class OutboxService {
     exigirEntrada(payload);
     await tx
       .insert(outbox)
-      .values({ operation: OPERACION_ENTRADA, payload: payload as never, idempotencyKey: key, entidad: 'recepcion_linea', entidadId: l.id })
+      .values({
+        operation: OPERACION_ENTRADA,
+        payload: payload as never,
+        idempotencyKey: key,
+        entidad: 'recepcion_linea',
+        entidadId: l.id,
+      })
       .onConflictDoNothing({ target: outbox.idempotencyKey });
     await tx.update(recepcionLinea).set({ estado: 'ENCOLADA' }).where(eq(recepcionLinea.id, l.id));
   }
@@ -131,7 +155,9 @@ export class OutboxService {
     const filas = await this.db
       .select()
       .from(outbox)
-      .where(and(eq(outbox.status, 'pending'), or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado))))
+      .where(
+        and(eq(outbox.status, 'pending'), or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado))),
+      )
       .orderBy(asc(outbox.createdAt))
       .limit(limite);
     for (const f of filas) {
@@ -139,7 +165,13 @@ export class OutboxService {
       const tomadas = await this.db
         .update(outbox)
         .set({ lockedAt: this.now(), attempts: sql`${outbox.attempts} + 1` })
-        .where(and(eq(outbox.id, f.id), eq(outbox.status, 'pending'), or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado))))
+        .where(
+          and(
+            eq(outbox.id, f.id),
+            eq(outbox.status, 'pending'),
+            or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado)),
+          ),
+        )
         .returning({ id: outbox.id });
       if (!tomadas.length) continue;
       const r = await this.enviar(f);
@@ -153,16 +185,26 @@ export class OutboxService {
     let error: string | null = null;
     let response: unknown = null;
     try {
-      if (f.operation !== OPERACION_ENTRADA) throw new DomainError('SIWEB_SALIDAS_PROHIBIDAS', `Operación no admitida: ${f.operation}`);
+      if (f.operation !== OPERACION_ENTRADA)
+        throw new DomainError('SIWEB_SALIDAS_PROHIBIDAS', `Operación no admitida: ${f.operation}`);
       const payload = f.payload as AdjustmentRequest;
       exigirEntrada(payload);
       const r = await this.client.ajustarStock(payload);
       status = 'sent';
       response = r.raw;
     } catch (e) {
-      if (e instanceof HttpError && e.kind === 'HTTP' && e.status !== null && e.status >= 400 && e.status < 500) {
+      if (
+        e instanceof HttpError &&
+        e.kind === 'HTTP' &&
+        e.status !== null &&
+        e.status >= 400 &&
+        e.status < 500
+      ) {
         status = 'failed';
-        error = e.status === 409 ? 'La variante tiene stock ilimitado en Siweb360 (409)' : `HTTP ${e.status}: ${JSON.stringify(e.body ?? null).slice(0, 500)}`;
+        error =
+          e.status === 409
+            ? 'La variante tiene stock ilimitado en Siweb360 (409)'
+            : `HTTP ${e.status}: ${JSON.stringify(e.body ?? null).slice(0, 500)}`;
       } else if (e instanceof DomainError) {
         status = 'failed';
         error = e.message;
@@ -175,9 +217,16 @@ export class OutboxService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(outbox)
-        .set({ status, lastError: error, response: response as never, lockedAt: null, sentAt: status === 'sent' ? this.now() : null })
+        .set({
+          status,
+          lastError: error,
+          response: response as never,
+          lockedAt: null,
+          sentAt: status === 'sent' ? this.now() : null,
+        })
         .where(eq(outbox.id, f.id));
-      if (f.entidad === 'recepcion_linea' && f.entidadId) await this.actualizarRecepcion(tx, f.entidadId, status);
+      if (f.entidad === 'recepcion_linea' && f.entidadId)
+        await this.actualizarRecepcion(tx, f.entidadId, status);
       await appendAudit(tx, {
         actor: 'outbox-dispatcher',
         accion: `outbox_${status}`,
@@ -192,14 +241,27 @@ export class OutboxService {
 
   private async actualizarRecepcion(tx: DbOrTx, lineaId: string, status: ResultadoEnvio | 'resuelta') {
     const estadoLinea = status === 'sent' || status === 'resuelta' ? 'SINCRONIZADA' : 'ERROR';
-    const [l] = await tx.update(recepcionLinea).set({ estado: estadoLinea }).where(eq(recepcionLinea.id, lineaId)).returning({ recepcionId: recepcionLinea.recepcionId });
+    const [l] = await tx
+      .update(recepcionLinea)
+      .set({ estado: estadoLinea })
+      .where(eq(recepcionLinea.id, lineaId))
+      .returning({ recepcionId: recepcionLinea.recepcionId });
     if (!l) return;
-    const lineas = await tx.select({ estado: recepcionLinea.estado, tipo: recepcionLinea.tipo }).from(recepcionLinea).where(eq(recepcionLinea.recepcionId, l.recepcionId));
+    const lineas = await tx
+      .select({ estado: recepcionLinea.estado, tipo: recepcionLinea.tipo })
+      .from(recepcionLinea)
+      .where(eq(recepcionLinea.recepcionId, l.recepcionId));
     const meds = lineas.filter((x) => x.tipo === 'medicamento');
     if (meds.some((x) => x.estado === 'ERROR')) {
-      await tx.update(recepcion).set({ estado: 'ERROR_SINCRONIZACION', syncEstado: 'ERROR' }).where(eq(recepcion.id, l.recepcionId));
+      await tx
+        .update(recepcion)
+        .set({ estado: 'ERROR_SINCRONIZACION', syncEstado: 'ERROR' })
+        .where(eq(recepcion.id, l.recepcionId));
     } else if (meds.every((x) => x.estado === 'SINCRONIZADA')) {
-      await tx.update(recepcion).set({ estado: 'SINCRONIZADA', syncEstado: 'SINCRONIZADA' }).where(eq(recepcion.id, l.recepcionId));
+      await tx
+        .update(recepcion)
+        .set({ estado: 'SINCRONIZADA', syncEstado: 'SINCRONIZADA' })
+        .where(eq(recepcion.id, l.recepcionId));
     }
   }
 
@@ -215,7 +277,12 @@ export class OutboxService {
    *  - `reenviar`: comprueba que NO se aplicó y decide reenviar → pending.
    *  - `descartar`: no se enviará (p. ej. se dio de alta a mano) → failed.
    */
-  async resolver(id: string, accion: 'confirmar_aplicada' | 'reenviar' | 'descartar', actor: string, nota: string): Promise<void> {
+  async resolver(
+    id: string,
+    accion: 'confirmar_aplicada' | 'reenviar' | 'descartar',
+    actor: string,
+    nota: string,
+  ): Promise<void> {
     await this.db.transaction(async (tx) => {
       const [f] = await tx.select().from(outbox).where(eq(outbox.id, id)).for('update');
       if (!f || (f.status !== 'needs_reconciliation' && f.status !== 'failed')) {
@@ -224,10 +291,24 @@ export class OutboxService {
       const status = accion === 'confirmar_aplicada' ? 'sent' : accion === 'reenviar' ? 'pending' : 'failed';
       await tx
         .update(outbox)
-        .set({ status, resolvedBy: actor, resolvedAt: this.now(), resolution: `${accion}: ${nota}`, lockedAt: null })
+        .set({
+          status,
+          resolvedBy: actor,
+          resolvedAt: this.now(),
+          resolution: `${accion}: ${nota}`,
+          lockedAt: null,
+        })
         .where(eq(outbox.id, id));
-      if (accion === 'confirmar_aplicada' && f.entidad === 'recepcion_linea' && f.entidadId) await this.actualizarRecepcion(tx, f.entidadId, 'resuelta');
-      await appendAudit(tx, { actor, accion: `outbox_resolver_${accion}`, entidad: 'outbox', entidadId: id, antes: { status: f.status }, despues: { status, nota } });
+      if (accion === 'confirmar_aplicada' && f.entidad === 'recepcion_linea' && f.entidadId)
+        await this.actualizarRecepcion(tx, f.entidadId, 'resuelta');
+      await appendAudit(tx, {
+        actor,
+        accion: `outbox_resolver_${accion}`,
+        entidad: 'outbox',
+        entidadId: id,
+        antes: { status: f.status },
+        despues: { status, nota },
+      });
     });
   }
 }

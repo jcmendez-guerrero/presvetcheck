@@ -1,7 +1,10 @@
 import type { SiwebClient } from './client';
 
 export class AlmacenError extends Error {
-  constructor(message: string, public readonly encontrados: { id: number; name: string }[]) {
+  constructor(
+    message: string,
+    public readonly encontrados: { id: number; name: string }[],
+  ) {
     super(message);
     this.name = 'AlmacenError';
   }
@@ -12,11 +15,18 @@ export class AlmacenError extends Error {
  * almacén cuyo nombre coincide con `SIWEB_WAREHOUSE_NAME` (por defecto "Farmacia"). Si no lo
  * encuentra o encuentra más de uno, lanza: en producción la app no arranca.
  */
-export async function resolverAlmacen(client: SiwebClient, cfg: { nombre: string; id?: number | undefined }): Promise<{ id: number; nombre: string }> {
+export async function resolverAlmacen(
+  client: SiwebClient,
+  cfg: { nombre: string; id?: number | undefined },
+): Promise<{ id: number; nombre: string }> {
   const todos = await client.warehouses();
   if (cfg.id !== undefined) {
     const w = todos.find((x) => x.id === cfg.id);
-    if (!w) throw new AlmacenError(`No existe el almacén con id ${cfg.id} en Siweb360`, todos.map((x) => ({ id: x.id, name: x.name })));
+    if (!w)
+      throw new AlmacenError(
+        `No existe el almacén con id ${cfg.id} en Siweb360`,
+        todos.map((x) => ({ id: x.id, name: x.name })),
+      );
     return { id: w.id, nombre: w.name };
   }
   const norm = (s: string) => s.trim().toLocaleLowerCase('es');

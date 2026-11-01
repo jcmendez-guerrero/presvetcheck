@@ -24,7 +24,8 @@ export function calcularPrecioCoste(
   if (n.isNegative()) throw new Error('El precio neto no puede ser negativo');
   const iva = new Decimal(ivaPct ?? rules.iva_por_defecto_medicamento);
   const re = rules.recargo_equivalencia[iva.toString()];
-  if (re === undefined) throw new Error(`Sin recargo de equivalencia configurado para IVA ${iva.toString()} %`);
+  if (re === undefined)
+    throw new Error(`Sin recargo de equivalencia configurado para IVA ${iva.toString()} %`);
   // Régimen solo IVA (proveedor que no aplica recargo): coste = neto.
   const rePct = o.conRecargo === false ? new Decimal(0) : new Decimal(re);
   const coste = n.mul(new Decimal(1).plus(rePct.div(100)));
@@ -33,8 +34,12 @@ export function calcularPrecioCoste(
     ivaPct: iva,
     rePct,
     coste,
-    costeAlmacen: coste.toDecimalPlaces(rules.decimales_almacen, Decimal.ROUND_HALF_UP).toFixed(rules.decimales_almacen),
-    costePantalla: coste.toDecimalPlaces(rules.decimales_pantalla, Decimal.ROUND_HALF_UP).toFixed(rules.decimales_pantalla),
+    costeAlmacen: coste
+      .toDecimalPlaces(rules.decimales_almacen, Decimal.ROUND_HALF_UP)
+      .toFixed(rules.decimales_almacen),
+    costePantalla: coste
+      .toDecimalPlaces(rules.decimales_pantalla, Decimal.ROUND_HALF_UP)
+      .toFixed(rules.decimales_pantalla),
   };
 }
 
@@ -52,7 +57,10 @@ export function precioConDescuento(precio: Decimal.Value, descuentoPct: Decimal.
   const d = new Decimal(descuentoPct ?? 0);
   if (p.isNegative()) throw new Error('El precio no puede ser negativo');
   if (d.isNegative() || d.gt(100)) throw new Error('El descuento tiene que estar entre 0 y 100 %');
-  return p.mul(new Decimal(1).minus(d.div(100))).toDecimalPlaces(4, Decimal.ROUND_HALF_UP).toFixed(4);
+  return p
+    .mul(new Decimal(1).minus(d.div(100)))
+    .toDecimalPlaces(4, Decimal.ROUND_HALF_UP)
+    .toFixed(4);
 }
 
 export interface TotalesCompra {
@@ -66,7 +74,14 @@ export interface TotalesCompra {
  * Totales de una recepción como en la factura: por línea, base = neto × unidades (2 decimales), y cuota de IVA y
  * de recargo sobre esa base. Las líneas sin precio no cuentan.
  */
-export function totalesCompra(lineas: { neto: Decimal.Value | null; unidades: number; ivaPct: Decimal.Value | null; rePct: Decimal.Value | null }[]): TotalesCompra {
+export function totalesCompra(
+  lineas: {
+    neto: Decimal.Value | null;
+    unidades: number;
+    ivaPct: Decimal.Value | null;
+    rePct: Decimal.Value | null;
+  }[],
+): TotalesCompra {
   let base = new Decimal(0);
   let iva = new Decimal(0);
   let re = new Decimal(0);
@@ -78,5 +93,10 @@ export function totalesCompra(lineas: { neto: Decimal.Value | null; unidades: nu
     re = re.plus(b.mul(new Decimal(l.rePct ?? 0).div(100)));
   }
   const r = (x: Decimal) => x.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
-  return { base: r(base).toFixed(2), iva: r(iva).toFixed(2), recargo: r(re).toFixed(2), total: r(base).plus(r(iva)).plus(r(re)).toFixed(2) };
+  return {
+    base: r(base).toFixed(2),
+    iva: r(iva).toFixed(2),
+    recargo: r(re).toFixed(2),
+    total: r(base).plus(r(iva)).plus(r(re)).toFixed(2),
+  };
 }

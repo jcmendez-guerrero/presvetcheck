@@ -86,7 +86,12 @@ export const envSchema = z
     // TODO(decision D-05c): cuándo pasar "producto no válido" a no forzable.
     PRODUCT_VALIDITY_HARD_BLOCK: bool(false),
     PSYCHOTROPIC_ALLOW_FORCE: bool(false),
-    ENTRY_CUTOVER_DATE: optStr.pipe(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+    ENTRY_CUTOVER_DATE: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    ),
 
     AUTH_MODE: z.enum(['entra', 'dev']).default('entra'),
     ENTRA_TENANT_ID: optStr,
@@ -149,7 +154,11 @@ export const envSchema = z
       req('BLOB_ACCOUNT_URL', 'en producción');
       req('KEY_VAULT_URL', 'en producción');
       if (env.EXTRACTOR === 'fake') {
-        ctx.addIssue({ code: 'custom', path: ['EXTRACTOR'], message: 'EXTRACTOR=fake no se admite en producción' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EXTRACTOR'],
+          message: 'EXTRACTOR=fake no se admite en producción',
+        });
       }
       if (env.SIWEB_TOKEN) {
         ctx.addIssue({

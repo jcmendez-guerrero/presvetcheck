@@ -48,14 +48,20 @@ export interface ResultadoValidez {
   porLinea: { orden: number; caso: CasoValidez; limite: FechaIso }[];
 }
 
-export function casoLinea(l: LineaValidez, tipo: TipoTratamiento, produccion: boolean, planSanitario = false): CasoValidez {
+export function casoLinea(
+  l: LineaValidez,
+  tipo: TipoTratamiento,
+  produccion: boolean,
+  planSanitario = false,
+): CasoValidez {
   if (l.estupefaciente) return 'estupefaciente';
   if (l.antimicrobiano) return 'antimicrobiano';
   if (l.psicotropo) return 'psicotropo';
   const ampliable = !produccion && l.resuelta && !l.excluidaAmpliada;
   if (ampliable && tipo === 'cronico') return 'cronico_no_productora';
   // Producción: solo crónicos del plan sanitario de la explotación o del veterinario de la ADS (nunca preventivos).
-  if (produccion && planSanitario && tipo === 'cronico' && l.resuelta && !l.excluidaAmpliada) return 'cronico_plan_sanitario';
+  if (produccion && planSanitario && tipo === 'cronico' && l.resuelta && !l.excluidaAmpliada)
+    return 'cronico_plan_sanitario';
   if (ampliable && tipo === 'preventivo') return 'preventivo_no_productora';
   return 'general';
 }

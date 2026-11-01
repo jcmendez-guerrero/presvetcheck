@@ -28,19 +28,38 @@ export function validarEnvase(e: EntradaEscaneo): Incidencia[] {
   const extra = e.linea !== undefined ? { linea: e.linea } : {};
   const out: Incidencia[] = [];
   if (e.envase.cn !== null && e.envase.cn !== e.cnSeleccionado) {
-    out.push(incidencia('CN_ESCANEADO_DISTINTO', pol, { ...extra, params: { cnEscaneado: e.envase.cn, cnSeleccionado: e.cnSeleccionado } }));
+    out.push(
+      incidencia('CN_ESCANEADO_DISTINTO', pol, {
+        ...extra,
+        params: { cnEscaneado: e.envase.cn, cnSeleccionado: e.cnSeleccionado },
+      }),
+    );
   }
   if (e.envase.caducidad !== null && comparar(e.envase.caducidad, e.hoy) < 0) {
-    out.push(incidencia('ENVASE_CADUCADO', pol, { ...extra, params: { fecha: fechaEs(e.envase.caducidad) } }));
+    out.push(
+      incidencia('ENVASE_CADUCADO', pol, { ...extra, params: { fecha: fechaEs(e.envase.caducidad) } }),
+    );
   }
   if (e.loteRecomendado !== null && e.envase.lote !== e.loteRecomendado) {
-    out.push(incidencia('LOTE_NO_FEFO', pol, { ...extra, params: { lote: e.envase.lote, loteRecomendado: e.loteRecomendado } }));
+    out.push(
+      incidencia('LOTE_NO_FEFO', pol, {
+        ...extra,
+        params: { lote: e.envase.lote, loteRecomendado: e.loteRecomendado },
+      }),
+    );
   }
   const total = e.unidadesYaDispensadas + e.unidadesAhora;
   if (e.psicotropo && total > 1) {
-    out.push(incidencia('PSICOTROPO_MAS_DE_UN_ENVASE', pol, { ...extra, params: { medicamento: e.cnSeleccionado } }));
+    out.push(
+      incidencia('PSICOTROPO_MAS_DE_UN_ENVASE', pol, { ...extra, params: { medicamento: e.cnSeleccionado } }),
+    );
   } else if (total > e.unidadesMax) {
-    out.push(incidencia('UNIDADES_SUPERAN_PRESCRITAS', pol, { ...extra, params: { unidades: total, maximo: e.unidadesMax } }));
+    out.push(
+      incidencia('UNIDADES_SUPERAN_PRESCRITAS', pol, {
+        ...extra,
+        params: { unidades: total, maximo: e.unidadesMax },
+      }),
+    );
   }
   if (e.envase.serie !== null && e.seriesYaDispensadas.includes(e.envase.serie)) {
     out.push(incidencia('SERIE_YA_DISPENSADA', pol, { ...extra, params: { serie: e.envase.serie } }));

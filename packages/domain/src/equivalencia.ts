@@ -16,7 +16,11 @@ export function mismosPrincipiosActivos(a: MedicamentoInfo, b: MedicamentoInfo):
 }
 
 /** Vía: la prescrita debe estar entre las del candidato; sin vía en receta, todas las del prescrito. */
-export function viaCompatible(prescrito: MedicamentoInfo, candidato: MedicamentoInfo, viaPrescritaId: number | null): boolean {
+export function viaCompatible(
+  prescrito: MedicamentoInfo,
+  candidato: MedicamentoInfo,
+  viaPrescritaId: number | null,
+): boolean {
   if (viaPrescritaId !== null) return candidato.viaIds.includes(viaPrescritaId);
   return prescrito.viaIds.length > 0 && prescrito.viaIds.every((v) => candidato.viaIds.includes(v));
 }
@@ -30,12 +34,15 @@ export function tiemposEsperaCompatibles(
   candidato: MedicamentoInfo,
   especies: number[],
 ): CodigoEquivalencia | null {
-  const delPrescrito = prescrito.tiemposEspera.filter((t) => t.especieId === null || especies.includes(t.especieId));
+  const delPrescrito = prescrito.tiemposEspera.filter(
+    (t) => t.especieId === null || especies.includes(t.especieId),
+  );
   if (delPrescrito.length === 0) return 'TIEMPO_ESPERA_DESCONOCIDO';
   for (const tp of delPrescrito) {
     if (tp.noAplica) continue;
     const tc = candidato.tiemposEspera.filter(
-      (t) => (t.especieId === null || especies.includes(t.especieId)) && (t.tejido ?? '') === (tp.tejido ?? ''),
+      (t) =>
+        (t.especieId === null || especies.includes(t.especieId)) && (t.tejido ?? '') === (tp.tejido ?? ''),
     );
     if (tc.length === 0 || tp.dias === null) return 'TIEMPO_ESPERA_DESCONOCIDO';
     for (const t of tc) {
@@ -92,7 +99,8 @@ export function evaluarEquivalencia(
   // 3. Vía
   if (!viaCompatible(prescrito, candidato, ctx.viaPrescritaId)) motivos.push('VIA_NO_AUTORIZADA');
   // 5. Especie
-  if (!autorizadoParaEspecie(candidato, ctx.especieId, rules.especie_padre)) motivos.push('ESPECIE_NO_AUTORIZADA');
+  if (!autorizadoParaEspecie(candidato, ctx.especieId, rules.especie_padre))
+    motivos.push('ESPECIE_NO_AUTORIZADA');
 
   // 6. Indicación
   const especies = especiesEquivalentes(ctx.especieId, rules.especie_padre);
@@ -105,7 +113,9 @@ export function evaluarEquivalencia(
 
   // 7. Tiempos de espera en especies productoras
   if (ctx.especieProduccion) {
-    const te = opts.prescripcionVirtual ? 'TIEMPO_ESPERA_DESCONOCIDO' : tiemposEsperaCompatibles(prescrito, candidato, especies);
+    const te = opts.prescripcionVirtual
+      ? 'TIEMPO_ESPERA_DESCONOCIDO'
+      : tiemposEsperaCompatibles(prescrito, candidato, especies);
     if (te) motivos.push(te);
   }
 

@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
-import { COLUMNAS_A, COLUMNAS_B, COLUMNAS_INTERNAS, COLUMNAS_PROPIETARIO, aCsv, aXlsx, fechaEs, plantillaDe, tablaEntradas, tablaPsicotropos, tablasSalidas, type Salida } from '../src';
+import {
+  COLUMNAS_A,
+  COLUMNAS_B,
+  COLUMNAS_INTERNAS,
+  COLUMNAS_PROPIETARIO,
+  aCsv,
+  aXlsx,
+  fechaEs,
+  plantillaDe,
+  tablaEntradas,
+  tablaPsicotropos,
+  tablasSalidas,
+  type Salida,
+} from '../src';
 
 const salida = (o: Partial<Salida> = {}): Salida => ({
   id: 'd1',
@@ -56,7 +69,20 @@ describe('registro de salidas (SPEC §4.8)', () => {
       'Clínica',
       'Calle 1',
     ]);
-    expect(t!.filas[0]!.slice(15)).toEqual(['d1', 'presencial', 'papel', '', 'N', 'N', '', '', '', 'dev-empleado', 'camara', 'N']);
+    expect(t!.filas[0]!.slice(15)).toEqual([
+      'd1',
+      'presencial',
+      'papel',
+      '',
+      'N',
+      'N',
+      '',
+      '',
+      '',
+      'dev-empleado',
+      'camara',
+      'N',
+    ]);
   });
 
   it('plantilla A con propietario pedido expresamente', () => {
@@ -66,7 +92,17 @@ describe('registro de salidas (SPEC §4.8)', () => {
   });
 
   it('plantillas B y C; columnas internas en hoja "trazabilidad"', () => {
-    const datos = [salida(), salida({ id: 'b', conReceta: false }), salida({ id: 'c', conReceta: false, canal: 'online', forzado: true, defectosForzados: ['ENVASE_CADUCADO'] })];
+    const datos = [
+      salida(),
+      salida({ id: 'b', conReceta: false }),
+      salida({
+        id: 'c',
+        conReceta: false,
+        canal: 'online',
+        forzado: true,
+        defectosForzados: ['ENVASE_CADUCADO'],
+      }),
+    ];
     const [b, tb] = tablasSalidas(datos, 'B', { incluirPropietario: false, internas: 'hoja' });
     expect(b!.columnas).toEqual([...COLUMNAS_B]);
     expect(b!.filas).toHaveLength(1);
@@ -79,12 +115,19 @@ describe('registro de salidas (SPEC §4.8)', () => {
   });
 
   it('sustitución: medicamento prescrito en internas', () => {
-    const [t] = tablasSalidas([salida({ esSustitucion: true, medicamentoPrescrito: 'NOROCLAV', autorizadoPor: 'garante' })], 'A', { incluirPropietario: false, internas: 'final' });
+    const [t] = tablasSalidas(
+      [salida({ esSustitucion: true, medicamentoPrescrito: 'NOROCLAV', autorizadoPor: 'garante' })],
+      'A',
+      { incluirPropietario: false, internas: 'final' },
+    );
     expect(t!.filas[0]!.slice(15 + 4, 15 + 9)).toEqual(['S', 'N', '', 'NOROCLAV', 'garante']);
   });
 
   it('CSV para Excel (BOM, ;) y XLSX', async () => {
-    const [t] = tablasSalidas([salida({ nombreFarmaco: 'X; "Y"', conReceta: false })], 'B', { incluirPropietario: false, internas: 'ninguna' });
+    const [t] = tablasSalidas([salida({ nombreFarmaco: 'X; "Y"', conReceta: false })], 'B', {
+      incluirPropietario: false,
+      internas: 'ninguna',
+    });
     const csv = aCsv(t!);
     expect(csv.startsWith('﻿NOMBRE DEL FÁRMACO;PRINCIPIO ACTIVO')).toBe(true);
     expect(csv).toContain('"X; ""Y"""');
@@ -104,17 +147,80 @@ describe('registro de salidas (SPEC §4.8)', () => {
 describe('entradas y psicótropos', () => {
   it('tabla de entradas', () => {
     const t = tablaEntradas([
-      { recepcionId: 'r', distribuidor: 'D', albaran: 'A1', fechaCompra: '2026-10-14', nombreFarmaco: 'X', principioActivo: 'pa', forma: 'f', cn: '1', lote: 'L', caducidad: '2027-01-31', unidades: 3, precioNetoCompra: '10.0000', ivaPct: '10', rePct: '1.4', precioCoste: '10.1400', seriales: ['s1'], origenDatos: 'cimavet', empleado: 'e', fechaRecepcion: '2026-10-15' },
+      {
+        recepcionId: 'r',
+        distribuidor: 'D',
+        albaran: 'A1',
+        fechaCompra: '2026-10-14',
+        nombreFarmaco: 'X',
+        principioActivo: 'pa',
+        forma: 'f',
+        cn: '1',
+        lote: 'L',
+        caducidad: '2027-01-31',
+        unidades: 3,
+        precioNetoCompra: '10.0000',
+        ivaPct: '10',
+        rePct: '1.4',
+        precioCoste: '10.1400',
+        seriales: ['s1'],
+        origenDatos: 'cimavet',
+        empleado: 'e',
+        fechaRecepcion: '2026-10-15',
+      },
     ]);
-    expect(t.filas[0]).toEqual(['X', 'pa', 'f', '14/10/2026', '31/01/2027', 'L', '1', 3, 'D', 'A1', '10.0000', '10', '1.4', '10.1400', 's1', 'cimavet', 'e', '15/10/2026']);
+    expect(t.filas[0]).toEqual([
+      'X',
+      'pa',
+      'f',
+      '14/10/2026',
+      '31/01/2027',
+      'L',
+      '1',
+      3,
+      'D',
+      'A1',
+      '10.0000',
+      '10',
+      '1.4',
+      '10.1400',
+      's1',
+      'cimavet',
+      'e',
+      '15/10/2026',
+    ]);
     expect(t.columnas.at(-1)).toBe('FECHA RECEPCIÓN');
     expect(t.columnas).toContain('PRECIO NETO COMPRA (sin IVA ni RE)');
   });
   it('registro de psicótropos con saldo por medicamento y lote', () => {
     const t = tablaPsicotropos([
-      { fecha: '2026-10-01T10:00:00Z', tipo: 'ENTRADA', cn: '570681', nombre: 'DOLETHAL', lote: 'L1', unidades: 3, referencia: 'REC-1' },
-      { fecha: '2026-10-02T10:00:00Z', tipo: 'SALIDA', cn: '570681', nombre: 'DOLETHAL', lote: 'L1', unidades: 1, referencia: 'DIS-1' },
-      { fecha: '2026-10-03T10:00:00Z', tipo: 'ANULACIÓN SALIDA', cn: '570681', nombre: 'DOLETHAL', lote: 'L1', unidades: 1, referencia: 'DIS-1' },
+      {
+        fecha: '2026-10-01T10:00:00Z',
+        tipo: 'ENTRADA',
+        cn: '570681',
+        nombre: 'DOLETHAL',
+        lote: 'L1',
+        unidades: 3,
+        referencia: 'REC-1',
+      },
+      {
+        fecha: '2026-10-02T10:00:00Z',
+        tipo: 'SALIDA',
+        cn: '570681',
+        nombre: 'DOLETHAL',
+        lote: 'L1',
+        unidades: 1,
+        referencia: 'DIS-1',
+      },
+      {
+        fecha: '2026-10-03T10:00:00Z',
+        tipo: 'ANULACIÓN SALIDA',
+        cn: '570681',
+        nombre: 'DOLETHAL',
+        lote: 'L1',
+        unidades: 1,
+        referencia: 'DIS-1',
+      },
     ]);
     expect(t.filas.map((f) => [f[4], f[7]])).toEqual([
       ['ENTRADA', 3],
