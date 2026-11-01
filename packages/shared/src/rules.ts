@@ -53,11 +53,9 @@ export type CampoReceta = (typeof CAMPOS_RECETA)[number];
 
 export const RecetaCamposRulesSchema = z.object({
   version: z.string(),
-  campos: z
-    .record(z.enum(CAMPOS_RECETA), ReglaCampo)
-    .refine((c) => CAMPOS_RECETA.every((k) => k in c), {
-      message: 'Faltan campos en receta-campos: deben estar todos los de SPEC §4.1.2',
-    }),
+  campos: z.record(z.enum(CAMPOS_RECETA), ReglaCampo).refine((c) => CAMPOS_RECETA.every((k) => k in c), {
+    message: 'Faltan campos en receta-campos: deben estar todos los de SPEC §4.1.2',
+  }),
   /** Especies (id de la maestra de CIMAVet) con identificación individual obligatoria. */
   especies_id_individual: z.array(z.number().int()),
   /** Prefijos ATC que identifican un antimicrobiano (además de antibiotico=true). */
