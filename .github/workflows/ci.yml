@@ -50,6 +50,10 @@ jobs:
           VALIDATE_TRIVY: false
           FIX_TERRAFORM_FMT: true
           FILTER_REGEX_EXCLUDE: (.*github/linters.*|.*CHANGELOG.md.*|.*specify/.*)
+          VALIDATE_JAVASCRIPT_ES: true
+          VALIDATE_TYPESCRIPT_ES: true
+          JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.yml
+          TYPESCRIPT_ES_CONFIG_FILE: .eslintrc.yml
           VALIDATE_SPELL_CODESPELL: false
           VALIDATE_PYTHON_RUFF: false
           VALIDATE_PYTHON_RUFF_FORMAT: false

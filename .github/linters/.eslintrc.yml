@@ -1,0 +1,48 @@
+---
+root: true
+env:
+  browser: true
+  es2023: true
+  node: true
+
+parser: "@typescript-eslint/parser"
+
+parserOptions:
+  ecmaVersion: 2023
+  sourceType: module
+  ecmaFeatures:
+    jsx: true
+
+plugins:
+  - "@typescript-eslint"
+  - react
+  - n
+
+extends:
+  - eslint:recommended
+  - plugin:@typescript-eslint/recommended
+  - plugin:react/recommended
+
+settings:
+  react:
+    version: detect
+  node:
+    tryExtensions:
+      - .js
+      - .jsx
+      - .ts
+      - .tsx
+      - .json
+      - .node
+
+rules:
+  # Desactivar resolución de imports externos en el contenedor de Super-linter (no ejecuta pnpm install)
+  n/no-missing-import: off
+  # Permitir argumentos y variables no usadas que comiencen por guión bajo
+  "@typescript-eslint/no-unused-vars":
+    - error
+    - argsIgnorePattern: "^_"
+      varsIgnorePattern: "^_"
+  # React moderno (JSX transform)
+  react/react-in-jsx-scope: off
+  react/prop-types: off
