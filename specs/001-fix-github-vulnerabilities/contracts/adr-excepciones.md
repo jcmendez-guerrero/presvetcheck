@@ -6,10 +6,10 @@ Fichero: `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` (sigue el for
 
 1. **Contexto**: alertas de partida (2026-11-01) y motivo de la política.
 2. **Decisión — política**:
-  - Orden de preferencia: directa → lockfile → padre → override acotado → descarte.
-  - Umbral de bloqueo en CI (ver [ci-seguridad.md](./ci-seguridad.md)).
-  - Criterio de descarte: sin versión corregida alcanzable sin sustituir una librería **y** código vulnerable no alcanzable con datos externos.
-  - Regla de mantenimiento: toda alta, cambio o retirada de una excepción se hace en el mismo PR que la causa (FR-013a).
+- Orden de preferencia: directa → lockfile → padre → override acotado → descarte.
+- Umbral de bloqueo en CI (ver [ci-seguridad.md](./ci-seguridad.md)).
+- Criterio de descarte: sin versión corregida alcanzable sin sustituir una librería **y** código vulnerable no alcanzable con datos externos.
+- Regla de mantenimiento: toda alta, cambio o retirada de una excepción se hace en el mismo PR que la causa (FR-013a).
 3. **Tabla de excepciones** (formato abajo).
 4. **Consecuencias**.
 

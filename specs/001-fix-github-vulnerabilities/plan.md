@@ -9,12 +9,12 @@
 Cerrar las 97 alertas de seguridad abiertas en GitHub (90 de Dependabot y 7 de CodeQL) en 3 PR independientes (FR-017):
 
 1. **PR 1 — Dependencias** (`fix(deps)`): subir las dependencias directas a versiones corregidas dentro de la línea
-   más cercana posible (nodemailer 7 → 10, @fastify/static 8 → 10, vitest 3 → 4, drizzle-orm 0.44 → 0.45, eslint 9 → 10,
-   vite 6.4.5, uuid 11.1.1+, yauzl 3.2.1+), refrescar el fichero de bloqueo para las transitivas que ya admiten la versión
-   corregida (undici, @azure/msal-node, fast-uri, seroval, serialize-javascript), forzar con `pnpm.overrides` acotados las
-   que no (esbuild, glob, minimatch, uuid de exceljs), y descartar con justificación las que no tienen salida compatible
-   (deepmerge y, si las pruebas lo confirman, las copias antiguas de glob/minimatch que arrastra exceljs). Crea la ADR 0016
-   con la política y la tabla de excepciones.
+  más cercana posible (nodemailer 7 → 10, @fastify/static 8 → 10, vitest 3 → 4, drizzle-orm 0.44 → 0.45, eslint 9 → 10,
+  vite 6.4.5, uuid 11.1.1+, yauzl 3.2.1+), refrescar el fichero de bloqueo para las transitivas que ya admiten la versión
+  corregida (undici, @azure/msal-node, fast-uri, seroval, serialize-javascript), forzar con `pnpm.overrides` acotados las
+  que no (esbuild, glob, minimatch, uuid de exceljs), y descartar con justificación las que no tienen salida compatible
+  (deepmerge y, si las pruebas lo confirman, las copias antiguas de glob/minimatch que arrastra exceljs). Crea la ADR 0016
+  con la política y la tabla de excepciones.
 2. **PR 2 — Expresiones regulares** (`fix(seguridad)`): reescribir las 7 expresiones señaladas por CodeQL para que su coste sea lineal, revisar las ~112 expresiones de `domain`, `gs1`, `extraction`, `cimavet` y `siweb`, corregir las vulnerables y añadir una prueba de entrada patológica por función corregida.
 3. **PR 3 — Prevención** (`ci`): `.github/dependabot.yml` con actualizaciones agrupadas y un job `dependency-review` en la integración continua con el umbral acordado (altas/críticas de ejecución, críticas de desarrollo), alimentado por la tabla de excepciones de la ADR.
 
