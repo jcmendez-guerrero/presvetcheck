@@ -17,6 +17,39 @@ env:
   TZ: UTC
 
 jobs:
+  # Revisión de las dependencias que añade o cambia el PR, con la base de avisos de GitHub (ADR-16). Bloquea las
+  # vulnerabilidades altas o críticas de ejecución y las críticas de desarrollo; el resto aparece como aviso.
+  # allow-ghsas = descartes vigentes de la tabla de excepciones de la ADR-16 (EXC-01 y EXC-06).
+  dependencias:
+    name: Revisión de dependencias
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Ejecución (bloquea altas y críticas)
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime
+          allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
+          comment-summary-in-pr: on-failure
+      - name: Desarrollo (bloquea críticas)
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: critical
+          fail-on-scopes: development
+          allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
+          comment-summary-in-pr: on-failure
+      - name: Avisos (medias y bajas, y altas de desarrollo; no bloquea)
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: low
+          fail-on-scopes: runtime, development
+          allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
+          warn-only: true
+
   calidad:
     name: Lint, tipos, tests y build
     runs-on: ubuntu-latest
