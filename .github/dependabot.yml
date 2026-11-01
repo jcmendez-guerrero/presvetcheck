@@ -1,0 +1,40 @@
+# Propuestas automáticas de actualización (ADR-16). Las de seguridad se agrupan en un único PR por ecosistema;
+# las de versión, por tipo de dependencia, una vez por semana.
+version: 2
+updates:
+  - package-ecosystem: npm # pnpm se detecta por pnpm-lock.yaml (monorepo con pnpm-workspace.yaml)
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: fix(deps)
+      prefix-development: chore(deps)
+    groups:
+      seguridad:
+        applies-to: security-updates
+        patterns: ['*']
+      produccion:
+        applies-to: version-updates
+        dependency-type: production
+        update-types: [minor, patch]
+      desarrollo:
+        applies-to: version-updates
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: ci
+    groups:
+      acciones:
+        patterns: ['*']
