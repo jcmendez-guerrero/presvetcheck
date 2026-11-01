@@ -29,5 +29,11 @@
   "MEDICAMENTO_NO_EN_SISTEMA": "Este medicamento no está en el sistema (no figura en CIMAVet veterinario) y puede ser de uso humano: no se puede dispensar.",
   "FRACCION_NO_VALIDA": "Esta fracción no se puede dispensar: solo se fraccionan presentaciones autorizadas, en múltiplos de la fracción del laboratorio (sin cortar blísteres) y sin superar las unidades de la receta.",
   "DNI_RETIRA_OBLIGATORIO": "Es un psicótropo: comprueba la identidad de la persona que lo retira y anota su DNI o NIE (con la letra correcta).",
-  "ENTRADA_CADUCADA": "El producto está caducado: no se puede registrar su entrada."
+  "ENTRADA_CADUCADA": "El producto está caducado: no se puede registrar su entrada.",
+  "ASISTENTE_DESACTIVADO": "El asistente de consultas no está activado.",
+  "ASISTENTE_NO_DISPONIBLE": "El asistente no está disponible ahora; consulta la Ayuda.",
+  "ASISTENTE_LIMITE_MENSUAL": "El asistente ha alcanzado el límite de uso de este mes; consulta la Ayuda.",
+  "ASISTENTE_CONVERSACION_AJENA": "Esta conversación es de otra persona.",
+  "ASISTENTE_CONVERSACION_CERRADA": "Esta conversación está cerrada. Empieza una nueva.",
+  "RECETA_LINEA_NO_ENCONTRADA": "No se encuentra esa línea de la receta."
 }

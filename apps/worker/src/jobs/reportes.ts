@@ -1,4 +1,7 @@
-import { reportRun, verifyAuditChain, siwebVariantMap } from '@mmx/db';
+import { eq } from 'drizzle-orm';
+import { asistenteConsumoMes, reportRun, verifyAuditChain, siwebVariantMap } from '@mmx/db';
+import { costeEstimado, estadoConsumo } from '@mmx/assistant';
+import { mesMadrid } from '@mmx/shared';
 import { hoy } from '@mmx/domain';
 import { empaquetarReporte, generarReporteSemanal, semanaAnterior, type LoteProximo } from '@mmx/reports';
 import type { Contexto } from '../contexto';
@@ -28,6 +31,7 @@ export async function weeklyReports(ctx: Contexto, args: Record<string, string>)
   const cadena = await verifyAuditChain(ctx.db);
   if (!cadena.ok) ctx.log('ALERTA: ruptura de la cadena de auditoría', { seq: cadena.roturaEn?.seq });
 
+  const asistente = await lineaAsistente(ctx);
   const para = (ctx.config.REPORT_RECIPIENTS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   if (para.length) {
     await ctx.mailer.enviar({
@@ -37,12 +41,24 @@ export async function weeklyReports(ctx: Contexto, args: Record<string, string>)
         `Reporte semanal de Mundo Mascotix (${periodo.desde} a ${periodo.hasta}).`,
         ...tablas.map((t) => `· ${t.nombre}: ${t.filas.length} fila(s)`),
         cadena.ok ? `Cadena de auditoría verificada (${cadena.total} eventos).` : 'ATENCIÓN: la verificación de la cadena de auditoría ha fallado.',
+        ...(asistente ? [asistente] : []),
       ].join('\n'),
       adjuntos: [{ nombre: `reporte-semanal-${periodo.etiqueta}.xlsx`, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contenido: xlsx }],
     });
   }
   await ctx.db.insert(reportRun).values({ tipo: 'semanal', periodo: periodo.etiqueta, blobPath: ruta, formato: 'xlsx+csv', generadoAt: new Date(ctx.clock.now().epochMilliseconds), enviadoA: para });
   return { periodo: periodo.etiqueta, hojas: tablas.map((t) => ({ nombre: t.nombre, filas: t.filas.length })), blob: ruta, enviadoA: para.length, auditoria: cadena };
+}
+
+/** Consumo acumulado del mes del asistente de consultas (FR-027b); nada si aún no se ha usado. */
+async function lineaAsistente(ctx: Contexto): Promise<string | null> {
+  const mes = mesMadrid(new Date(ctx.clock.now().epochMilliseconds));
+  const [f] = await ctx.db.select().from(asistenteConsumoMes).where(eq(asistenteConsumoMes.mes, mes));
+  if (!f) return null;
+  const e = estadoConsumo({ tokensEntrada: f.tokensEntrada, tokensSalida: f.tokensSalida, limiteTokens: f.limiteTokens, limiteAmpliado: f.limiteAmpliado });
+  const coste = costeEstimado(f.tokensEntrada, f.tokensSalida, { entradaPor1k: ctx.config.ASSISTANT_PRICE_IN_PER_1K_EUR, salidaPor1k: ctx.config.ASSISTANT_PRICE_OUT_PER_1K_EUR });
+  const estado = e.estado === 'en_pausa' ? ' · EN PAUSA' : e.estado === 'aviso' ? ' · cerca del límite' : '';
+  return `Asistente de consultas (${mes}): ${e.usados} tokens, ${e.porcentaje} % del límite, ${f.preguntas} pregunta(s)${coste ? `, coste estimado ${coste} €` : ''}${estado}.`;
 }
 
 async function lotesProximos(ctx: Contexto, hasta: string): Promise<LoteProximo[]> {

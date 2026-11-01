@@ -1,10 +1,11 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CimavetClient, CimavetRepository, jobNomenclatorImport, verificarEnVivo } from '@mmx/cimavet';
 import { ColumnCipher, createDb, runMigrations, seed, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
 import { hoy, type Clock } from '@mmx/domain';
 import { Temporal } from '@js-temporal/polyfill';
 import { crearExtractor, crearLectorAlbaranes } from '@mmx/extraction';
+import { IndiceFuentes, ToolRegistry, crearHerramientas, crearModeloAsistente } from '@mmx/assistant';
 import type { AppConfig } from '@mmx/shared';
 import { findUp, loadRules, secretoKeyVault, tokenPostgresEntra } from '@mmx/shared/node';
 import {
@@ -22,9 +23,10 @@ import {
   resolverAlmacen,
 } from '@mmx/siweb';
 import { politica, type AppDeps } from './deps';
-import { AzureBlobStore, MemoryBlobStore } from '@mmx/reports';
+import { AcsMailer, AzureBlobStore, ConsoleMailer, MemoryBlobStore, SmtpMailer, type Mailer } from '@mmx/reports';
 import { DemoStockPort, SiwebStockPort } from './puertos/stock';
 import { procedimientoVigente } from './servicios/sustituciones';
+import { ContextoLineaService, type DepsContexto } from './servicios/asistente-contexto';
 
 export const relojSistema: Clock = { now: () => Temporal.Now.instant() };
 
@@ -87,6 +89,7 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
     if (!p || p.soloDesarrollo) throw new Error('Modo POST sin procedimiento de sustitución aprobado cargado (D-01): la app no arranca');
   }
 
+  const cipher = new ColumnCipher(claveCifrado);
   const fixturesRecetas = findUp('fixtures/recetas', process.cwd()) ?? resolve('fixtures/recetas');
   const deps: AppDeps = {
     config,
@@ -104,11 +107,49 @@ export async function crearDeps(config: AppConfig, log: (m: string) => void): Pr
       !prod && config.BLOB_CONNECTION_STRING === 'memory'
         ? new MemoryBlobStore()
         : await AzureBlobStore.crear({ connectionString: config.BLOB_CONNECTION_STRING, accountUrl: config.BLOB_ACCOUNT_URL }),
-    cipher: new ColumnCipher(claveCifrado),
+    cipher,
     telefonoFarmacia: config.FARMACIA_TELEFONO,
     nombreFarmacia: 'Mundo Mascotix · Medicamentos Veterinarios',
+    asistente: await crearAsistente(config, { db, cipher, cimavet, rules: { bundle: rules.bundle, files: rules.files }, clock, log }, await crearMailer(config, log)),
   };
   return { deps, handle };
+}
+
+/** Correo para los avisos a administración (mismo criterio que el worker: SMTP, ACS o consola). */
+async function crearMailer(config: AppConfig, log: (m: string) => void): Promise<Mailer> {
+  if (config.MAILER === 'smtp') {
+    const password = config.SMTP_PASSWORD ?? (config.KEY_VAULT_URL ? await secretoKeyVault(config.KEY_VAULT_URL, config.KV_SECRETO_SMTP).catch(() => undefined) : undefined);
+    return new SmtpMailer({ host: config.SMTP_HOST as string, port: config.SMTP_PORT, user: config.SMTP_USER, password, from: config.SMTP_FROM as string });
+  }
+  if (config.MAILER === 'acs') return new AcsMailer({ endpoint: config.ACS_ENDPOINT as string, remitente: config.ACS_SENDER as string });
+  return new ConsoleMailer((m) => log(m));
+}
+
+/**
+ * Asistente de consultas: modelo según ASSISTANT, índice de la guía y la Ayuda, y herramientas de solo lectura.
+ * Con ASSISTANT=off no se carga nada.
+ */
+async function crearAsistente(
+  config: AppConfig,
+  d: DepsContexto & { clock: Clock; log: (m: string) => void },
+  mailer: Mailer | null,
+): Promise<AppDeps['asistente']> {
+  const modelo = await crearModeloAsistente(config);
+  if (!modelo) return { modelo: null, herramientas: new ToolRegistry(), fuentes: null, mailer: null };
+  const ruta = findUp('docs/ref/guia-receta-veterinaria.md', process.cwd());
+  if (!ruta) d.log('Asistente: no se encuentra docs/ref/guia-receta-veterinaria.md; solo responderá con la Ayuda y las reglas');
+  const indice = new IndiceFuentes(ruta ? readFileSync(ruta, 'utf8') : null);
+  const contexto = new ContextoLineaService(d);
+  const herramientas = crearHerramientas({
+    rules: d.rules.bundle,
+    clock: d.clock,
+    indice,
+    cimavet: d.cimavet,
+    permitirCambioFormato: config.ALLOW_PACK_SIZE_CHANGE,
+    maxEdadCimavetH: config.CIMAVET_LIVE_CHECK_MAX_AGE_H,
+    cargarContextoLinea: (id) => contexto.cargar(id),
+  });
+  return { modelo, herramientas, fuentes: indice, mailer, existeLinea: (id) => contexto.existe(id), cargarLinea: (id) => contexto.cargar(id), conocidosLinea: (id) => contexto.conocidos(id) };
 }
 
 /**

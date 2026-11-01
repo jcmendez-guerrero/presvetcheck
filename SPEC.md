@@ -19,6 +19,7 @@
 6. **Registro de salidas** (con y sin receta, presencial y online) con las columnas exactas de la sección 4.8.
 7. **Módulo de entradas** (recepción de mercancía) con autocompletado desde CIMAVet, escaneo del envase, datos obligatorios y sincronización de stock con Siweb360.
 8. **Caché local de CIMAVet** (carga inicial desde el Nomenclátor XML + sincronización incremental) y **reportes semanales**.
+9. **Asistente de consultas** (chat en español) que explica las reglas de prescripción, sustitución y dispensación y el resultado de una receta; solo informa, no decide (especificación en `specs/001-prescription-chat-assistant/`, ADR-16).
 
 ### 0.2 Principios no negociables
 - **La IA propone, la persona decide.** Ningún dato extraído por IA se usa sin confirmación humana. Ninguna dispensación se completa sin la confirmación explícita del empleado.
@@ -626,7 +627,8 @@ Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9
 8. **Recepción:** cabecera (distribuidor, albarán, fecha) + lista de líneas; buscador con autocompletado; escaneo; panel de datos faltantes; resumen y "Finalizar".
 9. **Bandeja del garante:** pendientes por tipo, con aprobación/rechazo y comentario; MFA obligatorio.
 10. **Registros y reportes:** filtros por fechas, plantilla, exportación.
-11. **Administración:** mapeo CN↔Siweb360, distribuidores, reglas (solo lectura del YAML activo y su aprobación), exclusiones de sustitución, outbox y reconciliación, estado de sincronización CIMAVet.
+11. **Administración:** mapeo CN↔Siweb360, distribuidores, reglas (solo lectura del YAML activo y su aprobación), exclusiones de sustitución, outbox y reconciliación, estado de sincronización CIMAVet y consumo mensual del asistente.
+12. **Asistente de consultas:** botón «Preguntar» y panel lateral en cualquier pantalla (y «Preguntar sobre esta línea» en Resultado y Dispensación, sin quitar el foco del campo de escaneo al cerrarse); respuestas con fuentes citadas y su versión, tarjetas «Simulación» y «Resultado de la aplicación» pintadas desde el motor, valoración útil/incorrecta y página «Consultas al asistente» (cada persona ve las suyas; veterinaria responsable y administración, las de todos).
 
 Requisitos transversales: textos en español y comprensibles para personal no técnico; objetivos táctiles ≥ 44 px; foco de teclado en el campo de escaneo; sonido distinto para escaneo correcto/incorrecto; sin pérdida de datos si se recarga (borrador en servidor); accesibilidad AA.
 
@@ -646,11 +648,12 @@ MFA obligatorio para `farmaceutico_garante` y `admin` (acceso condicional o, si 
 - Base jurídica principal: cumplimiento de obligación legal (custodia de recetas y registros). Minimización: DNI opcional en venta presencial y obligatorio en pedidos online (D-07; documentar la finalidad en el RAT de Facilita); las exportaciones por defecto **excluyen** los datos del propietario salvo que se pidan expresamente.
 - Cifrado en tránsito (TLS 1.2+) y en reposo (servicio) + cifrado de columnas del propietario a nivel de aplicación.
 - **Retención:** recetas (imagen y datos) y registros de entradas/salidas **5 años**; después, job de purga/anonimización (`retention-sweep`, mensual). Inmutabilidad de Blob con retención temporal acorde.
-- Encargados: Microsoft (Azure, incluidos Document Intelligence y Azure OpenAI, sin uso de los datos para entrenamiento). Actualizar el Registro de Actividades de Tratamiento (Facilita) con este tratamiento.
+- Encargados: Microsoft (Azure, incluidos Document Intelligence y el despliegue de chat de Azure OpenAI / Foundry del asistente de consultas, en la UE y sin uso de los datos para entrenamiento). Actualizar el Registro de Actividades de Tratamiento (Facilita) con este tratamiento.
 - No enviar datos personales a ningún servicio fuera de los declarados; no registrar datos personales en logs (redacción automática en el logger: DNI, teléfono, nombre de propietario).
 
 ### 9.3 Uso de IA
-- La IA solo extrae datos; las decisiones legales son del motor determinista y de la persona. Se registra modelo, versión de prompt y resultado de cada extracción.
+- La IA extrae datos de las recetas y, en el asistente de consultas, **explica** las reglas y el resultado que ya ha calculado el motor; las decisiones legales son siempre del motor determinista y de la persona. Se registra modelo, versión de prompt y resultado de cada extracción, y modelo, versión de instrucciones, fuentes y versión de reglas de cada respuesta del asistente.
+- **Asistente de consultas** (ADR-16, `specs/001-prescription-chat-assistant/`): las reglas no están en el prompt (las lee de `config/rules`, la guía y la Ayuda mediante herramientas de solo lectura); los cálculos los hace `packages/domain`; al modelo no llega ningún dato del titular ni la identidad del veterinario (la pregunta se sanea antes de enviarla y de guardarla); las conversaciones se conservan **1 año** y se eliminan con `retention-sweep`; hay un límite mensual de tokens (aviso al 80 %, pausa al 100 %). Actualizar el RAT con esta finalidad.
 - El personal ya dispone de la formación interna sobre uso de IA; añadir a la política interna un apartado para este sistema (fuera del código).
 
 ### 9.4 Auditoría

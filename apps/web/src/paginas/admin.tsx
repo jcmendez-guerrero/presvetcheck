@@ -4,9 +4,10 @@ import { ApiError, get, post, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fecha } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
+import type { ConsumoMesDto } from '@mmx/shared';
 import { Boton, Campo, Mensaje, Tarjeta } from '../componentes/ui';
 
-const PESTANAS = ['Probar lector', 'Distribuidores', 'Reglas', 'Plataformas', 'Exclusiones', 'Siweb360', 'Outbox', 'CIMAVet'] as const;
+const PESTANAS = ['Probar lector', 'Distribuidores', 'Reglas', 'Plataformas', 'Exclusiones', 'Siweb360', 'Outbox', 'CIMAVet', 'Asistente'] as const;
 
 /** Administración (SPEC §8.11). */
 export function Admin() {
@@ -28,6 +29,7 @@ export function Admin() {
       {p === 'Siweb360' && <Siweb />}
       {p === 'Outbox' && <Outbox />}
       {p === 'CIMAVet' && <Cimavet />}
+      {p === 'Asistente' && <ConsumoAsistente />}
     </Pagina>
   );
 }
@@ -264,5 +266,86 @@ function Cimavet() {
         ))}
       </ul>
     </Tarjeta>
+  );
+}
+
+const ESTADO_CONSUMO: Record<ConsumoMesDto['estado'], { texto: string; clase: string }> = {
+  normal: { texto: 'Normal', clase: 'bg-dispensar-bg text-dispensar' },
+  aviso: { texto: 'Cerca del límite (80 % o más)', clase: 'bg-sustituir-bg text-sustituir' },
+  en_pausa: { texto: 'En pausa: límite alcanzado', clase: 'bg-noconforme-bg text-noconforme' },
+};
+const num = (n: number) => n.toLocaleString('es-ES');
+
+/** Consumo del asistente de consultas por mes y ampliación del límite (FR-027a, FR-027b). */
+function ConsumoAsistente() {
+  const q = useQuery({ queryKey: ['asistente-consumo'], queryFn: () => get<{ actual: ConsumoMesDto; historico: ConsumoMesDto[] }>('/api/admin/asistente/consumo') });
+  const { run, aviso } = useAccion();
+  const [limite, setLimite] = useState('');
+  if (q.isLoading) return <Mensaje tipo="info">Cargando…</Mensaje>;
+  if (!q.data) return <Mensaje tipo="error">{(q.error as Error | null)?.message ?? 'No se ha podido cargar el consumo.'}</Mensaje>;
+  const a = q.data.actual;
+  const est = ESTADO_CONSUMO[a.estado];
+  return (
+    <div className="flex flex-col gap-4">
+      <Tarjeta titulo={`Asistente de consultas · ${a.mes}`}>
+        <p className={`inline-block rounded-full px-3 py-1 font-semibold ${est.clase}`} data-testid="consumo-estado">
+          {est.texto}
+        </p>
+        <div className="mt-3" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, a.porcentaje)} aria-label="Consumo del mes">
+          <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className={`h-4 ${a.estado === 'normal' ? 'bg-marca' : a.estado === 'aviso' ? 'bg-sustituir' : 'bg-noconforme'}`} style={{ width: `${Math.min(100, a.porcentaje)}%` }} />
+          </div>
+        </div>
+        <p className="mt-2">
+          {num(a.tokensEntrada + a.tokensSalida)} de {num(a.limiteEfectivo)} tokens ({a.porcentaje} %) · {num(a.preguntas)} pregunta(s)
+          {a.costeEstimadoEur !== null && <> · coste estimado {a.costeEstimadoEur} €</>}
+        </p>
+        {a.ampliadoPor && (
+          <p className="text-sm text-slate-600">
+            Límite ampliado por {a.ampliadoPor}
+            {a.ampliadoAt ? ` el ${fecha(a.ampliadoAt)}` : ''}.
+          </p>
+        )}
+        <form
+          className="mt-4 flex flex-wrap items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(() => put('/api/admin/asistente/consumo/limite', { limiteTokens: Number(limite) }), 'Límite ampliado');
+          }}
+        >
+          <Campo etiqueta="Nuevo límite de este mes (tokens)" type="number" min={a.tokensEntrada + a.tokensSalida + 1} value={limite} onChange={(e) => setLimite(e.target.value)} info="Tiene que ser mayor que lo ya consumido. Exige haber iniciado sesión con MFA." />
+          <Boton type="submit" disabled={!limite}>
+            Ampliar el límite
+          </Boton>
+        </form>
+        {aviso}
+      </Tarjeta>
+      {q.data.historico.length > 0 && (
+        <Tarjeta titulo="Meses anteriores">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left">
+                <th className="py-1">Mes</th>
+                <th>Tokens</th>
+                <th>Preguntas</th>
+                <th>Límite</th>
+                <th>Coste estimado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {q.data.historico.map((m) => (
+                <tr key={m.mes} className="border-t">
+                  <td className="py-1">{m.mes}</td>
+                  <td>{num(m.tokensEntrada + m.tokensSalida)}</td>
+                  <td>{num(m.preguntas)}</td>
+                  <td>{num(m.limiteEfectivo)}</td>
+                  <td>{m.costeEstimadoEur !== null ? `${m.costeEstimadoEur} €` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Tarjeta>
+      )}
+    </div>
   );
 }

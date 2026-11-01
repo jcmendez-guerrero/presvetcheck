@@ -39,6 +39,8 @@ export interface Evidencias {
 }
 export interface LineaEvaluada {
   orden: number;
+  /** Id de la línea guardada; null si aún no se ha guardado. */
+  lineaId: string | null;
   resultado: { decision: string; motivos: Motivo[]; evidencias: Evidencias };
   incidencias: Motivo[];
   opcionesSoloPA: { cn: string; nombre: string; labtitular: string | null; enStock: boolean }[] | null;

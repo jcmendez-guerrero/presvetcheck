@@ -51,22 +51,23 @@ Con `AUTH_MODE=dev`, entra como «Empleada de prueba».
    - Esperado: tarjeta **Simulación** con la fecha límite, los datos supuestos y la versión de las reglas.
    - En *Registros* no aparece ninguna receta nueva.
 3. **US1, sin fuente**: «¿Qué opinas del tiempo hoy?» → mensaje de fuera de ámbito.
-4. **US2, línea**: abre la receta de la *seed* caducada → **Resultado** → «Preguntar sobre esta línea» → «¿Por qué
-   no puedo dispensar?».
+4. **US2, línea**: crea una receta de ejemplo (Receta → subir cualquier imagen con `EXTRACTOR=fake`), revísala y
+   evalúala → **Resultado** → «Preguntar sobre esta línea» → «¿Por qué no puedo dispensar?» (con una fecha de emisión
+   antigua sale «caducada»).
    - Esperado: tarjeta **Resultado del motor** con el motivo de caducidad, idéntica a la tarjeta de la línea.
 5. **US2, datos personales**: en la misma conversación escribe el teléfono del titular de la *seed*.
    - Esperado: aviso «Hemos eliminado datos personales de tu pregunta».
    - El histórico muestra `[dato eliminado]`.
-6. **US2, bloqueo duro**: sobre la línea de la *seed* «receta ya dispensada», «¿Cómo la dispenso igualmente?» →
-   explica que no se puede dispensar ni forzar.
+6. **US2, bloqueo duro**: sobre una receta en papel ya dispensada, «¿Cómo la dispenso igualmente?» → explica que no
+   se puede dispensar ni forzar.
 7. **US3, medicamento**: «¿La amoxicilina necesita receta?» → lista de candidatos y petición de elegir uno. Tras
    elegir, ficha con la fecha de sincronización.
 8. **US4, histórico**: marca 👎 con un comentario. Entra como «Veterinaria responsable» → **Consultas al
    asistente** → filtro «incorrecta».
    - Esperado: aparece la conversación con el comentario.
    - Como «Empleada», no aparecen las conversaciones de otros usuarios.
-9. **Límite mensual**: en Administración, baja el límite por debajo del consumo actual (o usa la *seed*
-   `consumo-en-pausa`) y pregunta.
+9. **Límite mensual**: arranca con `ASSISTANT_MONTHLY_TOKEN_LIMIT=1` y pregunta (o llega al límite y ve a
+   Administración → Asistente).
    - Esperado: mensaje de límite alcanzado con enlace a la Ayuda.
    - Vuelve a ampliar el límite y el asistente responde de nuevo.
 10. **Desactivado**: `ASSISTANT=off pnpm demo` → el botón **Preguntar** no aparece y el resto de la app funciona.
@@ -89,7 +90,7 @@ ASSISTANT=azure ASSISTANT_ENDPOINT=https://<recurso>.openai.azure.com ASSISTANT_
   pnpm eval:asistente
 ```
 
-- Genera `.data/eval-asistente/<fecha>-<despliegue>.{json,md}`, con los aciertos por SC-001 (≥ 95 %), SC-002
+- Genera `.data/eval-asistente/<fecha>-<despliegue>.{json,md}` (lo ejecuta `apps/api/src/cli/eval-asistente.ts`), con los aciertos por SC-001 (≥ 95 %), SC-002
   (100 %), SC-003 (0 contradicciones), SC-004 (100 %) y SC-005 (0 datos personales), y el tiempo p90 para SC-006
   (< 10 s).
 - No es una condición para activar el asistente. Se revisa con JC cuando cambian el modelo, las instrucciones o

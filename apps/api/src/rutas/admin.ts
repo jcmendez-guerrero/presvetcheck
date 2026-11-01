@@ -9,10 +9,11 @@ import {
   siwebVariantMap,
   sustitucionExclusion,
 } from '@mmx/db';
-import { DomainError } from '@mmx/shared';
+import { DomainError, LimiteConsumoBody } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
 import { ROLES, exigirMfa, requiereRol } from '../plugins/auth';
 import { IdParam } from '../schemas';
+import { ConsumoRepo } from '../servicios/asistente-consumo';
 import { ctx, type App } from './comun';
 
 /** Administración (SPEC §8.11): mapeo CN↔Siweb360, distribuidores, reglas, exclusiones, outbox, CIMAVet. */
@@ -31,6 +32,37 @@ export async function rutasAdmin(app: App, d: AppDeps) {
       throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no responde ahora. Vuelve a intentarlo en unos segundos.');
     }
   };
+
+  // ── Asistente de consultas: consumo mensual (FR-027b) ──────────────────────────────
+  const consumo = new ConsumoRepo(d.db, d.config);
+  app.get(
+    '/api/admin/asistente/consumo',
+    { preHandler: admin, schema: { tags: ['admin'], summary: 'Consumo del asistente: mes en curso y meses anteriores', querystring: z.object({ meses: z.coerce.number().int().min(1).max(36).default(6) }) } },
+    async (req) => {
+      const ahora = ahoraDe(d);
+      return { actual: consumo.dto(await consumo.mes(ahora)), historico: (await consumo.historico(ahora, req.query.meses)).map((m) => consumo.dto(m)) };
+    },
+  );
+  app.put(
+    '/api/admin/asistente/consumo/limite',
+    { preHandler: admin, schema: { tags: ['admin'], summary: 'Amplía el límite de tokens del mes en curso', body: LimiteConsumoBody } },
+    async (req) => {
+      exigirMfa(req);
+      const c = ctx(req);
+      const { antes, despues } = await consumo.ampliar(ahoraDe(d), req.body.limiteTokens, c.usuario.id);
+      await d.db.transaction((tx) =>
+        appendAudit(tx, {
+          actor: c.usuario.id,
+          accion: 'asistente_ampliar_limite',
+          entidad: 'asistente_consumo_mes',
+          entidadId: despues.fila.mes,
+          antes: { limiteEfectivo: antes.limiteEfectivo },
+          despues: { limiteEfectivo: despues.limiteEfectivo },
+        }),
+      );
+      return consumo.dto(despues);
+    },
+  );
 
   // ── Distribuidores ─────────────────────────────────────────────────────────────
   app.get('/api/admin/distribuidores', { preHandler: requiereRol(...ROLES.operativa, 'admin'), schema: { tags: ['admin'] } }, async () =>

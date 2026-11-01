@@ -22,6 +22,15 @@ param sustitucionModo string = 'POST'
 param modeloDocIntel string = ''
 @allowed(['off', 'entries_only'])
 param escrituraStock string = 'off'
+// Asistente de consultas (specs/001-prescription-chat-assistant, ADR-16): usa un despliegue de chat de Azure OpenAI /
+// Foundry YA existente en la UE al que la identidad de la app tiene acceso; no se crean recursos ni claves.
+// TODO(decision DUDA-29): despliegue concreto y límite mensual. Desactivado por defecto.
+@allowed(['off', 'azure'])
+param asistente string = 'off'
+param asistenteEndpoint string = ''
+param asistenteDespliegue string = ''
+param asistenteLimiteTokens int = 3000000
+
 
 var prefijo = 'mmx-recetas-${entorno}'
 var corto = toLower(replace('mmx${entorno}${uniqueString(resourceGroup().id)}', '-', ''))
@@ -106,6 +115,10 @@ module apps 'modules/containerapps.bicep' = {
       { name: 'EXTRACTOR', value: 'azure' }
       { name: 'DOCINTEL_ENDPOINT', value: ia.outputs.docIntelEndpoint }
       { name: 'DOCINTEL_MODEL_ID', value: modeloDocIntel }
+      { name: 'ASSISTANT', value: asistente }
+      { name: 'ASSISTANT_ENDPOINT', value: asistenteEndpoint }
+      { name: 'ASSISTANT_DEPLOYMENT', value: asistenteDespliegue }
+      { name: 'ASSISTANT_MONTHLY_TOKEN_LIMIT', value: string(asistenteLimiteTokens) }
       { name: 'SIWEB_STOCK_WRITE_MODE', value: escrituraStock }
       { name: 'SUBSTITUTION_APPROVAL_MODE', value: sustitucionModo }
       { name: 'MAILER', value: 'smtp' }
