@@ -31,7 +31,7 @@ Esperado: 0 altas/críticas de ejecución; las restantes están en la tabla de l
 Comprobaciones específicas:
 
 | Qué | Cómo | Esperado |
-|-----|------|----------|
+| --- | --- | --- |
 | Sin migraciones nuevas (FR-004) | `pnpm --filter @mmx/db exec drizzle-kit generate` | «No schema changes» |
 | Correo de informes (FR-002) | Prueba de `packages/reports` del mailer | Mismos destinatarios, asunto, cuerpo y adjuntos |
 | Rutas de la web (FR-003) | Pruebas de API con `/../package.json`, `/%2e%2e%2fpackage.json`, `/assets%2f..%2f..%2fpackage.json` | 404 o `index.html`, nunca el fichero |
