@@ -21,11 +21,8 @@ jobs:
     name: Linting
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      contents: read
       checks: write
-      statuses: write
-      id-token: write
-      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -37,6 +34,7 @@ jobs:
       - name: Super-linter
         uses: super-linter/super-linter@61abc07d755095a68f4987d1c2c3d1d64408f1f9 # 8.5.0
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
           TERRAFORM_TFLINT_CONFIG_FILE: .tflint.custom.hcl
           VALIDATE_JSCPD: false
@@ -129,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     permissions:
-      id-token: write # OIDC federado: sin secretos de larga duración
+      id-token: write
       contents: read
     steps:
       - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
@@ -141,7 +139,6 @@ jobs:
         run: |
           az containerapp job update -g rg-mmx-recetas-dev -n job-db-migrate --image "${NEEDS_IMAGEN_OUTPUTS_IMAGEN}"
           az containerapp job start -g rg-mmx-recetas-dev -n job-db-migrate
-          # Espera a que termine la ejecución
           for i in $(seq 1 60); do
             estado=$(az containerapp job execution list -g rg-mmx-recetas-dev -n job-db-migrate --query "[0].properties.status" -o tsv)
             [ "$estado" = "Succeeded" ] && break
@@ -163,7 +160,7 @@ jobs:
     name: Promoción a prod (aprobación manual)
     if: github.event_name == 'workflow_dispatch' && inputs.promocionar != ''
     runs-on: ubuntu-latest
-    environment: prod # el entorno exige revisores en GitHub
+    environment: prod
     permissions:
       id-token: write
       contents: read
