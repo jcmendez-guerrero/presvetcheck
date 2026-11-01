@@ -42,7 +42,8 @@ export const decimalNomenclator = (v: string | null): string | null => {
   const t = v?.trim().replace(',', '.') ?? '';
   return /^\d+(\.\d+)?$/.test(t) ? t : null;
 };
-const num = (v: string | null): number | null => (v !== null && /^-?\d+$/.test(v.trim()) ? Number(v.trim()) : null);
+const num = (v: string | null): number | null =>
+  v !== null && /^-?\d+$/.test(v.trim()) ? Number(v.trim()) : null;
 
 /** cod_estado_registro_* (DICCIONARIO_SITUACION_REGISTRO): 1 Autorizado, 3 Anulado, 4 Suspenso, 5 Suspenso CN. */
 export function estadoNomenclator(cod: string | null): EstadoAutorizacion {
@@ -57,7 +58,9 @@ export function estadoNomenclator(cod: string | null): EstadoAutorizacion {
   }
 }
 
-export type ResultadoRegistro = { ok: true; registro: RegistroCache } | { ok: false; motivo: string; cn: string | null };
+export type ResultadoRegistro =
+  | { ok: true; registro: RegistroCache }
+  | { ok: false; motivo: string; cn: string | null };
 
 /**
  * Corrección del diccionario de unidades del Nomenclátor (ADR-15): DICCIONARIO_UNIDAD_COMPOSICION trae «l» en el
@@ -67,13 +70,20 @@ export type ResultadoRegistro = { ok: true; registro: RegistroCache } | { ok: fa
  */
 export const CORRECCION_UNIDAD_PRINCIPIO_ACTIVO: Record<number, string> = { 3: 'µg' };
 
-function unidadPrincipioActivo(cod: string | null, delDiccionario: (cod: string | null) => string | null): string | null {
+function unidadPrincipioActivo(
+  cod: string | null,
+  delDiccionario: (cod: string | null) => string | null,
+): string | null {
   const n = cod === null ? null : Number(cod);
   return (n !== null && CORRECCION_UNIDAD_PRINCIPIO_ACTIVO[n]) || delDiccionario(cod);
 }
 
 /** Convierte un `<prescription>` a registro de caché. Puro (salvo diccionarios). */
-export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetchedAt: Date): ResultadoRegistro {
+export function registroDesdeNomenclator(
+  node: XmlNode,
+  dic: Diccionarios,
+  fetchedAt: Date,
+): ResultadoRegistro {
   const cn = xmlText(node, 'cod_nacion');
   const nregistro = xmlText(node, 'nro_definitivo');
   const nombre = xmlText(node, 'nombre_med');
@@ -100,7 +110,8 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
   );
   // Con varias formas (kits) la composición no se puede expresar por una única unidad: no normalizable.
   const porCantidad = formas.length === 1 && forma ? xmlText(forma, 'cantidad_concentracion') : null;
-  const porUnidad = formas.length === 1 && forma ? unidad(xmlText(forma, 'unidad_cantidad_concentracion')) : null;
+  const porUnidad =
+    formas.length === 1 && forma ? unidad(xmlText(forma, 'unidad_cantidad_concentracion')) : null;
   const titular = num(xmlText(node, 'titular'));
 
   const especieDe = (v: string | null) => (v === null || /^todas$/i.test(v.trim()) ? null : num(v));
@@ -165,7 +176,9 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
         .filter((x): x is number => x !== null),
       vias: [
         ...new Set(
-          formas.flatMap((f) => xmlChildren(f, 'viasadministracion').flatMap((v) => xmlTexts(v, 'cod_via_admin').map(Number))),
+          formas.flatMap((f) =>
+            xmlChildren(f, 'viasadministracion').flatMap((v) => xmlTexts(v, 'cod_via_admin').map(Number)),
+          ),
         ),
       ],
       atc: xmlChildren(node, 'atcvet')
@@ -174,7 +187,13 @@ export function registroDesdeNomenclator(node: XmlNode, dic: Diccionarios, fetch
       indicaciones: xmlChildren(node, 'indicacionesespecie')
         .map((i) => {
           const id = num(xmlText(i, 'id_indicacion'));
-          return id === null ? null : { indicacionId: id, nombre: dic.indicaciones.get(id) ?? null, especieId: especieDe(xmlText(i, 'especie')) };
+          return id === null
+            ? null
+            : {
+                indicacionId: id,
+                nombre: dic.indicaciones.get(id) ?? null,
+                especieId: especieDe(xmlText(i, 'especie')),
+              };
         })
         .filter((x): x is NonNullable<typeof x> => x !== null),
       tiemposEspera: xmlChildren(node, 'tiemposesperaespecie').map((t) => ({
@@ -213,7 +232,14 @@ export async function importarNomenclator(
 ): Promise<InformeCarga> {
   const tam = opts.lote ?? 200;
   const fetchedAt = opts.fetchedAt ?? new Date();
-  const informe: InformeCarga = { leidos: 0, nuevos: 0, actualizados: 0, descartados: 0, motivosDescarte: {}, listado: null };
+  const informe: InformeCarga = {
+    leidos: 0,
+    nuevos: 0,
+    actualizados: 0,
+    descartados: 0,
+    motivosDescarte: {},
+    listado: null,
+  };
   let lote: RegistroCache[] = [];
   const vaciar = async () => {
     if (!lote.length) return;

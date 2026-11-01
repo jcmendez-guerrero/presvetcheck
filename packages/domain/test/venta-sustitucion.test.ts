@@ -51,22 +51,28 @@ describe('venta sin receta y online (SPEC §4.7)', () => {
     ]);
   });
   it('presencial con medicamento sujeto a receta → redirección al flujo de receta', () => {
-    expect(validarVentaSinReceta('presencial', med({ receta: true }), POL).map((i) => i.code)).toEqual(['RECETA_REQUERIDA']);
+    expect(validarVentaSinReceta('presencial', med({ receta: true }), POL).map((i) => i.code)).toEqual([
+      'RECETA_REQUERIDA',
+    ]);
   });
   it('no sujeto a receta → sin incidencias; estupefaciente siempre bloqueado', () => {
     expect(validarVentaSinReceta('online', med({ receta: false }), POL)).toEqual([]);
-    expect(validarVentaSinReceta('presencial', med({ receta: false, estupefaciente: true }), POL).map((i) => i.code)).toEqual(['ESTUPEFACIENTE_NO_DISPENSABLE']);
+    expect(
+      validarVentaSinReceta('presencial', med({ receta: false, estupefaciente: true }), POL).map(
+        (i) => i.code,
+      ),
+    ).toEqual(['ESTUPEFACIENTE_NO_DISPENSABLE']);
   });
   const ok = { nombre: 'Cliente', movil: '600000000', direccion: 'Calle 1', dni: '12345678Z' };
   it.each`
-    descripcion            | canal           | p                              | error
-    ${'online completo'}   | ${'online'}     | ${ok}                          | ${'OK'}
-    ${'online sin DNI'}    | ${'online'}     | ${{ ...ok, dni: null }}        | ${'DATOS_PROPIETARIO_ONLINE'}
-    ${'online letra mala'} | ${'online'}     | ${{ ...ok, dni: '12345678A' }} | ${'DNI_INVALIDO'}
-    ${'online sin datos'}  | ${'online'}     | ${null}                        | ${'DATOS_PROPIETARIO_ONLINE'}
-    ${'online sin móvil'}  | ${'online'}     | ${{ ...ok, movil: ' ' }}       | ${'DATOS_PROPIETARIO_ONLINE'}
-    ${'presencial vacío'}  | ${'presencial'} | ${null}                        | ${'OK'}
-    ${'presencial DNI mal'} | ${'presencial'} | ${{ ...ok, dni: '1' }}        | ${'DNI_INVALIDO'}
+    descripcion             | canal           | p                              | error
+    ${'online completo'}    | ${'online'}     | ${ok}                          | ${'OK'}
+    ${'online sin DNI'}     | ${'online'}     | ${{ ...ok, dni: null }}        | ${'DATOS_PROPIETARIO_ONLINE'}
+    ${'online letra mala'}  | ${'online'}     | ${{ ...ok, dni: '12345678A' }} | ${'DNI_INVALIDO'}
+    ${'online sin datos'}   | ${'online'}     | ${null}                        | ${'DATOS_PROPIETARIO_ONLINE'}
+    ${'online sin móvil'}   | ${'online'}     | ${{ ...ok, movil: ' ' }}       | ${'DATOS_PROPIETARIO_ONLINE'}
+    ${'presencial vacío'}   | ${'presencial'} | ${null}                        | ${'OK'}
+    ${'presencial DNI mal'} | ${'presencial'} | ${{ ...ok, dni: '1' }}         | ${'DNI_INVALIDO'}
   `('$descripcion → $error', ({ canal, p, error }) => {
     expect(err(() => validarPropietario(canal, p))).toBe(error);
   });
@@ -89,12 +95,27 @@ describe('sustitución: supuestos y modo', () => {
 
 describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
   const T = '2026-10-14T10:00:00Z';
-  const consentir: EventoSustitucion = { tipo: 'CONSENTIMIENTO', consiente: true, medio: 'presencial', fechaHora: T, empleado: 'e1' };
-  const avisar: EventoSustitucion = { tipo: 'AVISO_VETERINARIO', medio: 'teléfono', fechaHora: T, resultado: 'conforme', empleado: 'e1' };
-  const run = (s: EstadoSustitucionCompleto, evs: [EventoSustitucion, Rol][]) => evs.reduce((acc, [e, rol]) => transicionSustitucion(acc, e, rol), s);
+  const consentir: EventoSustitucion = {
+    tipo: 'CONSENTIMIENTO',
+    consiente: true,
+    medio: 'presencial',
+    fechaHora: T,
+    empleado: 'e1',
+  };
+  const avisar: EventoSustitucion = {
+    tipo: 'AVISO_VETERINARIO',
+    medio: 'teléfono',
+    fechaHora: T,
+    resultado: 'conforme',
+    empleado: 'e1',
+  };
+  const run = (s: EstadoSustitucionCompleto, evs: [EventoSustitucion, Rol][]) =>
+    evs.reduce((acc, [e, rol]) => transicionSustitucion(acc, e, rol), s);
 
   const firma: EventoSustitucion = { tipo: 'FIRMAR', garante: 'Ana Garante', fechaHora: T, empleado: 'e1' };
-  const autorizar = (o: Partial<{ garante: string; medio: string; confirmaIndicacionProbable: boolean }> = {}): EventoSustitucion => ({
+  const autorizar = (
+    o: Partial<{ garante: string; medio: string; confirmaIndicacionProbable: boolean }> = {},
+  ): EventoSustitucion => ({
     tipo: 'AUTORIZAR_PREVIA',
     garante: 'Ana Garante',
     medio: 'teléfono',
@@ -119,24 +140,52 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
   it('sin consentimiento o sin aviso no se habilita dispensar', () => {
     const s0 = nuevaSustitucion('POST', false);
     expect(puedeDispensarSustitucion(s0)).toBe(false);
-    expect(err(() => transicionSustitucion(s0, { tipo: 'DISPENSAR' }, 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(s0, { tipo: 'DISPENSAR' }, 'empleado'))).toBe(
+      'SUSTITUCION_REQUISITOS',
+    );
     const s1 = transicionSustitucion(s0, consentir, 'empleado');
-    expect(err(() => transicionSustitucion(s1, { tipo: 'DISPENSAR' }, 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(s1, { tipo: 'DISPENSAR' }, 'empleado'))).toBe(
+      'SUSTITUCION_REQUISITOS',
+    );
   });
 
   it('urgencia justificada sustituye al aviso al veterinario', () => {
     const s = run(nuevaSustitucion('POST', false), [
       [consentir, 'empleado'],
-      [{ tipo: 'URGENCIA', justificacion: 'Animal con dolor agudo, veterinario ilocalizable', fechaHora: T, empleado: 'e1' }, 'empleado'],
+      [
+        {
+          tipo: 'URGENCIA',
+          justificacion: 'Animal con dolor agudo, veterinario ilocalizable',
+          fechaHora: T,
+          empleado: 'e1',
+        },
+        'empleado',
+      ],
     ]);
     expect(s.urgencia?.justificacion).toMatch(/dolor/);
     expect(puedeDispensarSustitucion(s)).toBe(true);
-    const corta: EventoSustitucion = { tipo: 'URGENCIA', justificacion: 'urgente', fechaHora: T, empleado: 'e1' };
-    expect(err(() => run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [corta, 'empleado']]))).toBe('SUSTITUCION_REQUISITOS');
+    const corta: EventoSustitucion = {
+      tipo: 'URGENCIA',
+      justificacion: 'urgente',
+      fechaHora: T,
+      empleado: 'e1',
+    };
+    expect(
+      err(() =>
+        run(nuevaSustitucion('POST', false), [
+          [consentir, 'empleado'],
+          [corta, 'empleado'],
+        ]),
+      ),
+    ).toBe('SUSTITUCION_REQUISITOS');
   });
 
   it('el tutor no consiente → RECHAZADA', () => {
-    const s = transicionSustitucion(nuevaSustitucion('POST', false), { ...consentir, consiente: false } as EventoSustitucion, 'empleado');
+    const s = transicionSustitucion(
+      nuevaSustitucion('POST', false),
+      { ...consentir, consiente: false } as EventoSustitucion,
+      'empleado',
+    );
     expect(s.estado).toBe('RECHAZADA');
   });
 
@@ -145,9 +194,15 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
     expect(s0.estado).toBe('PENDIENTE_AUTORIZACION_PREVIA');
     expect(err(() => transicionSustitucion(s0, consentir, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
     expect(err(() => transicionSustitucion(s0, autorizar(), 'admin'))).toBe('PROHIBIDO');
-    expect(err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
-    expect(err(() => transicionSustitucion(s0, autorizar({ garante: ' ' }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
-    expect(err(() => transicionSustitucion(s0, autorizar({ medio: '' }), 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(
+      err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado')),
+    ).toBe('SUSTITUCION_REQUISITOS');
+    expect(err(() => transicionSustitucion(s0, autorizar({ garante: ' ' }), 'empleado'))).toBe(
+      'SUSTITUCION_REQUISITOS',
+    );
+    expect(err(() => transicionSustitucion(s0, autorizar({ medio: '' }), 'empleado'))).toBe(
+      'SUSTITUCION_REQUISITOS',
+    );
     const s = run(s0, [
       [autorizar(), 'empleado'],
       [consentir, 'empleado'],
@@ -160,17 +215,27 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
   });
 
   it('firma registrada: exige el nombre del garante y la receta apartada; admin no interviene', () => {
-    const s = run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [avisar, 'empleado'], [{ tipo: 'DISPENSAR' }, 'empleado']]);
+    const s = run(nuevaSustitucion('POST', false), [
+      [consentir, 'empleado'],
+      [avisar, 'empleado'],
+      [{ tipo: 'DISPENSAR' }, 'empleado'],
+    ]);
     expect(err(() => transicionSustitucion(s, firma, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
     const ap = transicionSustitucion(s, { tipo: 'APARTAR_RECETA' }, 'empleado');
-    expect(err(() => transicionSustitucion(ap, { ...firma, garante: '' } as EventoSustitucion, 'empleado'))).toBe('SUSTITUCION_REQUISITOS');
+    expect(
+      err(() => transicionSustitucion(ap, { ...firma, garante: '' } as EventoSustitucion, 'empleado')),
+    ).toBe('SUSTITUCION_REQUISITOS');
     expect(err(() => transicionSustitucion(ap, firma, 'admin'))).toBe('PROHIBIDO');
   });
 
   it('rechazos: antes de dispensar → RECHAZADA; después, no conforme según el garante (lo registra el empleado)', () => {
     const rech: EventoSustitucion = { tipo: 'RECHAZAR', actor: 'x', motivo: 'm', fechaHora: T };
     expect(transicionSustitucion(nuevaSustitucion('POST', false), rech, 'empleado').estado).toBe('RECHAZADA');
-    const disp = run(nuevaSustitucion('POST', false), [[consentir, 'empleado'], [avisar, 'empleado'], [{ tipo: 'DISPENSAR' }, 'empleado']]);
+    const disp = run(nuevaSustitucion('POST', false), [
+      [consentir, 'empleado'],
+      [avisar, 'empleado'],
+      [{ tipo: 'DISPENSAR' }, 'empleado'],
+    ]);
     expect(err(() => transicionSustitucion(disp, rech, 'admin'))).toBe('PROHIBIDO');
     const nc = transicionSustitucion(disp, rech, 'empleado');
     expect(nc.estado).toBe('NO_CONFORME_GARANTE');
@@ -180,11 +245,13 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
   it('transiciones fuera de orden', () => {
     const s0 = nuevaSustitucion('POST', false);
     expect(err(() => transicionSustitucion(s0, avisar, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, { tipo: 'APARTAR_RECETA' }, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, firma, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
-    expect(err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado'))).toBe(
+    expect(err(() => transicionSustitucion(s0, { tipo: 'APARTAR_RECETA' }, 'empleado'))).toBe(
       'TRANSICION_NO_PERMITIDA',
     );
+    expect(err(() => transicionSustitucion(s0, firma, 'empleado'))).toBe('TRANSICION_NO_PERMITIDA');
+    expect(
+      err(() => transicionSustitucion(s0, autorizar({ confirmaIndicacionProbable: false }), 'empleado')),
+    ).toBe('TRANSICION_NO_PERMITIDA');
     expect(err(() => transicionSustitucion(s0, consentir, 'admin'))).toBe('PROHIBIDO');
   });
 
@@ -199,8 +266,17 @@ describe('máquina de estados de la sustitución (SPEC §4.4.3)', () => {
     });
     expect(t).toContain('CN 2, Lab), lote L1');
     expect(t).toContain('receta nº R1');
-    const t2 = plantillaAvisoVeterinario({ prescrito: { nombre: 'A', cn: '1' }, sustituto: { nombre: 'B', cn: '2', laboratorio: null }, lote: null, motivo: 'm', numeroReceta: null, farmacia: 'F' });
+    const t2 = plantillaAvisoVeterinario({
+      prescrito: { nombre: 'A', cn: '1' },
+      sustituto: { nombre: 'B', cn: '2', laboratorio: null },
+      lote: null,
+      motivo: 'm',
+      numeroReceta: null,
+      farmacia: 'F',
+    });
     expect(t2).toContain('(CN 2).');
-    expect(textoAnotacionDorso({ nombre: 'B', cn: '2', lote: 'L1', fecha: '14/10/2026' })).toContain('CN: 2   Lote: L1');
+    expect(textoAnotacionDorso({ nombre: 'B', cn: '2', lote: 'L1', fecha: '14/10/2026' })).toContain(
+      'CN: 2   Lote: L1',
+    );
   });
 });

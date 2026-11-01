@@ -21,7 +21,9 @@ export function sustitucionPermitida(
   if (prescrito.inmunologico) motivos.push('SUSTITUCION_PROHIBIDA_INMUNOLOGICO');
   if (prescrito.biologico) motivos.push('SUSTITUCION_PROHIBIDA_BIOLOGICO');
   const pas = new Set(prescrito.composicion.pas.map((p) => p.paId));
-  if (exclusiones.some((e) => e.nregistro === prescrito.nregistro || (e.pa_id !== null && pas.has(e.pa_id)))) {
+  if (
+    exclusiones.some((e) => e.nregistro === prescrito.nregistro || (e.pa_id !== null && pas.has(e.pa_id)))
+  ) {
     motivos.push('SUSTITUCION_PROHIBIDA_EXCLUSION');
   }
   return { permitida: motivos.length === 0, motivos };
@@ -32,7 +34,10 @@ export function sustitucionPermitida(
  * que exigen aprobación previa del garante (indicación PROBABLE o cantidades no normalizables).
  * El garante no usa la app: su autorización y su firma se obtienen fuera y las REGISTRA el empleado.
  */
-export function modoEfectivo(config: ModoSustitucion, equivalencia: Pick<ResultadoEquivalencia, 'requiereAprobacionPrevia'>): ModoSustitucion {
+export function modoEfectivo(
+  config: ModoSustitucion,
+  equivalencia: Pick<ResultadoEquivalencia, 'requiereAprobacionPrevia'>,
+): ModoSustitucion {
   return equivalencia.requiereAprobacionPrevia ? 'PRE' : config;
 }
 
@@ -72,7 +77,7 @@ export interface EstadoSustitucionCompleto {
   avisoVeterinario: RegistroAvisoVeterinario | null;
   urgencia: RegistroUrgencia | null;
   /** Autorización previa del garante obtenida fuera de la app (teléfono, presencial…), registrada por el empleado. */
-  autorizacionPrevia: RegistroGarante & { medio: string; confirmaIndicacionProbable: boolean } | null;
+  autorizacionPrevia: (RegistroGarante & { medio: string; confirmaIndicacionProbable: boolean }) | null;
   /** Firma del garante en la anotación de la receta en papel, registrada por el empleado. */
   firma: RegistroGarante | null;
   rechazo: { actor: string; motivo: string; fechaHora: string } | null;
@@ -93,11 +98,15 @@ export type EventoSustitucion =
 const ROLES_EMPLEADO: readonly Rol[] = ['empleado', 'veterinaria_responsable'];
 
 const nombreGarante = (g: string) => {
-  if (g.trim().length < 3) throw new DomainError('SUSTITUCION_REQUISITOS', 'Indica el nombre del farmacéutico garante');
+  if (g.trim().length < 3)
+    throw new DomainError('SUSTITUCION_REQUISITOS', 'Indica el nombre del farmacéutico garante');
   return g.trim();
 };
 
-export function nuevaSustitucion(modo: ModoSustitucion, indicacionProbable: boolean): EstadoSustitucionCompleto {
+export function nuevaSustitucion(
+  modo: ModoSustitucion,
+  indicacionProbable: boolean,
+): EstadoSustitucionCompleto {
   return {
     estado: modo === 'PRE' ? 'PENDIENTE_AUTORIZACION_PREVIA' : 'PROPUESTA',
     modo,
@@ -147,14 +156,24 @@ export function transicionSustitucion(
       // El garante autoriza fuera de la app; el empleado lo registra con confirmación expresa.
       exigirRol(rol, ROLES_EMPLEADO);
       if (s.estado !== 'PENDIENTE_AUTORIZACION_PREVIA') noPermitida(s, e);
-      if (e.medio.trim().length < 3) throw new DomainError('SUSTITUCION_REQUISITOS', 'Indica cómo se obtuvo la autorización del garante');
+      if (e.medio.trim().length < 3)
+        throw new DomainError('SUSTITUCION_REQUISITOS', 'Indica cómo se obtuvo la autorización del garante');
       if (s.indicacionProbable && !e.confirmaIndicacionProbable) {
-        throw new DomainError('SUSTITUCION_REQUISITOS', 'Con indicación PROBABLE, confirma expresamente que el garante la ha revisado');
+        throw new DomainError(
+          'SUSTITUCION_REQUISITOS',
+          'Con indicación PROBABLE, confirma expresamente que el garante la ha revisado',
+        );
       }
       return {
         ...s,
         estado: 'AUTORIZADA_PREVIA',
-        autorizacionPrevia: { garante: nombreGarante(e.garante), medio: e.medio.trim(), fechaHora: e.fechaHora, empleado: e.empleado, confirmaIndicacionProbable: e.confirmaIndicacionProbable },
+        autorizacionPrevia: {
+          garante: nombreGarante(e.garante),
+          medio: e.medio.trim(),
+          fechaHora: e.fechaHora,
+          empleado: e.empleado,
+          confirmaIndicacionProbable: e.confirmaIndicacionProbable,
+        },
       };
     case 'CONSENTIMIENTO': {
       exigirRol(rol, ROLES_EMPLEADO);
@@ -162,7 +181,12 @@ export function transicionSustitucion(
       if (!ok) noPermitida(s, e);
       const { tipo: _t, ...registro } = e;
       if (!e.consiente) {
-        return { ...s, estado: 'RECHAZADA', consentimiento: registro, rechazo: { actor: e.empleado, motivo: 'El tutor no da su conformidad', fechaHora: e.fechaHora } };
+        return {
+          ...s,
+          estado: 'RECHAZADA',
+          consentimiento: registro,
+          rechazo: { actor: e.empleado, motivo: 'El tutor no da su conformidad', fechaHora: e.fechaHora },
+        };
       }
       return { ...s, estado: 'CONSENTIMIENTO_TUTOR', consentimiento: registro };
     }
@@ -182,7 +206,10 @@ export function transicionSustitucion(
     case 'DISPENSAR':
       exigirRol(rol, ROLES_EMPLEADO);
       if (!puedeDispensarSustitucion(s)) {
-        throw new DomainError('SUSTITUCION_REQUISITOS', 'Faltan consentimiento, aviso al veterinario o autorización previa');
+        throw new DomainError(
+          'SUSTITUCION_REQUISITOS',
+          'Faltan consentimiento, aviso al veterinario o autorización previa',
+        );
       }
       return { ...s, estado: 'DISPENSADA' };
     case 'APARTAR_RECETA':
@@ -193,17 +220,29 @@ export function transicionSustitucion(
       // El garante firma la anotación en la receta en papel; el empleado registra que está firmada.
       exigirRol(rol, ROLES_EMPLEADO);
       if (s.estado !== 'RECETA_APARTADA') noPermitida(s, e);
-      return { ...s, estado: 'FIRMADA_GARANTE', firma: { garante: nombreGarante(e.garante), fechaHora: e.fechaHora, empleado: e.empleado } };
+      return {
+        ...s,
+        estado: 'FIRMADA_GARANTE',
+        firma: { garante: nombreGarante(e.garante), fechaHora: e.fechaHora, empleado: e.empleado },
+      };
     case 'RECHAZAR': {
       const antes = ANTES_DE_DISPENSAR.includes(s.estado);
       if (antes) {
         exigirRol(rol, ROLES_EMPLEADO);
-        return { ...s, estado: 'RECHAZADA', rechazo: { actor: e.actor, motivo: e.motivo, fechaHora: e.fechaHora } };
+        return {
+          ...s,
+          estado: 'RECHAZADA',
+          rechazo: { actor: e.actor, motivo: e.motivo, fechaHora: e.fechaHora },
+        };
       }
       // Después de dispensar, el empleado registra que el garante la ha declarado no conforme (fuera de la app).
       exigirRol(rol, ROLES_EMPLEADO);
       if (s.estado === 'RECHAZADA' || s.estado === 'NO_CONFORME_GARANTE') noPermitida(s, e);
-      return { ...s, estado: 'NO_CONFORME_GARANTE', rechazo: { actor: e.actor, motivo: e.motivo, fechaHora: e.fechaHora } };
+      return {
+        ...s,
+        estado: 'NO_CONFORME_GARANTE',
+        rechazo: { actor: e.actor, motivo: e.motivo, fechaHora: e.fechaHora },
+      };
     }
   }
 }

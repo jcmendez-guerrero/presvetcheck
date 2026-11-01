@@ -37,7 +37,9 @@ export function med(o: Partial<MedicamentoInfo> = {}): MedicamentoInfo {
     viaIds: [VIA.ORAL],
     especieIds: [ESPECIE.PERROS, ESPECIE.GATOS],
     atc: ['QJ01CA04'],
-    indicaciones: [{ especieId: null, texto: 'Infecciones de la piel causadas por bacterias sensibles a la amoxicilina' }],
+    indicaciones: [
+      { especieId: null, texto: 'Infecciones de la piel causadas por bacterias sensibles a la amoxicilina' },
+    ],
     tiemposEspera: [],
     estado: 'autorizado',
     comerc: true,
@@ -59,8 +61,14 @@ export function medNoAntibiotico(o: Partial<MedicamentoInfo> = {}): MedicamentoI
     nombre: 'MELOXIVET 1 mg COMPRIMIDOS',
     antibiotico: false,
     atc: ['QM01AC06'],
-    indicaciones: [{ especieId: null, texto: 'Alivio de la inflamación y el dolor en trastornos musculoesqueléticos' }],
-    composicion: { pas: [{ paId: PA.MELOXICAM, nombre: 'MELOXICAM', cantidad: '1', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' },
+    indicaciones: [
+      { especieId: null, texto: 'Alivio de la inflamación y el dolor en trastornos musculoesqueléticos' },
+    ],
+    composicion: {
+      pas: [{ paId: PA.MELOXICAM, nombre: 'MELOXICAM', cantidad: '1', unidad: 'mg' }],
+      porCantidad: '1',
+      porUnidad: 'Comprimido',
+    },
     ...o,
   });
 }
@@ -70,7 +78,11 @@ export function amoxicilina(mg: number, o: Partial<MedicamentoInfo> = {}): Medic
   return med({
     nregistro: mg === 500 ? '1000 ESP' : `10${mg} ESP`,
     nombre: `AMOXIVET ${mg} mg COMPRIMIDOS`,
-    composicion: { pas: [{ paId: PA.AMOXICILINA, nombre: 'AMOXICILINA', cantidad: String(mg), unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' },
+    composicion: {
+      pas: [{ paId: PA.AMOXICILINA, nombre: 'AMOXICILINA', cantidad: String(mg), unidad: 'mg' }],
+      porCantidad: '1',
+      porUnidad: 'Comprimido',
+    },
     ...o,
   });
 }

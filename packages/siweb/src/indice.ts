@@ -21,7 +21,11 @@ export class IndiceCatalogo {
   constructor(
     private readonly client: Pick<SiwebClient, 'variants'>,
     private readonly patron: string,
-    private readonly opts: { ttlMs?: number; now?: () => number; log?: (m: string, d?: Record<string, unknown>) => void } = {},
+    private readonly opts: {
+      ttlMs?: number;
+      now?: () => number;
+      log?: (m: string, d?: Record<string, unknown>) => void;
+    } = {},
   ) {}
 
   private now() {
@@ -45,15 +49,21 @@ export class IndiceCatalogo {
         const mapa = new Map<string, Variant[]>();
         for (const v of variantes) {
           const cns = new Set(
-            [extraerCn(v.sku ?? null, this.patron, true), extraerCn(v.name ?? null, this.patron, false), extraerCn(v.product_name ?? null, this.patron, false)].filter(
-              (c): c is string => c !== null,
-            ),
+            [
+              extraerCn(v.sku ?? null, this.patron, true),
+              extraerCn(v.name ?? null, this.patron, false),
+              extraerCn(v.product_name ?? null, this.patron, false),
+            ].filter((c): c is string => c !== null),
           );
           for (const cn of cns) mapa.set(cn, [...(mapa.get(cn) ?? []), v]);
         }
         this.porCnMap = mapa;
         this.cargadoAt = this.now();
-        this.opts.log?.('Catálogo de Siweb360 indexado', { variantes: variantes.length, conCn: mapa.size, ms: this.now() - inicio });
+        this.opts.log?.('Catálogo de Siweb360 indexado', {
+          variantes: variantes.length,
+          conCn: mapa.size,
+          ms: this.now() - inicio,
+        });
       } catch (e) {
         this.opts.log?.('No se pudo indexar el catálogo de Siweb360', { error: (e as Error).message });
         throw e;

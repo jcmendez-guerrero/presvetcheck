@@ -40,7 +40,10 @@ export class CimavetRepository implements NomenclatorSink {
 
   async existentes(cns: string[]): Promise<Set<string>> {
     if (!cns.length) return new Set();
-    const rows = await this.db.select({ cn: cimavetPresentacion.cn }).from(cimavetPresentacion).where(inArray(cimavetPresentacion.cn, cns));
+    const rows = await this.db
+      .select({ cn: cimavetPresentacion.cn })
+      .from(cimavetPresentacion)
+      .where(inArray(cimavetPresentacion.cn, cns));
     return new Set(rows.map((r) => r.cn));
   }
 
@@ -113,19 +116,25 @@ export class CimavetRepository implements NomenclatorSink {
     }
     if (r.principiosActivos) {
       // La API no da la base de la composición: no se sustituye una composición normalizable del Nomenclátor.
-      const existentes = await tx.select().from(cimavetMedPrincipioActivo).where(eq(cimavetMedPrincipioActivo.nregistro, nreg));
+      const existentes = await tx
+        .select()
+        .from(cimavetMedPrincipioActivo)
+        .where(eq(cimavetMedPrincipioActivo.nregistro, nreg));
       const conservar = m.source === 'api' && existentes.some((e) => e.normalizable);
       if (!conservar) {
         await tx.delete(cimavetMedPrincipioActivo).where(eq(cimavetMedPrincipioActivo.nregistro, nreg));
         if (r.principiosActivos.length) {
-          await tx.insert(cimavetMedPrincipioActivo).values(r.principiosActivos.map((p) => ({ ...p, nregistro: nreg })));
+          await tx
+            .insert(cimavetMedPrincipioActivo)
+            .values(r.principiosActivos.map((p) => ({ ...p, nregistro: nreg })));
         }
       }
     }
     if (r.especies) {
       await tx.delete(cimavetMedEspecie).where(eq(cimavetMedEspecie.nregistro, nreg));
       const ids = [...new Set(r.especies)];
-      if (ids.length) await tx.insert(cimavetMedEspecie).values(ids.map((especieId) => ({ nregistro: nreg, especieId })));
+      if (ids.length)
+        await tx.insert(cimavetMedEspecie).values(ids.map((especieId) => ({ nregistro: nreg, especieId })));
     }
     if (r.vias) {
       await tx.delete(cimavetMedVia).where(eq(cimavetMedVia.nregistro, nreg));
@@ -135,15 +144,20 @@ export class CimavetRepository implements NomenclatorSink {
     if (r.atc) {
       await tx.delete(cimavetMedAtc).where(eq(cimavetMedAtc.nregistro, nreg));
       const cods = [...new Set(r.atc)];
-      if (cods.length) await tx.insert(cimavetMedAtc).values(cods.map((codigo) => ({ nregistro: nreg, codigo })));
+      if (cods.length)
+        await tx.insert(cimavetMedAtc).values(cods.map((codigo) => ({ nregistro: nreg, codigo })));
     }
     if (r.indicaciones) {
       await tx.delete(cimavetMedIndicacion).where(eq(cimavetMedIndicacion.nregistro, nreg));
-      if (r.indicaciones.length) await tx.insert(cimavetMedIndicacion).values(r.indicaciones.map((i) => ({ ...i, nregistro: nreg })));
+      if (r.indicaciones.length)
+        await tx.insert(cimavetMedIndicacion).values(r.indicaciones.map((i) => ({ ...i, nregistro: nreg })));
     }
     if (r.tiemposEspera) {
       await tx.delete(cimavetMedTiempoEspera).where(eq(cimavetMedTiempoEspera.nregistro, nreg));
-      if (r.tiemposEspera.length) await tx.insert(cimavetMedTiempoEspera).values(r.tiemposEspera.map((t) => ({ ...t, nregistro: nreg })));
+      if (r.tiemposEspera.length)
+        await tx
+          .insert(cimavetMedTiempoEspera)
+          .values(r.tiemposEspera.map((t) => ({ ...t, nregistro: nreg })));
     }
   }
 
@@ -151,20 +165,39 @@ export class CimavetRepository implements NomenclatorSink {
   async marcarBaja(nregistro: string, fecha: string | null, fetchedAt: Date): Promise<void> {
     await this.db
       .update(cimavetMedicamento)
-      .set({ estadoCodigo: 'revocado', estado: sql`coalesce(${cimavetMedicamento.estado}, '{}'::jsonb) || ${JSON.stringify({ baja: fecha })}::jsonb`, fetchedAt })
+      .set({
+        estadoCodigo: 'revocado',
+        estado: sql`coalesce(${cimavetMedicamento.estado}, '{}'::jsonb) || ${JSON.stringify({ baja: fecha })}::jsonb`,
+        fetchedAt,
+      })
       .where(eq(cimavetMedicamento.nregistro, nregistro));
   }
 
-  async guardarNotas(nregistro: string, notas: { num: string; ref: string | null; asunto: string | null; fecha: string | null; url: string | null }[]) {
+  async guardarNotas(
+    nregistro: string,
+    notas: {
+      num: string;
+      ref: string | null;
+      asunto: string | null;
+      fecha: string | null;
+      url: string | null;
+    }[],
+  ) {
     for (const n of notas) {
       await this.db
         .insert(cimavetNota)
         .values({ nregistro, ...n })
-        .onConflictDoUpdate({ target: [cimavetNota.nregistro, cimavetNota.num], set: { ref: n.ref, asunto: n.asunto, fecha: n.fecha, url: n.url } });
+        .onConflictDoUpdate({
+          target: [cimavetNota.nregistro, cimavetNota.num],
+          set: { ref: n.ref, asunto: n.asunto, fecha: n.fecha, url: n.url },
+        });
     }
   }
 
-  async upsertMaestras(tipo: number, items: { id: number | null; codigo: string | null; nombre: string }[]): Promise<number> {
+  async upsertMaestras(
+    tipo: number,
+    items: { id: number | null; codigo: string | null; nombre: string }[],
+  ): Promise<number> {
     let n = 0;
     for (const it of items) {
       const clave = it.id !== null ? String(it.id) : it.codigo;
@@ -172,7 +205,10 @@ export class CimavetRepository implements NomenclatorSink {
       await this.db
         .insert(cimavetMaestra)
         .values({ tipo, clave, id: it.id, codigo: it.codigo, nombre: it.nombre })
-        .onConflictDoUpdate({ target: [cimavetMaestra.tipo, cimavetMaestra.clave], set: { id: it.id, codigo: it.codigo, nombre: it.nombre } });
+        .onConflictDoUpdate({
+          target: [cimavetMaestra.tipo, cimavetMaestra.clave],
+          set: { id: it.id, codigo: it.codigo, nombre: it.nombre },
+        });
       n++;
     }
     return n;
@@ -182,8 +218,16 @@ export class CimavetRepository implements NomenclatorSink {
     const rows = await this.db
       .select()
       .from(cimavetMaestra)
-      .where(inArray(cimavetMaestra.tipo, [MAESTRA.UNIDADES, MAESTRA.PRINCIPIOS_ACTIVOS, MAESTRA.LABORATORIOS, MAESTRA.INDICACIONES]));
-    const map = (tipo: number) => new Map(rows.filter((r) => r.tipo === tipo && r.id !== null).map((r) => [r.id as number, r.nombre]));
+      .where(
+        inArray(cimavetMaestra.tipo, [
+          MAESTRA.UNIDADES,
+          MAESTRA.PRINCIPIOS_ACTIVOS,
+          MAESTRA.LABORATORIOS,
+          MAESTRA.INDICACIONES,
+        ]),
+      );
+    const map = (tipo: number) =>
+      new Map(rows.filter((r) => r.tipo === tipo && r.id !== null).map((r) => [r.id as number, r.nombre]));
     return {
       unidades: map(MAESTRA.UNIDADES),
       principiosActivos: map(MAESTRA.PRINCIPIOS_ACTIVOS),
@@ -194,25 +238,37 @@ export class CimavetRepository implements NomenclatorSink {
 
   async nombresMaestra(tipo: number, ids: number[]): Promise<Map<number, string>> {
     if (!ids.length) return new Map();
-    const rows = await this.db.select().from(cimavetMaestra).where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
+    const rows = await this.db
+      .select()
+      .from(cimavetMaestra)
+      .where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
     return new Map(rows.map((r) => [r.id as number, r.nombre]));
   }
 
   // ── Lectura ──────────────────────────────────────────────────────────────────
 
-  async medicamentos(nregistros: string[]): Promise<Map<string, MedicamentoInfo & { fetchedAt: Date; source: string }>> {
+  async medicamentos(
+    nregistros: string[],
+  ): Promise<Map<string, MedicamentoInfo & { fetchedAt: Date; source: string }>> {
     const out = new Map<string, MedicamentoInfo & { fetchedAt: Date; source: string }>();
     const ids = [...new Set(nregistros)];
     if (!ids.length) return out;
     const [meds, pas, esp, vias, atcs, inds, tes, pres] = await Promise.all([
       this.db.select().from(cimavetMedicamento).where(inArray(cimavetMedicamento.nregistro, ids)),
-      this.db.select().from(cimavetMedPrincipioActivo).where(inArray(cimavetMedPrincipioActivo.nregistro, ids)).orderBy(asc(cimavetMedPrincipioActivo.orden)),
+      this.db
+        .select()
+        .from(cimavetMedPrincipioActivo)
+        .where(inArray(cimavetMedPrincipioActivo.nregistro, ids))
+        .orderBy(asc(cimavetMedPrincipioActivo.orden)),
       this.db.select().from(cimavetMedEspecie).where(inArray(cimavetMedEspecie.nregistro, ids)),
       this.db.select().from(cimavetMedVia).where(inArray(cimavetMedVia.nregistro, ids)),
       this.db.select().from(cimavetMedAtc).where(inArray(cimavetMedAtc.nregistro, ids)),
       this.db.select().from(cimavetMedIndicacion).where(inArray(cimavetMedIndicacion.nregistro, ids)),
       this.db.select().from(cimavetMedTiempoEspera).where(inArray(cimavetMedTiempoEspera.nregistro, ids)),
-      this.db.select({ nregistro: cimavetPresentacion.nregistro, comerc: cimavetPresentacion.comerc }).from(cimavetPresentacion).where(inArray(cimavetPresentacion.nregistro, ids)),
+      this.db
+        .select({ nregistro: cimavetPresentacion.nregistro, comerc: cimavetPresentacion.comerc })
+        .from(cimavetPresentacion)
+        .where(inArray(cimavetPresentacion.nregistro, ids)),
     ]);
     for (const m of meds) {
       const de = <T extends { nregistro: string }>(xs: T[]) => xs.filter((x) => x.nregistro === m.nregistro);
@@ -226,14 +282,19 @@ export class CimavetRepository implements NomenclatorSink {
         estupefaciente: m.estupefaciente ?? false,
         psicotropo: m.psicotropo ?? false,
         // Inmunológico: tipoMedicamento 2 (inmunológico) o 3 (mixto), o ATCvet QI (docs/dudas.md DUDA-06).
-        inmunologico: m.tipoMedicamentoId === 2 || m.tipoMedicamentoId === 3 || atc.some((a) => a.toUpperCase().startsWith('QI')),
+        inmunologico:
+          m.tipoMedicamentoId === 2 ||
+          m.tipoMedicamentoId === 3 ||
+          atc.some((a) => a.toUpperCase().startsWith('QI')),
         biologico: false,
         usoHumano: false,
         formaId: m.formaId,
         viaIds: de(vias).map((v) => v.viaId),
         especieIds: de(esp).map((e) => e.especieId),
         atc,
-        indicaciones: de(inds).map((i) => ({ especieId: i.especieId, texto: i.nombre ?? '' })).filter((i) => i.texto),
+        indicaciones: de(inds)
+          .map((i) => ({ especieId: i.especieId, texto: i.nombre ?? '' }))
+          .filter((i) => i.texto),
         tiemposEspera: de(tes).map((t) => ({
           especieId: t.especieId,
           tejido: t.tejido,
@@ -245,7 +306,12 @@ export class CimavetRepository implements NomenclatorSink {
         psum: m.psum ?? null,
         notas: m.notas ?? false,
         composicion: {
-          pas: de(pas).map((p) => ({ paId: p.paId, nombre: p.nombre ?? `PA ${p.paId}`, cantidad: p.cantidadRaw, unidad: p.unidadRaw })),
+          pas: de(pas).map((p) => ({
+            paId: p.paId,
+            nombre: p.nombre ?? `PA ${p.paId}`,
+            cantidad: p.cantidadRaw,
+            unidad: p.unidadRaw,
+          })),
           porCantidad: m.cantidadConcentracion,
           porUnidad: m.unidadConcentracion,
         },
@@ -282,7 +348,11 @@ export class CimavetRepository implements NomenclatorSink {
 
   async presentacionesDe(nregistros: string[]) {
     if (!nregistros.length) return [];
-    const rows = await this.db.select().from(cimavetPresentacion).where(inArray(cimavetPresentacion.nregistro, nregistros)).orderBy(asc(cimavetPresentacion.cn));
+    const rows = await this.db
+      .select()
+      .from(cimavetPresentacion)
+      .where(inArray(cimavetPresentacion.nregistro, nregistros))
+      .orderBy(asc(cimavetPresentacion.cn));
     return rows.map((p) => this.toPresentacion(p));
   }
 
@@ -290,12 +360,17 @@ export class CimavetRepository implements NomenclatorSink {
    * Búsqueda difusa (trigramas) sobre nombre de medicamento y presentación, filtrada por especie y
    * forma si constan (SPEC §4.2.1). Nunca autoselecciona: devuelve candidatos con puntuación.
    */
-  async buscar(q: string, f: { especieId?: number | null; formaId?: number | null; limite?: number } = {}): Promise<ResultadoBusqueda[]> {
+  async buscar(
+    q: string,
+    f: { especieId?: number | null; formaId?: number | null; limite?: number } = {},
+  ): Promise<ResultadoBusqueda[]> {
     const n = normalizeText(q);
     if (!n) return [];
     const cn = /^\d{6,7}$/.test(n) ? n.slice(0, 6) : null;
     // La especie ordena (primero los autorizados) pero no filtra.
-    const especie = f.especieId ? sql`exists (select 1 from cimavet_med_especie e where e.nregistro = m.nregistro and e.especie_id = ${f.especieId})` : sql`null::boolean`;
+    const especie = f.especieId
+      ? sql`exists (select 1 from cimavet_med_especie e where e.nregistro = m.nregistro and e.especie_id = ${f.especieId})`
+      : sql`null::boolean`;
     const filtros = [sql`true`, f.formaId ? sql`m.forma_id = ${f.formaId}` : sql`true`];
     // Principio activo ("amlodipino" → AMODIP): puntúa un poco menos que la marca para que esta salga antes.
     const paNorm = sql`lower(translate(a.nombre, 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))`;
@@ -312,7 +387,9 @@ export class CimavetRepository implements NomenclatorSink {
         and ${filtros[0]} and ${filtros[1]}
       order by puntuacion desc, autorizado_especie desc nulls last, p.comerc desc nulls last, p.cn
       limit ${f.limite ?? 10}`);
-    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<Record<string, unknown>>;
+    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<
+      Record<string, unknown>
+    >;
     return rows.map((r) => ({
       cn: String(r.cn),
       nregistro: String(r.nregistro),
@@ -322,7 +399,10 @@ export class CimavetRepository implements NomenclatorSink {
       comerc: (r.comerc as boolean | null) ?? null,
       estado: String(r.estado),
       puntuacion: Number(r.puntuacion),
-      autorizadoEspecie: r.autorizado_especie === null || r.autorizado_especie === undefined ? null : Boolean(r.autorizado_especie),
+      autorizadoEspecie:
+        r.autorizado_especie === null || r.autorizado_especie === undefined
+          ? null
+          : Boolean(r.autorizado_especie),
     }));
   }
 
@@ -335,7 +415,9 @@ export class CimavetRepository implements NomenclatorSink {
         select nregistro, array_agg(pa_id order by pa_id) as pas from cimavet_med_principio_activo group by nregistro
       )
       select t.nregistro from todos t, objetivo o where t.pas = o.pas order by t.nregistro limit ${limite}`);
-    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<{ nregistro: string }>;
+    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<{
+      nregistro: string;
+    }>;
     return rows.map((r) => r.nregistro);
   }
 
@@ -361,12 +443,23 @@ export class CimavetRepository implements NomenclatorSink {
   }
 
   async iniciarSync(tipo: string, inicio: Date): Promise<string> {
-    const [r] = await this.db.insert(cimavetSyncRun).values({ tipo, inicio }).returning({ id: cimavetSyncRun.id });
+    const [r] = await this.db
+      .insert(cimavetSyncRun)
+      .values({ tipo, inicio })
+      .returning({ id: cimavetSyncRun.id });
     return r!.id;
   }
 
-  async finalizarSync(id: string, fin: Date, contadores: unknown, error: string | null = null): Promise<void> {
-    await this.db.update(cimavetSyncRun).set({ fin, contadores: contadores as never, error }).where(eq(cimavetSyncRun.id, id));
+  async finalizarSync(
+    id: string,
+    fin: Date,
+    contadores: unknown,
+    error: string | null = null,
+  ): Promise<void> {
+    await this.db
+      .update(cimavetSyncRun)
+      .set({ fin, contadores: contadores as never, error })
+      .where(eq(cimavetSyncRun.id, id));
   }
 
   /** Inicio de la última sincronización correcta (nomenclator, delta o full). */
@@ -374,7 +467,13 @@ export class CimavetRepository implements NomenclatorSink {
     const [r] = await this.db
       .select({ inicio: cimavetSyncRun.inicio })
       .from(cimavetSyncRun)
-      .where(and(isNotNull(cimavetSyncRun.fin), sql`${cimavetSyncRun.error} is null`, inArray(cimavetSyncRun.tipo, ['nomenclator', 'delta', 'full'])))
+      .where(
+        and(
+          isNotNull(cimavetSyncRun.fin),
+          sql`${cimavetSyncRun.error} is null`,
+          inArray(cimavetSyncRun.tipo, ['nomenclator', 'delta', 'full']),
+        ),
+      )
       .orderBy(desc(cimavetSyncRun.inicio))
       .limit(1);
     return r?.inicio ?? null;

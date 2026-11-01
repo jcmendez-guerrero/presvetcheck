@@ -12,7 +12,16 @@
 
 export const GS = '\u001d';
 
-const FIJOS: Record<string, number> = { '01': 14, '02': 14, '11': 6, '13': 6, '15': 6, '16': 6, '17': 6, '20': 2 };
+const FIJOS: Record<string, number> = {
+  '01': 14,
+  '02': 14,
+  '11': 6,
+  '13': 6,
+  '15': 6,
+  '16': 6,
+  '17': 6,
+  '20': 2,
+};
 const VARIABLES: Record<string, number> = {
   '10': 20,
   '21': 20,
@@ -50,7 +59,14 @@ export interface Gs1Ok {
 
 export interface Gs1Error {
   ok: false;
-  error: 'VACIO' | 'FORMATO_DESCONOCIDO' | 'AI_DESCONOCIDO' | 'LONGITUD' | 'GTIN_CONTROL' | 'FECHA_INVALIDA' | 'GS_AUSENTE';
+  error:
+    | 'VACIO'
+    | 'FORMATO_DESCONOCIDO'
+    | 'AI_DESCONOCIDO'
+    | 'LONGITUD'
+    | 'GTIN_CONTROL'
+    | 'FECHA_INVALIDA'
+    | 'GS_AUSENTE';
   detalle: string;
 }
 
@@ -100,7 +116,13 @@ function fecha(aammdd: string, anioRef: number | undefined): string | null {
 function quitarPrefijo(raw: string): { s: string; simbologia: Simbologia } {
   const m = /^\](d2|C1|Q3|E0|e0)/.exec(raw);
   if (!m) return { s: raw, simbologia: 'desconocida' };
-  const map: Record<string, Simbologia> = { d2: 'datamatrix', C1: 'gs1-128', Q3: 'qr', E0: 'ean13', e0: 'gs1-128' };
+  const map: Record<string, Simbologia> = {
+    d2: 'datamatrix',
+    C1: 'gs1-128',
+    Q3: 'qr',
+    E0: 'ean13',
+    e0: 'gs1-128',
+  };
   return { s: raw.slice(3), simbologia: map[m[1] as string] as Simbologia };
 }
 
@@ -126,20 +148,40 @@ export function parseGs1(raw: string, opts: OpcionesGs1 = {}): Gs1Resultado {
 
   // EAN-13 lineal: sin lote ni caducidad (se piden a mano).
   if (/^\d{13}$/.test(s) && (simbologia === 'ean13' || simbologia === 'desconocida')) {
-    if (!gtinValido(s)) return { ok: false, error: 'GTIN_CONTROL', detalle: 'Dígito de control EAN-13 incorrecto' };
+    if (!gtinValido(s))
+      return { ok: false, error: 'GTIN_CONTROL', detalle: 'Dígito de control EAN-13 incorrecto' };
     const gtin = `0${s}`;
     const cn = cnDesdeGtin(gtin);
-    return { ok: true, simbologia: 'ean13', gtin, cn, cnOrigen: cn ? 'heuristica_gtin' : null, lote: null, caducidad: null, caducidadRaw: null, serie: null, ais: {}, avisos: ['SOLO_GTIN'] };
+    return {
+      ok: true,
+      simbologia: 'ean13',
+      gtin,
+      cn,
+      cnOrigen: cn ? 'heuristica_gtin' : null,
+      lote: null,
+      caducidad: null,
+      caducidadRaw: null,
+      serie: null,
+      ais: {},
+      avisos: ['SOLO_GTIN'],
+    };
   }
 
   // Formato legible "(01)…(17)…(10)…": se convierte a cadena con GS.
   if (s.startsWith('(')) {
     const partes = [...s.matchAll(/\((\d{2,4})\)([^(]*)/g)];
     if (!partes.length) return { ok: false, error: 'FORMATO_DESCONOCIDO', detalle: 'Paréntesis sin AI' };
-    s = partes.map(([, ai, v]) => `${ai}${(v as string).trim()}${(ai as string) in VARIABLES ? GS : ''}`).join('');
+    s = partes
+      .map(([, ai, v]) => `${ai}${(v as string).trim()}${(ai as string) in VARIABLES ? GS : ''}`)
+      .join('');
   }
   if (s.startsWith(GS)) s = s.slice(1); // FNC1 inicial
-  if (!/^\d{2}/.test(s)) return { ok: false, error: 'FORMATO_DESCONOCIDO', detalle: 'No empieza por un identificador de aplicación' };
+  if (!/^\d{2}/.test(s))
+    return {
+      ok: false,
+      error: 'FORMATO_DESCONOCIDO',
+      detalle: 'No empieza por un identificador de aplicación',
+    };
   if (simbologia === 'desconocida') simbologia = 'datamatrix';
 
   const ais: Record<string, string> = {};
@@ -151,12 +193,18 @@ export function parseGs1(raw: string, opts: OpcionesGs1 = {}): Gs1Resultado {
       continue;
     }
     const ai = leerAi(s, i);
-    if (!ai) return { ok: false, error: 'AI_DESCONOCIDO', detalle: `Identificador desconocido en la posición ${i}: ${s.slice(i, i + 4)}` };
+    if (!ai)
+      return {
+        ok: false,
+        error: 'AI_DESCONOCIDO',
+        detalle: `Identificador desconocido en la posición ${i}: ${s.slice(i, i + 4)}`,
+      };
     i += ai.length;
     if (ai in FIJOS) {
       const len = FIJOS[ai] as number;
       const v = s.slice(i, i + len);
-      if (v.length !== len || !/^\d+$/.test(v)) return { ok: false, error: 'LONGITUD', detalle: `(${ai}) debe tener ${len} dígitos` };
+      if (v.length !== len || !/^\d+$/.test(v))
+        return { ok: false, error: 'LONGITUD', detalle: `(${ai}) debe tener ${len} dígitos` };
       ais[ai] = v;
       i += len;
     } else {
@@ -176,11 +224,13 @@ export function parseGs1(raw: string, opts: OpcionesGs1 = {}): Gs1Resultado {
   }
 
   const gtin = ais['01'] ?? null;
-  if (gtin && !gtinValido(gtin)) return { ok: false, error: 'GTIN_CONTROL', detalle: 'Dígito de control del GTIN incorrecto' };
+  if (gtin && !gtinValido(gtin))
+    return { ok: false, error: 'GTIN_CONTROL', detalle: 'Dígito de control del GTIN incorrecto' };
   let caducidad: string | null = null;
   if (ais['17']) {
     caducidad = fecha(ais['17'], opts.anioReferencia);
-    if (!caducidad) return { ok: false, error: 'FECHA_INVALIDA', detalle: `Caducidad (17) no válida: ${ais['17']}` };
+    if (!caducidad)
+      return { ok: false, error: 'FECHA_INVALIDA', detalle: `Caducidad (17) no válida: ${ais['17']}` };
   }
   const nhrnEs = ais['712'] ? ais['712'].replace(/\D/g, '') : null;
   const cnNhrn = nhrnEs && nhrnEs.length >= 6 ? nhrnEs.slice(0, 6) : null;

@@ -11,7 +11,9 @@ import { z } from 'zod';
 export function lowerKeys(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(lowerKeys);
   if (v && typeof v === 'object') {
-    return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k.toLowerCase(), lowerKeys(x)]));
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>).map(([k, x]) => [k.toLowerCase(), lowerKeys(x)]),
+    );
   }
   return v;
 }
@@ -35,7 +37,9 @@ export function extraerLista(json: unknown): unknown[] {
 /** Tamaño de página declarado en el envoltorio (`tamanioPagina`), si lo hay. */
 export function tamanioPagina(json: unknown): number | null {
   if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
-  const v = Object.entries(json as Record<string, unknown>).find(([k]) => k.toLowerCase() === 'tamaniopagina')?.[1];
+  const v = Object.entries(json as Record<string, unknown>).find(
+    ([k]) => k.toLowerCase() === 'tamaniopagina',
+  )?.[1];
   return typeof v === 'number' && v > 0 ? v : null;
 }
 
@@ -48,7 +52,11 @@ const optBool = bool.nullish();
 const fecha = z.union([z.number(), z.string()]).nullish();
 const idLike = z.union([z.number(), z.string()]).nullish();
 
-export const ItemSchema = z.looseObject({ id: idLike, codigo: z.string().nullish(), nombre: z.string().nullish() });
+export const ItemSchema = z.looseObject({
+  id: idLike,
+  codigo: z.string().nullish(),
+  nombre: z.string().nullish(),
+});
 export const EstadoSchema = z.looseObject({ aut: fecha, susp: fecha, rev: fecha });
 export const PrincipioActivoSchema = z.looseObject({
   id: idLike,
@@ -86,11 +94,21 @@ export const MedicamentoSchema = z.looseObject({
   antibiotico: optBool,
   notas: optBool,
   ema: optBool,
-  atcs: z.array(z.looseObject({ codigo: z.string().nullish(), nombre: z.string().nullish(), nivel: z.number().nullish() })).nullish(),
+  atcs: z
+    .array(
+      z.looseObject({
+        codigo: z.string().nullish(),
+        nombre: z.string().nullish(),
+        nivel: z.number().nullish(),
+      }),
+    )
+    .nullish(),
   principiosactivos: z.array(PrincipioActivoSchema).nullish(),
   viasadministracion: z.array(ItemSchema).nullish(),
   especies: z.array(ItemSchema).nullish(),
-  indicaciones: z.array(z.looseObject({ id: idLike, nombre: z.string().nullish(), especie: ItemSchema.nullish() })).nullish(),
+  indicaciones: z
+    .array(z.looseObject({ id: idLike, nombre: z.string().nullish(), especie: ItemSchema.nullish() }))
+    .nullish(),
   tiemposespera: z
     .array(
       z.looseObject({
@@ -128,7 +146,12 @@ export type PresentacionApi = z.infer<typeof PresentacionSchema>;
 export type NotaApi = z.infer<typeof NotaSchema>;
 export type RegistroCambioApi = z.infer<typeof RegistroCambioSchema>;
 
-const FECHA_MADRID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
+const FECHA_MADRID = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 /**
  * Fecha de CIMAVet → AAAA-MM-DD. La API real devuelve milisegundos epoch de la medianoche de Madrid

@@ -23,7 +23,10 @@ import {
 } from './schemas';
 
 export class SiwebValidationError extends Error {
-  constructor(public readonly endpoint: string, public readonly issues: string[]) {
+  constructor(
+    public readonly endpoint: string,
+    public readonly issues: string[],
+  ) {
     super(`Respuesta de Siweb360 no válida en ${endpoint}: ${issues.join('; ')}`);
     this.name = 'SiwebValidationError';
   }
@@ -87,27 +90,51 @@ export class SiwebClient {
 
   private parse<S extends z.ZodTypeAny>(schema: S, json: unknown, endpoint: string): z.output<S> {
     const r = Envelope(schema).safeParse(json);
-    if (!r.success) throw new SiwebValidationError(endpoint, r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`));
+    if (!r.success)
+      throw new SiwebValidationError(
+        endpoint,
+        r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+      );
     return (r.data as { data: z.output<S> }).data;
   }
 
-  private async getConMeta<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined> = {}) {
+  private async getConMeta<S extends z.ZodTypeAny>(
+    schema: S,
+    path: string,
+    params: Record<string, string | number | boolean | undefined> = {},
+  ) {
     const { json } = await this.http.request(this.url(path, params), { headers: await this.headers() });
     const r = Envelope(schema).safeParse(json);
-    if (!r.success) throw new SiwebValidationError(path, r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`));
+    if (!r.success)
+      throw new SiwebValidationError(
+        path,
+        r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+      );
     const d = r.data as { data: z.output<S>; pagination?: { pages?: number | null } | null };
     return { data: d.data, paginas: d.pagination?.pages ?? null };
   }
 
-  private async get<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined> = {}) {
+  private async get<S extends z.ZodTypeAny>(
+    schema: S,
+    path: string,
+    params: Record<string, string | number | boolean | undefined> = {},
+  ) {
     return (await this.getConMeta(schema, path, params)).data;
   }
 
   /** Recorre páginas (`page`, `limit ≤ 200`) según `pagination.pages`; sin metadatos, hasta una página incompleta. */
-  private async paginado<S extends z.ZodTypeAny>(schema: S, path: string, params: Record<string, string | number | boolean | undefined>): Promise<z.output<S>[]> {
+  private async paginado<S extends z.ZodTypeAny>(
+    schema: S,
+    path: string,
+    params: Record<string, string | number | boolean | undefined>,
+  ): Promise<z.output<S>[]> {
     const out: z.output<S>[] = [];
     for (let page = 1; page <= this.maxPaginas; page++) {
-      const { data, paginas } = await this.getConMeta(schema.array(), path, { ...params, page, limit: this.limit });
+      const { data, paginas } = await this.getConMeta(schema.array(), path, {
+        ...params,
+        page,
+        limit: this.limit,
+      });
       const items = data as z.output<S>[];
       out.push(...items);
       if (paginas !== null ? page >= paginas : items.length < this.limit) break;
@@ -115,7 +142,9 @@ export class SiwebClient {
     return out;
   }
 
-  products(f: { search?: string; brand?: string; product_type?: string; category_id?: number } = {}): Promise<Product[]> {
+  products(
+    f: { search?: string; brand?: string; product_type?: string; category_id?: number } = {},
+  ): Promise<Product[]> {
     return this.paginado(ProductSchema, 'inventory/products', f);
   }
   product(id: number) {
@@ -140,7 +169,12 @@ export class SiwebClient {
   }
   /** Proveedores dados de alta en Siweb360 (`GET contacts?tipo=Proveedor`), para proponer el distribuidor. */
   proveedores(search?: string): Promise<Contact[]> {
-    return this.get(ContactSchema.array(), 'contacts', { tipo: 'Proveedor', activo: true, search, limit: 200 });
+    return this.get(ContactSchema.array(), 'contacts', {
+      tipo: 'Proveedor',
+      activo: true,
+      search,
+      limit: 200,
+    });
   }
 
   warehouses(search?: string): Promise<Warehouse[]> {
@@ -152,7 +186,12 @@ export class SiwebClient {
    * (por defecto 100 en la API). Si se devuelven `limit` tickets puede haber más: el llamante lo trata
    * como lectura incompleta.
    */
-  async tickets(f: { fecha_desde: string; fecha_hasta: string; estado?: 'Pagado' | 'Pendiente' | 'Cancelado'; limit?: number }): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
+  async tickets(f: {
+    fecha_desde: string;
+    fecha_hasta: string;
+    estado?: 'Pagado' | 'Pendiente' | 'Cancelado';
+    limit?: number;
+  }): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
     const limit = f.limit ?? 1000;
     const tickets = await this.get(TicketSchema.array(), 'tickets', { ...f, limit });
     return { tickets, posiblementeIncompleto: tickets.length >= limit };
@@ -166,17 +205,27 @@ export class SiwebClient {
    * `POST inventory/stock/adjustments`. Sin reintentos. Devuelve 409 si la variante tiene stock
    * ilimitado. Uso permitido: outbox de ENTRADAS y el spike de §12.3; nunca salidas.
    */
-  async ajustarStock(body: AdjustmentRequest): Promise<{ result: AdjustmentResult; message: string | null; raw: unknown }> {
+  async ajustarStock(
+    body: AdjustmentRequest,
+  ): Promise<{ result: AdjustmentResult; message: string | null; raw: unknown }> {
     const { json } = await this.http.request(
       this.url('inventory/stock/adjustments'),
       { method: 'POST', headers: await this.headers(), body: JSON.stringify(body) },
       false,
     );
-    return { result: this.parse(AdjustmentResultSchema, json, 'stock/adjustments'), message: (json as { message?: string })?.message ?? null, raw: json };
+    return {
+      result: this.parse(AdjustmentResultSchema, json, 'stock/adjustments'),
+      message: (json as { message?: string })?.message ?? null,
+      raw: json,
+    };
   }
 
   async transferir(body: TransferRequest): Promise<unknown> {
-    const { json } = await this.http.request(this.url('inventory/stock/transfers'), { method: 'POST', headers: await this.headers(), body: JSON.stringify(body) }, false);
+    const { json } = await this.http.request(
+      this.url('inventory/stock/transfers'),
+      { method: 'POST', headers: await this.headers(), body: JSON.stringify(body) },
+      false,
+    );
     return json;
   }
 }

@@ -5,7 +5,14 @@ import { CimavetClient } from '../src/client';
 import { HttpError, RateLimiter } from '../src/http';
 import { registroDesdeApi } from '../src/normalizar';
 import { extraerLista, fechaCimavet, lowerKeys, tamanioPagina } from '../src/schemas';
-import { capitalizarClaves, listaApi, maestraEspeciesApi, medicamentoApi, muestra, registroCambiosApi } from './api-desde-xml';
+import {
+  capitalizarClaves,
+  listaApi,
+  maestraEspeciesApi,
+  medicamentoApi,
+  muestra,
+  registroCambiosApi,
+} from './api-desde-xml';
 
 const BASE = 'https://cimavet.test/cimavet/rest/';
 // Respuestas derivadas del Nomenclátor XML con la forma de la API real (ver api-desde-xml.ts).
@@ -32,7 +39,11 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
   });
 
   it('normaliza mayúsculas inconsistentes (Comerc/comerc, Id/id), booleanos "S" y acepta campos nuevos', async () => {
-    const variante = { ...(capitalizarClaves(MED_1077, ['comerc', 'id']) as object), receta: 'S', campoNuevoDesconocido: { aceptado: true } };
+    const variante = {
+      ...(capitalizarClaves(MED_1077, ['comerc', 'id']) as object),
+      receta: 'S',
+      campoNuevoDesconocido: { aceptado: true },
+    };
     server.use(http.get(`${BASE}medicamento`, () => HttpResponse.json(variante)));
     const r = await client().medicamento({ nregistro: '1077 ESP' });
     expect(r?.data.nregistro).toBe('1077 ESP');
@@ -88,7 +99,10 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
     ['envoltorio real sin tamaño', (items: unknown[]) => ({ totalFilas: 3, resultados: items })],
   ])('pagina de forma transparente con `pagina` (%s)', async (_n, envolver) => {
     const paginas: Record<string, unknown[]> = {
-      '1': [{ nregistro: 'A', nombre: 'a' }, { nregistro: 'B', nombre: 'b' }],
+      '1': [
+        { nregistro: 'A', nombre: 'a' },
+        { nregistro: 'B', nombre: 'b' },
+      ],
       '2': [{ nregistro: 'C', nombre: 'c' }],
       '3': [],
     };
@@ -168,7 +182,9 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
         return HttpResponse.json(MED_1868);
       }),
     );
-    await expect(client({ timeoutMs: 20, maxRetries: 1 }).medicamento({ nregistro: '1868 ESP' })).rejects.toMatchObject({ kind: 'TIMEOUT' });
+    await expect(
+      client({ timeoutMs: 20, maxRetries: 1 }).medicamento({ nregistro: '1868 ESP' }),
+    ).rejects.toMatchObject({ kind: 'TIMEOUT' });
   });
 
   it('error de red → reintenta', async () => {
@@ -177,7 +193,9 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
       http.get(`${BASE}notas/:nreg`, () => {
         n++;
         if (n === 1) return HttpResponse.error();
-        return HttpResponse.json([{ tipo: 1, num: 7, ref: 'MUH', asunto: 'Nota', fecha: '01/02/2026', url: 'https://x' }]);
+        return HttpResponse.json([
+          { tipo: 1, num: 7, ref: 'MUH', asunto: 'Nota', fecha: '01/02/2026', url: 'https://x' },
+        ]);
       }),
     );
     const r = await client().notas('1868 ESP');
@@ -188,7 +206,10 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
     server.use(
       http.get(`${BASE}medicamento`, () => new HttpResponse(null, { status: 404 })),
       http.get(`${BASE}presentacion/:cn`, () => new HttpResponse(null, { status: 404 })),
-      http.get(`${BASE}notas/:n`, () => new HttpResponse('<!DOCTYPE html>', { status: 404, headers: { 'content-type': 'text/html' } })),
+      http.get(
+        `${BASE}notas/:n`,
+        () => new HttpResponse('<!DOCTYPE html>', { status: 404, headers: { 'content-type': 'text/html' } }),
+      ),
     );
     expect(await client().medicamento({ cn: '999999' })).toBeNull();
     expect(await client().presentacion('999999')).toBeNull();
@@ -206,7 +227,9 @@ describe('CimavetClient (SPEC §5.1.1)', () => {
 
   it('error 500 persistente agota los reintentos', async () => {
     server.use(http.get(`${BASE}presentaciones`, () => new HttpResponse('boom', { status: 500 })));
-    const err = await client({ maxRetries: 2 }).presentaciones({ nregistro: 'x' }).catch((e) => e);
+    const err = await client({ maxRetries: 2 })
+      .presentaciones({ nregistro: 'x' })
+      .catch((e) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect((err as HttpError).body).toBe('boom');
   });
@@ -216,10 +239,14 @@ describe('RateLimiter', () => {
   it('espacia las peticiones a 1000/rps ms', async () => {
     let t = 0;
     const esperas: number[] = [];
-    const rl = new RateLimiter(3, () => t, async (ms) => {
-      esperas.push(Math.round(ms));
-      t += ms;
-    });
+    const rl = new RateLimiter(
+      3,
+      () => t,
+      async (ms) => {
+        esperas.push(Math.round(ms));
+        t += ms;
+      },
+    );
     await rl.acquire();
     await rl.acquire();
     await rl.acquire();
@@ -242,19 +269,30 @@ describe('normalización a la caché', () => {
         psicotropo: x.medicamento.psicotropo,
         source: 'api',
       });
-      expect(r.presentaciones.map((p) => p.cn).sort(), nreg).toEqual(x.presentaciones.map((p) => p.cn).sort());
+      expect(r.presentaciones.map((p) => p.cn).sort(), nreg).toEqual(
+        x.presentaciones.map((p) => p.cn).sort(),
+      );
       expect(r.especies, nreg).toEqual(x.especies);
       expect(r.vias, nreg).toEqual(x.vias);
       expect(r.atc, nreg).toEqual(x.atc);
-      expect(r.tiemposEspera?.map((t) => [t.especieId, t.tejido, t.cantidad, t.unidad]), nreg).toEqual(x.tiemposEspera?.map((t) => [t.especieId, t.tejido, t.cantidad, t.unidad]));
+      expect(
+        r.tiemposEspera?.map((t) => [t.especieId, t.tejido, t.cantidad, t.unidad]),
+        nreg,
+      ).toEqual(x.tiemposEspera?.map((t) => [t.especieId, t.tejido, t.cantidad, t.unidad]));
     }
   });
 
   it('sin base de concentración en la API la composición no es normalizable (conservador)', () => {
     const r = registroDesdeApi(lowerKeys(MED_1868) as never, MED_1868, new Date());
     expect(r.principiosActivos?.[0]).toMatchObject({ paId: 161, normalizable: false });
-    expect(registroDesdeApi({ nregistro: 'X', nombre: 'Y', estado: { rev: 1 } } as never, {}, new Date()).medicamento.estadoCodigo).toBe('revocado');
-    expect(registroDesdeApi({ nregistro: 'X', nombre: 'Y', estado: { aut: 1, susp: 2 } } as never, {}, new Date()).medicamento.estadoCodigo).toBe('suspendido');
+    expect(
+      registroDesdeApi({ nregistro: 'X', nombre: 'Y', estado: { rev: 1 } } as never, {}, new Date())
+        .medicamento.estadoCodigo,
+    ).toBe('revocado');
+    expect(
+      registroDesdeApi({ nregistro: 'X', nombre: 'Y', estado: { aut: 1, susp: 2 } } as never, {}, new Date())
+        .medicamento.estadoCodigo,
+    ).toBe('suspendido');
   });
 
   it('tiempos de espera con la forma real (objetos tejido/unidadTiempo/forma/vía)', () => {
@@ -262,12 +300,30 @@ describe('normalización a la caché', () => {
       lowerKeys({
         nregistro: 'X',
         nombre: 'Y',
-        tiemposEspera: [{ especie: { id: 1 }, tejido: { id: 1, nombre: 'Carne' }, cantidad: '28', formaFarmaceutica: { id: 9, nombre: 'SOLUCIÓN INYECTABLE' }, viaAdministracion: { id: 3, nombre: 'VÍA INTRAMUSCULAR' }, unidadTiempo: { id: 1, nombre: 'Días' } }],
+        tiemposEspera: [
+          {
+            especie: { id: 1 },
+            tejido: { id: 1, nombre: 'Carne' },
+            cantidad: '28',
+            formaFarmaceutica: { id: 9, nombre: 'SOLUCIÓN INYECTABLE' },
+            viaAdministracion: { id: 3, nombre: 'VÍA INTRAMUSCULAR' },
+            unidadTiempo: { id: 1, nombre: 'Días' },
+          },
+        ],
       }) as never,
       {},
       new Date(),
     );
-    expect(r.tiemposEspera).toEqual([{ especieId: 1, tejido: 'Carne', cantidad: '28', unidad: 'Días', formaViaAdmin: 'SOLUCIÓN INYECTABLE / VÍA INTRAMUSCULAR', noAplicaTejido: false }]);
+    expect(r.tiemposEspera).toEqual([
+      {
+        especieId: 1,
+        tejido: 'Carne',
+        cantidad: '28',
+        unidad: 'Días',
+        formaViaAdmin: 'SOLUCIÓN INYECTABLE / VÍA INTRAMUSCULAR',
+        noAplicaTejido: false,
+      },
+    ]);
   });
 
   it('fechas y listas', () => {

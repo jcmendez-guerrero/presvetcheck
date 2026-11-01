@@ -13,7 +13,9 @@ export interface SalesMovementsSource {
 
 export class NotConfiguredSalesMovementsSource implements SalesMovementsSource {
   readonly configurado = false;
-  constructor(readonly motivo = 'Conciliación con tickets desactivada (SIWEB_SALES_SOURCE=off o sin token de Siweb360)') {}
+  constructor(
+    readonly motivo = 'Conciliación con tickets desactivada (SIWEB_SALES_SOURCE=off o sin token de Siweb360)',
+  ) {}
   async movimientos(): Promise<MovimientoVenta[]> {
     throw new Error(this.motivo);
   }
@@ -21,7 +23,9 @@ export class NotConfiguredSalesMovementsSource implements SalesMovementsSource {
 
 export class LecturaTicketsIncompleta extends Error {
   constructor(desde: string, hasta: string, n: number) {
-    super(`Siweb360 devolvió ${n} tickets entre ${desde} y ${hasta} (el máximo pedido): la lectura puede estar incompleta`);
+    super(
+      `Siweb360 devolvió ${n} tickets entre ${desde} y ${hasta} (el máximo pedido): la lectura puede estar incompleta`,
+    );
     this.name = 'LecturaTicketsIncompleta';
   }
 }
@@ -52,7 +56,11 @@ export class TicketsSalesMovementsSource implements SalesMovementsSource {
   }
 
   async movimientos(desde: string, hasta: string): Promise<MovimientoVenta[]> {
-    const { tickets, posiblementeIncompleto } = await this.client.tickets({ fecha_desde: desde, fecha_hasta: hasta, estado: 'Pagado' });
+    const { tickets, posiblementeIncompleto } = await this.client.tickets({
+      fecha_desde: desde,
+      fecha_hasta: hasta,
+      estado: 'Pagado',
+    });
     if (posiblementeIncompleto) throw new LecturaTicketsIncompleta(desde, hasta, tickets.length);
     const out: MovimientoVenta[] = [];
     for (const t of tickets) {

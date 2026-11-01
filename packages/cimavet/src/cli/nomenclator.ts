@@ -22,7 +22,25 @@ const DST = resolve(DIR, 'PrescripcionVET.sample.xml');
 const URL_DEFECTO = 'https://listadomedicamentos.aemps.gob.es/prescripcionVET.zip';
 
 /** Medicamentos reales que usan los tests (se copian todas sus presentaciones). */
-const REQUERIDOS = ['1077 ESP', '1179 ESP', '1181 ESP', '1182 ESP', '1183 ESP', '1300 ESP', '1332 ESP', '1714 ESP', '177 ESP', '1801 ESP', '1865 ESP', '1868 ESP', '1892 ESP', '1896 ESP', '2466 ESP', '384 ESP', '737 ESP'];
+const REQUERIDOS = [
+  '1077 ESP',
+  '1179 ESP',
+  '1181 ESP',
+  '1182 ESP',
+  '1183 ESP',
+  '1300 ESP',
+  '1332 ESP',
+  '1714 ESP',
+  '177 ESP',
+  '1801 ESP',
+  '1865 ESP',
+  '1868 ESP',
+  '1892 ESP',
+  '1896 ESP',
+  '2466 ESP',
+  '384 ESP',
+  '737 ESP',
+];
 const CASOS: Record<string, { n: number; test: (r: string) => boolean }> = {
   psicotropo: { n: 3, test: (r) => r.includes('<psicotropo>SI') },
   estupefaciente: { n: 2, test: (r) => r.includes('<estupefaciente>SI') },
@@ -30,7 +48,10 @@ const CASOS: Record<string, { n: number; test: (r: string) => boolean }> = {
   suspendido: { n: 2, test: (r) => /<cod_estado_registro_medicamento>[34]</.test(r) },
   fraccionadaJeringas: { n: 1, test: (r) => /<fracciones_autorizadas>[^<]*jeringa/i.test(r) },
   fraccionadaPipeta: { n: 1, test: (r) => /<fracciones_autorizadas>[^<]*pipeta/i.test(r) },
-  fraccionadaComprimidos: { n: 2, test: (r) => /<fracciones_autorizadas>\d+ fracciones de \d+ comprimidos/i.test(r) },
+  fraccionadaComprimidos: {
+    n: 2,
+    test: (r) => /<fracciones_autorizadas>\d+ fracciones de \d+ comprimidos/i.test(r),
+  },
 };
 
 async function generarMuestra(src = SRC, dst = DST) {
@@ -65,7 +86,8 @@ async function generarMuestra(src = SRC, dst = DST) {
     if (take) picked.push(rec);
   }
   const faltan = REQUERIDOS.filter((n) => !picked.some((r) => nreg(r) === n));
-  if (faltan.length) throw new Error(`El Nomenclátor ya no contiene ${faltan.join(', ')}: revisa los tests que los usan`);
+  if (faltan.length)
+    throw new Error(`El Nomenclátor ya no contiene ${faltan.join(', ')}: revisa los tests que los usan`);
   writeFileSync(dst, [...header, ...picked, '</aemps_prescripcion_vet>', ''].join('\n'));
   console.log(`Muestra escrita en ${dst}: ${picked.length} registros`, got);
 }
@@ -73,13 +95,17 @@ async function generarMuestra(src = SRC, dst = DST) {
 const args = new Set(process.argv.slice(2));
 const completo = existsSync(DST) && DICCIONARIOS.every((d) => existsSync(resolve(DIR, d.fichero)));
 if (args.has('--si-falta') && completo) {
-  console.log('Nomenclátor ya presente en fixtures/nomenclator (usa `pnpm nomenclator:fetch` para actualizarlo).');
+  console.log(
+    'Nomenclátor ya presente en fixtures/nomenclator (usa `pnpm nomenclator:fetch` para actualizarlo).',
+  );
 } else {
   if (!args.has('--solo-muestra')) {
     const url = process.env.NOMENCLATOR_URL || URL_DEFECTO;
     console.log(`Descargando ${url} …`);
     const r = await descargarNomenclator({ url, destino: DIR });
-    console.log(`${r.ficheros.length} ficheros (${(r.bytesZip / 1e6).toFixed(1)} MB comprimido, publicado ${r.ultimaModificacion ?? '¿?'})`);
+    console.log(
+      `${r.ficheros.length} ficheros (${(r.bytesZip / 1e6).toFixed(1)} MB comprimido, publicado ${r.ultimaModificacion ?? '¿?'})`,
+    );
   }
   await generarMuestra();
 }

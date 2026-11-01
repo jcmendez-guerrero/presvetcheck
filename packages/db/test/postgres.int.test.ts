@@ -34,7 +34,12 @@ describe('PostgreSQL 16', () => {
                  has_table_privilege('mmx_app', 'dispensacion', 'INSERT') as ins,
                  has_table_privilege('mmx_app', 'audit_event', 'UPDATE') as aupd`,
     );
-    expect((res as unknown as Array<Record<string, boolean>>)[0]).toEqual({ upd: false, del: false, ins: true, aupd: false });
+    expect((res as unknown as Array<Record<string, boolean>>)[0]).toEqual({
+      upd: false,
+      del: false,
+      ins: true,
+      aupd: false,
+    });
   });
 
   it('siembra todos los diccionarios del Nomenclátor', async () => {
@@ -46,7 +51,9 @@ describe('PostgreSQL 16', () => {
   });
 
   it('retención: mmx_app no puede borrar salidas; la función de purga solo elimina las de más de 5 años', async () => {
-    const ins = (creado: string) => sql`insert into dispensacion (id, canal, con_receta, cn, nombre_farmaco, lote, unidades, metodo_captura, empleado, fecha_venta, created_at)
+    const ins = (
+      creado: string,
+    ) => sql`insert into dispensacion (id, canal, con_receta, cn, nombre_farmaco, lote, unidades, metodo_captura, empleado, fecha_venta, created_at)
       values (gen_random_uuid(), 'presencial', false, '570016', 'X', 'L', 1, 'manual', 'e', ${creado}::timestamptz, ${creado}::timestamptz) returning id`;
     const filas = (r: unknown) => r as Array<{ id: string }>;
     const viejo = filas(await h.db.execute(ins('2019-01-01T00:00:00Z')))[0]!.id;
@@ -64,7 +71,9 @@ describe('PostgreSQL 16', () => {
       return tx.execute(sql`select mmx_purgar_registros(now()) as r`);
     });
     expect((r as unknown as Array<{ r: { dispensaciones: number } }>)[0]!.r.dispensaciones).toBe(1);
-    const quedan = filas(await h.db.execute(sql`select id from dispensacion where id in (${viejo}, ${nuevo})`)).map((x) => x.id);
+    const quedan = filas(
+      await h.db.execute(sql`select id from dispensacion where id in (${viejo}, ${nuevo})`),
+    ).map((x) => x.id);
     expect(quedan).toEqual([nuevo]);
   });
 });

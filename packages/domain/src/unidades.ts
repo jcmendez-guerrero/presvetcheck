@@ -10,7 +10,15 @@ import type { Composicion, PresentacionInfo, PrincipioActivo } from './tipos';
 
 export type UnidadCanonica = 'mg' | 'ml' | 'UI' | '%' | 'unidad' | 'cm2';
 
-const MASA: Record<string, number> = { kg: 1e6, g: 1000, mg: 1, ug: 0.001, mcg: 0.001, microgramos: 0.001, ng: 1e-6 };
+const MASA: Record<string, number> = {
+  kg: 1e6,
+  g: 1000,
+  mg: 1,
+  ug: 0.001,
+  mcg: 0.001,
+  microgramos: 0.001,
+  ng: 1e-6,
+};
 const VOLUMEN: Record<string, number> = { l: 1000, litro: 1000, litros: 1000, ml: 1, cl: 10, dl: 100 };
 
 /**
@@ -18,11 +26,53 @@ const VOLUMEN: Record<string, number> = { l: 1000, litro: 1000, litros: 1000, ml
  * es un comprimido, una cápsula, una pipeta, una dosis… Se compara por nombre normalizado.
  */
 const CONTABLES = [
-  'comprimido', 'comprimidos', 'comprimidos recubierto', 'comprimido recubierto', 'capsula', 'capsulas', 'pipeta', 'pipetas',
-  'dosis', 'vial', 'viales', 'ampolla', 'ampollas', 'unidad', 'unidades', 'sobre', 'sobres', 'bolo', 'collar', 'implante',
-  'jeringa', 'jeringa precargada', 'tableta', 'gragea', 'pastilla', 'supositorio', 'ovulo', 'parche', 'chicle', 'caramelo',
-  'perla', 'pildora', 'sello', 'tira', 'tampon', 'anillo', 'aplicador', 'cartucho', 'pellet', 'barra', 'crotal', 'oblea',
-  'unidad de dosificacion', 'comprimido vaginal', 'pluma', 'pluma precargada', 'liotabas',
+  'comprimido',
+  'comprimidos',
+  'comprimidos recubierto',
+  'comprimido recubierto',
+  'capsula',
+  'capsulas',
+  'pipeta',
+  'pipetas',
+  'dosis',
+  'vial',
+  'viales',
+  'ampolla',
+  'ampollas',
+  'unidad',
+  'unidades',
+  'sobre',
+  'sobres',
+  'bolo',
+  'collar',
+  'implante',
+  'jeringa',
+  'jeringa precargada',
+  'tableta',
+  'gragea',
+  'pastilla',
+  'supositorio',
+  'ovulo',
+  'parche',
+  'chicle',
+  'caramelo',
+  'perla',
+  'pildora',
+  'sello',
+  'tira',
+  'tampon',
+  'anillo',
+  'aplicador',
+  'cartucho',
+  'pellet',
+  'barra',
+  'crotal',
+  'oblea',
+  'unidad de dosificacion',
+  'comprimido vaginal',
+  'pluma',
+  'pluma precargada',
+  'liotabas',
 ].map(normalizeText);
 
 export interface Cantidad {
@@ -31,7 +81,9 @@ export interface Cantidad {
 }
 
 /** Factor a unidad canónica de una unidad simple ("mg", "ml", "Comprimido"…). */
-export function unidadCanonica(u: string | null | undefined): { factor: Decimal; unidad: UnidadCanonica } | null {
+export function unidadCanonica(
+  u: string | null | undefined,
+): { factor: Decimal; unidad: UnidadCanonica } | null {
   if (!u) return null;
   // «µ» se sustituye antes de normalizar: si no, «µg» se convertiría en «g» (factor ×10⁶).
   const n = normalizeText(u.replace(/[µμ]/g, 'u')).replace(/\.$/, '');
@@ -53,7 +105,9 @@ export function parseDecimal(s: string | number | null | undefined): Decimal | n
 }
 
 /** Parsea "500 mg", "0,5 g", "50 mg/ml", "2,5 %" → cantidad + unidad (posiblemente compuesta). */
-export function parseCantidadTexto(texto: string | null | undefined): { valor: Decimal; unidad: string } | null {
+export function parseCantidadTexto(
+  texto: string | null | undefined,
+): { valor: Decimal; unidad: string } | null {
   if (!texto) return null;
   // Se recorta antes: `.*?\s*$` probaba el final desde cada posición del texto (coste cuadrático).
   const m = /^(\d+(?:[.,]\d+)?)\s*([^\d\s].*)$/.exec(texto.trim());

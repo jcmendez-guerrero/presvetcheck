@@ -28,7 +28,11 @@ export interface MovimientoVenta {
   fecha: FechaIso;
 }
 
-export type TipoDiscrepancia = 'DISPENSACION_SIN_TICKET' | 'TICKET_SIN_DISPENSACION' | 'LOTE_DISTINTO' | 'UNIDADES_DISTINTAS';
+export type TipoDiscrepancia =
+  | 'DISPENSACION_SIN_TICKET'
+  | 'TICKET_SIN_DISPENSACION'
+  | 'LOTE_DISTINTO'
+  | 'UNIDADES_DISTINTAS';
 
 export interface Discrepancia {
   tipo: TipoDiscrepancia;
@@ -47,7 +51,10 @@ export interface ResultadoConciliacion {
   discrepancias: Discrepancia[];
 }
 
-export function conciliar(dispensaciones: DispensacionConciliar[], movimientos: MovimientoVenta[]): ResultadoConciliacion {
+export function conciliar(
+  dispensaciones: DispensacionConciliar[],
+  movimientos: MovimientoVenta[],
+): ResultadoConciliacion {
   const pendD = [...dispensaciones];
   const pendM = movimientos.filter((m) => m.cn !== null);
   const conciliadas: ResultadoConciliacion['conciliadas'] = [];
@@ -56,7 +63,11 @@ export function conciliar(dispensaciones: DispensacionConciliar[], movimientos: 
     const i = arr.findIndex(pred);
     return i >= 0 ? arr.splice(i, 1)[0] : undefined;
   };
-  const disc = (tipo: TipoDiscrepancia, d: DispensacionConciliar | null, m: MovimientoVenta | null): Discrepancia => ({
+  const disc = (
+    tipo: TipoDiscrepancia,
+    d: DispensacionConciliar | null,
+    m: MovimientoVenta | null,
+  ): Discrepancia => ({
     tipo,
     dispensacionId: d?.id ?? null,
     movimientoId: m?.id ?? null,

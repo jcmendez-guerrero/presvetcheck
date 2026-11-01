@@ -11,7 +11,12 @@ export interface MetricaCampo {
 const s = (x: unknown) => (x === null || x === undefined ? '' : String(x));
 
 /** Compara una extracción con la esperada campo a campo (exacta y normalizada). */
-export function compararExtraccion(esperado: ExtractionResult, obtenido: ExtractionResult, umbral: number, acc = new Map<string, MetricaCampo>()) {
+export function compararExtraccion(
+  esperado: ExtractionResult,
+  obtenido: ExtractionResult,
+  umbral: number,
+  acc = new Map<string, MetricaCampo>(),
+) {
   const sumar = (campo: string, e: unknown, o: unknown, conf: number) => {
     const m = acc.get(campo) ?? { campo, total: 0, exactos: 0, normalizados: 0, bajoUmbral: 0 };
     m.total++;
