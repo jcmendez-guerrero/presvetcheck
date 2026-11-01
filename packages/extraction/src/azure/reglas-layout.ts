@@ -56,12 +56,13 @@ export function destinoDeEtiqueta(etiqueta: string): Destino | null {
 }
 
 /** Etiquetas de una palabra que a veces vienen pegadas a su valor ("Especie:CANINA", "Via TOPICA"). */
+// «:» opcional dentro de un grupo con sus espacios: dos `\s*` seguidos tenían coste cuadrático.
 const PEGADAS: [RegExp, string][] = [
-  [/^(especie)\s*:?\s*(.+)$/i, 'especie'],
-  [/^(diagn[oó]stico)\s*:?\s*(.+)$/i, 'diagnostico'],
-  [/^(v[ií]a)\s*:?\s*(.+)$/i, 'via'],
-  [/^(fecha)\s*:?\s*(\d.+)$/i, 'fecha'],
-  [/^(f[aá]rmaco)\s*:?\s*(.+)$/i, 'farmaco'],
+  [/^(especie)\s*(?::\s*)?(.+)$/i, 'especie'],
+  [/^(diagn[oó]stico)\s*(?::\s*)?(.+)$/i, 'diagnostico'],
+  [/^(v[ií]a)\s*(?::\s*)?(.+)$/i, 'via'],
+  [/^(fecha)\s*(?::\s*)?(\d.+)$/i, 'fecha'],
+  [/^(f[aá]rmaco)\s*(?::\s*)?(.+)$/i, 'farmaco'],
 ];
 
 /**
@@ -92,11 +93,37 @@ export function limpiarValor(v: string | null | undefined): string | null {
   return s;
 }
 
+/**
+ * Valor de `etiqueta` en `texto`: lo que sigue a «etiqueta:» hasta la siguiente etiqueta conocida (`fin`, con la
+ * bandera `g`), un salto de línea o el final, sin espacios al final. Equivale a
+ * `(?:^|\s)(?:etiqueta)…:\s*(.*?)\s*(?=fin|$)`, pero esa forma prueba `fin` desde cada posición del valor y tiene
+ * coste cuadrático con textos de OCR anómalos (CodeQL js/polynomial-redos). Como allí, un valor no puede cruzar un
+ * fin de línea que no sea final de valor: si lo cruza, se prueba la siguiente aparición de la etiqueta.
+ */
+function valorEtiquetado(texto: string, etiqueta: string, fin: RegExp, puntoAntesDeDosPuntos = true): string | null {
+  const inicio = new RegExp(`(?:^|\\s)(?:${etiqueta})\\s*${puntoAntesDeDosPuntos ? '(?:\\.\\s*)?' : ''}:`, 'gi');
+  for (let m = inicio.exec(texto); m; m = inicio.exec(texto)) {
+    const trasDosPuntos = m.index + m[0].length;
+    let desde = trasDosPuntos;
+    while (desde < texto.length && /\s/.test(texto[desde]!)) desde++;
+    fin.lastIndex = desde;
+    const valor = texto.slice(desde, fin.exec(texto)?.index ?? texto.length).trimEnd();
+    if (!/[\n\r\u2028\u2029]/.test(valor)) return valor;
+    // Con el valor cortado por un fin de l\u00ednea, la expresi\u00f3n original retroced\u00eda en los espacios tras \u00ab:\u00bb y
+    // aceptaba un valor vac\u00edo si la etiqueta siguiente empezaba entre ellos.
+    fin.lastIndex = trasDosPuntos;
+    if ((fin.exec(texto)?.index ?? Infinity) < desde) return '';
+    inicio.lastIndex = m.index + 1;
+  }
+  return null;
+}
+
 /** Etiquetas del formato en una sola línea (Medivet y similares): delimitan el valor de la anterior. */
 const ETIQUETAS_LINEA = [
-  'cantidad', 'f[aá]rmaco', 'dosis', 'unidades', 'frecuencia', 'duraci[oó]n\\s*\\(d[ií]as\\)', 'v[ií]a\\s+admin\\w*\\s*\\.?',
-  'c\\.\\s*tratamiento', 'principios?\\s+activos?', 'tipo\\s+dispensaci[oó]n', '%\\s*env\\.?\\s*total', 'c[oó]d\\.?\\s*nac\\w*\\s*\\.?', 'n[º°o]\\s*envases',
+  'cantidad', 'f[aá]rmaco', 'dosis', 'unidades', 'frecuencia', 'duraci[oó]n\\s*\\(d[ií]as\\)', 'v[ií]a\\s+admin\\w*(?:\\s*\\.)?',
+  'c\\.\\s*tratamiento', 'principios?\\s+activos?', 'tipo\\s+dispensaci[oó]n', '%\\s*env\\.?\\s*total', 'c[oó]d\\.?\\s*nac\\w*(?:\\s*\\.)?', 'n[º°o]\\s*envases',
 ].join('|');
+const FIN_VALOR_LINEA = new RegExp(`\\s(?:${ETIQUETAS_LINEA})\\s*:|\\n`, 'gi');
 
 /**
  * Datos del titular leídos de su bloque de la receta. Con confianza baja (se marcan «Revisar»): la persona
@@ -106,6 +133,7 @@ const CONF_TITULAR = 0.7;
 const INICIO_TITULAR = /(?:^|\n|\s)(?:cliente|propietario|titular|due[nñ]o)\s*:/i;
 const FIN_TITULAR = /(?:^|\n|\s)(?:mascota|paciente|animal|especie|tipo de receta|n[uú]mero de receta|veterinari[oa]|diagn[oó]stico|fecha)\s*:/i;
 const ETIQUETAS_TITULAR = 'nombre|nif|dni|nie|tel[eé]fono|tlf|m[oó]vil|direcci[oó]n|domicilio|provincia|poblaci[oó]n|e-?mail|correo';
+const FIN_VALOR_TITULAR = new RegExp(`\\s(?:${ETIQUETAS_TITULAR})\\s*(?:\\.\\s*)?:`, 'gi');
 
 export function titularDesdeTexto(contenido: string): Partial<Record<'titularNombre' | 'titularTelefono' | 'titularDireccion' | 'titularDni', string>> {
   const ini = INICIO_TITULAR.exec(contenido);
@@ -113,8 +141,7 @@ export function titularDesdeTexto(contenido: string): Partial<Record<'titularNom
   const resto = contenido.slice(ini.index + ini[0].length);
   const fin = FIN_TITULAR.exec(resto);
   const bloque = (fin ? resto.slice(0, fin.index) : resto.slice(0, 400)).replace(/\n/g, ' ');
-  const valor = (etiqueta: string) =>
-    limpiarValor(new RegExp(`(?:^|\\s)(?:${etiqueta})\\s*\\.?\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_TITULAR})\\s*\\.?\\s*:|$)`, 'i').exec(bloque)?.[1] ?? null);
+  const valor = (etiqueta: string) => limpiarValor(valorEtiquetado(bloque, etiqueta, FIN_VALOR_TITULAR));
   const out: Partial<Record<'titularNombre' | 'titularTelefono' | 'titularDireccion' | 'titularDni', string>> = {};
   const nombre = valor('nombre');
   if (nombre) out.titularNombre = nombre;
@@ -135,6 +162,7 @@ export function titularDesdeTexto(contenido: string): Partial<Record<'titularNom
 const INICIO_PRESCRIPTOR = /(?:^|\n|\s)(?:datos\s+del\s+(?:prescriptor|veterinario)|prescriptor)\s*:?/i;
 const FIN_PRESCRIPTOR = /(?:^|\n|\s)(?:datos\s+del\s+(?:cliente|propietario|titular)|datos\s+de\s+la\s+mascota|cliente|propietario|titular|mascota|paciente|diagn[oó]stico)\s*:?(?=\s|$)/i;
 const ETIQUETAS_PRESCRIPTOR = `nombre|n[º°o]\\.?\\s*col\\w*|direcci[oó]n|domicilio|c\\.?\\s?p|c[oó]digo postal|poblaci[oó]n|localidad|provincia|tel[eé]fono|tlf|m[oó]vil|e-?mail|correo`;
+const FIN_VALOR_PRESCRIPTOR = new RegExp(`\\s(?:${ETIQUETAS_PRESCRIPTOR})\\s*(?:\\.\\s*)?:`, 'gi');
 
 export function prescriptorDesdeTexto(contenido: string): Partial<Record<'veterinarioNombre' | 'veterinarioDireccion' | 'veterinarioTelefono' | 'veterinarioEmail', string>> {
   const ini = INICIO_PRESCRIPTOR.exec(contenido);
@@ -142,8 +170,7 @@ export function prescriptorDesdeTexto(contenido: string): Partial<Record<'veteri
   const resto = contenido.slice(ini.index + ini[0].length);
   const fin = FIN_PRESCRIPTOR.exec(resto);
   const bloque = (fin ? resto.slice(0, fin.index) : resto.slice(0, 400)).replace(/\n/g, ' ');
-  const valor = (etiqueta: string) =>
-    limpiarValor(new RegExp(`(?:^|\\s)(?:${etiqueta})\\s*\\.?\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_PRESCRIPTOR})\\s*\\.?\\s*:|$)`, 'i').exec(bloque)?.[1] ?? null);
+  const valor = (etiqueta: string) => limpiarValor(valorEtiquetado(bloque, etiqueta, FIN_VALOR_PRESCRIPTOR));
   const out: Partial<Record<'veterinarioNombre' | 'veterinarioDireccion' | 'veterinarioTelefono' | 'veterinarioEmail', string>> = {};
   const nombre = valor('nombre');
   if (nombre) out.veterinarioNombre = nombre;
@@ -209,7 +236,7 @@ export function camposDesdeLayout(
   // Vía admin.: VÍA ORAL…"): cada valor llega hasta la siguiente etiqueta conocida del formato.
   const unica = lineas.length === 1 ? lineas[0] : undefined;
   if (unica) {
-    const enLinea = (etiqueta: string) => limpiarValor(new RegExp(`(?:^|\\s)${etiqueta}\\s*:\\s*(.*?)\\s*(?=\\s(?:${ETIQUETAS_LINEA})\\s*:|\\n|$)`, 'i').exec(contenido)?.[1] ?? null);
+    const enLinea = (etiqueta: string) => limpiarValor(valorEtiquetado(contenido, etiqueta, FIN_VALOR_LINEA, false));
     const poner = (nombre: string, texto: string | null, reemplazar = false) => {
       if (!texto || (unica[nombre] && !reemplazar)) return;
       const c = campo(nombre, texto, 0.8, null, []);
@@ -220,7 +247,7 @@ export function camposDesdeLayout(
     const actual = unica.medicamento?.evidencia?.texto ?? '';
     if (farmaco && farmaco.length > actual.length && normEtiqueta(farmaco).startsWith(normEtiqueta(actual))) poner('medicamento', farmaco.replace(/\.$/, ''), true);
     poner('duracionDias', enLinea('duraci[oó]n\\s*\\(d[ií]as\\)'));
-    poner('via', enLinea('v[ií]a\\s+admin\\w*\\s*\\.?')?.replace(/^v[ií]a\s+/i, '') ?? null);
+    poner('via', enLinea('v[ií]a\\s+admin\\w*(?:\\s*\\.)?')?.replace(/^v[ií]a\s+/i, '') ?? null);
     const dosis = enLinea('dosis');
     if (dosis) {
       const unidades = enLinea('unidades');

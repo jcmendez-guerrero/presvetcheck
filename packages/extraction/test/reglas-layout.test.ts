@@ -155,6 +155,15 @@ describe('respaldo por texto del OCR con contenidos patológicos: coste lineal (
     ['«colegiado :» y espacios', 'colegiado' + ' '.repeat(n / 2) + ':' + ' '.repeat(n / 2) + 'x'],
   ])('%s: < 1 s con 100 000 caracteres', (_n, content) => expect(ms(() => camposDesdeLayout({ content }, 1, []))).toBeLessThan(1000));
 
+  it.each([
+    ['titular · espacios dentro del valor', () => titularDesdeTexto('Titular: nombre: a' + ' '.repeat(n) + 'b Mascota:')],
+    ['titular · etiqueta sin «:» y espacios', () => titularDesdeTexto('Titular: nombre: a nif' + ' '.repeat(n) + 'b Mascota:')],
+    ['prescriptor · espacios dentro del valor', () => prescriptorDesdeTexto('Prescriptor: nombre: a' + ' '.repeat(n) + 'b Cliente:')],
+    ['línea única · etiqueta y espacios', () => camposDesdeLayout({ content: 'Fármaco: X Dosis' + ' '.repeat(n) + '.', keyValuePairs: [kv('Fármaco:', 'X')] }, 1, [])],
+    ['línea única · «Vía admin» y espacios', () => camposDesdeLayout({ content: 'Fármaco: X Vía admin' + ' '.repeat(n) + '.', keyValuePairs: [kv('Fármaco:', 'X')] }, 1, [])],
+    ['etiqueta pegada · «Fecha» y espacios', () => separarEtiqueta('Fecha' + ' '.repeat(n) + ':', null)],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+
   it('sigue leyendo el CN y el nº de colegiado con separadores', () => {
     const m = camposDesdeLayout({ content: 'Código nacional . : 584159 Nº de colegiado : 2801234', keyValuePairs: [kv('Fármaco:', 'PRUEBAVET')] }, 1, []);
     expect(m.lineas[0]?.cn).toMatchObject({ valor: '584159' });
