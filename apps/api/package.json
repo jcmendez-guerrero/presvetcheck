@@ -19,7 +19,7 @@
     "@fastify/multipart": "^9.0.3",
     "@fastify/static": "^10.1.8",
     "@fastify/swagger": "^9.5.1",
-    "@fastify/swagger-ui": "^5.2.3",
+    "@fastify/swagger-ui": "^6.1.2",
     "@mmx/cimavet": "workspace:*",
     "@mmx/db": "workspace:*",
     "@mmx/domain": "workspace:*",
