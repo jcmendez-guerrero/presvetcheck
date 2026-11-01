@@ -28,9 +28,9 @@
 4. **Retirada**: cuando se cumple la condición «Revisar cuando», se retira el forzado o se reabre la alerta y la
   fila pasa a «retirada (fecha)»; las filas no se borran.
 5. **Prevención**:
-  - `.github/dependabot.yml` propone cada lunes las actualizaciones de npm (seguridad en un único PR; versión
+- `.github/dependabot.yml` propone cada lunes las actualizaciones de npm (seguridad en un único PR; versión
     menor y parche agrupadas por producción y desarrollo) y de GitHub Actions.
-  - El job `dependencias` de la CI revisa las dependencias que **añade o cambia** cada PR (las vulnerabilidades
+- El job `dependencias` de la CI revisa las dependencias que **añade o cambia** cada PR (las vulnerabilidades
     que ya estaban en `main` no lo bloquean):
 
     | Caso introducido por el PR | Resultado |
@@ -40,9 +40,9 @@
     | Vulnerabilidad alta de desarrollo, o media o baja en cualquier ámbito | aviso en el resumen; se puede fusionar |
     | GHSA de un descarte vigente de la tabla | se ignora |
 
-  - `allow-ghsas` del job es exactamente el conjunto de GHSA de los descartes vigentes de la tabla: al añadir o
+- `allow-ghsas` del job es exactamente el conjunto de GHSA de los descartes vigentes de la tabla: al añadir o
     retirar un descarte se cambian ambos en el mismo PR.
-  - La comprobación solo consulta la base de avisos de GitHub (nunca CIMAVet, Siweb360 ni Azure). Para que bloquee
+- La comprobación solo consulta la base de avisos de GitHub (nunca CIMAVet, Siweb360 ni Azure). Para que bloquee
     de verdad hay que marcarla como obligatoria en la protección de `main` (ajuste manual en GitHub).
 
 ## Excepciones
