@@ -132,7 +132,7 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
     const o = it.valueObject ?? {};
     const fila = lineaDeTexto(contenido, o);
     const codigo = texto(o.ProductCode);
-    const cnTexto = /\bC\.?\s?N\.?\s*:?\s*(\d{6,7})\b/i.exec(fila)?.[1];
+    const cnTexto = /\bC\.?\s?N\.?\s*(?::\s*)?(\d{6,7})\b/i.exec(fila)?.[1];
     const cnBruto = codigo && /^\d{6,7}$/.test(codigo) ? codigo : (cnTexto ?? null);
     const precio =
       o.UnitPrice?.valueCurrency?.amount !== undefined
@@ -166,8 +166,9 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
       cantidad: cantidad !== null && Number.isFinite(cantidad) ? cantidad : null,
       precioUnitario: precio,
       descuentoPct,
-      lote: /\blote?\s*:?\s*([A-Z0-9][A-Z0-9-/.]{1,30})/i.exec(fila)?.[1] ?? enTabla?.lote ?? null,
-      caducidad: caducidadDeTexto(/\b(?:cad(?:ucidad)?|exp|vto)\.?\s*:?\s*([\d/.-]{6,10})/i.exec(fila)?.[1]) ?? enTabla?.caducidad ?? null,
+      // «:» opcional dentro de un grupo con sus espacios: dos `\s*` seguidos tenían coste cuadrático (ver ADR-16).
+      lote: /\blote?\s*(?::\s*)?([A-Z0-9][A-Z0-9-/.]{1,30})/i.exec(fila)?.[1] ?? enTabla?.lote ?? null,
+      caducidad: caducidadDeTexto(/\b(?:cad(?:ucidad)?|exp|vto)\.?\s*(?::\s*)?([\d/.-]{6,10})/i.exec(fila)?.[1]) ?? enTabla?.caducidad ?? null,
     };
   });
   return {

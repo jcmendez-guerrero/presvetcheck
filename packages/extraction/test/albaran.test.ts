@@ -82,3 +82,23 @@ describe('lote y caducidad en columnas de la tabla del albarán', () => {
     expect(l).toMatchObject({ cn: '570016', lote: 'CLV-9', caducidad: '2028-05-31', cantidad: 2, precioUnitario: '6.85', descuentoPct: '12.85' });
   });
 });
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('líneas de factura con textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  const factura = (fila: string) => ({
+    content: `ALBARAN 1\n570016 ${fila}\n`,
+    documents: [{ fields: { Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016', spans: [{ offset: 10, length: 6 }] }, Description: { valueString: 'X' } } }] } } }],
+  });
+  it.each([
+    ['«Lote» y espacios', 'Lote' + ' '.repeat(n) + '!'],
+    ['«Cad.» y espacios', 'Cad.' + ' '.repeat(n) + '!'],
+    ['«CN» y espacios', 'CN' + ' '.repeat(n) + '!'],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, fila) => expect(ms(() => albaranDesdeFactura(factura(fila) as never))).toBeLessThan(1000));
+});
