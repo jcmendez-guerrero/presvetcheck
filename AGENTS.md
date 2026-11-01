@@ -29,6 +29,7 @@ This repository implements the prescription verification, dispensing, and stock 
 - Never put personal data (pet owner name, phone number, ID number, or address) in logs, errors, or telemetry.
 - Do not call real services (CIMAVet, Siweb360, Azure) from tests. Use MSW and fixtures.
 - Do not add heavy dependencies without justification in the PR. Do not add alternative ORMs or additional UI frameworks.
+- Do not silence a vulnerable dependency ad hoc. Follow `docs/adr/0016-dependencias-vulnerables-y-excepciones.md`: upgrade first; every `pnpm.overrides` entry (range-scoped, never global) and every dismissed GitHub alert needs a row in its exceptions table, and dismissals must also be listed in `allow-ghsas` of the `dependencias` CI job — all in the same PR.
 
 ## Stack and commands
 
