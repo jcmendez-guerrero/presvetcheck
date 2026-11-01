@@ -16,7 +16,7 @@
 ## Decisiones por librería
 
 | Librería | Actual | Decisión | Mecanismo | Notas |
-|----------|--------|----------|-----------|-------|
+| --- | --- | --- | --- | --- |
 | nodemailer | ^7.0.3 | **^10.3.1** | 1 (directa, `packages/reports`) | Uso mínimo: `createTransport({host,port,secure,auth})` + `sendMail({from,to,subject,text,attachments})` en `src/mailer.ts`. `engines` `>=20`. Revisar CHANGELOG 8–10 por la interpretación más estricta de direcciones. |
 | drizzle-orm | ^0.44.2 | **^0.45.4** | 1 (6 manifiestos) | No se usa `sql.identifier` ni `sql.raw` en el código, pero la alerta aplica igual. drizzle-kit se queda en ^0.31 (última 0.31.11 compatible con 0.45). Verificar que `drizzle-kit generate` no produce migraciones. |
 | @fastify/static | ^8.2.0 | **^10.1.8** | 1 (`apps/api`) | Registro con `{ root, wildcard: false }` y `reply.sendFile('index.html')` en `NotFoundHandler`; compatible con Fastify 5. Trae glob ^13 → ver glob. |
