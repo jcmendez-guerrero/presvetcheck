@@ -9,13 +9,15 @@ on:
       promocionar:
         description: 'SHA de la imagen a promocionar a prod'
         required: false
-
 permissions:
   contents: read
 
 env:
   TZ: UTC
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   linting: 
     name: Linting
