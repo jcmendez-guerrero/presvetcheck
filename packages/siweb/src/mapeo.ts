@@ -1,6 +1,12 @@
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { siwebVariantMap, type Db } from '@mmx/db';
-import { normalizarCn, nombreCumpleConvencion, skuCumpleConvencion, varianteCoincideCn, extraerCn } from '@mmx/domain';
+import {
+  normalizarCn,
+  nombreCumpleConvencion,
+  skuCumpleConvencion,
+  varianteCoincideCn,
+  extraerCn,
+} from '@mmx/domain';
 import { DomainError, normalizeText } from '@mmx/shared';
 import type { SiwebClient } from './client';
 import type { IndiceCatalogo } from './indice';
@@ -13,8 +19,16 @@ export type ResultadoResolucion =
 
 /** Similitud simple por términos (para ordenar candidatos por nombre). */
 export function similitudNombre(a: string, b: string): number {
-  const ta = new Set(normalizeText(a).split(' ').filter((w) => w.length > 2));
-  const tb = new Set(normalizeText(b).split(' ').filter((w) => w.length > 2));
+  const ta = new Set(
+    normalizeText(a)
+      .split(' ')
+      .filter((w) => w.length > 2),
+  );
+  const tb = new Set(
+    normalizeText(b)
+      .split(' ')
+      .filter((w) => w.length > 2),
+  );
   if (!ta.size || !tb.size) return 0;
   let c = 0;
   for (const w of ta) if (tb.has(w)) c++;
@@ -36,17 +50,26 @@ export class VariantResolver {
   ) {}
 
   async mapeos(cn: string) {
-    return this.db.select().from(siwebVariantMap).where(eq(siwebVariantMap.cn, normalizarCn(cn)));
+    return this.db
+      .select()
+      .from(siwebVariantMap)
+      .where(eq(siwebVariantMap.cn, normalizarCn(cn)));
   }
 
-  async resolver(cn: string, medicamento: { nombre: string; labtitular: string | null } | null): Promise<ResultadoResolucion> {
+  async resolver(
+    cn: string,
+    medicamento: { nombre: string; labtitular: string | null } | null,
+  ): Promise<ResultadoResolucion> {
     const c = normalizarCn(cn);
     const existentes = await this.db
       .select()
       .from(siwebVariantMap)
       .where(and(eq(siwebVariantMap.cn, c), isNotNull(siwebVariantMap.verificadoAt)));
     if (existentes.length) {
-      return { estado: 'MAPEADO', variantes: existentes.map((m) => ({ variantId: m.variantId, sku: m.sku, metodo: m.metodo })) };
+      return {
+        estado: 'MAPEADO',
+        variantes: existentes.map((m) => ({ variantId: m.variantId, sku: m.sku, metodo: m.metodo })),
+      };
     }
     // Primero el índice del catálogo (sin llamadas). Si no está disponible, o no encuentra el CN del medicamento
     // prescrito (puede ser un producto recién creado), búsqueda directa: `CN{cn}` (convención) y el CN solo, para
@@ -54,10 +77,17 @@ export class VariantResolver {
     let porCn = (await this.indice?.porCn(c)) ?? null;
     if (porCn === null || (!porCn.length && medicamento)) {
       const vistas = new Map<number, Variant>();
-      for (const search of [`CN${c}`, c]) for (const v of await this.client.variants({ search })) vistas.set(v.id, v);
+      for (const search of [`CN${c}`, c])
+        for (const v of await this.client.variants({ search })) vistas.set(v.id, v);
       porCn = [...vistas.values()];
     }
-    porCn = porCn.filter((v) => varianteCoincideCn({ sku: v.sku ?? null, name: v.name ?? null, productName: v.product_name ?? null }, c, this.patron));
+    porCn = porCn.filter((v) =>
+      varianteCoincideCn(
+        { sku: v.sku ?? null, name: v.name ?? null, productName: v.product_name ?? null },
+        c,
+        this.patron,
+      ),
+    );
     if (porCn.length === 1) {
       const v = porCn[0]!;
       const metodo = extraerCn(v.sku ?? null, this.patron, true) === c ? 'auto_sku' : 'auto_nombre';
@@ -70,7 +100,10 @@ export class VariantResolver {
     const porNombre = await this.client.variants({ search: termino });
     const objetivo = `${medicamento.nombre} ${medicamento.labtitular ?? ''}`;
     const candidatos = porNombre
-      .map((v) => ({ ...v, similitud: similitudNombre(objetivo, `${v.product_name ?? ''} ${v.name ?? ''} ${v.sku ?? ''}`) }))
+      .map((v) => ({
+        ...v,
+        similitud: similitudNombre(objetivo, `${v.product_name ?? ''} ${v.name ?? ''} ${v.sku ?? ''}`),
+      }))
       .filter((v) => v.similitud > 0)
       .sort((a, b) => b.similitud - a.similitud)
       .slice(0, 5);
@@ -78,7 +111,12 @@ export class VariantResolver {
   }
 
   /** Guarda un mapeo (automático o manual). Un CN puede tener varias variantes. */
-  async guardar(cn: string, v: Pick<Variant, 'id' | 'product_id' | 'sku'>, metodo: 'auto_sku' | 'auto_nombre' | 'manual', actor: string) {
+  async guardar(
+    cn: string,
+    v: Pick<Variant, 'id' | 'product_id' | 'sku'>,
+    metodo: 'auto_sku' | 'auto_nombre' | 'manual',
+    actor: string,
+  ) {
     await this.db
       .insert(siwebVariantMap)
       .values({
@@ -97,14 +135,28 @@ export class VariantResolver {
   }
 
   /** Mapeo manual por SKU: se valida que existe en Siweb360 con ese valor exacto. */
-  async mapearPorSku(cn: string, sku: string, actor: string): Promise<{ variante: Variant; cumpleConvencion: boolean }> {
-    const v = (await this.client.variants({ search: sku })).find((x) => (x.sku ?? '').toUpperCase() === sku.trim().toUpperCase());
-    if (!v) throw new DomainError('NO_ENCONTRADO', `No existe ningún producto con el SKU «${sku.trim()}» en Siweb360. Revisa que esté bien escrito.`);
+  async mapearPorSku(
+    cn: string,
+    sku: string,
+    actor: string,
+  ): Promise<{ variante: Variant; cumpleConvencion: boolean }> {
+    const v = (await this.client.variants({ search: sku })).find(
+      (x) => (x.sku ?? '').toUpperCase() === sku.trim().toUpperCase(),
+    );
+    if (!v)
+      throw new DomainError(
+        'NO_ENCONTRADO',
+        `No existe ningún producto con el SKU «${sku.trim()}» en Siweb360. Revisa que esté bien escrito.`,
+      );
     await this.guardar(cn, v, 'manual', actor);
     return { variante: v, cumpleConvencion: this.cumpleConvencion(cn, v) };
   }
 
-  async mapearVariante(cn: string, variantId: number, actor: string): Promise<{ variante: Variant; cumpleConvencion: boolean }> {
+  async mapearVariante(
+    cn: string,
+    variantId: number,
+    actor: string,
+  ): Promise<{ variante: Variant; cumpleConvencion: boolean }> {
     const v = await this.client.variant(variantId);
     await this.guardar(cn, v, 'manual', actor);
     return { variante: v, cumpleConvencion: this.cumpleConvencion(cn, v) };
@@ -114,7 +166,8 @@ export class VariantResolver {
   cumpleConvencion(cn: string, v: Pick<Variant, 'sku' | 'name' | 'product_name'>): boolean {
     return (
       skuCumpleConvencion(v.sku ?? '', cn, this.patron) &&
-      (nombreCumpleConvencion(v.product_name ?? '', cn, this.patron) || nombreCumpleConvencion(v.name ?? '', cn, this.patron))
+      (nombreCumpleConvencion(v.product_name ?? '', cn, this.patron) ||
+        nombreCumpleConvencion(v.name ?? '', cn, this.patron))
     );
   }
 }

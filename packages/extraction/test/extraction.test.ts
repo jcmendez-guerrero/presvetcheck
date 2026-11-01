@@ -11,7 +11,14 @@ import { confianzaCampo } from '../src/confianza';
 import { AzureRecipeExtractor } from '../src/azure/extractor';
 import { DocumentIntelligenceClient } from '../src/azure/docintel';
 import { crearExtractor, DisabledRecipeExtractor } from '../src/factory';
-import { borradorDesdeExtraccion, esExcepcional, especieId, fechaIso, plazo, tipoDispensacion } from '../src/borrador';
+import {
+  borradorDesdeExtraccion,
+  esExcepcional,
+  especieId,
+  fechaIso,
+  plazo,
+  tipoDispensacion,
+} from '../src/borrador';
 import { compararExtraccion, costeEstimado } from '../src/eval/metricas';
 
 const DIR = resolve(__dirname, '../../../fixtures/recetas');
@@ -32,7 +39,9 @@ describe('FakeRecipeExtractor', () => {
     expect(fake.fixtures()).toContain('demo-solo-principio-activo');
   });
   it('sin hint usa la fixture por defecto o la primera', async () => {
-    expect((await fake.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).modelo).toBe('fixture:demo-compania-papel');
+    expect((await fake.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).modelo).toBe(
+      'fixture:demo-compania-papel',
+    );
     const def = new FakeRecipeExtractor({ dir: DIR, hoy, porDefecto: 'demo-produccion-electronica' });
     expect((await def.extract({ pages: [], mime: 'image/png' })).receta.tipo?.valor).toBe('electronica');
   });
@@ -42,7 +51,10 @@ describe('FakeRecipeExtractor', () => {
     copyFileSync(resolve(DIR, 'demo-produccion-electronica.expected.json'), resolve(tmp, 'b.expected.json'));
     writeFileSync(resolve(tmp, 'b.png'), Buffer.from([9, 9, 9]));
     writeFileSync(resolve(tmp, 'nota.txt'), 'x');
-    const r = await new FakeRecipeExtractor({ dir: tmp, hoy }).extract({ pages: [new Uint8Array([9, 9, 9])], mime: 'image/png' });
+    const r = await new FakeRecipeExtractor({ dir: tmp, hoy }).extract({
+      pages: [new Uint8Array([9, 9, 9])],
+      mime: 'image/png',
+    });
     expect(r.modelo).toBe('fixture:b');
   });
   it('sin fixtures → error claro', async () => {
@@ -100,31 +112,88 @@ describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligen
     analyzeResult: {
       modelId: 'recetas-v1',
       content,
-      pages: [{ pageNumber: 1, words: [{ content: 'R-77', confidence: 0.98, span: { offset: 7, length: 4 } }, { content: 'Clavubay', confidence: 0.7, span: { offset: 12, length: 8 } }] }],
+      pages: [
+        {
+          pageNumber: 1,
+          words: [
+            { content: 'R-77', confidence: 0.98, span: { offset: 7, length: 4 } },
+            { content: 'Clavubay', confidence: 0.7, span: { offset: 12, length: 8 } },
+          ],
+        },
+      ],
       documents: [{ docType: 'recetas-v1', fields }],
     },
   });
   const region = [{ pageNumber: 1, polygon: [0, 0, 1, 0, 1, 1, 0, 1] }];
   const P1 = pagina(
     {
-      numero: { type: 'string', valueString: 'R-77', content: 'R-77', confidence: 0.99, boundingRegions: region, spans: [{ offset: 7, length: 4 }] },
-      fechaEmision: { type: 'date', valueDate: '2026-10-12', content: '12/10/2026', confidence: 0.95, boundingRegions: region },
+      numero: {
+        type: 'string',
+        valueString: 'R-77',
+        content: 'R-77',
+        confidence: 0.99,
+        boundingRegions: region,
+        spans: [{ offset: 7, length: 4 }],
+      },
+      fechaEmision: {
+        type: 'date',
+        valueDate: '2026-10-12',
+        content: '12/10/2026',
+        confidence: 0.95,
+        boundingRegions: region,
+      },
       numAnimales: { type: 'number', valueNumber: 3, content: '3', confidence: 0.9, boundingRegions: region },
-      firmaDetectada: { type: 'signature', valueSignature: 'signed', confidence: 0.8, boundingRegions: region },
+      firmaDetectada: {
+        type: 'signature',
+        valueSignature: 'signed',
+        confidence: 0.8,
+        boundingRegions: region,
+      },
       // Sin región: no se puede enseñar de dónde sale → máximo 0,5.
       veterinarioNombre: { type: 'string', valueString: 'Dra. Prueba', confidence: 0.99 },
       especie: { type: 'string', content: 'Canina', confidence: 0.6, boundingRegions: region },
       lineas: {
         type: 'array',
         valueArray: [
-          { type: 'object', valueObject: { medicamento: { type: 'string', content: 'Clavubay', confidence: 0.97, boundingRegions: region, spans: [{ offset: 12, length: 8 }] }, cantidadEnvases: { type: 'number', content: '1', confidence: 0.9, boundingRegions: region } } },
-          { type: 'object', valueObject: { medicamento: { type: 'string', content: '  ', confidence: 0.1 } } },
+          {
+            type: 'object',
+            valueObject: {
+              medicamento: {
+                type: 'string',
+                content: 'Clavubay',
+                confidence: 0.97,
+                boundingRegions: region,
+                spans: [{ offset: 12, length: 8 }],
+              },
+              cantidadEnvases: { type: 'number', content: '1', confidence: 0.9, boundingRegions: region },
+            },
+          },
+          {
+            type: 'object',
+            valueObject: { medicamento: { type: 'string', content: '  ', confidence: 0.1 } },
+          },
         ],
       },
     },
     'Receta R-77 Clavubay',
   );
-  const P2 = pagina({ especie: { type: 'string', content: 'Perro', confidence: 0.92, boundingRegions: region }, lineas: { type: 'array', valueArray: [{ type: 'object', valueObject: { medicamento: { type: 'string', content: 'Otro', confidence: 0.9, boundingRegions: region } } }] } }, 'Perro Otro');
+  const P2 = pagina(
+    {
+      especie: { type: 'string', content: 'Perro', confidence: 0.92, boundingRegions: region },
+      lineas: {
+        type: 'array',
+        valueArray: [
+          {
+            type: 'object',
+            valueObject: {
+              medicamento: { type: 'string', content: 'Otro', confidence: 0.9, boundingRegions: region },
+            },
+          },
+        ],
+      },
+    },
+    'Perro Otro',
+  );
 
   function handlers(respuestas: unknown[]) {
     let analisis = 0;
@@ -139,21 +208,38 @@ describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligen
           const n = analisis++;
           return new HttpResponse(null, { status: 202, headers: { 'operation-location': `${DI}/ops/${n}` } });
         }),
-        http.get(`${DI}/ops/:n`, ({ params }) => HttpResponse.json(respuestas[Number(params.n)] ?? { status: 'running' })),
+        http.get(`${DI}/ops/:n`, ({ params }) =>
+          HttpResponse.json(respuestas[Number(params.n)] ?? { status: 'running' }),
+        ),
       ],
     };
   }
-  const extractor = () => new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: `${DI}/`, getToken, sleep: async () => {} }), 'recetas-v1');
+  const extractor = () =>
+    new AzureRecipeExtractor(
+      new DocumentIntelligenceClient({ endpoint: `${DI}/`, getToken, sleep: async () => {} }),
+      'recetas-v1',
+    );
 
   it('campos del modelo con confianza, región y tipos; varias páginas: el más fiable y líneas concatenadas', async () => {
     const h = handlers([P1, P2]);
     server.use(...h.list);
-    const r = await extractor().extract({ pages: [new Uint8Array([1]), new Uint8Array([2])], mime: 'image/png' });
+    const r = await extractor().extract({
+      pages: [new Uint8Array([1]), new Uint8Array([2])],
+      mime: 'image/png',
+    });
     expect(h.get().analisis).toBe(2);
     expect(h.get().auth).toBe('Bearer token-entra');
     expect(h.get().url).toContain('/documentModels/recetas-v1:analyze?api-version=2024-11-30');
-    expect(r).toMatchObject({ proveedor: 'azure', promptVersion: ESQUEMA_CAMPOS_VERSION, modelo: 'docintel:recetas-v1 (api 2024-11-30)' });
-    expect(r.receta.numero).toMatchObject({ valor: 'R-77', fuente: 'ocr', evidencia: { texto: 'R-77', pagina: 1, region: region[0]!.polygon } });
+    expect(r).toMatchObject({
+      proveedor: 'azure',
+      promptVersion: ESQUEMA_CAMPOS_VERSION,
+      modelo: 'docintel:recetas-v1 (api 2024-11-30)',
+    });
+    expect(r.receta.numero).toMatchObject({
+      valor: 'R-77',
+      fuente: 'ocr',
+      evidencia: { texto: 'R-77', pagina: 1, region: region[0]!.polygon },
+    });
     expect(r.receta.numero?.confianza).toBeCloseTo(0.98);
     expect(r.receta.fechaEmision?.valor).toBe('2026-10-12');
     expect(r.receta.numAnimales?.valor).toBe(3);
@@ -175,56 +261,115 @@ describe('AzureRecipeExtractor (MSW: modelo personalizado de Document Intelligen
           modelId: 'prebuilt-layout',
           content: 'Fármaco: PRUEBAVET 5 MG',
           pages: [{ pageNumber: 1, words: [] }],
-          keyValuePairs: [{ key: { content: 'Fármaco:' }, value: { content: 'PRUEBAVET 5 MG', boundingRegions: region }, confidence: 0.95 }],
+          keyValuePairs: [
+            {
+              key: { content: 'Fármaco:' },
+              value: { content: 'PRUEBAVET 5 MG', boundingRegions: region },
+              confidence: 0.95,
+            },
+          ],
         },
       },
     ]);
     server.use(...h.list);
-    const r = await new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {} }), 'prebuilt-layout').extract({ pages: [new Uint8Array([1])], mime: 'image/png' });
+    const r = await new AzureRecipeExtractor(
+      new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {} }),
+      'prebuilt-layout',
+    ).extract({ pages: [new Uint8Array([1])], mime: 'image/png' });
     expect(h.get().url).toContain('prebuilt-layout:analyze');
     expect(h.get().url).toContain('features=keyValuePairs');
-    expect(r).toMatchObject({ modelo: 'docintel:prebuilt-layout + reglas (api 2024-11-30)', promptVersion: 'layout-reglas.v1' });
+    expect(r).toMatchObject({
+      modelo: 'docintel:prebuilt-layout + reglas (api 2024-11-30)',
+      promptVersion: 'layout-reglas.v1',
+    });
     expect(r.lineas[0]?.medicamento?.valor).toBe('PRUEBAVET 5 MG');
     expect(r.receta.numero?.valor).toBeNull();
   });
 
   it('errores de Document Intelligence', async () => {
     server.use(...handlers([{ status: 'failed', error: { message: 'imagen ilegible' } }]).list);
-    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/imagen ilegible/);
+    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(
+      /imagen ilegible/,
+    );
     server.resetHandlers();
-    server.use(http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 401 })));
-    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/401/);
+    server.use(
+      http.post(
+        `${DI}/documentintelligence/documentModels/:modelo`,
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    );
+    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(
+      /401/,
+    );
     server.resetHandlers();
-    server.use(http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 202 })));
-    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/Operation-Location/);
+    server.use(
+      http.post(
+        `${DI}/documentintelligence/documentModels/:modelo`,
+        () => new HttpResponse(null, { status: 202 }),
+      ),
+    );
+    await expect(extractor().extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(
+      /Operation-Location/,
+    );
     server.resetHandlers();
     server.use(...handlers([]).list);
-    const lento = new AzureRecipeExtractor(new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {}, maxPolls: 2 }), 'm');
-    await expect(lento.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/tiempo de espera/);
+    const lento = new AzureRecipeExtractor(
+      new DocumentIntelligenceClient({ endpoint: DI, getToken, sleep: async () => {}, maxPolls: 2 }),
+      'm',
+    );
+    await expect(lento.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(
+      /tiempo de espera/,
+    );
     // Límite por tiempo (F0 puede tardar más de un minuto por página) y 429 al consultar → se espera más.
     let t = 0;
     const esperas: number[] = [];
     server.resetHandlers();
     server.use(
-      http.post(`${DI}/documentintelligence/documentModels/:modelo`, () => new HttpResponse(null, { status: 202, headers: { 'operation-location': `${DI}/ops/x`, 'retry-after': '2' } })),
+      http.post(
+        `${DI}/documentintelligence/documentModels/:modelo`,
+        () =>
+          new HttpResponse(null, {
+            status: 202,
+            headers: { 'operation-location': `${DI}/ops/x`, 'retry-after': '2' },
+          }),
+      ),
       http.get(`${DI}/ops/x`, () => new HttpResponse(null, { status: 429 })),
     );
     const porTiempo = new AzureRecipeExtractor(
-      new DocumentIntelligenceClient({ endpoint: DI, getToken, now: () => t, maxEsperaMs: 20_000, sleep: async (ms) => { esperas.push(ms); t += ms; } }),
+      new DocumentIntelligenceClient({
+        endpoint: DI,
+        getToken,
+        now: () => t,
+        maxEsperaMs: 20_000,
+        sleep: async (ms) => {
+          esperas.push(ms);
+          t += ms;
+        },
+      }),
       'm',
     );
-    await expect(porTiempo.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(/tiempo de espera/);
+    await expect(porTiempo.extract({ pages: [new Uint8Array([1])], mime: 'image/png' })).rejects.toThrow(
+      /tiempo de espera/,
+    );
     expect(esperas.slice(0, 3)).toEqual([2000, 4000, 8000]);
   });
 });
 
 describe('fábrica de extractores', () => {
-  const base = { DOCINTEL_API_VERSION: '2024-11-30', DOCINTEL_ENDPOINT: undefined, DOCINTEL_MODEL_ID: undefined };
+  const base = {
+    DOCINTEL_API_VERSION: '2024-11-30',
+    DOCINTEL_ENDPOINT: undefined,
+    DOCINTEL_MODEL_ID: undefined,
+  };
   it('fake por defecto; azure sin configuración → desactivado con código estable', async () => {
-    expect((await crearExtractor({ ...base, EXTRACTOR: 'fake' }, { fixturesDir: DIR, hoy })).proveedor).toBe('fake');
+    expect((await crearExtractor({ ...base, EXTRACTOR: 'fake' }, { fixturesDir: DIR, hoy })).proveedor).toBe(
+      'fake',
+    );
     const d = await crearExtractor({ ...base, EXTRACTOR: 'azure' }, { fixturesDir: DIR, hoy });
     expect(d).toBeInstanceOf(DisabledRecipeExtractor);
-    await expect(d.extract({ pages: [], mime: 'image/png' })).rejects.toMatchObject({ code: 'EXTRACTOR_NO_CONFIGURADO' });
+    await expect(d.extract({ pages: [], mime: 'image/png' })).rejects.toMatchObject({
+      code: 'EXTRACTOR_NO_CONFIGURADO',
+    });
   });
   it('azure configurado', async () => {
     const a = await crearExtractor(
@@ -237,7 +382,11 @@ describe('fábrica de extractores', () => {
 
 describe('borrador para la revisión humana', () => {
   it('nunca marca la firma ni la comprobación desde la IA y lista los campos dudosos', async () => {
-    const ext = await new FakeRecipeExtractor({ dir: DIR, hoy }).extract({ pages: [], mime: 'image/png', hints: { fixture: 'demo-compania-papel' } });
+    const ext = await new FakeRecipeExtractor({ dir: DIR, hoy }).extract({
+      pages: [],
+      mime: 'image/png',
+      hints: { fixture: 'demo-compania-papel' },
+    });
     const b = borradorDesdeExtraccion(ext, 0.85);
     const r = RecetaConfirmada.parse(b.receta);
     expect(r.firmaConfirmada).toBe(false);
@@ -250,7 +399,11 @@ describe('borrador para la revisión humana', () => {
     expect(b.dudosos).toContain('receta.rega');
   });
   it('receta electrónica y utilidades de conversión', async () => {
-    const ext = await new FakeRecipeExtractor({ dir: DIR, hoy }).extract({ pages: [], mime: 'image/png', hints: { fixture: 'demo-produccion-electronica' } });
+    const ext = await new FakeRecipeExtractor({ dir: DIR, hoy }).extract({
+      pages: [],
+      mime: 'image/png',
+      hints: { fixture: 'demo-produccion-electronica' },
+    });
     expect(borradorDesdeExtraccion(ext, 0.85).receta.tipo).toBe('electronica');
     expect(borradorDesdeExtraccion({ ...ext, lineas: [] }, 0.85).receta.lineas).toHaveLength(1);
     expect(fechaIso('3/2/26')).toBe('2026-02-03');
@@ -304,4 +457,24 @@ describe('prescripción excepcional en el texto de la receta', () => {
     ['Prescripción excepcional: :unselected:', false],
     [null, false],
   ])('%s → %s', (t, esperado) => expect(esExcepcional(t)).toBe(esperado));
+});
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('plazo con textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['serie larga de dígitos', () => plazo('1'.repeat(n))],
+    ['dígitos y espacios alternados', () => plazo('1 '.repeat(n / 2))],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+
+  it('toma la serie de dígitos completa', () => {
+    expect(plazo('validez 123 días')).toEqual({ cantidad: 123, unidad: 'dias' });
+    expect(plazo('6meses')).toEqual({ cantidad: 6, unidad: 'meses' });
+  });
 });

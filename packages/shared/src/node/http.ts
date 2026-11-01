@@ -68,7 +68,11 @@ export class HttpClient {
   }
 
   /** Petición con reintentos. `retry=false` para operaciones no idempotentes (escrituras). */
-  async request(url: string, init: RequestInitLike = {}, retry = true): Promise<{ status: number; json: unknown }> {
+  async request(
+    url: string,
+    init: RequestInitLike = {},
+    retry = true,
+  ): Promise<{ status: number; json: unknown }> {
     let attempt = 0;
     for (;;) {
       try {
@@ -95,7 +99,8 @@ export class HttpClient {
       });
     } catch (e) {
       const name = (e as Error).name;
-      if (name === 'TimeoutError' || name === 'AbortError') throw new HttpError('TIMEOUT', null, `Timeout tras ${this.opts.timeoutMs} ms`);
+      if (name === 'TimeoutError' || name === 'AbortError')
+        throw new HttpError('TIMEOUT', null, `Timeout tras ${this.opts.timeoutMs} ms`);
       throw new HttpError('RED', null, (e as Error).message);
     }
     const text = await res.text();

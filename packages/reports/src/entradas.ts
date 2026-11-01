@@ -92,16 +92,40 @@ export interface MovimientoPsicotropo {
 }
 
 export function tablaPsicotropos(movs: MovimientoPsicotropo[]): Tabla {
-  const orden = [...movs].sort((a, b) => `${a.cn}|${a.lote}|${new Date(a.fecha).toISOString()}`.localeCompare(`${b.cn}|${b.lote}|${new Date(b.fecha).toISOString()}`));
+  const orden = [...movs].sort((a, b) =>
+    `${a.cn}|${a.lote}|${new Date(a.fecha).toISOString()}`.localeCompare(
+      `${b.cn}|${b.lote}|${new Date(b.fecha).toISOString()}`,
+    ),
+  );
   const saldo = new Map<string, number>();
   return {
     nombre: 'Psicotropos',
-    columnas: ['CÓDIGO NACIONAL', 'MEDICAMENTO', 'LOTE', 'FECHA', 'MOVIMIENTO', 'ENTRADAS', 'SALIDAS', 'SALDO', 'REFERENCIA'],
+    columnas: [
+      'CÓDIGO NACIONAL',
+      'MEDICAMENTO',
+      'LOTE',
+      'FECHA',
+      'MOVIMIENTO',
+      'ENTRADAS',
+      'SALIDAS',
+      'SALDO',
+      'REFERENCIA',
+    ],
     filas: orden.map((m) => {
       const k = `${m.cn}|${m.lote}`;
       const delta = m.tipo === 'SALIDA' ? -m.unidades : m.unidades;
       saldo.set(k, (saldo.get(k) ?? 0) + delta);
-      return [m.cn, m.nombre, m.lote, fechaEs(m.fecha), m.tipo, m.tipo === 'SALIDA' ? '' : m.unidades, m.tipo === 'SALIDA' ? (m.unidades === 0 && m.unidadesTexto ? m.unidadesTexto : m.unidades) : '', saldo.get(k) as number, m.referencia];
+      return [
+        m.cn,
+        m.nombre,
+        m.lote,
+        fechaEs(m.fecha),
+        m.tipo,
+        m.tipo === 'SALIDA' ? '' : m.unidades,
+        m.tipo === 'SALIDA' ? (m.unidades === 0 && m.unidadesTexto ? m.unidadesTexto : m.unidades) : '',
+        saldo.get(k) as number,
+        m.referencia,
+      ];
     }),
   };
 }

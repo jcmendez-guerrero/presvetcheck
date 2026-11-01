@@ -6,14 +6,27 @@ import { z } from 'zod';
  * `{ success: false, error, code, message }`. Tolerantes a campos nuevos.
  */
 const num = z.union([z.number(), z.string()]).transform((v) => Number(v));
-const numN = z.union([z.number(), z.string()]).nullish().transform((v) => (v === null || v === undefined || v === '' ? null : Number(v)));
+const numN = z
+  .union([z.number(), z.string()])
+  .nullish()
+  .transform((v) => (v === null || v === undefined || v === '' ? null : Number(v)));
 
 export const PaginationSchema = z.looseObject({ page: numN, limit: numN, total: numN, pages: numN });
 export const Envelope = <T extends z.ZodTypeAny>(data: T) =>
-  z.looseObject({ success: z.boolean().optional(), message: z.string().optional(), data, pagination: PaginationSchema.nullish() });
+  z.looseObject({
+    success: z.boolean().optional(),
+    message: z.string().optional(),
+    data,
+    pagination: PaginationSchema.nullish(),
+  });
 
 /** Cuerpo de error documentado. */
-export const ErrorSchema = z.looseObject({ success: z.literal(false).optional(), error: z.string().nullish(), code: z.string().nullish(), message: z.string().nullish() });
+export const ErrorSchema = z.looseObject({
+  success: z.literal(false).optional(),
+  error: z.string().nullish(),
+  code: z.string().nullish(),
+  message: z.string().nullish(),
+});
 
 export const ProductSchema = z.looseObject({
   id: num,
@@ -103,7 +116,16 @@ export const AdjustmentResultSchema = z.looseObject({
   warehouse_id: numN,
   location_id: numN,
   on_hand: numN,
-  movement: z.looseObject({ id: numN, variant_id: numN, warehouse_id: numN, quantity: numN, movement_type: z.string().nullish(), reason: z.string().nullish() }).nullish(),
+  movement: z
+    .looseObject({
+      id: numN,
+      variant_id: numN,
+      warehouse_id: numN,
+      quantity: numN,
+      movement_type: z.string().nullish(),
+      reason: z.string().nullish(),
+    })
+    .nullish(),
 });
 
 /** `GET tickets` (resumen) y `GET tickets/{id}` (con líneas). Estados: Pagado, Pendiente, Cancelado. */
@@ -176,8 +198,13 @@ export interface TransferRequest {
 }
 
 /** Lote y disponible de una fila del desglose. null si faltan: entonces no se recomienda dispensar. */
-export function leerNivel(l: Level): { lote: string | null; disponible: number | null; caducidad: string | null } {
+export function leerNivel(l: Level): {
+  lote: string | null;
+  disponible: number | null;
+  caducidad: string | null;
+} {
   const lote = l.batch_number?.trim() || null;
-  const disponible = l.available === null || l.available === undefined || Number.isNaN(l.available) ? null : l.available;
+  const disponible =
+    l.available === null || l.available === undefined || Number.isNaN(l.available) ? null : l.available;
   return { lote, disponible, caducidad: l.expiry_date ? l.expiry_date.slice(0, 10) : null };
 }

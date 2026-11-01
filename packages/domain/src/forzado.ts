@@ -61,7 +61,10 @@ export function validarEleccionSoloPA(
 ): void {
   const r = evaluarEquivalencia(prescripcionVirtual, elegido, ctx, rules, { prescripcionVirtual: true });
   if (!r.equivalente) {
-    throw new DomainError('FORZADO_ELECCION_NO_EQUIVALENTE', undefined, { motivos: r.motivos, indicacion: r.indicacion });
+    throw new DomainError('FORZADO_ELECCION_NO_EQUIVALENTE', undefined, {
+      motivos: r.motivos,
+      indicacion: r.indicacion,
+    });
   }
 }
 

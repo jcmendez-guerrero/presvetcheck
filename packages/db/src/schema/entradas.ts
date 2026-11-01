@@ -1,4 +1,16 @@
-import { boolean, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { createdOnly, pk, timestamps } from './common';
 import { distribuidor } from './config';
 

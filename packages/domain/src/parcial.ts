@@ -23,8 +23,14 @@ export interface PlanParcial {
 
 const DISPENSABLE: Decision[] = ['DISPENSAR', 'DISPENSAR_CON_AVISO', 'SUSTITUIR'];
 
-export function planificarDispensacion(lineas: LineaPlan[], allowPartial: boolean, tipo: 'papel' | 'electronica'): PlanParcial {
-  const dispensables = lineas.filter((l) => l.dispensarAhora && DISPENSABLE.includes(l.decision)).map((l) => l.orden);
+export function planificarDispensacion(
+  lineas: LineaPlan[],
+  allowPartial: boolean,
+  tipo: 'papel' | 'electronica',
+): PlanParcial {
+  const dispensables = lineas
+    .filter((l) => l.dispensarAhora && DISPENSABLE.includes(l.decision))
+    .map((l) => l.orden);
   const bloqueadas = lineas.filter((l) => l.decision === 'NO_CONFORME').map((l) => l.orden);
   const pendientesEntrega = lineas
     .filter((l) => !dispensables.includes(l.orden) && !bloqueadas.includes(l.orden))
