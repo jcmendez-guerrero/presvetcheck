@@ -1,0 +1,13 @@
+title = "gitleaks config"
+
+[extend]
+# useDefault will extend the base configuration with the default gitleaks config:
+# https://github.com/zricethezav/gitleaks/blob/master/config/gitleaks.toml
+useDefault = true
+
+[allowlist]
+description = "Allow secrets in instructions for test files"
+paths = [
+  '''.github/instructions/security-and-owasp.instructions.md''',
+  '''.github/instructions/code-review-generic.instructions.md''',
+]
