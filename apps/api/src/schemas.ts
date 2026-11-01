@@ -165,6 +165,21 @@ export const LineaEntradaDto = z.object({
     .default(null),
   precioNetoCompra: Importe.nullable().default(null),
   ivaPct: z.number().nullable().default(null),
+  /** Precio del documento antes del descuento y descuento en %; el neto se calcula con ellos. */
+  precioBruto: Importe.nullable().default(null),
+  descuentoPct: z.number().min(0).max(100).nullable().default(null),
+  actualizarStock: z.boolean().default(true),
+  actualizarPrecio: z.boolean().default(true),
+});
+
+/** Cabecera de una recepción abierta (lo no indicado no cambia). */
+export const EditarRecepcionDto = z.object({
+  distribuidor: z.string().trim().min(2).max(120).optional(),
+  albaran: z.string().max(60).nullable().optional(),
+  fechaCompra: IsoDate.optional(),
+  fechaRecepcion: IsoDate.nullable().optional(),
+  regimen: z.enum(['recargo_equivalencia', 'nacional']).optional(),
+  confirmarDuplicado: z.boolean().optional(),
 });
 
 /** Modificación de una línea de una recepción abierta (lo no indicado no cambia). */
@@ -180,6 +195,11 @@ export const EditarLineaEntradaDto = z.object({
   unidades: z.number().int().positive().max(10000).optional(),
   precioNetoCompra: Importe.nullable().optional(),
   ivaPct: z.number().nullable().optional(),
+  precioBruto: Importe.nullable().optional(),
+  descuentoPct: z.number().min(0).max(100).nullable().optional(),
+  actualizarStock: z.boolean().optional(),
+  actualizarPrecio: z.boolean().optional(),
+  siwebVariantId: z.number().int().positive().nullable().optional(),
 });
 
 export const RegistrosQuery = z.object({

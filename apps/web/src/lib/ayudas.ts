@@ -61,7 +61,11 @@ export const AYUDA_RECEPCION = {
   lote: 'Lote impreso en el envase (o leído del código DataMatrix).',
   caducidad: 'Fecha de caducidad del envase. No se puede dar entrada a un producto caducado; si caduca pronto se avisa.',
   unidades: 'Número de envases recibidos de ese lote.',
-  precioNeto: 'Precio unitario de compra SIN IVA y SIN recargo de equivalencia (el recargo se calcula aparte). Usa coma para los decimales: 12,50.',
+  precioNeto: 'Precio unitario del documento, SIN IVA y SIN recargo de equivalencia y antes del descuento (el descuento va en su casilla). Usa coma para los decimales: 12,50.',
+  descuento: 'Descuento de la línea en % (columna «DTO.» del albarán o factura). El precio neto es el precio menos el descuento.',
+  regimen: 'Régimen de IVA del documento. La farmacia está en recargo de equivalencia: el distribuidor añade el RE al IVA (1,4 % con IVA 10 %, 5,2 % con IVA 21 %, 0,5 % con IVA 4 %). «Solo IVA» si el documento no lo lleva.',
+  actualizarStock: 'Al finalizar, da entrada de estas unidades con su lote y caducidad en el stock de Siweb360 (si la escritura de stock está activada). Desmárcala si esta línea no debe sumar stock.',
+  actualizarPrecio: 'Este precio pasa a ser el precio de coste de referencia en la app. Siweb360 no permite cambiar el precio por su API: el de Siweb360 se cambia allí.',
   iva: 'Tipo de IVA del producto. El recargo de equivalencia correspondiente se añade al calcular el coste.',
   escaneo: 'Escanea el DataMatrix del envase para rellenar el código nacional, el lote y la caducidad.',
 } as const;

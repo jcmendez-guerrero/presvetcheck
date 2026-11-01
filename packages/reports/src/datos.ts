@@ -200,6 +200,7 @@ export class RegistrosService {
       origenDatos: l.origenDatos,
       empleado: l.empleado,
       fechaRecepcion: r.fechaRecepcion,
+      actualizarPrecio: l.actualizarPrecio,
     }));
     // Entradas anteriores a la app importadas de Excel (sin las importaciones anuladas).
     const importadas = await this.d.db

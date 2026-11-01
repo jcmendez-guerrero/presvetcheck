@@ -829,3 +829,29 @@ describe('recepción desde el albarán: lectura, foto, duplicados', () => {
     expect((await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Otro distribuidor', albaran: null, documentoId: l1.json.documentoId })).status).toBe(400);
   });
 });
+
+describe('recepción como factura de compra: descuento, régimen, casillas y descarte', () => {
+  it('precio con descuento, IVA y recargo; totales; régimen solo IVA; descartar una recepción abierta', async () => {
+    const r = (await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Distribuidor de facturas', albaran: 'F-100', fechaCompra: '2026-10-10' })).json;
+    expect(r.regimen ?? 'recargo_equivalencia').toBe('recargo_equivalencia');
+    const l = (await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${r.id}/lineas`, { cn: '570016', lote: 'F1', caducidad: '2027-12-31', unidades: 1, precioBruto: '67.67', descuentoPct: 12.88, ivaPct: 10, actualizarStock: false })).json.linea;
+    expect(l).toMatchObject({ precioBruto: '67.6700', descuentoPct: '12.880', precioNetoCompra: '58.9541', rePct: '1.40', actualizarStock: false, actualizarPrecio: true });
+    let det = (await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${r.id}`)).json;
+    expect(det.totales).toEqual({ base: '58.95', iva: '5.90', recargo: '0.83', total: '65.68' });
+
+    // Régimen solo IVA: sin recargo (se recalculan las líneas).
+    det = (await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${r.id}`, { regimen: 'nacional', albaran: 'F-100B' })).json;
+    expect(det).toMatchObject({ regimen: 'nacional', albaran: 'F-100B' });
+    expect(det.lineas[0]).toMatchObject({ rePct: '0.00', precioCoste: '58.9541' });
+    expect(det.totales.recargo).toBe('0.00');
+    // La casilla de stock se puede cambiar en la línea.
+    expect((await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${r.id}/lineas/${l.id}`, { actualizarStock: true })).json.linea.actualizarStock).toBe(true);
+
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${r.id}/descartar`, { motivo: 'no' })).status).toBe(400);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${r.id}/descartar`, { motivo: 'Albarán duplicado, se registró en otra' })).status).toBe(204);
+    expect(((await api(E.app, 'dev-empleado', 'GET', '/api/recepciones')).json as { id: string }[]).some((x) => x.id === r.id)).toBe(false);
+    expect((await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${r.id}`, { albaran: 'X' })).json.error.code).toBe('RECEPCION_NO_EDITABLE');
+    // Una descartada no cuenta como duplicado.
+    expect((await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', { distribuidor: 'Distribuidor de facturas', albaran: 'F-100B' })).status).toBe(201);
+  });
+});

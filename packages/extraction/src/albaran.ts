@@ -16,8 +16,10 @@ export interface LineaAlbaran {
   /** Código nacional si el código del proveedor lo es (6 cifras, o 7 con el dígito de control). */
   cn: string | null;
   cantidad: number | null;
-  /** Precio unitario con punto decimal ("11.20"), tal como figura en el documento. */
+  /** Precio unitario con punto decimal ("11.20"), tal como figura en el documento (antes del descuento). */
   precioUnitario: string | null;
+  /** Descuento de la línea en % si el importe es menor que cantidad × precio (p. ej. "12.88"). */
+  descuentoPct: string | null;
   lote: string | null;
   caducidad: string | null;
 }
@@ -26,6 +28,8 @@ export interface LecturaAlbaran {
   proveedor: string | null;
   numero: string | null;
   fecha: string | null;
+  /** Totales del documento (base imponible, impuestos y total), para comprobar que la recepción cuadra. */
+  totales: { base: string | null; impuestos: string | null; total: string | null };
   lineas: LineaAlbaran[];
   modelo: string;
 }
@@ -117,6 +121,9 @@ export function lotesDeTablas(tablas: Tabla[] | undefined): { texto: string; lot
   return out;
 }
 
+const importeCampo = (c: Campo | undefined) =>
+  c?.valueCurrency?.amount !== undefined ? new Decimal(c.valueCurrency.amount).toFixed(2) : importeDeTexto(c?.content);
+
 export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
   const f = (r.documents?.[0]?.fields ?? {}) as Record<string, Campo>;
   const contenido = r.content ?? '';
@@ -139,6 +146,13 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
       const q = new Decimal(importe).div(precio);
       cantidad = q.isInteger() ? q.toNumber() : null;
     }
+    // Descuento: el importe de la línea es menor que cantidad × precio («DTO. 12,88»).
+    let descuentoPct: string | null = null;
+    if (precio && importe && cantidad && Number.isFinite(cantidad) && cantidad > 0) {
+      const bruto = new Decimal(precio).mul(cantidad);
+      const d = bruto.gt(0) ? new Decimal(1).minus(new Decimal(importe).div(bruto)).mul(100) : new Decimal(0);
+      if (d.gt(0.05) && d.lt(100)) descuentoPct = d.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2);
+    }
     const desc = texto(o.Description);
     // En la línea de texto («Lote AMD-2801 Cad. 01/2028») o, si no, en las columnas de la tabla (misma fila por
     // código del producto o por el principio de la descripción).
@@ -151,6 +165,7 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
       cn: cnBruto ? cnBruto.slice(0, 6) : null,
       cantidad: cantidad !== null && Number.isFinite(cantidad) ? cantidad : null,
       precioUnitario: precio,
+      descuentoPct,
       lote: /\blote?\s*:?\s*([A-Z0-9][A-Z0-9-/.]{1,30})/i.exec(fila)?.[1] ?? enTabla?.lote ?? null,
       caducidad: caducidadDeTexto(/\b(?:cad(?:ucidad)?|exp|vto)\.?\s*:?\s*([\d/.-]{6,10})/i.exec(fila)?.[1]) ?? enTabla?.caducidad ?? null,
     };
@@ -159,6 +174,7 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
     proveedor: texto(f.VendorName),
     numero: texto(f.InvoiceId),
     fecha: f.InvoiceDate?.valueDate ?? null,
+    totales: { base: importeCampo(f.SubTotal), impuestos: importeCampo(f.TotalTax), total: importeCampo(f.InvoiceTotal) },
     lineas,
     modelo: r.modelId ?? MODELO_ALBARAN,
   };

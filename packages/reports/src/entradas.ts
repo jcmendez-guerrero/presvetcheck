@@ -22,6 +22,8 @@ export interface Entrada {
   empleado: string;
   /** Día de llegada de la mercancía (si se registró). */
   fechaRecepcion?: string | null;
+  /** El precio de esta línea cuenta como precio de coste de referencia («Actualizar precio»). */
+  actualizarPrecio?: boolean;
 }
 
 export const COLUMNAS_ENTRADAS = [
