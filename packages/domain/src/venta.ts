@@ -23,7 +23,8 @@ export function validarVentaSinReceta(
   const out: Incidencia[] = [];
   const params = { medicamento: medicamento.nombre };
   if (medicamento.estupefaciente) out.push(incidencia('ESTUPEFACIENTE_NO_DISPENSABLE', pol, { params }));
-  if (medicamento.receta) out.push(incidencia(canal === 'online' ? 'ONLINE_CON_RECETA' : 'RECETA_REQUERIDA', pol, { params }));
+  if (medicamento.receta)
+    out.push(incidencia(canal === 'online' ? 'ONLINE_CON_RECETA' : 'RECETA_REQUERIDA', pol, { params }));
   return out;
 }
 

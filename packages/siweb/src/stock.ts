@@ -23,7 +23,11 @@ export class StockService {
   constructor(
     private readonly client: SiwebClient,
     private readonly almacenId: () => Promise<number>,
-    private readonly opts: { ttlMs?: number; now?: () => number; log?: (m: string, d?: Record<string, unknown>) => void } = {},
+    private readonly opts: {
+      ttlMs?: number;
+      now?: () => number;
+      log?: (m: string, d?: Record<string, unknown>) => void;
+    } = {},
   ) {}
 
   private now() {

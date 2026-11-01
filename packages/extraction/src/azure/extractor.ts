@@ -1,5 +1,10 @@
 import type { RecipeExtractor } from '@mmx/domain';
-import { CAMPOS_EXTRAIDOS_LINEA, CAMPOS_EXTRAIDOS_RECETA, ExtractionResult, type CampoExtraido } from '@mmx/shared';
+import {
+  CAMPOS_EXTRAIDOS_LINEA,
+  CAMPOS_EXTRAIDOS_RECETA,
+  ExtractionResult,
+  type CampoExtraido,
+} from '@mmx/shared';
 import { CAMPO_LINEAS, CAMPOS_FECHA, ESQUEMA_CAMPOS_VERSION, convertir } from '../campos';
 import { confianzaCampo, type PalabraOcr } from '../confianza';
 import { palabrasDe, type CampoDocIntel, type DocumentIntelligenceClient } from './docintel';
@@ -14,14 +19,22 @@ function textoCampo(nombre: string, f: CampoDocIntel): string | null {
   return v === null || v.trim() === '' ? null : v.trim();
 }
 
-function campo(nombre: string, f: CampoDocIntel | undefined, pagina: number, palabras: PalabraOcr[]): CampoExtraido {
+function campo(
+  nombre: string,
+  f: CampoDocIntel | undefined,
+  pagina: number,
+  palabras: PalabraOcr[],
+): CampoExtraido {
   if (!f) return { valor: null, confianza: 0, evidencia: null, fuente: 'ocr' };
   const valor = convertir(nombre, textoCampo(nombre, f));
   const region = f.boundingRegions?.[0] ?? null;
   return {
     valor,
     confianza: confianzaCampo(valor, f.confidence ?? 0, f.spans ?? [], region !== null, palabras),
-    evidencia: valor === null ? null : { texto: f.content ?? null, pagina: region ? pagina : null, region: region?.polygon ?? null },
+    evidencia:
+      valor === null
+        ? null
+        : { texto: f.content ?? null, pagina: region ? pagina : null, region: region?.polygon ?? null },
     fuente: 'ocr',
   };
 }
@@ -42,14 +55,21 @@ export class AzureRecipeExtractor implements RecipeExtractor {
   ) {}
 
   async extract(input: { pages: Uint8Array[]; mime: string }) {
-    const receta: Record<string, CampoExtraido> = Object.fromEntries(CAMPOS_EXTRAIDOS_RECETA.map((c) => [c, campo(c, undefined, 1, [])]));
+    const receta: Record<string, CampoExtraido> = Object.fromEntries(
+      CAMPOS_EXTRAIDOS_RECETA.map((c) => [c, campo(c, undefined, 1, [])]),
+    );
     const lineas: Record<string, CampoExtraido>[] = [];
     const textos: string[] = [];
     let modeloUsado = this.modelo;
     const reglas = this.modelo === MODELO_LAYOUT;
     for (let i = 0; i < input.pages.length; i++) {
       const pagina = i + 1;
-      const r = await this.di.analizar(this.modelo, input.pages[i] as Uint8Array, input.mime, reglas ? ['keyValuePairs'] : []);
+      const r = await this.di.analizar(
+        this.modelo,
+        input.pages[i] as Uint8Array,
+        input.mime,
+        reglas ? ['keyValuePairs'] : [],
+      );
       modeloUsado = r.modelId ?? modeloUsado;
       textos.push(r.content ?? '');
       const palabras = palabrasDe(r, pagina);
@@ -67,11 +87,14 @@ export class AzureRecipeExtractor implements RecipeExtractor {
       for (const c of CAMPOS_EXTRAIDOS_RECETA) {
         const nuevo = campo(c, fields[c], pagina, palabras);
         const actual = receta[c] as CampoExtraido;
-        if (nuevo.valor !== null && (actual.valor === null || nuevo.confianza > actual.confianza)) receta[c] = nuevo;
+        if (nuevo.valor !== null && (actual.valor === null || nuevo.confianza > actual.confianza))
+          receta[c] = nuevo;
       }
       for (const fila of fields[CAMPO_LINEAS]?.valueArray ?? []) {
         const o = fila.valueObject ?? {};
-        const l = Object.fromEntries(CAMPOS_EXTRAIDOS_LINEA.map((c) => [c, campo(c, o[c], pagina, palabras)]));
+        const l = Object.fromEntries(
+          CAMPOS_EXTRAIDOS_LINEA.map((c) => [c, campo(c, o[c], pagina, palabras)]),
+        );
         if (Object.values(l).some((x) => x.valor !== null)) lineas.push(l);
       }
     }

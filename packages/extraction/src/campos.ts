@@ -9,13 +9,27 @@ export const ESQUEMA_CAMPOS_VERSION = 'docintel-campos.v1';
 export const CAMPO_LINEAS = 'lineas';
 
 export const CAMPOS_NUMERICOS = new Set(['numAnimales', 'cantidadEnvases', 'duracionDias']);
-export const CAMPOS_BOOLEANOS = new Set(['firmaDetectada', 'selloDetectado', 'qrDetectado', 'declaracionAntimicrobiano', 'antimicrobianos']);
+export const CAMPOS_BOOLEANOS = new Set([
+  'firmaDetectada',
+  'selloDetectado',
+  'qrDetectado',
+  'declaracionAntimicrobiano',
+  'antimicrobianos',
+]);
 /** Campos que se etiquetan como fecha (Document Intelligence los normaliza a AAAA-MM-DD). */
 export const CAMPOS_FECHA = new Set(['fechaEmision']);
 
 type TipoStudio = 'string' | 'number' | 'date' | 'selectionMark' | 'signature';
 const tipo = (c: string): TipoStudio =>
-  c === 'firmaDetectada' ? 'signature' : CAMPOS_BOOLEANOS.has(c) ? 'selectionMark' : CAMPOS_NUMERICOS.has(c) ? 'number' : CAMPOS_FECHA.has(c) ? 'date' : 'string';
+  c === 'firmaDetectada'
+    ? 'signature'
+    : CAMPOS_BOOLEANOS.has(c)
+      ? 'selectionMark'
+      : CAMPOS_NUMERICOS.has(c)
+        ? 'number'
+        : CAMPOS_FECHA.has(c)
+          ? 'date'
+          : 'string';
 
 /**
  * `fields.json` para el proyecto de etiquetado de Document Intelligence Studio (modelo personalizado
@@ -27,10 +41,20 @@ export function camposDocIntelStudio() {
     $schema: 'https://schema.cognitiveservices.azure.com/formrecognizer/2021-03-01/fields.json',
     fields: [
       ...CAMPOS_EXTRAIDOS_RECETA.map(campo),
-      { fieldKey: CAMPO_LINEAS, fieldType: 'array', fieldFormat: 'not-specified', itemType: `${CAMPO_LINEAS}_fila` },
+      {
+        fieldKey: CAMPO_LINEAS,
+        fieldType: 'array',
+        fieldFormat: 'not-specified',
+        itemType: `${CAMPO_LINEAS}_fila`,
+      },
     ],
     definitions: {
-      [`${CAMPO_LINEAS}_fila`]: { fieldKey: `${CAMPO_LINEAS}_fila`, fieldType: 'object', fieldFormat: 'not-specified', fields: CAMPOS_EXTRAIDOS_LINEA.map(campo) },
+      [`${CAMPO_LINEAS}_fila`]: {
+        fieldKey: `${CAMPO_LINEAS}_fila`,
+        fieldType: 'object',
+        fieldFormat: 'not-specified',
+        fields: CAMPOS_EXTRAIDOS_LINEA.map(campo),
+      },
     },
   };
 }

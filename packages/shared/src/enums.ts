@@ -79,7 +79,13 @@ export type OutboxStatus = z.infer<typeof OutboxStatus>;
 export const EstadoRecepcion = z.enum(['ABIERTA', 'FINALIZADA', 'SINCRONIZADA', 'ERROR_SINCRONIZACION']);
 export type EstadoRecepcion = z.infer<typeof EstadoRecepcion>;
 
-export const EstadoRecepcionLinea = z.enum(['OK', 'PENDIENTE_ALTA_SIWEB', 'ENCOLADA', 'SINCRONIZADA', 'ERROR']);
+export const EstadoRecepcionLinea = z.enum([
+  'OK',
+  'PENDIENTE_ALTA_SIWEB',
+  'ENCOLADA',
+  'SINCRONIZADA',
+  'ERROR',
+]);
 export type EstadoRecepcionLinea = z.infer<typeof EstadoRecepcionLinea>;
 
 export const PlantillaSalidas = z.enum(['A', 'B', 'C']);

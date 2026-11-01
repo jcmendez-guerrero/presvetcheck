@@ -14,7 +14,14 @@ export interface RegistroCache {
   atc: string[] | null;
   indicaciones: { indicacionId: number; nombre: string | null; especieId: number | null }[] | null;
   tiemposEspera:
-    | { especieId: number | null; tejido: string | null; cantidad: string | null; unidad: string | null; formaViaAdmin: string | null; noAplicaTejido: boolean }[]
+    | {
+        especieId: number | null;
+        tejido: string | null;
+        cantidad: string | null;
+        unidad: string | null;
+        formaViaAdmin: string | null;
+        noAplicaTejido: boolean;
+      }[]
     | null;
 }
 
@@ -56,7 +63,9 @@ export function normalizarPas(
 }
 
 /** Estado de CIMAVet ({aut, susp, rev}) → autorizado | suspendido | revocado. */
-export function estadoDesdeApi(e: { aut?: unknown; susp?: unknown; rev?: unknown } | null | undefined): EstadoAutorizacion {
+export function estadoDesdeApi(
+  e: { aut?: unknown; susp?: unknown; rev?: unknown } | null | undefined,
+): EstadoAutorizacion {
   if (e?.rev) return 'revocado';
   if (e?.susp) return 'suspendido';
   return 'autorizado';
@@ -83,7 +92,12 @@ const texto = (v: unknown): string | null => {
 };
 
 /** Respuesta de `GET medicamento` → registro de caché (SPEC §5.1.2, source=api). */
-export function registroDesdeApi(m: MedicamentoApi, raw: unknown, fetchedAt: Date, presentacionesApi?: PresentacionApi[]): RegistroCache {
+export function registroDesdeApi(
+  m: MedicamentoApi,
+  raw: unknown,
+  fetchedAt: Date,
+  presentacionesApi?: PresentacionApi[],
+): RegistroCache {
   const pres = presentacionesApi ?? m.presentaciones ?? [];
   const pas = m.principiosactivos?.length
     ? normalizarPas(
@@ -138,10 +152,16 @@ export function registroDesdeApi(m: MedicamentoApi, raw: unknown, fetchedAt: Dat
     })),
     principiosActivos: pas,
     especies: m.especies ? m.especies.map((e) => idNum(e.id)).filter((x): x is number => x !== null) : null,
-    vias: m.viasadministracion ? m.viasadministracion.map((e) => idNum(e.id)).filter((x): x is number => x !== null) : null,
+    vias: m.viasadministracion
+      ? m.viasadministracion.map((e) => idNum(e.id)).filter((x): x is number => x !== null)
+      : null,
     atc: m.atcs ? m.atcs.map((a) => a.codigo).filter((x): x is string => !!x) : null,
     indicaciones: m.indicaciones
-      ? m.indicaciones.map((i) => ({ indicacionId: idNum(i.id) ?? 0, nombre: i.nombre ?? null, especieId: idNum(i.especie?.id) }))
+      ? m.indicaciones.map((i) => ({
+          indicacionId: idNum(i.id) ?? 0,
+          nombre: i.nombre ?? null,
+          especieId: idNum(i.especie?.id),
+        }))
       : null,
     tiemposEspera: m.tiemposespera
       ? m.tiemposespera.map((t) => ({
@@ -149,7 +169,8 @@ export function registroDesdeApi(m: MedicamentoApi, raw: unknown, fetchedAt: Dat
           tejido: texto(t.tejido),
           cantidad: t.cantidad === null || t.cantidad === undefined ? null : String(t.cantidad),
           unidad: texto(t.unidadtiempo),
-          formaViaAdmin: [texto(t.formafarmaceutica), texto(t.viaadministracion)].filter(Boolean).join(' / ') || null,
+          formaViaAdmin:
+            [texto(t.formafarmaceutica), texto(t.viaadministracion)].filter(Boolean).join(' / ') || null,
           noAplicaTejido: false,
         }))
       : null,

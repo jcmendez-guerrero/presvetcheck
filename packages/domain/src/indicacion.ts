@@ -17,7 +17,11 @@ export function tokensIndicacion(texto: string, rules: EquivalenciaRules['indica
   return new Set(t.split(/\s+/).filter((w) => w.length > 1 && !vacias.has(w)));
 }
 
-export function similitudIndicacion(receta: string, candidata: string, rules: EquivalenciaRules['indicacion']): number {
+export function similitudIndicacion(
+  receta: string,
+  candidata: string,
+  rules: EquivalenciaRules['indicacion'],
+): number {
   const a = tokensIndicacion(receta, rules);
   if (a.size === 0) return 0;
   const b = tokensIndicacion(candidata, rules);
@@ -42,6 +46,10 @@ export function compararIndicacion(
     }
   }
   const resultado: EquivalenciaIndicacion =
-    similitud >= rules.umbral_coincide ? 'COINCIDE' : similitud >= rules.umbral_probable ? 'PROBABLE' : 'NO_COINCIDE';
+    similitud >= rules.umbral_coincide
+      ? 'COINCIDE'
+      : similitud >= rules.umbral_probable
+        ? 'PROBABLE'
+        : 'NO_COINCIDE';
   return { resultado, similitud, mejor };
 }

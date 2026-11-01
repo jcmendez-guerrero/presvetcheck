@@ -1,5 +1,15 @@
 import { and, asc, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
-import { discrepancia, dispensacion, outbox, receta, recepcion, recepcionLinea, sustitucion, type ColumnCipher, type Db } from '@mmx/db';
+import {
+  discrepancia,
+  dispensacion,
+  outbox,
+  receta,
+  recepcion,
+  recepcionLinea,
+  sustitucion,
+  type ColumnCipher,
+  type Db,
+} from '@mmx/db';
 import { RegistrosService, rangoMadrid } from './datos';
 import { aCsv, aXlsx, fechaEs, type Tabla } from './formato';
 import { tablaEntradas, tablaPsicotropos } from './entradas';
@@ -46,7 +56,11 @@ const sumarDias = (iso: string, n: number) => {
  * (producto no válido aparte), caducidades próximas, registro de psicótropos, discrepancias y precios de coste.
  * Las exportaciones no incluyen datos del propietario (SPEC §9.2).
  */
-export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { desde: string; hasta: string }, hoyIso: string): Promise<Tabla[]> {
+export async function generarReporteSemanal(
+  ctx: ContextoReporte,
+  periodo: { desde: string; hasta: string },
+  hoyIso: string,
+): Promise<Tabla[]> {
   const reg = new RegistrosService(ctx);
   const [ini, fin] = rangoMadrid(periodo.desde, periodo.hasta);
   const tablas: Tabla[] = [];
@@ -56,23 +70,46 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
   tablas.push({ ...tablaEntradas(entradas), nombre: '1 Entradas' });
 
   // 2. Salidas A/B/C
-  const salidas = await reg.salidas(periodo.desde, periodo.hasta, { incluirPropietario: false, dniCompleto: false });
+  const salidas = await reg.salidas(periodo.desde, periodo.hasta, {
+    incluirPropietario: false,
+    dniCompleto: false,
+  });
   for (const p of ['A', 'B', 'C'] as const) {
     const [t] = tablasSalidas(salidas, p, { incluirPropietario: false, internas: 'final' });
     tablas.push({ ...t!, nombre: `2${p} Salidas ${p}` });
   }
 
   // 3. Sustituciones
-  const sust = await ctx.db.select().from(sustitucion).where(and(gte(sustitucion.createdAt, ini), lt(sustitucion.createdAt, fin))).orderBy(asc(sustitucion.createdAt));
+  const sust = await ctx.db
+    .select()
+    .from(sustitucion)
+    .where(and(gte(sustitucion.createdAt, ini), lt(sustitucion.createdAt, fin)))
+    .orderBy(asc(sustitucion.createdAt));
   tablas.push({
     nombre: '3 Sustituciones',
     // La autorización previa y la firma del garante se obtienen fuera de la app y las registra el empleado.
-    columnas: ['ID', 'FECHA', 'CN PRESCRITO', 'CN DISPENSADO', 'MODO', 'ESTADO', 'AUTORIZACIÓN PREVIA (GARANTE / MEDIO / REGISTRA)', 'HORAS HASTA FIRMA', 'FIRMA (GARANTE / REGISTRA)', 'PROCEDIMIENTO'],
+    columnas: [
+      'ID',
+      'FECHA',
+      'CN PRESCRITO',
+      'CN DISPENSADO',
+      'MODO',
+      'ESTADO',
+      'AUTORIZACIÓN PREVIA (GARANTE / MEDIO / REGISTRA)',
+      'HORAS HASTA FIRMA',
+      'FIRMA (GARANTE / REGISTRA)',
+      'PROCEDIMIENTO',
+    ],
     filas: sust.map((s) => {
-      const aut = s.autorizacion as { previa?: { garante: string; medio: string; empleado: string } | null; firma?: { garante: string; fechaHora: string; empleado: string } | null } | null;
+      const aut = s.autorizacion as {
+        previa?: { garante: string; medio: string; empleado: string } | null;
+        firma?: { garante: string; fechaHora: string; empleado: string } | null;
+      } | null;
       const firma = aut?.firma ?? null;
       const previa = aut?.previa ?? null;
-      const horas = firma ? Math.round((new Date(firma.fechaHora).getTime() - s.createdAt.getTime()) / 36e5) : '';
+      const horas = firma
+        ? Math.round((new Date(firma.fechaHora).getTime() - s.createdAt.getTime()) / 36e5)
+        : '';
       return [
         s.id,
         fechaEs(s.createdAt),
@@ -89,7 +126,10 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
   });
 
   // 4. No conformes y forzadas
-  const noConf = await ctx.db.select().from(receta).where(and(eq(receta.estado, 'NO_CONFORME'), gte(receta.createdAt, ini), lt(receta.createdAt, fin)));
+  const noConf = await ctx.db
+    .select()
+    .from(receta)
+    .where(and(eq(receta.estado, 'NO_CONFORME'), gte(receta.createdAt, ini), lt(receta.createdAt, fin)));
   tablas.push({
     nombre: '4a Recetas no conformes',
     columnas: ['ID RECETA', 'Nº RECETA', 'FECHA', 'MOTIVOS'],
@@ -97,42 +137,109 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
       r.id,
       r.numero ?? '',
       fechaEs(r.createdAt),
-      [...new Set(((r.evaluacion as { lineas?: { resultado: { motivos: { code: string; severidad: string }[] } }[] } | null)?.lineas ?? []).flatMap((l) => l.resultado.motivos.filter((m) => m.severidad !== 'AVISO').map((m) => m.code)))].join(', '),
+      [
+        ...new Set(
+          (
+            (
+              r.evaluacion as {
+                lineas?: { resultado: { motivos: { code: string; severidad: string }[] } }[];
+              } | null
+            )?.lineas ?? []
+          ).flatMap((l) => l.resultado.motivos.filter((m) => m.severidad !== 'AVISO').map((m) => m.code)),
+        ),
+      ].join(', '),
     ]),
   });
   // Forzadas: el garante las revisa en este reporte (fuera de la app).
   const forzadas = await ctx.db
     .select({ d: dispensacion })
     .from(dispensacion)
-    .where(and(eq(dispensacion.forzado, true), gte(dispensacion.fechaVenta, ini), lt(dispensacion.fechaVenta, fin)));
-  const fila = ({ d }: (typeof forzadas)[number]) => [d.id, fechaEs(d.fechaVenta), d.nombreFarmaco, d.cn, d.lote, (d.defectosForzados ?? []).join(', '), d.motivoForzado ?? '', d.empleado];
+    .where(
+      and(
+        eq(dispensacion.forzado, true),
+        gte(dispensacion.fechaVenta, ini),
+        lt(dispensacion.fechaVenta, fin),
+      ),
+    );
+  const fila = ({ d }: (typeof forzadas)[number]) => [
+    d.id,
+    fechaEs(d.fechaVenta),
+    d.nombreFarmaco,
+    d.cn,
+    d.lote,
+    (d.defectosForzados ?? []).join(', '),
+    d.motivoForzado ?? '',
+    d.empleado,
+  ];
   const COL_F = ['ID DISPENSACIÓN', 'FECHA', 'MEDICAMENTO', 'CN', 'LOTE', 'DEFECTOS', 'MOTIVO', 'EMPLEADO'];
-  const pnv = (x: (typeof forzadas)[number]) => (x.d.defectosForzados ?? []).some((c) => ctx.producto_no_valido.includes(c));
-  tablas.push({ nombre: '4b Dispensaciones forzadas', columnas: COL_F, filas: forzadas.filter((x) => !pnv(x)).map(fila) });
+  const pnv = (x: (typeof forzadas)[number]) =>
+    (x.d.defectosForzados ?? []).some((c) => ctx.producto_no_valido.includes(c));
+  tablas.push({
+    nombre: '4b Dispensaciones forzadas',
+    columnas: COL_F,
+    filas: forzadas.filter((x) => !pnv(x)).map(fila),
+  });
   // "Producto no válido" se lista aparte para decidir cuándo endurecerlo. TODO(decision D-05c)
-  tablas.push({ nombre: '4c Producto no valido forzado', columnas: COL_F, filas: forzadas.filter(pnv).map(fila) });
+  tablas.push({
+    nombre: '4c Producto no valido forzado',
+    columnas: COL_F,
+    filas: forzadas.filter(pnv).map(fila),
+  });
 
   // 5. Caducidades próximas (≤ 90 días)
   const hasta90 = sumarDias(hoyIso, 90);
   if (ctx.lotesProximos) {
     const lotes = await ctx.lotesProximos(hasta90);
-    tablas.push({ nombre: '5 Caducidades proximas', columnas: ['CN', 'SKU', 'PRODUCTO', 'LOTE', 'CADUCIDAD', 'DISPONIBLE'], filas: lotes.map((l) => [l.cn ?? '', l.sku ?? '', l.nombre, l.lote, fechaEs(l.caducidad), l.disponible]) });
+    tablas.push({
+      nombre: '5 Caducidades proximas',
+      columnas: ['CN', 'SKU', 'PRODUCTO', 'LOTE', 'CADUCIDAD', 'DISPONIBLE'],
+      filas: lotes.map((l) => [
+        l.cn ?? '',
+        l.sku ?? '',
+        l.nombre,
+        l.lote,
+        fechaEs(l.caducidad),
+        l.disponible,
+      ]),
+    });
   } else {
-    tablas.push({ nombre: '5 Caducidades proximas', columnas: ['AVISO'], filas: [['Siweb360 no configurado: no se pueden leer los lotes']] });
+    tablas.push({
+      nombre: '5 Caducidades proximas',
+      columnas: ['AVISO'],
+      filas: [['Siweb360 no configurado: no se pueden leer los lotes']],
+    });
   }
 
   // 5b. Psicótropos. TODO(decision D-06b): formato oficial
-  tablas.push({ ...tablaPsicotropos(await reg.psicotropos(periodo.desde, periodo.hasta)), nombre: '5b Psicotropos' });
+  tablas.push({
+    ...tablaPsicotropos(await reg.psicotropos(periodo.desde, periodo.hasta)),
+    nombre: '5b Psicotropos',
+  });
 
   // 6. Discrepancias (outbox con error o en reconciliación + conciliación de ventas)
-  const ob = await ctx.db.select().from(outbox).where(inArray(outbox.status, ['failed', 'needs_reconciliation'])).orderBy(desc(outbox.createdAt));
-  const disc = await ctx.db.select().from(discrepancia).where(or(eq(discrepancia.estado, 'abierta'), and(gte(discrepancia.fecha, ini), lt(discrepancia.fecha, fin))));
+  const ob = await ctx.db
+    .select()
+    .from(outbox)
+    .where(inArray(outbox.status, ['failed', 'needs_reconciliation']))
+    .orderBy(desc(outbox.createdAt));
+  const disc = await ctx.db
+    .select()
+    .from(discrepancia)
+    .where(
+      or(eq(discrepancia.estado, 'abierta'), and(gte(discrepancia.fecha, ini), lt(discrepancia.fecha, fin))),
+    );
   tablas.push({
     nombre: '6 Discrepancias',
     columnas: ['ORIGEN', 'TIPO / ESTADO', 'REFERENCIA', 'FECHA', 'DETALLE'],
     filas: [
       ...ob.map((o) => ['outbox', o.status, o.idempotencyKey, fechaEs(o.createdAt), o.lastError ?? '']),
-      ...disc.map((x) => [x.origen, `${x.tipo} (${x.estado})`, x.id, fechaEs(x.fecha), JSON.stringify(x.datos)]),
+      ...disc.map((x) => [
+        x.origen,
+        `${x.tipo} (${x.estado})`,
+        x.id,
+        fechaEs(x.fecha),
+        JSON.stringify(x.datos),
+      ]),
     ],
   });
 
@@ -145,19 +252,56 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
       .select({ coste: recepcionLinea.precioCoste })
       .from(recepcionLinea)
       .innerJoin(recepcion, eq(recepcion.id, recepcionLinea.recepcionId))
-      .where(and(eq(recepcionLinea.cn, e.cn ?? ''), eq(recepcionLinea.actualizarPrecio, true), lt(recepcion.fechaCompra, periodo.desde), sql`${recepcionLinea.precioCoste} is not null`))
+      .where(
+        and(
+          eq(recepcionLinea.cn, e.cn ?? ''),
+          eq(recepcionLinea.actualizarPrecio, true),
+          lt(recepcion.fechaCompra, periodo.desde),
+          sql`${recepcionLinea.precioCoste} is not null`,
+        ),
+      )
       .orderBy(desc(recepcion.fechaCompra))
       .limit(1);
-    const variacion = ant?.coste && Number(ant.coste) !== 0 ? (((Number(e.precioCoste) - Number(ant.coste)) / Number(ant.coste)) * 100).toFixed(2) : '';
-    filas7.push([e.nombreFarmaco, e.cn ?? '', e.lote ?? '', e.precioNetoCompra ?? '', e.rePct ?? '', e.precioCoste ?? '', ant?.coste ?? '', variacion]);
+    const variacion =
+      ant?.coste && Number(ant.coste) !== 0
+        ? (((Number(e.precioCoste) - Number(ant.coste)) / Number(ant.coste)) * 100).toFixed(2)
+        : '';
+    filas7.push([
+      e.nombreFarmaco,
+      e.cn ?? '',
+      e.lote ?? '',
+      e.precioNetoCompra ?? '',
+      e.rePct ?? '',
+      e.precioCoste ?? '',
+      ant?.coste ?? '',
+      variacion,
+    ]);
   }
-  tablas.push({ nombre: '7 Precios de coste', columnas: ['PRODUCTO', 'CN', 'LOTE', 'PRECIO NETO', 'RE %', 'PRECIO COSTE', 'COSTE ANTERIOR', 'VARIACIÓN %'], filas: filas7 });
+  tablas.push({
+    nombre: '7 Precios de coste',
+    columnas: [
+      'PRODUCTO',
+      'CN',
+      'LOTE',
+      'PRECIO NETO',
+      'RE %',
+      'PRECIO COSTE',
+      'COSTE ANTERIOR',
+      'VARIACIÓN %',
+    ],
+    filas: filas7,
+  });
   return tablas;
 }
 
-export async function empaquetarReporte(tablas: Tabla[]): Promise<{ xlsx: Buffer; csvs: { nombre: string; contenido: string }[] }> {
+export async function empaquetarReporte(
+  tablas: Tabla[],
+): Promise<{ xlsx: Buffer; csvs: { nombre: string; contenido: string }[] }> {
   return {
     xlsx: await aXlsx(tablas),
-    csvs: tablas.map((t) => ({ nombre: `${t.nombre.replace(/\s+/g, '-').toLowerCase()}.csv`, contenido: aCsv(t) })),
+    csvs: tablas.map((t) => ({
+      nombre: `${t.nombre.replace(/\s+/g, '-').toLowerCase()}.csv`,
+      contenido: aCsv(t),
+    })),
   };
 }

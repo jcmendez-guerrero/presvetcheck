@@ -3,30 +3,38 @@ import { createdBy, pk, timestamps } from './common';
 
 /** Configuración y maestros (SPEC §6). */
 
-export const reglaVersion = pgTable('regla_version', {
-  id: pk(),
-  nombreFichero: text().notNull(),
-  hash: text().notNull(),
-  contenido: jsonb().notNull(),
-  aprobadaPor: text(),
-  aprobadaAt: timestamp({ withTimezone: true }),
-  activa: boolean().notNull().default(false),
-  ...timestamps,
-}, (t) => [uniqueIndex().on(t.nombreFichero, t.hash)]);
+export const reglaVersion = pgTable(
+  'regla_version',
+  {
+    id: pk(),
+    nombreFichero: text().notNull(),
+    hash: text().notNull(),
+    contenido: jsonb().notNull(),
+    aprobadaPor: text(),
+    aprobadaAt: timestamp({ withTimezone: true }),
+    activa: boolean().notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex().on(t.nombreFichero, t.hash)],
+);
 
-export const procedimientoAprobado = pgTable('procedimiento_aprobado', {
-  id: pk(),
-  codigo: text().notNull(), // p. ej. SUSTITUCION
-  version: text().notNull(),
-  texto: text().notNull(),
-  blobPath: text(),
-  aprobadoPor: text().notNull(),
-  aprobadoAt: timestamp({ withTimezone: true }).notNull(),
-  vigente: boolean().notNull().default(false),
-  /** true solo para la semilla de desarrollo: nunca vale en producción. */
-  soloDesarrollo: boolean().notNull().default(false),
-  ...timestamps,
-}, (t) => [uniqueIndex().on(t.codigo, t.version)]);
+export const procedimientoAprobado = pgTable(
+  'procedimiento_aprobado',
+  {
+    id: pk(),
+    codigo: text().notNull(), // p. ej. SUSTITUCION
+    version: text().notNull(),
+    texto: text().notNull(),
+    blobPath: text(),
+    aprobadoPor: text().notNull(),
+    aprobadoAt: timestamp({ withTimezone: true }).notNull(),
+    vigente: boolean().notNull().default(false),
+    /** true solo para la semilla de desarrollo: nunca vale en producción. */
+    soloDesarrollo: boolean().notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex().on(t.codigo, t.version)],
+);
 
 export const sustitucionExclusion = pgTable('sustitucion_exclusion', {
   id: pk(),
