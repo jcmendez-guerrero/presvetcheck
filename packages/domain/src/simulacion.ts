@@ -18,7 +18,7 @@ import type { ContextoPrescripcion, MedicamentoInfo, PresentacionInfo, Resultado
 import { calcularValidez, recetaCaducada, textoPlazo, type LineaValidez } from './validez';
 
 /**
- * Simulaciones del motor para el asistente de consultas (specs/001-prescription-chat-assistant, FR-009a): evalúan
+ * Simulaciones del motor para el asistente de consultas (specs/002-prescription-chat-assistant, FR-009a): evalúan
  * un caso hipotético con las mismas funciones que la verificación real, sin crear ni modificar nada. Puras: sin I/O
  * y con el reloj inyectado. Siempre devuelven `{ decision, motivos, evidencias, reglaVersion }` más los supuestos
  * usados; si falta un dato obligatorio, `FALTAN_DATOS` con la lista (el asistente los pide, no los supone).
@@ -247,7 +247,10 @@ export function simularCambioFormato(e: EntradaSimularFormato): ResultadoSimulac
   const cambia = r.tipo !== 'MISMA_PRESENTACION';
   const desactivado = cambia && !e.permitirCambioFormato;
   if (desactivado) {
-    motivos.push({ code: 'CAMBIO_FORMATO_DESACTIVADO', mensaje: 'En este establecimiento no se admite dispensar otra presentación distinta de la prescrita.' });
+    motivos.push({
+      code: 'CAMBIO_FORMATO_DESACTIVADO',
+      mensaje: 'En este establecimiento no se admite dispensar otra presentación distinta de la prescrita.',
+    });
   }
   const valida = r.valido && !excede && !desactivado;
   return {
@@ -266,7 +269,11 @@ export function simularCambioFormato(e: EntradaSimularFormato): ResultadoSimulac
     },
     reglaVersion: e.rules.version,
     supuestos: {
-      prescrito: { nregistro: e.prescrito.medicamento.nregistro, cn: e.prescrito.presentacion.cn, envases: e.prescrito.envases },
+      prescrito: {
+        nregistro: e.prescrito.medicamento.nregistro,
+        cn: e.prescrito.presentacion.cn,
+        envases: e.prescrito.envases,
+      },
       candidato: { nregistro: e.candidato.medicamento.nregistro, cn: e.candidato.presentacion.cn },
       especieId: e.contexto.especieId,
       permitirCambioFormato: e.permitirCambioFormato,
@@ -289,9 +296,28 @@ export function simularEquivalencia(e: EntradaSimularEquivalencia): ResultadoSim
   const motivos = r.motivos.map(motivoEq);
   return {
     decision: r.equivalente ? 'EQUIVALENTE' : 'NO_EQUIVALENTE',
-    motivos: r.equivalente && r.requiereAprobacionPrevia ? [...motivos, { code: 'REQUIERE_APROBACION_PREVIA', mensaje: 'Hay que confirmar con el farmacéutico garante antes de sustituir.' }] : motivos,
-    evidencias: { indicacion: r.indicacion, revisarManual: r.revisarManual, requiereAprobacionPrevia: r.requiereAprobacionPrevia },
+    motivos:
+      r.equivalente && r.requiereAprobacionPrevia
+        ? [
+            ...motivos,
+            {
+              code: 'REQUIERE_APROBACION_PREVIA',
+              mensaje: 'Hay que confirmar con el farmacéutico garante antes de sustituir.',
+            },
+          ]
+        : motivos,
+    evidencias: {
+      indicacion: r.indicacion,
+      revisarManual: r.revisarManual,
+      requiereAprobacionPrevia: r.requiereAprobacionPrevia,
+    },
     reglaVersion: e.rules.version,
-    supuestos: { prescrito: e.prescrito.nregistro, candidato: e.candidato.nregistro, especieId: e.contexto.especieId, especieProduccion: e.contexto.especieProduccion, indicacion: e.contexto.indicacion },
+    supuestos: {
+      prescrito: e.prescrito.nregistro,
+      candidato: e.candidato.nregistro,
+      especieId: e.contexto.especieId,
+      especieProduccion: e.contexto.especieProduccion,
+      indicacion: e.contexto.indicacion,
+    },
   };
 }

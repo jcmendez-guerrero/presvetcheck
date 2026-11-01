@@ -38,7 +38,7 @@ param nombreSecretoCifrado string = 'mmx-column-encryption-key'
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
 param nombreSecretoEntra string = 'mmx-entra-client-secret'
 
-// Asistente de consultas (specs/001-prescription-chat-assistant, ADR-16): usa un despliegue de chat de Azure OpenAI /
+// Asistente de consultas (specs/002-prescription-chat-assistant, ADR-17): usa un despliegue de chat de Azure OpenAI /
 // Foundry YA existente en la UE al que la identidad de la app tiene acceso; no se crean recursos ni claves.
 // TODO(decision DUDA-29): despliegue concreto y límite mensual. Desactivado por defecto.
 @allowed(['off', 'azure'])

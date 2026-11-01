@@ -19,7 +19,7 @@
 6. **Registro de salidas** (con y sin receta, presencial y online) con las columnas exactas de la sección 4.8.
 7. **Módulo de entradas** (recepción de mercancía) con autocompletado desde CIMAVet, escaneo del envase, datos obligatorios y sincronización de stock con Siweb360.
 8. **Caché local de CIMAVet** (carga inicial desde el Nomenclátor XML + sincronización incremental) y **reportes semanales**.
-9. **Asistente de consultas** (chat en español) que explica las reglas de prescripción, sustitución y dispensación y el resultado de una receta; solo informa, no decide (especificación en `specs/001-prescription-chat-assistant/`, ADR-16).
+9. **Asistente de consultas** (chat en español) que explica las reglas de prescripción, sustitución y dispensación y el resultado de una receta; solo informa, no decide (especificación en `specs/002-prescription-chat-assistant/`, ADR-17).
 
 ### 0.2 Principios no negociables
 - **La IA propone, la persona decide.** Ningún dato extraído por IA se usa sin confirmación humana. Ninguna dispensación se completa sin la confirmación explícita del empleado.
@@ -653,7 +653,7 @@ MFA obligatorio para `farmaceutico_garante` y `admin` (acceso condicional o, si 
 
 ### 9.3 Uso de IA
 - La IA extrae datos de las recetas y, en el asistente de consultas, **explica** las reglas y el resultado que ya ha calculado el motor; las decisiones legales son siempre del motor determinista y de la persona. Se registra modelo, versión de prompt y resultado de cada extracción, y modelo, versión de instrucciones, fuentes y versión de reglas de cada respuesta del asistente.
-- **Asistente de consultas** (ADR-16, `specs/001-prescription-chat-assistant/`): las reglas no están en el prompt (las lee de `config/rules`, la guía y la Ayuda mediante herramientas de solo lectura); los cálculos los hace `packages/domain`; al modelo no llega ningún dato del titular ni la identidad del veterinario (la pregunta se sanea antes de enviarla y de guardarla); las conversaciones se conservan **1 año** y se eliminan con `retention-sweep`; hay un límite mensual de tokens (aviso al 80 %, pausa al 100 %). Actualizar el RAT con esta finalidad.
+- **Asistente de consultas** (ADR-17, `specs/002-prescription-chat-assistant/`): las reglas no están en el prompt (las lee de `config/rules`, la guía y la Ayuda mediante herramientas de solo lectura); los cálculos los hace `packages/domain`; al modelo no llega ningún dato del titular ni la identidad del veterinario (la pregunta se sanea antes de enviarla y de guardarla); las conversaciones se conservan **1 año** y se eliminan con `retention-sweep`; hay un límite mensual de tokens (aviso al 80 %, pausa al 100 %). Actualizar el RAT con esta finalidad.
 - El personal ya dispone de la formación interna sobre uso de IA; añadir a la política interna un apartado para este sistema (fuera del código).
 
 ### 9.4 Auditoría

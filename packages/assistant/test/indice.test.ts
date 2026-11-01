@@ -35,7 +35,8 @@ describe('IndiceFuentes', () => {
   it('trocea en fragmentos que caben en una respuesta de herramienta', () => {
     expect(idx.total).toBeGreaterThan(80);
     for (const q of ['psicótropo', 'sustitución', 'validez']) {
-      for (const r of idx.buscar(q, 'guia', 5)) expect(r.texto.length).toBeLessThanOrEqual(MAX_FRAGMENTO + 200);
+      for (const r of idx.buscar(q, 'guia', 5))
+        expect(r.texto.length).toBeLessThanOrEqual(MAX_FRAGMENTO + 200);
     }
   });
 
@@ -72,7 +73,11 @@ describe('IndiceFuentes', () => {
 
   it('la versión cambia si cambia el texto de la guía o de la Ayuda', () => {
     expect(new IndiceFuentes(GUIA).version()).toBe(idx.version());
-    expect(new IndiceFuentes(GUIA + '\n4.9. Nueva sección\nTexto añadido de prueba para cambiar la versión.').version()).not.toBe(idx.version());
+    expect(
+      new IndiceFuentes(
+        GUIA + '\n4.9. Nueva sección\nTexto añadido de prueba para cambiar la versión.',
+      ).version(),
+    ).not.toBe(idx.version());
     const ayuda2 = SECCIONES_AYUDA.map((s, i) => (i === 0 ? { ...s, titulo: s.titulo + ' (cambiada)' } : s));
     expect(new IndiceFuentes(GUIA, ayuda2).version()).not.toBe(idx.version());
   });

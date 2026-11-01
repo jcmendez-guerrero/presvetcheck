@@ -13,14 +13,21 @@ import { compararExtraccion, costeEstimado, type MetricaCampo } from './metricas
 const config = loadConfigFromProcess();
 const dir = findUp('fixtures/recetas', process.cwd());
 if (!dir) throw new Error('No se encuentra fixtures/recetas');
-const MIME: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', pdf: 'application/pdf' };
+const MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  pdf: 'application/pdf',
+};
 const pares = readdirSync(dir)
   .filter((f) => /\.(png|jpe?g|pdf)$/i.test(f))
   .map((img) => ({ img, json: img.replace(/\.[^.]+$/, '.expected.json') }))
   .filter((p) => existsSync(resolve(dir, p.json)));
 
 if (!pares.length) {
-  console.log('No hay recetas reales en fixtures/recetas (imagen + .expected.json). Las aporta JC; ver fixtures/recetas/README.md.');
+  console.log(
+    'No hay recetas reales en fixtures/recetas (imagen + .expected.json). Las aporta JC; ver fixtures/recetas/README.md.',
+  );
   process.exit(0);
 }
 const hoy = () => new Date().toISOString().slice(0, 10);
@@ -46,5 +53,7 @@ console.table(
 );
 const total = filas.reduce((s, m) => s + m.total, 0);
 const bajo = filas.reduce((s, m) => s + m.bajoUmbral, 0);
-console.log(`Recetas: ${pares.length} · proveedor: ${extractor.proveedor} · campos bajo umbral: ${((100 * bajo) / Math.max(total, 1)).toFixed(1)} %`);
+console.log(
+  `Recetas: ${pares.length} · proveedor: ${extractor.proveedor} · campos bajo umbral: ${((100 * bajo) / Math.max(total, 1)).toFixed(1)} %`,
+);
 console.log(`Coste estimado (orientativo): ${costeEstimado(paginas).toFixed(3)} €`);

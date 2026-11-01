@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { aCsv, aXlsx, analizarEntradas, analizarSalidas, fechaDe, importeDe, leerHoja, tablaEntradas, tablaTodasSalidas, tablasSalidas, type Entrada, type Salida } from '../src';
+import {
+  aCsv,
+  aXlsx,
+  analizarEntradas,
+  analizarSalidas,
+  fechaDe,
+  importeDe,
+  leerHoja,
+  tablaEntradas,
+  tablaTodasSalidas,
+  tablasSalidas,
+  type Entrada,
+  type Salida,
+} from '../src';
 
 const entrada: Entrada = {
   recepcionId: 'r1',
@@ -88,20 +101,50 @@ describe('importar registros anteriores: lo que exporta la app se puede volver a
   });
 
   it('salidas: «Todas las salidas» trae el tipo por fila; la plantilla A se importa eligiendo A', async () => {
-    const todas = tablaTodasSalidas([salida(), salida({ conReceta: false, numeroReceta: null, fechaReceta: null, veterinario: null, numColegiado: null })]);
+    const todas = tablaTodasSalidas([
+      salida(),
+      salida({
+        conReceta: false,
+        numeroReceta: null,
+        fechaReceta: null,
+        veterinario: null,
+        numColegiado: null,
+      }),
+    ]);
     const h1 = await leerHoja(new TextEncoder().encode(aCsv(todas)), 'todas.csv');
     const a1 = analizarSalidas(h1.cabecera, h1.filas, null);
     expect(a1.errores).toEqual([]);
     expect(a1.filas.map((f) => f.plantilla)).toEqual(['A', 'B']);
-    expect(a1.filas[0]).toMatchObject({ fecha: '2025-04-02', cn: '570016', unidades: 1, unidadesTexto: '1 caja 10 comprimidos', numeroReceta: 'R-1', veterinario: 'Vet Prueba' });
+    expect(a1.filas[0]).toMatchObject({
+      fecha: '2025-04-02',
+      cn: '570016',
+      unidades: 1,
+      unidadesTexto: '1 caja 10 comprimidos',
+      numeroReceta: 'R-1',
+      veterinario: 'Vet Prueba',
+    });
     const [tA] = tablasSalidas([salida()], 'A', { incluirPropietario: false, internas: 'ninguna' });
     const h2 = await leerHoja(new Uint8Array(await aXlsx([tA!])), 'a.xlsx');
-    expect(analizarSalidas(h2.cabecera, h2.filas, null).errores[0]?.mensajes[0]).toMatch(/Indica la plantilla/);
-    expect(analizarSalidas(h2.cabecera, h2.filas, 'A').filas[0]).toMatchObject({ plantilla: 'A', numColegiado: '28/1', clinica: 'Clínica' });
+    expect(analizarSalidas(h2.cabecera, h2.filas, null).errores[0]?.mensajes[0]).toMatch(
+      /Indica la plantilla/,
+    );
+    expect(analizarSalidas(h2.cabecera, h2.filas, 'A').filas[0]).toMatchObject({
+      plantilla: 'A',
+      numColegiado: '28/1',
+      clinica: 'Clínica',
+    });
   });
 
   it('errores por fila y columnas obligatorias', () => {
-    const cab = ['FECHA COMPRA', 'NOMBRE DEL FÁRMACO', 'UNIDADES', 'DISTRIBUIDOR', 'CÓDIGO NACIONAL', 'CADUCIDAD', 'PRECIO NETO COMPRA (sin IVA)'];
+    const cab = [
+      'FECHA COMPRA',
+      'NOMBRE DEL FÁRMACO',
+      'UNIDADES',
+      'DISTRIBUIDOR',
+      'CÓDIGO NACIONAL',
+      'CADUCIDAD',
+      'PRECIO NETO COMPRA (sin IVA)',
+    ];
     const a = analizarEntradas(cab, [
       ['31/02/2025', 'X', '0', '', '12AB', 'mañana', '1,2,3'],
       ['01/03/2025', 'Y', '2', 'Dist', '570016', '31/12/2026', '12,50'],
@@ -120,8 +163,17 @@ describe('importar registros anteriores: lo que exporta la app se puede volver a
         ],
       },
     ]);
-    expect(a.filas).toEqual([expect.objectContaining({ fila: 3, nombreFarmaco: 'Y', precioNetoCompra: '12.50', caducidad: '2026-12-31' })]);
-    expect(analizarEntradas(['LOTE'], []).errores[0]?.mensajes[0]).toMatch(/Faltan columnas obligatorias: NOMBRE DEL FÁRMACO, FECHA COMPRA, UNIDADES, DISTRIBUIDOR/);
+    expect(a.filas).toEqual([
+      expect.objectContaining({
+        fila: 3,
+        nombreFarmaco: 'Y',
+        precioNetoCompra: '12.50',
+        caducidad: '2026-12-31',
+      }),
+    ]);
+    expect(analizarEntradas(['LOTE'], []).errores[0]?.mensajes[0]).toMatch(
+      /Faltan columnas obligatorias: NOMBRE DEL FÁRMACO, FECHA COMPRA, UNIDADES, DISTRIBUIDOR/,
+    );
   });
 
   it.each([

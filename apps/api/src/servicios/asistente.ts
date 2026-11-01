@@ -29,7 +29,7 @@ type FilaIntercambio = typeof asistenteIntercambio.$inferSelect;
 export const HORAS_INACTIVIDAD = 8;
 
 /**
- * Conversaciones del asistente (specs/001-prescription-chat-assistant). El asistente solo informa: ningún método
+ * Conversaciones del asistente (specs/002-prescription-chat-assistant). El asistente solo informa: ningún método
  * de este servicio crea ni modifica recetas, dispensaciones ni registros (FR-010).
  */
 export class AsistenteService {
@@ -259,38 +259,87 @@ export class AsistenteService {
     let r: { titulo: string; version: string; contenido: string; tipo: string } | null = null;
     if (tipo === 'guia' || tipo === 'ayuda') {
       const abierta = this.a.fuentes?.abrir(fuenteId);
-      if (abierta) r = { tipo: abierta.fuente.tipo, titulo: abierta.fuente.titulo, version: abierta.fuente.version, contenido: abierta.contenido };
+      if (abierta)
+        r = {
+          tipo: abierta.fuente.tipo,
+          titulo: abierta.fuente.titulo,
+          version: abierta.fuente.version,
+          contenido: abierta.contenido,
+        };
     } else if (tipo === 'regla') {
       const h = this.a.herramientas.obtener('consultar_reglas', { contexto: { tipo: 'general' } });
       const tema = fuenteId.slice('regla:'.length);
       if (h) {
-        const res = await (h as unknown as { ejecutar(a: unknown, c: unknown): Promise<{ datos: { titulo: string; version: string; contenido: unknown } }> }).ejecutar({ tema }, {});
-        r = { tipo: 'regla', titulo: res.datos.titulo, version: res.datos.version, contenido: JSON.stringify(res.datos.contenido, null, 2) };
+        const res = await (
+          h as unknown as {
+            ejecutar(
+              a: unknown,
+              c: unknown,
+            ): Promise<{ datos: { titulo: string; version: string; contenido: unknown } }>;
+          }
+        ).ejecutar({ tema }, {});
+        r = {
+          tipo: 'regla',
+          titulo: res.datos.titulo,
+          version: res.datos.version,
+          contenido: JSON.stringify(res.datos.contenido, null, 2),
+        };
       }
     } else if (tipo === 'motor' && fuenteId.startsWith('motor:linea/')) {
       const dto = this.a.cargarLinea ? await this.a.cargarLinea(fuenteId.slice('motor:linea/'.length)) : null;
-      if (dto) r = { tipo: 'motor', titulo: 'Resultado de la aplicación para esta línea', version: dto.version, contenido: JSON.stringify(dto.resultado, null, 2) };
+      if (dto)
+        r = {
+          tipo: 'motor',
+          titulo: 'Resultado de la aplicación para esta línea',
+          version: dto.version,
+          contenido: JSON.stringify(dto.resultado, null, 2),
+        };
     } else if (tipo === 'motor') {
       const id = fuenteId.slice('motor:'.length);
       const filas = await this.d.db
-        .select({ simulaciones: asistenteIntercambio.simulaciones, usuarioOid: asistenteConversacion.usuarioOid })
+        .select({
+          simulaciones: asistenteIntercambio.simulaciones,
+          usuarioOid: asistenteConversacion.usuarioOid,
+        })
         .from(asistenteIntercambio)
         .innerJoin(asistenteConversacion, eq(asistenteConversacion.id, asistenteIntercambio.conversacionId))
         .where(sql`${asistenteIntercambio.simulaciones} @> ${JSON.stringify([{ simulacionId: id }])}::jsonb`)
         .limit(1);
       const f = filas[0];
       const verTodo = u.roles.includes('veterinaria_responsable') || u.roles.includes('admin');
-      const sim = f && (verTodo || f.usuarioOid === u.id) ? (f.simulaciones as { simulacionId: string; reglaVersion: string }[]).find((x) => x.simulacionId === id) : undefined;
-      if (sim) r = { tipo: 'motor', titulo: 'Simulación del motor de reglas', version: sim.reglaVersion, contenido: JSON.stringify(sim, null, 2) };
+      const sim =
+        f && (verTodo || f.usuarioOid === u.id)
+          ? (f.simulaciones as { simulacionId: string; reglaVersion: string }[]).find(
+              (x) => x.simulacionId === id,
+            )
+          : undefined;
+      if (sim)
+        r = {
+          tipo: 'motor',
+          titulo: 'Simulación del motor de reglas',
+          version: sim.reglaVersion,
+          contenido: JSON.stringify(sim, null, 2),
+        };
     }
     if (!r) throw new DomainError('NO_ENCONTRADO');
-    return { fuenteId, tipo: r.tipo, titulo: r.titulo, version: r.version, versionVigente: versionPedida === undefined || versionPedida === r.version, contenido: r.contenido };
+    return {
+      fuenteId,
+      tipo: r.tipo,
+      titulo: r.titulo,
+      version: r.version,
+      versionVigente: versionPedida === undefined || versionPedida === r.version,
+      contenido: r.contenido,
+    };
   }
 
   // ── Valoraciones e histórico (US4) ──────────────────────────────────────────
 
   /** Valoración del empleado sobre una respuesta (FR-024); volver a valorar sustituye la anterior. */
-  async valorar(intercambioId: string, v: { valor: 'util' | 'incorrecta'; comentario?: string | undefined }, u: Usuario) {
+  async valorar(
+    intercambioId: string,
+    v: { valor: 'util' | 'incorrecta'; comentario?: string | undefined },
+    u: Usuario,
+  ) {
     const [fila] = await this.d.db
       .select({ usuarioOid: asistenteConversacion.usuarioOid })
       .from(asistenteIntercambio)
@@ -304,9 +353,16 @@ export class AsistenteService {
     const [r] = await this.d.db
       .insert(asistenteValoracion)
       .values({ intercambioId, usuarioOid: u.id, valor: v.valor, comentario, createdAt: ahora })
-      .onConflictDoUpdate({ target: [asistenteValoracion.intercambioId, asistenteValoracion.usuarioOid], set: { valor: v.valor, comentario, createdAt: ahora } })
+      .onConflictDoUpdate({
+        target: [asistenteValoracion.intercambioId, asistenteValoracion.usuarioOid],
+        set: { valor: v.valor, comentario, createdAt: ahora },
+      })
       .returning();
-    return { valor: r!.valor as 'util' | 'incorrecta', comentario: r!.comentario, createdAt: r!.createdAt.toISOString() };
+    return {
+      valor: r!.valor as 'util' | 'incorrecta',
+      comentario: r!.comentario,
+      createdAt: r!.createdAt.toISOString(),
+    };
   }
 
   private veTodo(u: Usuario): boolean {
@@ -315,7 +371,8 @@ export class AsistenteService {
 
   /** Histórico: el empleado ve solo sus conversaciones; veterinaria responsable y administración, las de todos (FR-025). */
   async listar(q: ListarConversacionesQuery, u: Usuario) {
-    if (!this.veTodo(u) && q.usuario && q.usuario !== u.id) throw new DomainError('PROHIBIDO', 'Solo puedes ver tus propias consultas');
+    if (!this.veTodo(u) && q.usuario && q.usuario !== u.id)
+      throw new DomainError('PROHIBIDO', 'Solo puedes ver tus propias consultas');
     const c = asistenteConversacion;
     // Drizzle no califica las columnas dentro de las subconsultas: se escribe el nombre completo para no confundirlo con `i.id`.
     const cid = sql.raw('"asistente_conversacion"."id"');
@@ -324,13 +381,17 @@ export class AsistenteService {
     else if (q.usuario) cond.push(eq(c.usuarioOid, q.usuario));
     if (q.desde) cond.push(gte(c.createdAt, rangoMadrid(q.desde, q.desde)[0]));
     if (q.hasta) cond.push(lt(c.createdAt, rangoMadrid(q.hasta, q.hasta)[1]));
-    if (q.conReceta !== undefined) cond.push(q.conReceta ? isNotNull(c.recetaLineaId) : sql`${c.recetaLineaId} is null`);
+    if (q.conReceta !== undefined)
+      cond.push(q.conReceta ? isNotNull(c.recetaLineaId) : sql`${c.recetaLineaId} is null`);
     const conValoracion = (valor?: string) =>
       sql`exists (select 1 from asistente_valoracion v join asistente_intercambio i on i.id = v.intercambio_id where i.conversacion_id = ${cid}${valor ? sql` and v.valor = ${valor}` : sql``})`;
     if (q.valoracion === 'sin_valorar') cond.push(sql`not ${conValoracion()}`);
     else if (q.valoracion) cond.push(conValoracion(q.valoracion));
     const donde = and(...cond);
-    const [{ n } = { n: 0 }] = await this.d.db.select({ n: sql<number>`count(*)::int` }).from(c).where(donde);
+    const [{ n } = { n: 0 }] = await this.d.db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(c)
+      .where(donde);
     const filas = await this.d.db
       .select({
         id: c.id,
@@ -342,7 +403,9 @@ export class AsistenteService {
         createdAt: c.createdAt,
         intercambios: sql<number>`(select count(*)::int from asistente_intercambio i where i.conversacion_id = ${cid})`,
         incorrectas: sql<number>`(select count(*)::int from asistente_valoracion v join asistente_intercambio i on i.id = v.intercambio_id where i.conversacion_id = ${cid} and v.valor = 'incorrecta')`,
-        primeraPregunta: sql<string | null>`(select i.pregunta from asistente_intercambio i where i.conversacion_id = ${cid} order by i.orden limit 1)`,
+        primeraPregunta: sql<
+          string | null
+        >`(select i.pregunta from asistente_intercambio i where i.conversacion_id = ${cid} order by i.orden limit 1)`,
       })
       .from(c)
       .where(donde)
@@ -365,12 +428,27 @@ export class AsistenteService {
 
   /** Conversación completa con las versiones de reglas y de fuentes vigentes cuando se respondió (US4-AS2). */
   async detalle(id: string, u: Usuario) {
-    const [conv] = await this.d.db.select().from(asistenteConversacion).where(eq(asistenteConversacion.id, id));
+    const [conv] = await this.d.db
+      .select()
+      .from(asistenteConversacion)
+      .where(eq(asistenteConversacion.id, id));
     if (!conv) throw new DomainError('NO_ENCONTRADO');
     if (conv.usuarioOid !== u.id && !this.veTodo(u)) throw new DomainError('ASISTENTE_CONVERSACION_AJENA');
-    const filas = await this.d.db.select().from(asistenteIntercambio).where(eq(asistenteIntercambio.conversacionId, id)).orderBy(asc(asistenteIntercambio.orden));
+    const filas = await this.d.db
+      .select()
+      .from(asistenteIntercambio)
+      .where(eq(asistenteIntercambio.conversacionId, id))
+      .orderBy(asc(asistenteIntercambio.orden));
     const vals = filas.length
-      ? await this.d.db.select().from(asistenteValoracion).where(sql`${asistenteValoracion.intercambioId} in (${sql.join(filas.map((f) => sql`${f.id}`), sql`, `)})`)
+      ? await this.d.db
+          .select()
+          .from(asistenteValoracion)
+          .where(
+            sql`${asistenteValoracion.intercambioId} in (${sql.join(
+              filas.map((f) => sql`${f.id}`),
+              sql`, `,
+            )})`,
+          )
       : [];
     return {
       id: conv.id,

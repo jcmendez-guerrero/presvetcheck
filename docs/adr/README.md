@@ -17,4 +17,5 @@ Una ADR por fichero, a partir de la tabla de SPEC §1.
 - [ADR-13 · Lectura de albaranes y facturas de proveedor con `prebuilt-invoice`](./0013-lectura-de-albaranes-con-prebuilt-invoice.md)
 - [ADR-14 · Importación de entradas y salidas anteriores a la app](./0014-importacion-de-registros-anteriores.md)
 - [ADR-15 · Corrección de la unidad «µg» del Nomenclátor y corrección de importaciones con CIMAVet](./0015-correccion-unidad-microgramos-nomenclator.md)
-- [ADR-16 · Asistente de consultas con herramientas deterministas](./0016-asistente-de-consultas-con-herramientas-deterministas.md)
+- [ADR-16 · Dependencias vulnerables: política de corrección y tabla de excepciones](./0016-dependencias-vulnerables-y-excepciones.md)
+- [ADR-17 · Asistente de consultas con herramientas deterministas](./0017-asistente-de-consultas-con-herramientas-deterministas.md)

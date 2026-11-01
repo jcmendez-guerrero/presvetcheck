@@ -4,13 +4,13 @@ import { comparar, diasEntre, fechaEs, minFecha, sumarDias, sumarPlazo, ultimoDi
 
 describe('reloj y fechas en Europe/Madrid', () => {
   it.each`
-    instante                    | esperado
-    ${'2026-10-14T21:59:00Z'}   | ${'2026-10-14'}
-    ${'2026-10-14T22:00:00Z'}   | ${'2026-10-15'}
-    ${'2026-03-28T23:30:00Z'}   | ${'2026-03-29'}
-    ${'2026-10-24T22:30:00Z'}   | ${'2026-10-25'}
-    ${'2026-10-25T00:30:00Z'}   | ${'2026-10-25'}
-    ${'2026-12-31T23:00:00Z'}   | ${'2027-01-01'}
+    instante                  | esperado
+    ${'2026-10-14T21:59:00Z'} | ${'2026-10-14'}
+    ${'2026-10-14T22:00:00Z'} | ${'2026-10-15'}
+    ${'2026-03-28T23:30:00Z'} | ${'2026-03-29'}
+    ${'2026-10-24T22:30:00Z'} | ${'2026-10-25'}
+    ${'2026-10-25T00:30:00Z'} | ${'2026-10-25'}
+    ${'2026-12-31T23:00:00Z'} | ${'2027-01-01'}
   `('hoy($instante) = $esperado (cambio de hora y medianoche local)', ({ instante, esperado }) => {
     expect(hoy(fixedClock(instante))).toBe(esperado);
   });

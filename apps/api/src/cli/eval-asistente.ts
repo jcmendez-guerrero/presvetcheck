@@ -1,5 +1,5 @@
 /**
- * Banco de evaluación del asistente contra el servicio REAL (specs/001-prescription-chat-assistant, FR-029).
+ * Banco de evaluación del asistente contra el servicio REAL (specs/002-prescription-chat-assistant, FR-029).
  *
  *   ASSISTANT=azure ASSISTANT_ENDPOINT=https://<recurso>.openai.azure.com ASSISTANT_DEPLOYMENT=<despliegue> pnpm eval:asistente
  *

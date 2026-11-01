@@ -14,7 +14,9 @@ export function normalizarCn(cn: string): string {
  * (control) es opcional y se descarta.
  */
 const CN_AL_FINAL = /C\.?N[\s.:#-]*(\d{6})(?:[.-]?\d)?$/i;
-const CN_EN_NOMBRE = /\bC\.?\s?N\.?\s*[:#-]?\s*(\d{6})(?:[.\-\s]?\d)?(?!\d)/i;
+// Separador tras «CN»: espacios, un «:», «#» o «-» opcional y más espacios. Se escribe con el separador dentro del
+// grupo opcional para que dos `\s*` seguidos no se repartan los mismos espacios (coste cuadrático).
+const CN_EN_NOMBRE = /\bC\.?\s?N\.?(?:\s*[:#-])?\s*(\d{6})(?:[.\-\s]?\d)?(?!\d)/i;
 
 /**
  * Extrae el CN de un SKU (patrón configurado, anclado al final) o de un nombre (sin anclar). Si no cumple el
@@ -31,7 +33,11 @@ export function extraerCn(texto: string | null | undefined, patron: string, ancl
 }
 
 /** ¿La variante corresponde a este CN por SKU o por nombre? */
-export function varianteCoincideCn(v: { sku: string | null; name: string | null; productName?: string | null }, cn: string, patron: string): boolean {
+export function varianteCoincideCn(
+  v: { sku: string | null; name: string | null; productName?: string | null },
+  cn: string,
+  patron: string,
+): boolean {
   const objetivo = normalizarCn(cn);
   return (
     extraerCn(v.sku, patron, true) === objetivo ||
@@ -79,7 +85,10 @@ export function sugerirPrefijo(labtitular: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toUpperCase()
-    .replace(/\b(S\.?A\.?U?|S\.?L\.?U?|GMBH|B\.?V\.?|LTD|LIMITED|INC|SPA|S\.?P\.?A\.?|SAS|NV|AG|LABORATORIOS?|LAB)\b\.?/g, ' ')
+    .replace(
+      /\b(S\.?A\.?U?|S\.?L\.?U?|GMBH|B\.?V\.?|LTD|LIMITED|INC|SPA|S\.?P\.?A\.?|SAS|NV|AG|LABORATORIOS?|LAB)\b\.?/g,
+      ' ',
+    )
     .replace(/[^A-Z0-9 ]/g, ' ')
     .trim();
   return (limpio.split(/\s+/)[0] ?? 'LAB').slice(0, 10) || 'LAB';

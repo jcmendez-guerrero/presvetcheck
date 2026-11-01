@@ -1,6 +1,6 @@
 # Contrato de herramientas (modelo ↔ API)
 
-Herramientas que el modelo puede llamar (*tool calling*). Las ejecuta `ChatOrchestrator` en la API y **todas son
+Herramientas que el modelo puede llamar (_tool calling_). Las ejecuta `ChatOrchestrator` en la API y **todas son
 de solo lectura**: ninguna crea, modifica ni autoriza nada (FR-010). Los argumentos se validan con zod en
 `packages/shared/src/schemas/asistente.ts`; a partir de esos mismos schemas se genera el JSON Schema que se envía
 al modelo. Si los argumentos no son válidos, la herramienta devuelve `{ error: 'ARGUMENTOS_NO_VALIDOS', detalle }`
@@ -91,7 +91,7 @@ args {}
 
 - El DTO es `.strict()`. **No contiene** datos del titular (nombre, teléfono, DNI, dirección) ni del veterinario
   (nombre, nº de colegiado, teléfono, correo), ni la imagen (FR-014, FR-018, FR-021a). Un test comprueba que el
-  JSON resultante no incluye ninguna de esas claves ni sus valores de *seed*.
+  JSON resultante no incluye ninguna de esas claves ni sus valores de _seed_.
 - El resultado es el de la **última evaluación guardada**; no se reevalúa. Se guarda como `contexto_motor` en el
   intercambio.
 
@@ -106,12 +106,12 @@ Devuelven:
     supuestos: Record<string, unknown>; faltan?: string[] /* si decision = FALTAN_DATOS */ }
 ```
 
-| Herramienta | Argumentos | Motor |
-|---|---|---|
-| `simular_validez` | `fechaEmision`, `tipoTratamiento?`, `especieProduccion`, `lineas: { antimicrobiano?, psicotropo?, estupefaciente?, nregistro? }[]`, `plazoDeclarado?`, `fechaConsulta?` | `casoLinea` + `calcularValidez` + `recetaCaducada` |
-| `simular_cambio_formato` | `prescrito: { nregistro, cn, envases }`, `candidato: { nregistro, cn }`, `especie` | `evaluarAlternativaFormato` + `validarEnvasesFormato` + `notaAdministracion` |
-| `simular_sustituibilidad` | `nregistro`, `clasePrescripcion?` | `sustitucionPermitida` con las exclusiones |
-| `simular_equivalencia` | `prescrito: { nregistro }`, `candidato: { nregistro }`, `especie`, `indicacion?`, `especieProduccion` | `evaluarEquivalencia` |
+| Herramienta               | Argumentos                                                                                                                                                              | Motor                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `simular_validez`         | `fechaEmision`, `tipoTratamiento?`, `especieProduccion`, `lineas: { antimicrobiano?, psicotropo?, estupefaciente?, nregistro? }[]`, `plazoDeclarado?`, `fechaConsulta?` | `casoLinea` + `calcularValidez` + `recetaCaducada`                           |
+| `simular_cambio_formato`  | `prescrito: { nregistro, cn, envases }`, `candidato: { nregistro, cn }`, `especie`                                                                                      | `evaluarAlternativaFormato` + `validarEnvasesFormato` + `notaAdministracion` |
+| `simular_sustituibilidad` | `nregistro`, `clasePrescripcion?`                                                                                                                                       | `sustitucionPermitida` con las exclusiones                                   |
+| `simular_equivalencia`    | `prescrito: { nregistro }`, `candidato: { nregistro }`, `especie`, `indicacion?`, `especieProduccion`                                                                   | `evaluarEquivalencia`                                                        |
 
 - Si en `simular_validez` falta `nregistro`, los flags se toman tal cual de la pregunta y aparecen en `supuestos`.
   Si se da `nregistro`, se leen de la caché y **prevalecen** sobre lo que diga la pregunta.

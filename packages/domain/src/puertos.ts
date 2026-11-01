@@ -6,5 +6,9 @@ import type { ExtractionResult } from '@mmx/shared';
  */
 export interface RecipeExtractor {
   readonly proveedor: 'fake' | 'azure' | 'desactivado';
-  extract(input: { pages: Uint8Array[]; mime: string; hints?: { channel?: string; fixture?: string } }): Promise<ExtractionResult>;
+  extract(input: {
+    pages: Uint8Array[];
+    mime: string;
+    hints?: { channel?: string; fixture?: string };
+  }): Promise<ExtractionResult>;
 }

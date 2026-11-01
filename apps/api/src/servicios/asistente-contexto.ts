@@ -56,8 +56,12 @@ export class ContextoLineaService {
       [v.nombre, v.telefono, v.email, v.numColegiado, v.clinica, v.direccion].forEach(anadir);
     }
     if (f.receta.propietarioId) {
-      const [p] = await this.d.db.select().from(propietario).where(eq(propietario.id, f.receta.propietarioId));
-      if (p) [p.nombreEnc, p.movilEnc, p.dniEnc, p.direccionEnc].forEach((x) => anadir(this.d.cipher.decrypt(x)));
+      const [p] = await this.d.db
+        .select()
+        .from(propietario)
+        .where(eq(propietario.id, f.receta.propietarioId));
+      if (p)
+        [p.nombreEnc, p.movilEnc, p.dniEnc, p.direccionEnc].forEach((x) => anadir(this.d.cipher.decrypt(x)));
     }
     return [...out];
   }
@@ -65,7 +69,11 @@ export class ContextoLineaService {
   private confirmacion(raw: unknown): RecetaConfirmada | null {
     if (!raw || typeof raw !== 'object') return null;
     const r = raw as RecetaConfirmada & { _cifrado?: boolean };
-    const titular = r._cifrado ? Object.fromEntries(Object.entries(r.titular ?? {}).map(([k, v]) => [k, this.d.cipher.decrypt(v as string | null)])) : r.titular;
+    const titular = r._cifrado
+      ? Object.fromEntries(
+          Object.entries(r.titular ?? {}).map(([k, v]) => [k, this.d.cipher.decrypt(v as string | null)]),
+        )
+      : r.titular;
     const { _cifrado, ...resto } = r;
     void _cifrado;
     const parsed = RecetaConfirmada.safeParse({ ...resto, titular });
@@ -88,16 +96,40 @@ export class ContextoLineaService {
     }));
     const ev = (linea.evidencias ?? {}) as {
       forzable?: boolean;
-      sustitutos?: { nregistro: string; cn: string; nombre: string; labtitular: string | null; disponible: number }[];
+      sustitutos?: {
+        nregistro: string;
+        cn: string;
+        nombre: string;
+        labtitular: string | null;
+        disponible: number;
+      }[];
       alternativaFormato?: { envases: number; nota: string | null; formato: { tipo: string } };
     };
-    const validez = (r.evaluacion as { validez?: { efectiva: string; caso: string; maximoLegal: string } | null } | null)?.validez ?? null;
-    const especie = r.especieId ? ((await this.d.cimavet.nombresMaestra(MAESTRA.ESPECIES, [r.especieId])).get(r.especieId) ?? null) : null;
-    const pos = linea.posologia as { via?: string | null; dosis?: string | null; duracionDias?: number | null; porcentajeEnvase?: string | null } | null;
-    const posologia = pos
-      ? [pos.via && `vía ${pos.via}`, pos.dosis && `dosis ${pos.dosis}`, pos.duracionDias && `${pos.duracionDias} días`, pos.porcentajeEnvase && `${pos.porcentajeEnvase} del envase`].filter(Boolean).join(', ')
+    const validez =
+      (r.evaluacion as { validez?: { efectiva: string; caso: string; maximoLegal: string } | null } | null)
+        ?.validez ?? null;
+    const especie = r.especieId
+      ? ((await this.d.cimavet.nombresMaestra(MAESTRA.ESPECIES, [r.especieId])).get(r.especieId) ?? null)
       : null;
-    const cantidad = [linea.cantidadEnvases ? `${linea.cantidadEnvases} envase(s)` : null, linea.formatoTexto].filter(Boolean).join(' · ');
+    const pos = linea.posologia as {
+      via?: string | null;
+      dosis?: string | null;
+      duracionDias?: number | null;
+      porcentajeEnvase?: string | null;
+    } | null;
+    const posologia = pos
+      ? [
+          pos.via && `vía ${pos.via}`,
+          pos.dosis && `dosis ${pos.dosis}`,
+          pos.duracionDias && `${pos.duracionDias} días`,
+          pos.porcentajeEnvase && `${pos.porcentajeEnvase} del envase`,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : null;
+    const cantidad = [linea.cantidadEnvases ? `${linea.cantidadEnvases} envase(s)` : null, linea.formatoTexto]
+      .filter(Boolean)
+      .join(' · ');
 
     return ContextoLineaDto.parse({
       fuenteId: `motor:linea/${linea.id}`,
@@ -106,8 +138,22 @@ export class ContextoLineaService {
         decision: linea.decision,
         motivos,
         forzable: ev.forzable ?? false,
-        equivalentes: (ev.sustitutos ?? []).map((s) => ({ nregistro: s.nregistro, cn: s.cn ?? null, nombre: s.nombre, laboratorio: s.labtitular ?? null, stock: s.disponible > 0 })),
-        ...(ev.alternativaFormato ? { alternativaFormato: { tipo: ev.alternativaFormato.formato.tipo, envases: ev.alternativaFormato.envases ?? null, notaAdministracion: ev.alternativaFormato.nota ?? null } } : {}),
+        equivalentes: (ev.sustitutos ?? []).map((s) => ({
+          nregistro: s.nregistro,
+          cn: s.cn ?? null,
+          nombre: s.nombre,
+          laboratorio: s.labtitular ?? null,
+          stock: s.disponible > 0,
+        })),
+        ...(ev.alternativaFormato
+          ? {
+              alternativaFormato: {
+                tipo: ev.alternativaFormato.formato.tipo,
+                envases: ev.alternativaFormato.envases ?? null,
+                notaAdministracion: ev.alternativaFormato.nota ?? null,
+              },
+            }
+          : {}),
         ...(validez ? { validez } : {}),
       },
       receta: {
@@ -123,7 +169,11 @@ export class ContextoLineaService {
         concentracion: limpio(linea.concentracionTexto),
         cantidad: limpio(cantidad || null),
       },
-      medicamento: { nregistro: linea.nregistro ?? null, nombre: limpio(linea.textoMedicamento) ?? '', cn: linea.cnPrescrito ?? null },
+      medicamento: {
+        nregistro: linea.nregistro ?? null,
+        nombre: limpio(linea.textoMedicamento) ?? '',
+        cn: linea.cnPrescrito ?? null,
+      },
     });
   }
 }

@@ -30,7 +30,7 @@ saltarse ningún bloqueo (principio «La IA propone, la persona decide», `SPEC.
 - Q: ¿Cómo se controla el coste de uso del asistente? → A: Límite mensual global configurable; aviso a administración al 80 % y pausa del asistente al 100 % (mensaje y enlace a la Ayuda) hasta el mes siguiente o hasta que administración lo amplíe.
 - Q: ¿Hay que superar el banco de evaluación para poder activar el asistente en producción? → A: No; el banco es orientativo, se ejecuta cuando se considere y sus resultados se revisan.
 
-## Escenarios de usuario y pruebas *(obligatorio)*
+## Escenarios de usuario y pruebas _(obligatorio)_
 
 ### Historia de usuario 1 - Consultar una duda general sobre las reglas (Prioridad: P1)
 
@@ -173,7 +173,7 @@ con sus datos completos y que se pueden filtrar por fecha y por valoración.
   la cita; las respuestas anteriores conservan la versión con la que se dieron.
 - **Pregunta en otro idioma**: el asistente responde en español.
 
-## Requisitos *(obligatorio)*
+## Requisitos _(obligatorio)_
 
 ### Requisitos funcionales
 
@@ -304,7 +304,7 @@ con sus datos completos y que se pueden filtrar por fecha y por valoración.
 - **Caso de evaluación**: pregunta de referencia con la respuesta esperada, las fuentes que debe citar y el
   comportamiento esperado (responder, declinar, pedir aclaración, avisar de datos personales).
 
-## Criterios de éxito *(obligatorio)*
+## Criterios de éxito _(obligatorio)_
 
 ### Resultados medibles
 

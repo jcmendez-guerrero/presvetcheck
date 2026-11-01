@@ -19,7 +19,7 @@
     "@mmx/reports": "workspace:*",
     "@mmx/shared": "workspace:*",
     "@mmx/siweb": "workspace:*",
-    "drizzle-orm": "^0.44.2"
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
     "msw": "^2.10.0",

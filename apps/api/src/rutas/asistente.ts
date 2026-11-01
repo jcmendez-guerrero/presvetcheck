@@ -64,19 +64,41 @@ export async function rutasAsistente(app: App, d: AppDeps) {
 
   app.put(
     '/api/asistente/intercambios/:id/valoracion',
-    { preHandler: pre, schema: { tags: ['asistente'], summary: 'Valora una respuesta (útil o incorrecta)', params: IdParam, body: ValoracionBody } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['asistente'],
+        summary: 'Valora una respuesta (útil o incorrecta)',
+        params: IdParam,
+        body: ValoracionBody,
+      },
+    },
     async (req) => svc.valorar(req.params.id, req.body, usuario(req)),
   );
 
   app.get(
     '/api/asistente/conversaciones',
-    { preHandler: pre, schema: { tags: ['asistente'], summary: 'Histórico de consultas (el empleado, solo las suyas)', querystring: ListarConversacionesQuery } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['asistente'],
+        summary: 'Histórico de consultas (el empleado, solo las suyas)',
+        querystring: ListarConversacionesQuery,
+      },
+    },
     async (req) => svc.listar(req.query, usuario(req)),
   );
 
   app.get(
     '/api/asistente/conversaciones/:id',
-    { preHandler: pre, schema: { tags: ['asistente'], summary: 'Una conversación con sus respuestas, fuentes y valoraciones', params: IdParam } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['asistente'],
+        summary: 'Una conversación con sus respuestas, fuentes y valoraciones',
+        params: IdParam,
+      },
+    },
     async (req) => svc.detalle(req.params.id, usuario(req)),
   );
 

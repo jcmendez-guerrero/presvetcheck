@@ -1,9 +1,20 @@
-import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { pk } from './common';
 import { recetaLinea } from './recetas';
 
 /**
- * Asistente de consultas (specs/001-prescription-chat-assistant). Ninguna tabla guarda datos del titular del
+ * Asistente de consultas (specs/002-prescription-chat-assistant). Ninguna tabla guarda datos del titular del
  * animal ni la identidad del veterinario. Las conversaciones se eliminan al año (retention-sweep).
  */
 

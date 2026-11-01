@@ -15,9 +15,7 @@ import { ExtractionResult } from '@mmx/shared';
 export class FakeRecipeExtractor implements RecipeExtractor {
   readonly proveedor = 'fake' as const;
 
-  constructor(
-    private readonly opts: { dir: string; porDefecto?: string; hoy: () => string },
-  ) {}
+  constructor(private readonly opts: { dir: string; porDefecto?: string; hoy: () => string }) {}
 
   fixtures(): string[] {
     if (!existsSync(this.opts.dir)) return [];
@@ -32,14 +30,22 @@ export class FakeRecipeExtractor implements RecipeExtractor {
     const h = createHash('sha256').update(page).digest('hex');
     for (const f of readdirSync(this.opts.dir)) {
       if (!/\.(png|jpe?g|pdf|heic)$/i.test(f)) continue;
-      if (createHash('sha256').update(readFileSync(resolve(this.opts.dir, f))).digest('hex') === h) {
+      if (
+        createHash('sha256')
+          .update(readFileSync(resolve(this.opts.dir, f)))
+          .digest('hex') === h
+      ) {
         return basename(f).replace(/\.[^.]+$/, '');
       }
     }
     return null;
   }
 
-  async extract(input: { pages: Uint8Array[]; mime: string; hints?: { channel?: string; fixture?: string } }) {
+  async extract(input: {
+    pages: Uint8Array[];
+    mime: string;
+    hints?: { channel?: string; fixture?: string };
+  }) {
     const disponibles = this.fixtures();
     const nombre =
       (input.hints?.fixture && disponibles.includes(input.hints.fixture) ? input.hints.fixture : null) ??
@@ -48,8 +54,14 @@ export class FakeRecipeExtractor implements RecipeExtractor {
       disponibles[0];
     if (!nombre) throw new Error(`No hay fixtures de recetas en ${this.opts.dir}`);
     const raw = readFileSync(resolve(this.opts.dir, `${nombre}.expected.json`), 'utf8');
-    const conFechas = raw.replace(/"@HOY(?:-(\d+))?"/g, (_m, n: string | undefined) => JSON.stringify(restarDias(this.opts.hoy(), Number(n ?? 0))));
-    return ExtractionResult.parse({ ...JSON.parse(conFechas), proveedor: 'fake', modelo: `fixture:${nombre}` });
+    const conFechas = raw.replace(/"@HOY(?:-(\d+))?"/g, (_m, n: string | undefined) =>
+      JSON.stringify(restarDias(this.opts.hoy(), Number(n ?? 0))),
+    );
+    return ExtractionResult.parse({
+      ...JSON.parse(conFechas),
+      proveedor: 'fake',
+      modelo: `fixture:${nombre}`,
+    });
   }
 }
 
