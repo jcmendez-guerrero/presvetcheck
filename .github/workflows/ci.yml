@@ -142,6 +142,7 @@ jobs:
           az containerapp job start -g rg-mmx-recetas-dev -n job-db-migrate
           for i in $(seq 1 60); do
             estado=$(az containerapp job execution list -g rg-mmx-recetas-dev -n job-db-migrate --query "[0].properties.status" -o tsv)
+            echo "Estado actual: $estado (Intento $i/60)"
             [ "$estado" = "Succeeded" ] && break
             [ "$estado" = "Failed" ] && exit 1
             sleep 10
