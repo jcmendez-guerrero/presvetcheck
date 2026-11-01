@@ -131,6 +131,42 @@ describe('recepcion_linea es append-only tras finalizar', () => {
     );
     await expectPgError(h.db.update(recepcion).set({ estado: 'ABIERTA' }).where(eq(recepcion.id, r!.id)), /reabrir/);
   });
+
+  // Retención (migración 0004): la purga borra las líneas finalizadas de más de 5 años, y solo esas.
+  const lineaFinalizada = async (createdAt: Date) => {
+    const [dist] = await h.db.select().from(distribuidor).limit(1);
+    const [r] = await h.db
+      .insert(recepcion)
+      .values({ distribuidorId: dist!.id, fechaCompra: '2020-01-10', empleado: 'dev-empleado', createdAt })
+      .returning();
+    const [l] = await h.db
+      .insert(recepcionLinea)
+      .values({ recepcionId: r!.id, numero: 1, nombreFarmaco: 'X', unidades: 1, origenDatos: 'manual', empleado: 'dev-empleado', createdAt })
+      .returning();
+    await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, r!.id));
+    return l!.id;
+  };
+  const borrarConPurga = (id: string) =>
+    h.db.transaction(async (tx) => {
+      await tx.execute(sql`set local mmx.purga_retencion = 'on'`);
+      await tx.delete(recepcionLinea).where(eq(recepcionLinea.id, id));
+    });
+
+  it('la purga de retención borra una línea finalizada de más de 5 años', async () => {
+    const id = await lineaFinalizada(new Date('2020-01-10T10:00:00Z'));
+    await borrarConPurga(id);
+    expect(await h.db.select().from(recepcionLinea).where(eq(recepcionLinea.id, id))).toEqual([]);
+  });
+
+  it('ni con la marca de purga se borra una línea finalizada reciente', async () => {
+    const id = await lineaFinalizada(new Date());
+    await expectPgError(borrarConPurga(id), /no se puede borrar/);
+  });
+
+  it('sin la marca de purga no se borra una línea finalizada antigua', async () => {
+    const id = await lineaFinalizada(new Date('2020-01-10T10:00:00Z'));
+    await expectPgError(h.db.delete(recepcionLinea).where(eq(recepcionLinea.id, id)), /no se puede borrar/);
+  });
 });
 
 describe('auditoría con cadena de hashes', () => {
