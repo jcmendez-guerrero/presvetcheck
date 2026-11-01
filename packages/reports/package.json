@@ -14,8 +14,8 @@
     "@mmx/shared": "workspace:*",
     "exceljs": "^4.4.0",
     "@mmx/db": "workspace:*",
-    "drizzle-orm": "^0.44.2",
-    "@azure/identity": "^4.10.0",
+    "drizzle-orm": "^0.45.4",
+    "@azure/identity": "^4.14.1",
     "@azure/storage-blob": "^12.27.0",
     "nodemailer": "^7.0.3"
   },

@@ -20,13 +20,13 @@
     "@electric-sql/pglite": "^0.3.4",
     "@mmx/shared": "workspace:*",
     "decimal.js": "^10.5.0",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.7",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^11.0.0",
-    "drizzle-kit": "^0.31.1",
+    "drizzle-kit": "^0.31.11",
     "testcontainers": "^11.0.0"
   }
 }

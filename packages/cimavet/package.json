@@ -14,7 +14,7 @@
     "@mmx/db": "workspace:*",
     "@mmx/domain": "workspace:*",
     "@mmx/shared": "workspace:*",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.45.4",
     "yauzl": "3.2.0",
     "zod": "^4.0.5"
   },
