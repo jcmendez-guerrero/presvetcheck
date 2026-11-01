@@ -29,6 +29,7 @@ This repository implements the prescription verification, dispensing, and stock 
 - Never put personal data (pet owner name, phone number, ID number, or address) in logs, errors, or telemetry.
 - Do not call real services (CIMAVet, Siweb360, Azure) from tests. Use MSW and fixtures.
 - Do not add heavy dependencies without justification in the PR. Do not add alternative ORMs or additional UI frameworks.
+- Do not silence a vulnerable dependency ad hoc. Follow `docs/adr/0016-dependencias-vulnerables-y-excepciones.md`: upgrade first; every `pnpm.overrides` entry (range-scoped, never global) and every dismissed GitHub alert needs a row in its exceptions table, and dismissals must also be listed in `allow-ghsas` of the `dependencias` CI job — all in the same PR.
 
 ## Stack and commands
 
@@ -56,7 +57,15 @@ Before considering a task complete, `pnpm lint && pnpm typecheck && pnpm test` m
 ## Configuration (environment variables)
 
 Document every variable in `.env.example`, including its description and default value. At minimum:
-`DATABASE_URL`, `BLOB_CONNECTION_STRING` (local) / `BLOB_ACCOUNT_URL` (Azure), `KEY_VAULT_URL`, `CIMAVET_BASE_URL`, `CIMAVET_RPS`, `CIMAVET_LIVE_CHECK_MAX_AGE_H`, `SIWEB_BASE_URL`, `SIWEB_TOKEN` (local only), `SIWEB_STOCK_WRITE_MODE`, `SIWEB_SKU_CN_REGEX`, `SIWEB_CATALOG_WRITE`, `SIWEB_WAREHOUSE_NAME` (default `Farmacia`), `SIWEB_WAREHOUSE_ID` (optional), `EXTRACTOR` (`fake|azure`), `DOCINTEL_ENDPOINT`, `DOCINTEL_MODEL_ID`, `EXTRACTION_CONFIDENCE_THRESHOLD`, `SUBSTITUTION_APPROVAL_MODE`, `SUBSTITUTION_SIGN_MAX_DAYS`, `ALLOW_PACK_SIZE_CHANGE`, `ALLOW_PARTIAL_DISPENSATION`, `ENTRY_MIN_SHELF_LIFE_DAYS`, `SCANNER_GS_SUBSTITUTE`, `PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `AUTH_MODE` (`entra|dev`), `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MAILER` (`smtp|acs|console`), `COLUMN_ENCRYPTION_KEY` (local only).
+`DATABASE_URL`, `BLOB_CONNECTION_STRING` (local) / `BLOB_ACCOUNT_URL` (Azure), `KEY_VAULT_URL`,
+`CIMAVET_BASE_URL`, `CIMAVET_RPS`, `CIMAVET_LIVE_CHECK_MAX_AGE_H`, `SIWEB_BASE_URL`,
+`SIWEB_TOKEN` (local only), `SIWEB_STOCK_WRITE_MODE`, `SIWEB_SKU_CN_REGEX`, `SIWEB_CATALOG_WRITE`,
+`SIWEB_WAREHOUSE_NAME` (default `Farmacia`), `SIWEB_WAREHOUSE_ID` (optional), `EXTRACTOR` (`fake|azure`),
+`DOCINTEL_ENDPOINT`, `DOCINTEL_MODEL_ID`, `EXTRACTION_CONFIDENCE_THRESHOLD`,
+`SUBSTITUTION_APPROVAL_MODE`, `SUBSTITUTION_SIGN_MAX_DAYS`, `ALLOW_PACK_SIZE_CHANGE`,
+`ALLOW_PARTIAL_DISPENSATION`, `ENTRY_MIN_SHELF_LIFE_DAYS`, `SCANNER_GS_SUBSTITUTE`,
+`PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `AUTH_MODE` (`entra|dev`),
+`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MAILER` (`smtp|acs|console`), `COLUMN_ENCRYPTION_KEY` (local only).
 
 In production, the app must not start if a required variable is missing (validate with zod at startup).
 
