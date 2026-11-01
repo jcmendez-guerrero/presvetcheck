@@ -32,6 +32,10 @@
 
 | Id | Tipo | Paquete y rango | GHSA | Motivo | Fecha | Responsable | Revisar cuando | Estado |
 |----|------|-----------------|------|--------|-------|-------------|----------------|--------|
+| EXC-02 | forzado | `esbuild@<0.25.0` → `^0.25.12` | GHSA-67mh-4wv8-2f99 | `@esbuild-kit/core-utils` (vía drizzle-kit 0.31) fija esbuild 0.18. Solo desarrollo (generación de migraciones). | 01/11/2026 | Juan Camilo Mendez Guerrero | drizzle-kit deja de depender de `@esbuild-kit`. | vigente |
+| EXC-03 | forzado | `esbuild@>=0.27.3 <0.28.1` → `^0.28.2` | GHSA-g7r4-m6w7-qqqr | tsup 8.5.1 (última 8.x) pide esbuild ^0.27; subir a tsup 9 sería un salto mayor solo por esto. Solo compilación. | 01/11/2026 | Juan Camilo Mendez Guerrero | Se sube a tsup 9 o tsup 8.x admite esbuild ≥ 0.28.1. | vigente |
+| EXC-04 | forzado | `glob@>=10 <14.0.2` → `^14.0.3` | GHSA-3g3m-2fjr-6pw4 | @fastify/static 10.1.8 (glob ^13), archiver-utils 5 (^10, vía testcontainers) y workbox-build 7.4.1 (^11) no admiten aún glob ≥ 14.0.2; la API de glob 10–14 es compatible. | 01/11/2026 | Juan Camilo Mendez Guerrero | Esos tres paquetes publican versiones con glob ≥ 14.0.2. | vigente |
+| EXC-05 | forzado | `minimatch@>=9 <11.0.1` → `^11.0.3` | GHSA-g3hv-75wg-m249 | eslint 10, @eslint/config-array, typescript-eslint y glob piden minimatch ^9/^10; la API de minimatch 9–11 es compatible. | 01/11/2026 | Juan Camilo Mendez Guerrero | Esos paquetes piden minimatch ≥ 11.0.1. | vigente |
 
 ## Consecuencias
 - Las alertas abiertas en GitHub reflejan solo problemas nuevos: una alerta antigua no corregida siempre tiene aquí
