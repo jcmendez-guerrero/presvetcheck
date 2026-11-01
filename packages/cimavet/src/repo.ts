@@ -379,9 +379,10 @@ export class CimavetRepository implements NomenclatorSink {
         select a.nregistro, max(word_similarity(${n}, ${paNorm})) as s
         from cimavet_med_principio_activo a where ${n} <% ${paNorm} group by a.nregistro
       )
-      select p.cn, p.nregistro, p.nombre, m.nombre as medicamento, m.labtitular, p.comerc, p.estado_codigo as estado, ${especie} as autorizado_especie,
-             greatest(similarity(p.nombre_norm, ${n}), word_similarity(${n}, p.nombre_norm), word_similarity(${n}, m.nombre_norm),
-                      coalesce(pa.s, 0) * 0.9, case when p.cn = ${cn} then 1 else 0 end) as puntuacion
+      select
+        p.cn, p.nregistro, p.nombre, m.nombre as medicamento, m.labtitular, p.comerc, p.estado_codigo as estado, ${especie} as autorizado_especie,
+        greatest(similarity(p.nombre_norm, ${n}), word_similarity(${n}, p.nombre_norm), word_similarity(${n}, m.nombre_norm),
+                 coalesce(pa.s, 0) * 0.9, case when p.cn = ${cn} then 1 else 0 end) as puntuacion
       from cimavet_presentacion p join cimavet_medicamento m on m.nregistro = p.nregistro left join pa on pa.nregistro = m.nregistro
       where (p.nombre_norm % ${n} or ${n} <% p.nombre_norm or ${n} <% m.nombre_norm or p.nombre_norm like ${`%${n}%`} or p.cn = ${cn} or pa.s is not null)
         and ${filtros[0]} and ${filtros[1]}
