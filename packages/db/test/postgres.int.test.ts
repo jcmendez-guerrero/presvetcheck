@@ -28,12 +28,13 @@ describe('PostgreSQL 16', () => {
   });
 
   it('el rol mmx_app no tiene UPDATE ni DELETE en las tablas de registro', async () => {
-    const res = await h.db.execute(
-      sql`select has_table_privilege('mmx_app', 'dispensacion', 'UPDATE') as upd,
-                 has_table_privilege('mmx_app', 'dispensacion', 'DELETE') as del,
-                 has_table_privilege('mmx_app', 'dispensacion', 'INSERT') as ins,
-                 has_table_privilege('mmx_app', 'audit_event', 'UPDATE') as aupd`,
-    );
+    const res = await h.db.execute(sql`
+      select
+        has_table_privilege('mmx_app', 'dispensacion', 'UPDATE') as upd,
+        has_table_privilege('mmx_app', 'dispensacion', 'DELETE') as del,
+        has_table_privilege('mmx_app', 'dispensacion', 'INSERT') as ins,
+        has_table_privilege('mmx_app', 'audit_event', 'UPDATE') as aupd
+    `);
     expect((res as unknown as Array<Record<string, boolean>>)[0]).toEqual({
       upd: false,
       del: false,
