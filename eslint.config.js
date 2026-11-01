@@ -4,16 +4,36 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 const nodeBuiltins = [
-  'fs', 'fs/promises', 'path', 'http', 'https', 'net', 'child_process', 'os', 'crypto', 'stream', 'url', 'worker_threads',
+  'fs',
+  'fs/promises',
+  'path',
+  'http',
+  'https',
+  'net',
+  'child_process',
+  'os',
+  'crypto',
+  'stream',
+  'url',
+  'worker_threads',
 ];
 
 export default tseslint.config(
   {
     ignores: [
-      '**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.turbo/**', 'fixtures/**', 'docs/ref/**',
-      'apps/web/dev-dist/**', 'packages/db/migrations/**', '**/playwright-report/**', '**/test-results/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/coverage/**',
+      '**/.turbo/**',
+      'fixtures/**',
+      'docs/ref/**',
+      'apps/web/dev-dist/**',
+      'packages/db/migrations/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
       // Recursos de las skills de Copilot (copiados de terceros, no son código del producto).
       '.github/skills/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,
@@ -33,7 +53,15 @@ export default tseslint.config(
   },
   {
     // Scripts de línea de comandos que imprimen por consola de forma intencionada.
-    files: ['**/scripts/**', 'apps/worker/src/spikes/**', 'packages/extraction/src/eval/**', 'packages/db/src/cli/**', 'packages/cimavet/src/cli/**', 'packages/extraction/src/cli/**', 'apps/api/src/cli/**'],
+    files: [
+      '**/scripts/**',
+      'apps/worker/src/spikes/**',
+      'packages/extraction/src/eval/**',
+      'packages/db/src/cli/**',
+      'packages/cimavet/src/cli/**',
+      'packages/extraction/src/cli/**',
+      'apps/api/src/cli/**',
+    ],
     rules: { 'no-console': 'off' },
   },
   {
@@ -44,9 +72,22 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: nodeBuiltins.flatMap((m) => [m, `node:${m}`]).map((name) => ({ name, message: 'domain es puro: sin I/O.' })),
+          paths: nodeBuiltins
+            .flatMap((m) => [m, `node:${m}`])
+            .map((name) => ({ name, message: 'domain es puro: sin I/O.' })),
           patterns: [
-            { group: ['@mmx/db', '@mmx/db/*', '@mmx/cimavet', '@mmx/siweb', '@mmx/extraction', '@mmx/reports', '@mmx/shared/node'], message: 'domain no depende de infraestructura.' },
+            {
+              group: [
+                '@mmx/db',
+                '@mmx/db/*',
+                '@mmx/cimavet',
+                '@mmx/siweb',
+                '@mmx/extraction',
+                '@mmx/reports',
+                '@mmx/shared/node',
+              ],
+              message: 'domain no depende de infraestructura.',
+            },
           ],
         },
       ],
@@ -57,9 +98,18 @@ export default tseslint.config(
       ],
       'no-restricted-syntax': [
         'error',
-        { selector: "NewExpression[callee.name='Date'][arguments.length=0]", message: 'Usa el Clock inyectado.' },
-        { selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']", message: 'Usa el Clock inyectado.' },
-        { selector: "MemberExpression[object.name='Temporal'][property.name='Now']", message: 'Usa el Clock inyectado.' },
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'Usa el Clock inyectado.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'Usa el Clock inyectado.',
+        },
+        {
+          selector: "MemberExpression[object.name='Temporal'][property.name='Now']",
+          message: 'Usa el Clock inyectado.',
+        },
       ],
     },
   },
