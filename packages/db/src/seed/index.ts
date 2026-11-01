@@ -38,13 +38,23 @@ export async function seed(db: Db, opts: SeedOptions) {
 
   await db
     .insert(especieIdIndividual)
-    .values(opts.rules.bundle.recetaCampos.especies_id_individual.map((especieId) => ({ especieId, obligatorio: true })))
+    .values(
+      opts.rules.bundle.recetaCampos.especies_id_individual.map((especieId) => ({
+        especieId,
+        obligatorio: true,
+      })),
+    )
     .onConflictDoNothing();
 
   await db
     .insert(plataformaRecetaElectronica)
     .values(
-      PLATAFORMAS_SEMILLA.map((p) => ({ id: p.id, nombre: p.nombre, reconocidaMapa: null, patronesDeteccion: p.patrones })),
+      PLATAFORMAS_SEMILLA.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        reconocidaMapa: null,
+        patronesDeteccion: p.patrones,
+      })),
     )
     .onConflictDoNothing();
 
@@ -83,7 +93,11 @@ export async function seed(db: Db, opts: SeedOptions) {
       .insert(usuario)
       .values([
         { entraOid: 'dev-empleado', nombre: 'Empleada de prueba', rolCache: 'empleado' },
-        { entraOid: 'dev-veterinaria', nombre: 'Veterinaria responsable de prueba', rolCache: 'veterinaria_responsable' },
+        {
+          entraOid: 'dev-veterinaria',
+          nombre: 'Veterinaria responsable de prueba',
+          rolCache: 'veterinaria_responsable',
+        },
         { entraOid: 'dev-admin', nombre: 'Administración de prueba', rolCache: 'admin' },
       ])
       .onConflictDoNothing();

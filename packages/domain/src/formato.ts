@@ -15,16 +15,18 @@ import { contenidoEnvase, totalPaEnvase, type Concentracion } from './unidades';
 
 /** Nombre comercial sin dosis ni forma: "CLAVUBAY 400 mg / 100 mg COMPRIMIDOS…" → "CLAVUBAY". */
 export function nombreComercial(nombre: string): string {
-  return nombre
-    // Corta en la primera coma o en el primer dígito a principio de palabra. Con *lookbehind* el coste es lineal
-    // (`(?:^|\s+)\d` reintentaba cada tramo de espacios desde cada posición: CodeQL js/polynomial-redos).
-    .split(/,|(?<=^|\s)\d/)[0]!
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9 ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    nombre
+      // Corta en la primera coma o en el primer dígito a principio de palabra. Con *lookbehind* el coste es lineal
+      // (`(?:^|\s+)\d` reintentaba cada tramo de espacios desde cada posición: CodeQL js/polynomial-redos).
+      .split(/,|(?<=^|\s)\d/)[0]!
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /** Mismo medicamento: mismo registro, o mismo laboratorio titular y mismo nombre comercial. */
@@ -93,7 +95,8 @@ export function evaluarAlternativaFormato(
   if (P.formaId === null || P.formaId !== C.formaId) motivos.push('FORMA_DISTINTA');
   if (!viaCompatible(P, C, ctx.viaPrescritaId)) motivos.push('VIA_NO_AUTORIZADA');
   if (!autorizadoParaEspecie(C, ctx.especieId, rules.especie_padre)) motivos.push('ESPECIE_NO_AUTORIZADA');
-  if (C.estado !== 'autorizado' || candidato.presentacion.estado !== 'autorizado') motivos.push('NO_AUTORIZADO');
+  if (C.estado !== 'autorizado' || candidato.presentacion.estado !== 'autorizado')
+    motivos.push('NO_AUTORIZADO');
   if (motivos.length) return base;
 
   const cp = concentraciones(P);
@@ -109,10 +112,16 @@ export function evaluarAlternativaFormato(
   for (const [paId, c1] of cp) {
     const c2 = cc.get(paId) ?? null;
     // 6. Cantidades no normalizables → no se propone automáticamente
-    if (!c1 || !c2 || c1.num !== c2.num || c1.den !== c2.den) return { ...base, motivos: ['CANTIDAD_NO_NORMALIZABLE'] };
+    if (!c1 || !c2 || c1.num !== c2.num || c1.den !== c2.den)
+      return { ...base, motivos: ['CANTIDAD_NO_NORMALIZABLE'] };
     // 3. Concentración por unidad ≤ prescrita
     if (c2.valor.greaterThan(c1.valor)) {
-      return { ...base, motivos: ['CONCENTRACION_SUPERIOR'], concentracionPrescrita: c1, concentracionCandidato: c2 };
+      return {
+        ...base,
+        motivos: ['CONCENTRACION_SUPERIOR'],
+        concentracionPrescrita: c1,
+        concentracionCandidato: c2,
+      };
     }
     const r = c1.valor.div(c2.valor);
     if (ratio === null) {
@@ -152,10 +161,12 @@ export function evaluarAlternativaFormato(
   };
   if (envasesPropuestos < 1) return { ...out, motivos: ['CANTIDAD_SUPERIOR'] };
   // Menor concentración solo del mismo medicamento (DUDA-09 resuelta).
-  if (!mismaConcentracion && !mismoMedicamento(P, C)) return { ...out, motivos: ['CONCENTRACION_OTRO_MEDICAMENTO'] };
+  if (!mismaConcentracion && !mismoMedicamento(P, C))
+    return { ...out, motivos: ['CONCENTRACION_OTRO_MEDICAMENTO'] };
 
   // 5. Con menor concentración, la dosis debe alcanzarse con unidades enteras (formas contables)
-  if (!mismaConcentracion && primeraC.den === 'unidad' && !ratio.isInteger()) avisos.push('DOSIS_NO_AJUSTABLE');
+  if (!mismaConcentracion && primeraC.den === 'unidad' && !ratio.isInteger())
+    avisos.push('DOSIS_NO_AJUSTABLE');
   if (tipo === 'CAMBIO_FORMATO') avisos.push('CAMBIO_FORMATO');
   if (tipo === 'CAMBIO_CONCENTRACION') avisos.push('CAMBIO_CONCENTRACION');
   return { ...out, valido: true };
@@ -172,7 +183,13 @@ export function validarEnvasesFormato(r: ResultadoFormato, envases: number): Cod
  * Ej.: "Este envase es de 250 mg: administre 2 comprimidos por cada toma de 500 mg indicada por su veterinario".
  */
 export function notaAdministracion(r: ResultadoFormato, nombreUnidad = 'comprimidos'): string | null {
-  if (r.tipo !== 'CAMBIO_CONCENTRACION' || !r.factorDosis || !r.concentracionCandidato || !r.concentracionPrescrita) return null;
+  if (
+    r.tipo !== 'CAMBIO_CONCENTRACION' ||
+    !r.factorDosis ||
+    !r.concentracionCandidato ||
+    !r.concentracionPrescrita
+  )
+    return null;
   const fmt = (d: Decimal) => d.toDecimalPlaces(2).toString().replace('.', ',');
   const unidad = r.unidadDosis === 'ml' ? 'ml' : nombreUnidad;
   const porUnidad = r.unidadDosis === 'ml' ? '/ml' : '';

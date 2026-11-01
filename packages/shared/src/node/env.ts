@@ -9,7 +9,11 @@ import { loadConfig, type AppConfig } from '../config';
 export function loadConfigFromProcess(cwd = process.cwd()): AppConfig {
   const base = findUp('.env', cwd);
   const local = base ? resolve(base, '..', '.env.local') : findUp('.env.local', cwd);
-  return loadConfig({ ...readDotEnv(base), ...readDotEnv(local && existsSync(local) ? local : undefined), ...process.env });
+  return loadConfig({
+    ...readDotEnv(base),
+    ...readDotEnv(local && existsSync(local) ? local : undefined),
+    ...process.env,
+  });
 }
 
 export function findUp(name: string, from: string): string | undefined {

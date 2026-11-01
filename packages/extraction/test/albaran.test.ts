@@ -4,22 +4,61 @@ import { describe, expect, it } from 'vitest';
 import { albaranDesdeFactura, caducidadDeTexto, importeDeTexto } from '../src/albaran';
 import type { AnalyzeResult } from '../src/azure/docintel';
 
-const real = JSON.parse(readFileSync(resolve(__dirname, '../../../fixtures/albaranes/sintetico-1.invoice.json'), 'utf8')) as AnalyzeResult;
+const real = JSON.parse(
+  readFileSync(resolve(__dirname, '../../../fixtures/albaranes/sintetico-1.invoice.json'), 'utf8'),
+) as AnalyzeResult;
 
 describe('albarán leído con prebuilt-invoice (respuesta real)', () => {
   it('cabecera y líneas: código nacional, cantidad (deducida si falta), precio, lote y caducidad', () => {
     const a = albaranDesdeFactura(real);
-    expect(a).toMatchObject({ proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.', numero: 'ALB-2026-00417', fecha: '2026-10-15', totales: { base: '57.20', impuestos: '5.72', total: '62.92' } });
+    expect(a).toMatchObject({
+      proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.',
+      numero: 'ALB-2026-00417',
+      fecha: '2026-10-15',
+      totales: { base: '57.20', impuestos: '5.72', total: '62.92' },
+    });
     expect(a.lineas).toEqual([
-      { descripcion: 'AMODIP 1,25 MG 30 COMP MASTICABLES', codigo: '584159', cn: '584159', cantidad: 3, precioUnitario: '11.20', descuentoPct: null, lote: 'AMD-2801', caducidad: '2028-01-31' },
+      {
+        descripcion: 'AMODIP 1,25 MG 30 COMP MASTICABLES',
+        codigo: '584159',
+        cn: '584159',
+        cantidad: 3,
+        precioUnitario: '11.20',
+        descuentoPct: null,
+        lote: 'AMD-2801',
+        caducidad: '2028-01-31',
+      },
       // El modelo no leyó la cantidad: 13,70 / 6,85 = 2.
-      { descripcion: 'CLAVUBAY 400/100 MG 10 COMP', codigo: '570016', cn: '570016', cantidad: 2, precioUnitario: '6.85', descuentoPct: null, lote: 'CLV-2805', caducidad: '2028-05-31' },
-      { descripcion: 'COLLAR ANTIPARASITARIO PERRO GRANDE', codigo: '999999', cn: '999999', cantidad: 1, precioUnitario: '9.90', descuentoPct: null, lote: null, caducidad: null },
+      {
+        descripcion: 'CLAVUBAY 400/100 MG 10 COMP',
+        codigo: '570016',
+        cn: '570016',
+        cantidad: 2,
+        precioUnitario: '6.85',
+        descuentoPct: null,
+        lote: 'CLV-2805',
+        caducidad: '2028-05-31',
+      },
+      {
+        descripcion: 'COLLAR ANTIPARASITARIO PERRO GRANDE',
+        codigo: '999999',
+        cn: '999999',
+        cantidad: 1,
+        precioUnitario: '9.90',
+        descuentoPct: null,
+        lote: null,
+        caducidad: null,
+      },
     ]);
   });
 
   it('documento sin líneas ni cabecera', () => {
-    expect(albaranDesdeFactura({ content: '' })).toMatchObject({ proveedor: null, numero: null, fecha: null, lineas: [] });
+    expect(albaranDesdeFactura({ content: '' })).toMatchObject({
+      proveedor: null,
+      numero: null,
+      fecha: null,
+      lineas: [],
+    });
   });
 });
 
@@ -46,9 +85,15 @@ describe('importes y caducidades escritos en el documento', () => {
 
 describe('lote y caducidad en columnas de la tabla del albarán', () => {
   // Estructura de `tables` igual que en la respuesta real (fixtures/albaranes/sintetico-1.invoice.json); valores ficticios.
-  const celda = (rowIndex: number, columnIndex: number, content: string, kind?: string) => ({ rowIndex, columnIndex, content, ...(kind ? { kind } : {}) });
+  const celda = (rowIndex: number, columnIndex: number, content: string, kind?: string) => ({
+    rowIndex,
+    columnIndex,
+    content,
+    ...(kind ? { kind } : {}),
+  });
   const r = {
-    content: 'ALBARAN 77\nCodigo Descripcion Lote F. Cad. Cant.\n570016 CLAVUBAY 400/100 MG 10 COMP CLV-9 31/05/2028 2\n',
+    content:
+      'ALBARAN 77\nCodigo Descripcion Lote F. Cad. Cant.\n570016 CLAVUBAY 400/100 MG 10 COMP CLV-9 31/05/2028 2\n',
     tables: [
       {
         rowCount: 2,
@@ -71,7 +116,19 @@ describe('lote y caducidad en columnas de la tabla del albarán', () => {
       {
         fields: {
           InvoiceId: { valueString: '77' },
-          Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016' }, Description: { valueString: 'CLAVUBAY 400/100 MG 10 COMP' }, Quantity: { valueNumber: 2 }, UnitPrice: { content: '6,85' }, Amount: { content: '11,94' } } }] },
+          Items: {
+            valueArray: [
+              {
+                valueObject: {
+                  ProductCode: { valueString: '570016', content: '570016' },
+                  Description: { valueString: 'CLAVUBAY 400/100 MG 10 COMP' },
+                  Quantity: { valueNumber: 2 },
+                  UnitPrice: { content: '6,85' },
+                  Amount: { content: '11,94' },
+                },
+              },
+            ],
+          },
         },
       },
     ],
@@ -79,7 +136,14 @@ describe('lote y caducidad en columnas de la tabla del albarán', () => {
 
   it('toma lote y caducidad de las columnas («Lote», «F. Cad.») emparejando la fila por el código', () => {
     const l = albaranDesdeFactura(r).lineas[0]!;
-    expect(l).toMatchObject({ cn: '570016', lote: 'CLV-9', caducidad: '2028-05-31', cantidad: 2, precioUnitario: '6.85', descuentoPct: '12.85' });
+    expect(l).toMatchObject({
+      cn: '570016',
+      lote: 'CLV-9',
+      caducidad: '2028-05-31',
+      cantidad: 2,
+      precioUnitario: '6.85',
+      descuentoPct: '12.85',
+    });
   });
 });
 
@@ -94,11 +158,32 @@ describe('líneas de factura con textos patológicos: coste lineal (CodeQL js/po
   const n = 100_000;
   const factura = (fila: string) => ({
     content: `ALBARAN 1\n570016 ${fila}\n`,
-    documents: [{ fields: { Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016', spans: [{ offset: 10, length: 6 }] }, Description: { valueString: 'X' } } }] } } }],
+    documents: [
+      {
+        fields: {
+          Items: {
+            valueArray: [
+              {
+                valueObject: {
+                  ProductCode: {
+                    valueString: '570016',
+                    content: '570016',
+                    spans: [{ offset: 10, length: 6 }],
+                  },
+                  Description: { valueString: 'X' },
+                },
+              },
+            ],
+          },
+        },
+      },
+    ],
   });
   it.each([
     ['«Lote» y espacios', 'Lote' + ' '.repeat(n) + '!'],
     ['«Cad.» y espacios', 'Cad.' + ' '.repeat(n) + '!'],
     ['«CN» y espacios', 'CN' + ' '.repeat(n) + '!'],
-  ])('%s: < 1 s con 100 000 caracteres', (_n, fila) => expect(ms(() => albaranDesdeFactura(factura(fila) as never))).toBeLessThan(1000));
+  ])('%s: < 1 s con 100 000 caracteres', (_n, fila) =>
+    expect(ms(() => albaranDesdeFactura(factura(fila) as never))).toBeLessThan(1000),
+  );
 });

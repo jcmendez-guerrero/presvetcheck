@@ -61,7 +61,12 @@ export interface Salida {
   numColegiado: string | null;
   clinica: string | null;
   direccionVeterinario: string | null;
-  propietario: { nombre: string | null; movil: string | null; dni: string | null; direccion: string | null } | null;
+  propietario: {
+    nombre: string | null;
+    movil: string | null;
+    dni: string | null;
+    direccion: string | null;
+  } | null;
   tipoReceta: string | null;
   plataforma: string | null;
   esSustitucion: boolean;
@@ -105,9 +110,23 @@ export function tablasSalidas(salidas: Salida[], plantilla: PlantillaSalidas, o:
     s.cn,
     s.unidadesTexto ?? s.unidades,
   ];
-  const receta = (s: Salida) => [fechaEs(s.fechaReceta), s.numeroReceta ?? '', s.veterinario ?? '', s.numColegiado ?? '', s.clinica ?? '', s.direccionVeterinario ?? ''];
+  const receta = (s: Salida) => [
+    fechaEs(s.fechaReceta),
+    s.numeroReceta ?? '',
+    s.veterinario ?? '',
+    s.numColegiado ?? '',
+    s.clinica ?? '',
+    s.direccionVeterinario ?? '',
+  ];
   const prop = (s: Salida) =>
-    o.incluirPropietario ? [s.propietario?.nombre ?? '', s.propietario?.movil ?? '', s.propietario?.dni ?? '', s.propietario?.direccion ?? ''] : ['', '', '', ''];
+    o.incluirPropietario
+      ? [
+          s.propietario?.nombre ?? '',
+          s.propietario?.movil ?? '',
+          s.propietario?.dni ?? '',
+          s.propietario?.direccion ?? '',
+        ]
+      : ['', '', '', ''];
   const internas = (s: Salida) => [
     s.id,
     s.canal,
@@ -138,9 +157,22 @@ export function tablasSalidas(salidas: Salida[], plantilla: PlantillaSalidas, o:
   }
   const nombre = { A: 'Con receta', B: 'Sin receta presencial', C: 'Sin receta online' }[plantilla];
   if (o.internas === 'final') {
-    return [{ nombre, columnas: [...columnas, ...COLUMNAS_INTERNAS], filas: filas.map((s) => [...fila(s), ...internas(s)]) }];
+    return [
+      {
+        nombre,
+        columnas: [...columnas, ...COLUMNAS_INTERNAS],
+        filas: filas.map((s) => [...fila(s), ...internas(s)]),
+      },
+    ];
   }
   const principal: Tabla = { nombre, columnas, filas: filas.map(fila) };
   if (o.internas === 'ninguna') return [principal];
-  return [principal, { nombre: 'trazabilidad', columnas: ['CÓDIGO NACIONAL', 'LOTE', ...COLUMNAS_INTERNAS], filas: filas.map((s) => [s.cn, s.lote, ...internas(s)]) }];
+  return [
+    principal,
+    {
+      nombre: 'trazabilidad',
+      columnas: ['CÓDIGO NACIONAL', 'LOTE', ...COLUMNAS_INTERNAS],
+      filas: filas.map((s) => [s.cn, s.lote, ...internas(s)]),
+    },
+  ];
 }

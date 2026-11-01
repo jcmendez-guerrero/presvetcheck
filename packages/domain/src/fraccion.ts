@@ -20,8 +20,29 @@ export interface FraccionAutorizada {
   texto: string;
 }
 
-const NUMEROS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
-const UNIDADES_DOSIS = ['comprimido', 'capsula', 'jeringa', 'pipeta', 'tubo', 'aplicador', 'sobre', 'vial', 'frasco', 'collar', 'dosis'];
+const NUMEROS: Record<string, number> = {
+  un: 1,
+  una: 1,
+  uno: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+};
+const UNIDADES_DOSIS = [
+  'comprimido',
+  'capsula',
+  'jeringa',
+  'pipeta',
+  'tubo',
+  'aplicador',
+  'sobre',
+  'vial',
+  'frasco',
+  'collar',
+  'dosis',
+];
 
 const numero = (t: string): number | null => (/^\d+$/.test(t) ? Number(t) : (NUMEROS[t] ?? null));
 const singular = (u: string): string | null => {
@@ -36,12 +57,18 @@ const singular = (u: string): string | null => {
 export function parseFraccion(texto: string | null | undefined): FraccionAutorizada | null {
   if (!texto) return null;
   // Sin el prefijo "N fracciones de" / "fracción:" / "fracción de"; sin paréntesis aclaratorios.
-  const limpio = normalizeText(texto).replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  const limpio = normalizeText(texto)
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   const nFr = /^(\d+)\s+fracciones\b/.exec(limpio);
   const fraccionesEnvase = nFr ? Number(nFr[1]) : null;
   const t = limpio.replace(/^(\d+\s+)?fracci(?:ones|on)\b\s*(?::|de)?\s*/, '').trim();
   // "1 blister de 10 comprimidos", "2 blister de 7 comprimidos", "blister con 1 aplicador", "sobres con 4 jeringas"
-  const env = /^(?:(\d+|una?|uno|dos|tres|cuatro|cinco|seis)\s+)?(?:blister|blisteres|blisters|sobres?)\s+(?:de|con)\s+(\d+|una?|uno)\s+([a-z]+)/.exec(t);
+  const env =
+    /^(?:(\d+|una?|uno|dos|tres|cuatro|cinco|seis)\s+)?(?:blister|blisteres|blisters|sobres?)\s+(?:de|con)\s+(\d+|una?|uno)\s+([a-z]+)/.exec(
+      t,
+    );
   if (env) {
     const n = env[1] ? numero(env[1]) : 1;
     const m = numero(env[2] as string);
@@ -60,7 +87,13 @@ export function parseFraccion(texto: string | null | undefined): FraccionAutoriz
 
 export interface ValidacionFraccion {
   valida: boolean;
-  motivo: 'NO_FRACCIONABLE' | 'FRACCION_DESCONOCIDA' | 'NO_MULTIPLO' | 'SUPERA_ENVASE' | 'SUPERA_PRESCRITAS' | null;
+  motivo:
+    | 'NO_FRACCIONABLE'
+    | 'FRACCION_DESCONOCIDA'
+    | 'NO_MULTIPLO'
+    | 'SUPERA_ENVASE'
+    | 'SUPERA_PRESCRITAS'
+    | null;
 }
 
 /** Unidades de forma a dispensar en fracción: múltiplo de la fracción, ≤ envase y ≤ prescritas. */
@@ -72,7 +105,8 @@ export function validarUnidadesFraccion(
   if (!pres.fraccionable) return { valida: false, motivo: 'NO_FRACCIONABLE' };
   const f = parseFraccion(pres.fracciones);
   if (!f) return { valida: false, motivo: 'FRACCION_DESCONOCIDA' };
-  if (!Number.isInteger(unidades) || unidades < f.unidades || unidades % f.unidades !== 0) return { valida: false, motivo: 'NO_MULTIPLO' };
+  if (!Number.isInteger(unidades) || unidades < f.unidades || unidades % f.unidades !== 0)
+    return { valida: false, motivo: 'NO_MULTIPLO' };
   // Una fracción es menos que el envase completo (si no, se dispensa el envase).
   const total = unidadesEnvase(pres, f);
   if (total !== null && unidades >= total) return { valida: false, motivo: 'SUPERA_ENVASE' };
@@ -81,19 +115,46 @@ export function validarUnidadesFraccion(
 }
 
 /** Unidades de la fracción que contiene un envase completo, si se puede saber. */
-export function unidadesEnvase(pres: Pick<PresentacionInfo, 'contenido' | 'unidadContenido'>, f: FraccionAutorizada): number | null {
-  const unidadEnvase = pres.unidadContenido ? singular(normalizeText(pres.unidadContenido).split(' ')[0] as string) : null;
+export function unidadesEnvase(
+  pres: Pick<PresentacionInfo, 'contenido' | 'unidadContenido'>,
+  f: FraccionAutorizada,
+): number | null {
+  const unidadEnvase = pres.unidadContenido
+    ? singular(normalizeText(pres.unidadContenido).split(' ')[0] as string)
+    : null;
   const contenido = pres.contenido !== null ? Number(pres.contenido) : NaN;
   if (unidadEnvase === f.unidad && Number.isFinite(contenido)) return contenido;
   return f.fraccionesEnvase !== null ? f.fraccionesEnvase * f.unidades : null;
 }
 
-const TIPOS_ENVASE = ['caja', 'frasco', 'vial', 'blister', 'bolsa', 'bidon', 'tubo', 'sobre', 'bote', 'botella', 'estuche', 'saco', 'jeringa', 'pipeta', 'cartucho', 'envase', 'aplicador', 'lata', 'cubo'];
+const TIPOS_ENVASE = [
+  'caja',
+  'frasco',
+  'vial',
+  'blister',
+  'bolsa',
+  'bidon',
+  'tubo',
+  'sobre',
+  'bote',
+  'botella',
+  'estuche',
+  'saco',
+  'jeringa',
+  'pipeta',
+  'cartucho',
+  'envase',
+  'aplicador',
+  'lata',
+  'cubo',
+];
 const TILDES: Record<string, string> = { blister: 'blíster', bidon: 'bidón' };
 
 /** Tipo de envase a partir del nombre de la presentación ("…, Caja con 2 Blisters…" → "caja"). */
 export function tipoEnvase(nombrePresentacion: string): string {
-  const tras = nombrePresentacion.includes(',') ? nombrePresentacion.slice(nombrePresentacion.indexOf(',') + 1) : '';
+  const tras = nombrePresentacion.includes(',')
+    ? nombrePresentacion.slice(nombrePresentacion.indexOf(',') + 1)
+    : '';
   const palabras = normalizeText(tras).split(/[^a-z]+/);
   const t = palabras.find((p) => TIPOS_ENVASE.includes(p) || TIPOS_ENVASE.includes(p.replace(/(es|s)$/, '')));
   const base = t ? (TIPOS_ENVASE.includes(t) ? t : t.replace(/(es|s)$/, '')) : 'envase';
@@ -119,7 +180,10 @@ export function textoUnidadesDispensadas(
   const tipo = tipoEnvase(pres.nombre);
   const contenido = pres.contenido !== null ? Number(pres.contenido) : null;
   const unidad = pres.unidadContenido;
-  const descEnvase = contenido !== null && Number.isFinite(contenido) && unidad ? `${num(contenido)} ${plural(unidad, contenido)}` : null;
+  const descEnvase =
+    contenido !== null && Number.isFinite(contenido) && unidad
+      ? `${num(contenido)} ${plural(unidad, contenido)}`
+      : null;
   if ('envases' in d) {
     const t = d.envases === 1 ? tipo : plural(tipo, d.envases);
     return descEnvase ? `${d.envases} ${t} ${descEnvase}` : `${d.envases} ${t}`;

@@ -3,7 +3,10 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
   const aUtc = (iso: string) => {
     // Desfase de Madrid ese día (CET/CEST), calculado con Intl.
     const guess = new Date(`${iso}T00:00:00Z`);
-    const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' }).formatToParts(guess).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
+    const offset =
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' })
+        .formatToParts(guess)
+        .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
     const h = Number(/GMT([+-]\d+)/.exec(offset)?.[1] ?? 1);
     return new Date(guess.getTime() - h * 3600_000);
   };

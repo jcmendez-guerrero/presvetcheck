@@ -25,7 +25,9 @@ export function confianzaCampo(
   if (valor === null) return c;
   if (!tieneRegion) return Math.min(c, 0.5);
   const dentro = palabras.filter(
-    (p) => p.offset !== undefined && spans.some((s) => (p.offset as number) >= s.offset && (p.offset as number) < s.offset + s.length),
+    (p) =>
+      p.offset !== undefined &&
+      spans.some((s) => (p.offset as number) >= s.offset && (p.offset as number) < s.offset + s.length),
   );
   if (!dentro.length) return c;
   const ocr = dentro.reduce((s, p) => s + p.confianza, 0) / dentro.length;

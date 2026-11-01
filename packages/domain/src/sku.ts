@@ -33,7 +33,11 @@ export function extraerCn(texto: string | null | undefined, patron: string, ancl
 }
 
 /** ¿La variante corresponde a este CN por SKU o por nombre? */
-export function varianteCoincideCn(v: { sku: string | null; name: string | null; productName?: string | null }, cn: string, patron: string): boolean {
+export function varianteCoincideCn(
+  v: { sku: string | null; name: string | null; productName?: string | null },
+  cn: string,
+  patron: string,
+): boolean {
   const objetivo = normalizarCn(cn);
   return (
     extraerCn(v.sku, patron, true) === objetivo ||
@@ -81,7 +85,10 @@ export function sugerirPrefijo(labtitular: string): string {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toUpperCase()
-    .replace(/\b(S\.?A\.?U?|S\.?L\.?U?|GMBH|B\.?V\.?|LTD|LIMITED|INC|SPA|S\.?P\.?A\.?|SAS|NV|AG|LABORATORIOS?|LAB)\b\.?/g, ' ')
+    .replace(
+      /\b(S\.?A\.?U?|S\.?L\.?U?|GMBH|B\.?V\.?|LTD|LIMITED|INC|SPA|S\.?P\.?A\.?|SAS|NV|AG|LABORATORIOS?|LAB)\b\.?/g,
+      ' ',
+    )
     .replace(/[^A-Z0-9 ]/g, ' ')
     .trim();
   return (limpio.split(/\s+/)[0] ?? 'LAB').slice(0, 10) || 'LAB';

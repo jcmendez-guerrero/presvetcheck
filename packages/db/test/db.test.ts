@@ -51,9 +51,15 @@ const baseDisp = {
 
 describe('seed de maestros', () => {
   it('carga especies, formas, vías y unidades desde los diccionarios reales', async () => {
-    const [esp] = await h.db.select().from(cimavetMaestra).where(sql`tipo = ${MAESTRA.ESPECIES} and clave = '14'`);
+    const [esp] = await h.db
+      .select()
+      .from(cimavetMaestra)
+      .where(sql`tipo = ${MAESTRA.ESPECIES} and clave = '14'`);
     expect(esp?.nombre).toBe('Perros');
-    const [uni] = await h.db.select().from(cimavetMaestra).where(sql`tipo = ${MAESTRA.UNIDADES} and clave = '25'`);
+    const [uni] = await h.db
+      .select()
+      .from(cimavetMaestra)
+      .where(sql`tipo = ${MAESTRA.UNIDADES} and clave = '25'`);
     expect(uni?.nombre).toBe('Comprimido');
     const formas = await h.db.select().from(cimavetMaestra).where(eq(cimavetMaestra.tipo, MAESTRA.FORMAS));
     expect(formas.length).toBeGreaterThan(100);
@@ -61,7 +67,12 @@ describe('seed de maestros', () => {
 
   it('siembra las plataformas de receta electrónica sin verificar (D-14) y las reglas activas', async () => {
     const plats = await h.db.select().from(plataformaRecetaElectronica);
-    expect(plats.map((p) => p.nombre).sort()).toEqual(['GeneraRecetas', 'Prescrivet', 'Recevet', 'recetas.vet']);
+    expect(plats.map((p) => p.nombre).sort()).toEqual([
+      'GeneraRecetas',
+      'Prescrivet',
+      'Recevet',
+      'recetas.vet',
+    ]);
     expect(plats.every((p) => p.reconocidaMapa === null)).toBe(true);
     const reglas = await h.db.select().from(reglaVersion).where(eq(reglaVersion.activa, true));
     expect(reglas).toHaveLength(5);
@@ -71,12 +82,18 @@ describe('seed de maestros', () => {
 describe('dispensacion es append-only', () => {
   it('permite INSERT y rechaza UPDATE y DELETE', async () => {
     const [d] = await h.db.insert(dispensacion).values(baseDisp).returning();
-    await expectPgError(h.db.update(dispensacion).set({ unidades: 2 }).where(eq(dispensacion.id, d!.id)), /solo inserción/);
+    await expectPgError(
+      h.db.update(dispensacion).set({ unidades: 2 }).where(eq(dispensacion.id, d!.id)),
+      /solo inserción/,
+    );
     await expectPgError(h.db.delete(dispensacion).where(eq(dispensacion.id, d!.id)), /solo inserción/);
   });
 
   it('la anulación es un contramovimiento y la vista deriva anulada_por', async () => {
-    const [d] = await h.db.insert(dispensacion).values({ ...baseDisp, lote: 'L2' }).returning();
+    const [d] = await h.db
+      .insert(dispensacion)
+      .values({ ...baseDisp, lote: 'L2' })
+      .returning();
     const [a] = await h.db
       .insert(dispensacion)
       .values({ ...baseDisp, lote: 'L2', anulaDispensacionId: d!.id, motivoAnulacion: 'error de captura' })
@@ -86,7 +103,9 @@ describe('dispensacion es append-only', () => {
     expect(rows[0]?.anulada_por).toBe(a!.id);
     // Una dispensación no se anula dos veces.
     await expectPgError(
-      h.db.insert(dispensacion).values({ ...baseDisp, anulaDispensacionId: d!.id, motivoAnulacion: 'otra vez' }),
+      h.db
+        .insert(dispensacion)
+        .values({ ...baseDisp, anulaDispensacionId: d!.id, motivoAnulacion: 'otra vez' }),
       /duplicate key|unique/,
     );
   });
@@ -115,8 +134,14 @@ describe('recepcion_linea es append-only tras finalizar', () => {
       .returning();
     await h.db.update(recepcionLinea).set({ unidades: 4 }).where(eq(recepcionLinea.id, l!.id));
     await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, r!.id));
-    await expectPgError(h.db.update(recepcionLinea).set({ unidades: 5 }).where(eq(recepcionLinea.id, l!.id)), /no se pueden modificar/);
-    await expectPgError(h.db.delete(recepcionLinea).where(eq(recepcionLinea.id, l!.id)), /no se puede borrar/);
+    await expectPgError(
+      h.db.update(recepcionLinea).set({ unidades: 5 }).where(eq(recepcionLinea.id, l!.id)),
+      /no se pueden modificar/,
+    );
+    await expectPgError(
+      h.db.delete(recepcionLinea).where(eq(recepcionLinea.id, l!.id)),
+      /no se puede borrar/,
+    );
     await h.db.update(recepcionLinea).set({ estado: 'ENCOLADA' }).where(eq(recepcionLinea.id, l!.id));
     await expectPgError(
       h.db.insert(recepcionLinea).values({
@@ -129,7 +154,10 @@ describe('recepcion_linea es append-only tras finalizar', () => {
       }),
       /no admite líneas nuevas/,
     );
-    await expectPgError(h.db.update(recepcion).set({ estado: 'ABIERTA' }).where(eq(recepcion.id, r!.id)), /reabrir/);
+    await expectPgError(
+      h.db.update(recepcion).set({ estado: 'ABIERTA' }).where(eq(recepcion.id, r!.id)),
+      /reabrir/,
+    );
   });
 
   // Retención (migración 0004): la purga borra las líneas finalizadas de más de 5 años, y solo esas.
@@ -141,7 +169,15 @@ describe('recepcion_linea es append-only tras finalizar', () => {
       .returning();
     const [l] = await h.db
       .insert(recepcionLinea)
-      .values({ recepcionId: r!.id, numero: 1, nombreFarmaco: 'X', unidades: 1, origenDatos: 'manual', empleado: 'dev-empleado', createdAt })
+      .values({
+        recepcionId: r!.id,
+        numero: 1,
+        nombreFarmaco: 'X',
+        unidades: 1,
+        origenDatos: 'manual',
+        empleado: 'dev-empleado',
+        createdAt,
+      })
       .returning();
     await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, r!.id));
     return l!.id;
@@ -172,14 +208,29 @@ describe('recepcion_linea es append-only tras finalizar', () => {
 describe('auditoría con cadena de hashes', () => {
   it('encadena eventos y detecta manipulación', async () => {
     await h.db.transaction(async (tx) => {
-      await appendAudit(tx, { actor: 'dev-empleado', accion: 'crear', entidad: 'receta', entidadId: 'r1', despues: { b: 1, a: [1, 'x'] } });
-      await appendAudit(tx, { actor: 'dev-empleado', accion: 'firmar', entidad: 'sustitucion', entidadId: 's1', antes: { e: 'A' }, despues: { e: 'B' } });
+      await appendAudit(tx, {
+        actor: 'dev-empleado',
+        accion: 'crear',
+        entidad: 'receta',
+        entidadId: 'r1',
+        despues: { b: 1, a: [1, 'x'] },
+      });
+      await appendAudit(tx, {
+        actor: 'dev-empleado',
+        accion: 'firmar',
+        entidad: 'sustitucion',
+        entidadId: 's1',
+        antes: { e: 'A' },
+        despues: { e: 'B' },
+      });
     });
     expect(await verifyAuditChain(h.db)).toMatchObject({ ok: true, total: 2 });
     await expectPgError(h.db.update(auditEvent).set({ actor: 'x' }), /solo inserción/);
     // Manipulación saltándose el trigger (como haría un superusuario).
     await h.db.execute(sql`alter table audit_event disable trigger audit_event_append_only`);
-    await h.db.execute(sql`update audit_event set actor = 'intruso' where seq = (select min(seq) from audit_event)`);
+    await h.db.execute(
+      sql`update audit_event set actor = 'intruso' where seq = (select min(seq) from audit_event)`,
+    );
     await h.db.execute(sql`alter table audit_event enable trigger audit_event_append_only`);
     const res = await verifyAuditChain(h.db);
     expect(res.ok).toBe(false);

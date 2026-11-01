@@ -21,7 +21,14 @@ const ok = (r: ReturnType<typeof parseGs1>): Gs1Ok => {
 describe('parseGs1 (SPEC §4.6, §12.1 punto 4)', () => {
   it('GTIN-14 + caducidad + lote al final, sin separador GS', () => {
     const r = ok(parseGs1(`01${GTIN14}17271231` + '10LOTE123'));
-    expect(r).toMatchObject({ gtin: GTIN14, caducidad: '2027-12-31', lote: 'LOTE123', serie: null, cn: '570016', cnOrigen: 'heuristica_gtin' });
+    expect(r).toMatchObject({
+      gtin: GTIN14,
+      caducidad: '2027-12-31',
+      lote: 'LOTE123',
+      serie: null,
+      cn: '570016',
+      cnOrigen: 'heuristica_gtin',
+    });
   });
 
   it('GTIN-14 con GS (FNC1 inicial) y lote en medio terminado en GS', () => {
@@ -58,7 +65,14 @@ describe('parseGs1 (SPEC §4.6, §12.1 punto 4)', () => {
 
   it('EAN-13 sin identificadores de aplicación: solo GTIN (lote y caducidad a mano)', () => {
     const r = ok(parseGs1(EAN13));
-    expect(r).toMatchObject({ simbologia: 'ean13', gtin: GTIN14, lote: null, caducidad: null, cn: '570016', avisos: ['SOLO_GTIN'] });
+    expect(r).toMatchObject({
+      simbologia: 'ean13',
+      gtin: GTIN14,
+      lote: null,
+      caducidad: null,
+      cn: '570016',
+      avisos: ['SOLO_GTIN'],
+    });
     expect(ok(parseGs1(`]E0${EAN13}`)).simbologia).toBe('ean13');
   });
 
@@ -97,17 +111,17 @@ describe('parseGs1 (SPEC §4.6, §12.1 punto 4)', () => {
   });
 
   it.each`
-    entrada                              | error
-    ${''}                                | ${'VACIO'}
-    ${'   '}                             | ${'VACIO'}
-    ${'HOLA'}                            | ${'FORMATO_DESCONOCIDO'}
-    ${'(HOLA)'}                          | ${'FORMATO_DESCONOCIDO'}
-    ${`99${'1'.repeat(10)}`}             | ${'AI_DESCONOCIDO'}
-    ${'0112345'}                         | ${'LONGITUD'}
-    ${`01${GTIN14.slice(0, 13)}9`}       | ${'GTIN_CONTROL'}
-    ${`01${GTIN14}17271332`}             | ${'FECHA_INVALIDA'}
-    ${`01${GTIN14}17270231`}             | ${'FECHA_INVALIDA'}
-    ${`01${GTIN14}17ABCDEF`}             | ${'LONGITUD'}
+    entrada                        | error
+    ${''}                          | ${'VACIO'}
+    ${'   '}                       | ${'VACIO'}
+    ${'HOLA'}                      | ${'FORMATO_DESCONOCIDO'}
+    ${'(HOLA)'}                    | ${'FORMATO_DESCONOCIDO'}
+    ${`99${'1'.repeat(10)}`}       | ${'AI_DESCONOCIDO'}
+    ${'0112345'}                   | ${'LONGITUD'}
+    ${`01${GTIN14.slice(0, 13)}9`} | ${'GTIN_CONTROL'}
+    ${`01${GTIN14}17271332`}       | ${'FECHA_INVALIDA'}
+    ${`01${GTIN14}17270231`}       | ${'FECHA_INVALIDA'}
+    ${`01${GTIN14}17ABCDEF`}       | ${'LONGITUD'}
   `('error $error para "$entrada"', ({ entrada, error }) => {
     expect(parseGs1(entrada)).toMatchObject({ ok: false, error });
   });

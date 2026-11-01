@@ -154,7 +154,8 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
     ev.codigosForzados = [...new Set(forma.map((f) => f.code))];
   }
   /* v8 ignore next 2 -- MEDICAMENTO_NO_EN_SISTEMA (duro) ya cubre este caso */
-  if (!e.prescrito) return out('NO_CONFORME', [incidencia('MEDICAMENTO_NO_EN_SISTEMA', pol, { linea, params: { linea } })]);
+  if (!e.prescrito)
+    return out('NO_CONFORME', [incidencia('MEDICAMENTO_NO_EN_SISTEMA', pol, { linea, params: { linea } })]);
 
   const motivos: Incidencia[] = [...(ev.forzado ? forma : []), ...avisosEntrada, ...(e.avisosStock ?? [])];
   const P = e.prescrito;
@@ -167,7 +168,12 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
   // 2. Stock de la presentación prescrita
   const lotesPrescrito = lotesDe(P.presentacion.cn);
   if (disponibleNoCaducado(lotesPrescrito, e.hoy) > 0) {
-    const fefo = proponerLotes({ lotes: lotesPrescrito, unidades: P.envases, hoy: e.hoy, duracionDias: e.ctx.duracionDias });
+    const fefo = proponerLotes({
+      lotes: lotesPrescrito,
+      unidades: P.envases,
+      hoy: e.hoy,
+      duracionDias: e.ctx.duracionDias,
+    });
     ev.lotes = fefo;
     return out('DISPENSAR', [...motivos, ...AVISOS_FEFO_A_INCIDENCIA(fefo, linea, pol)]);
   }
@@ -184,13 +190,22 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
       .sort((a, b) => ordenFormato(a.formato, b.formato));
     for (const x of evaluados) {
       if (!x.formato.valido && !x.formato.otroLaboratorio) {
-        ev.alternativasDescartadas.push({ cn: x.c.presentacion.cn, nombre: x.c.presentacion.nombre, motivos: x.formato.motivos });
+        ev.alternativasDescartadas.push({
+          cn: x.c.presentacion.cn,
+          nombre: x.c.presentacion.nombre,
+          motivos: x.formato.motivos,
+        });
       }
     }
     const mejor = validos[0];
     if (mejor) {
       const envases = Math.min(mejor.formato.envasesPropuestos, mejor.disponible);
-      const lotes = proponerLotes({ lotes: lotesDe(mejor.c.presentacion.cn), unidades: envases, hoy: e.hoy, duracionDias: e.ctx.duracionDias });
+      const lotes = proponerLotes({
+        lotes: lotesDe(mejor.c.presentacion.cn),
+        unidades: envases,
+        hoy: e.hoy,
+        duracionDias: e.ctx.duracionDias,
+      });
       ev.alternativaFormato = {
         cn: mejor.c.presentacion.cn,
         nregistro: mejor.c.medicamento.nregistro,
@@ -235,7 +250,11 @@ export function decidirLinea(e: EntradaDecision): ResultadoDecision {
   for (const x of evaluados) {
     if (x.c.medicamento.nregistro === P.medicamento.nregistro) continue;
     if (x.c.medicamento.usoHumano) {
-      ev.descartados.push({ cn: x.c.presentacion.cn, nombre: x.c.presentacion.nombre, motivos: ['USO_HUMANO'] });
+      ev.descartados.push({
+        cn: x.c.presentacion.cn,
+        nombre: x.c.presentacion.nombre,
+        motivos: ['USO_HUMANO'],
+      });
       continue;
     }
     // Solo misma composición y concentración: nunca menor concentración de otro medicamento.
@@ -302,7 +321,14 @@ function ordenSustitutos(a: Sustituto, b: Sustituto): number {
   return 0;
 }
 
-const ORDEN_GRAVEDAD: Decision[] = ['DISPENSAR', 'DISPENSAR_CON_AVISO', 'SUSTITUIR', 'PEDIR', 'PENDIENTE_STOCK', 'NO_CONFORME'];
+const ORDEN_GRAVEDAD: Decision[] = [
+  'DISPENSAR',
+  'DISPENSAR_CON_AVISO',
+  'SUSTITUIR',
+  'PEDIR',
+  'PENDIENTE_STOCK',
+  'NO_CONFORME',
+];
 
 /** La receta se resume como el peor estado de sus líneas (§4.3). */
 export function resumenReceta(decisiones: Decision[]): Decision | null {

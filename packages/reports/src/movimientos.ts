@@ -37,7 +37,15 @@ export const COLUMNAS_TODAS_SALIDAS = [
 const ordenFecha = (a: Date | string, b: Date | string) => new Date(a).getTime() - new Date(b).getTime();
 
 export function tablaTodasSalidas(salidas: Salida[], o: { incluirPropietario?: boolean } = {}): Tabla {
-  const prop = (x: Salida) => (o.incluirPropietario ? [x.propietario?.nombre ?? '', x.propietario?.movil ?? '', x.propietario?.dni ?? '', x.propietario?.direccion ?? ''] : []);
+  const prop = (x: Salida) =>
+    o.incluirPropietario
+      ? [
+          x.propietario?.nombre ?? '',
+          x.propietario?.movil ?? '',
+          x.propietario?.dni ?? '',
+          x.propietario?.direccion ?? '',
+        ]
+      : [];
   return {
     nombre: 'Todas las salidas',
     columnas: [...COLUMNAS_TODAS_SALIDAS, ...(o.incluirPropietario ? COLUMNAS_PROPIETARIO : [])],
@@ -94,7 +102,22 @@ export function tablaMovimientos(entradas: Entrada[], salidas: Salida[]): Tabla 
     ...entradas.map((e) => ({
       fecha: e.fechaCompra,
       orden: 0,
-      fila: [fechaEs(e.fechaCompra), 'Entrada', e.nombreFarmaco, e.principioActivo ?? '', e.forma ?? '', e.cn ?? '', e.lote ?? '', fechaEs(e.caducidad), e.unidades, '', e.distribuidor, e.albaran ? `Albarán ${e.albaran}` : '', 'N', e.empleado],
+      fila: [
+        fechaEs(e.fechaCompra),
+        'Entrada',
+        e.nombreFarmaco,
+        e.principioActivo ?? '',
+        e.forma ?? '',
+        e.cn ?? '',
+        e.lote ?? '',
+        fechaEs(e.caducidad),
+        e.unidades,
+        '',
+        e.distribuidor,
+        e.albaran ? `Albarán ${e.albaran}` : '',
+        'N',
+        e.empleado,
+      ],
     })),
     ...salidas.map((s) => ({
       fecha: s.fechaVenta,
@@ -110,7 +133,11 @@ export function tablaMovimientos(entradas: Entrada[], salidas: Salida[]): Tabla 
         fechaEs(s.caducidad),
         '',
         s.unidades,
-        s.veterinario ? `${s.veterinario}${s.numColegiado ? ` (col. ${s.numColegiado})` : ''}` : s.canal === 'online' ? 'Venta online' : 'Venta presencial',
+        s.veterinario
+          ? `${s.veterinario}${s.numColegiado ? ` (col. ${s.numColegiado})` : ''}`
+          : s.canal === 'online'
+            ? 'Venta online'
+            : 'Venta presencial',
         s.numeroReceta ? `Receta ${s.numeroReceta}` : '',
         sn(s.anulada),
         s.empleado,
@@ -121,6 +148,11 @@ export function tablaMovimientos(entradas: Entrada[], salidas: Salida[]): Tabla 
   return {
     nombre: 'Entradas y salidas',
     columnas: [...COLUMNAS_MOVIMIENTOS],
-    filas: filas.sort((a, b) => dia(a.fecha).localeCompare(dia(b.fecha)) || a.orden - b.orden || ordenFecha(a.fecha, b.fecha)).map((f) => f.fila),
+    filas: filas
+      .sort(
+        (a, b) =>
+          dia(a.fecha).localeCompare(dia(b.fecha)) || a.orden - b.orden || ordenFecha(a.fecha, b.fecha),
+      )
+      .map((f) => f.fila),
   };
 }
