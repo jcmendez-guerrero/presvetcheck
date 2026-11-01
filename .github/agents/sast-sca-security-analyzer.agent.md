@@ -72,18 +72,18 @@ Trace untrusted data flows from entry points (sources) to sensitive execution po
 1. **Component identification**: Identify all direct and transitive packages using Package URLs (PURL, ECMA-427 standard).
 2. **Vulnerability verification**: Cross-reference packages against the National Vulnerability Database (NVD) and GitHub Advisory Database (GHSA) to confirm CVE IDs.
 3. **Severity scoring and exploit intelligence**:
-   - Verify CVSS v4.0 or CVSS v3.1 base score and vector.
-   - Cross-reference EPSS exploit probability scores.
-   - Verify CISA Known Exploited Vulnerabilities (KEV) catalog status.
-   - Identify minimal non-vulnerable upgrade versions.
+  - Verify CVSS v4.0 or CVSS v3.1 base score and vector.
+  - Cross-reference EPSS exploit probability scores.
+  - Verify CISA Known Exploited Vulnerabilities (KEV) catalog status.
+  - Identify minimal non-vulnerable upgrade versions.
 4. **Supply chain integrity checks**:
-   - **Lock file verification**: Check presence and consistency of lock files (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Pipfile.lock`, `poetry.lock`, `packages.lock.json`, `pom.xml`, `gradle.lockfile`, `go.sum`, `Gemfile.lock`, `Cargo.lock`).
-   - **Package checksum enforcement**: Verify `integrity` hash attributes in lock files. Check for `--require-hashes` in Python pip configurations.
-   - **Dependency confusion and typosquatting**: Flag internal package names that lack namespace reservations on public registries.
-   - **Workflow action pinning**: Scan `.github/workflows/*.yml` for third-party actions not pinned to full 40-character commit SHAs.
-   - **Software Bill of Materials (SBOM)**: Verify that build pipelines configure machine-readable SBOM generation via CycloneDX (ECMA-424) or SPDX (ISO/IEC 5962:2021).
-   - **License risk analysis**: Identify copyleft licenses (GPL v3, AGPL, SSPL) in commercial components. Flag missing, unknown, or non-standard licenses.
-   - **Abandoned packages**: Flag dependencies without release or commit activity for more than 2 years.
+  - **Lock file verification**: Check presence and consistency of lock files (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Pipfile.lock`, `poetry.lock`, `packages.lock.json`, `pom.xml`, `gradle.lockfile`, `go.sum`, `Gemfile.lock`, `Cargo.lock`).
+  - **Package checksum enforcement**: Verify `integrity` hash attributes in lock files. Check for `--require-hashes` in Python pip configurations.
+  - **Dependency confusion and typosquatting**: Flag internal package names that lack namespace reservations on public registries.
+  - **Workflow action pinning**: Scan `.github/workflows/*.yml` for third-party actions not pinned to full 40-character commit SHAs.
+  - **Software Bill of Materials (SBOM)**: Verify that build pipelines configure machine-readable SBOM generation via CycloneDX (ECMA-424) or SPDX (ISO/IEC 5962:2021).
+  - **License risk analysis**: Identify copyleft licenses (GPL v3, AGPL, SSPL) in commercial components. Flag missing, unknown, or non-standard licenses.
+  - **Abandoned packages**: Flag dependencies without release or commit activity for more than 2 years.
 
 ### Phase 4: Policy and Compliance Mapping
 
