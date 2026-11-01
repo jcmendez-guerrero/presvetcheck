@@ -48,8 +48,8 @@ importers:
   apps/api:
     dependencies:
       '@azure/identity':
-        specifier: ^4.10.0
-        version: 4.14.0
+        specifier: ^4.14.1
+        version: 4.14.1
       '@azure/storage-blob':
         specifier: ^12.27.0
         version: 12.34.0
@@ -96,8 +96,8 @@ importers:
         specifier: ^10.5.0
         version: 10.6.0
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
       fastify:
         specifier: ^5.4.0
         version: 5.12.7
@@ -206,8 +206,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/siweb
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
     devDependencies:
       exceljs:
         specifier: ^4.4.0
@@ -231,8 +231,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
       yauzl:
         specifier: 3.2.0
         version: 3.2.0
@@ -262,8 +262,8 @@ importers:
         specifier: ^10.5.0
         version: 10.6.0
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
       postgres:
         specifier: ^3.4.7
         version: 3.4.9
@@ -275,7 +275,7 @@ importers:
         specifier: ^11.0.0
         version: 11.14.0
       drizzle-kit:
-        specifier: ^0.31.1
+        specifier: ^0.31.11
         version: 0.31.11
       testcontainers:
         specifier: ^11.0.0
@@ -296,8 +296,8 @@ importers:
   packages/extraction:
     dependencies:
       '@azure/identity':
-        specifier: ^4.10.0
-        version: 4.14.0
+        specifier: ^4.14.1
+        version: 4.14.1
       '@mmx/domain':
         specifier: workspace:*
         version: link:../domain
@@ -320,8 +320,8 @@ importers:
   packages/reports:
     dependencies:
       '@azure/identity':
-        specifier: ^4.10.0
-        version: 4.14.0
+        specifier: ^4.14.1
+        version: 4.14.1
       '@azure/storage-blob':
         specifier: ^12.27.0
         version: 12.34.0
@@ -332,8 +332,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
@@ -348,8 +348,8 @@ importers:
   packages/shared:
     dependencies:
       '@azure/identity':
-        specifier: ^4.10.0
-        version: 4.14.0
+        specifier: ^4.14.1
+        version: 4.14.1
       decimal.js:
         specifier: ^10.5.0
         version: 10.6.0
@@ -375,8 +375,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
-        specifier: ^0.44.2
-        version: 0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
+        specifier: ^0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9)
       zod:
         specifier: ^4.0.5
         version: 4.6.7
@@ -444,8 +444,8 @@ packages:
     resolution: {integrity: sha512-e7lX/dk//F6Qf7BB6PTY4+p2yuOQtyOeHGyapYHNwqSp2OnYpwQt49A/Nin2XmKBQ69pwagR4k/lQBq8lbHQkA==}
     engines: {node: '>=22.0.0'}
 
-  '@azure/identity@4.14.0':
-    resolution: {integrity: sha512-8utCLdTZn14CiAe0HW4JbtzUMsc0mdDwnjUvStFMrR4IxQP8S2eL9zVAdplpfORVJGYmidZElpeXRYjJQ4UyUw==}
+  '@azure/identity@4.14.1':
+    resolution: {integrity: sha512-HHuuFrmN1uuF9D5A6aAo5eHzNFNX4Q+P4SksZqDKse5YaJFFy/zDLG3wXHEV2FVGgetZ3QM8jGURNBtnQYf1NQ==}
     engines: {node: '>=22.0.0'}
 
   '@azure/logger@1.4.0':
@@ -456,16 +456,16 @@ packages:
     resolution: {integrity: sha512-NDW2/bz2Pz71EJAlhSw+jg1kpRIWtrzj0gCzcHuG1u7iLvSOHpUc5lICkDA9x0bbeityxTneiunSBluvS+/y4w==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-common@16.14.1':
-    resolution: {integrity: sha512-Or6xhPNyi4zHW25158yxBoyxuCqNSPa5YBVqfF1J5Ks4MJWBo/USXdp05DQIPu1Zli00YZu6t0+h6KvHJealxQ==}
-    engines: {node: '>=0.8.0'}
-
   '@azure/msal-common@16.14.2':
     resolution: {integrity: sha512-HOBR0Gfo39TMrkxNG8k6cfjRkrRjXZc3JQs3ebMWQc9S4cihuknMYra3sgmzbZB752oQBqBN9+WF7c826p2vIQ==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-node@6.0.1':
-    resolution: {integrity: sha512-ixSO1Y/kCVRthRs+hSx/5qkwaunX1/RAePhlMN0wIpIQ4WEZ6AREGGnGd1AP0qspHVsAwzWQKGubpjh50JyJIQ==}
+  '@azure/msal-common@16.15.0':
+    resolution: {integrity: sha512-lwdLb1B9Q5nEhPLVIKe78XH5wFMN15fCiDkY7ylPDSWZuWcD93G3jpJajrKhO3CQld8SLKz0sHiOi24mxdvtsg==}
+    engines: {node: '>=0.8.0'}
+
+  '@azure/msal-node@7.1.2':
+    resolution: {integrity: sha512-52hKQLGpEQzwNufIXG1SPVU+wQ3RIe7Rp2+g+VdAmZojCAZ6yCdGEffzQEQ6RnBZGBEs40nl14rWBmfJpCoHsg==}
     engines: {node: '>=20'}
 
   '@azure/storage-blob@12.34.0':
@@ -2916,8 +2916,8 @@ packages:
     resolution: {integrity: sha512-YCYqxTLIB2OCqf6w9/Vef13baBVbwQIPcbT4Y56AfO6B9ajZhDhD8Jkveg/hJvT/iuMloKD/IYYkyMMNhr7Kqg==}
     hasBin: true
 
-  drizzle-orm@0.44.7:
-    resolution: {integrity: sha512-quIpnYznjU9lHshEOAYLoZ9s3jweleHlZIAWR/jX9gAWNg/JhQ1wj0KGRf7/Zm+obRrYd9GjPVJg790QY9N5AQ==}
+  drizzle-orm@0.45.4:
+    resolution: {integrity: sha512-NiM1YZpJ2UxyeE67DpDDZ+Tsw4YLX3trSlkNT7Tm9eKoUNb1LvaAaQzXgYQsWs+AQ9TUmmwMmBOCXuqqxUWKKQ==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -2925,6 +2925,7 @@ packages:
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
       '@neondatabase/serverless': '>=0.10.0'
+      '@netlify/db': '>=0.4.0'
       '@op-engineering/op-sqlite': '>=2'
       '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1.13'
@@ -2960,6 +2961,8 @@ packages:
       '@libsql/client-wasm':
         optional: true
       '@neondatabase/serverless':
+        optional: true
+      '@netlify/db':
         optional: true
       '@op-engineering/op-sqlite':
         optional: true
@@ -5236,7 +5239,7 @@ snapshots:
       fast-xml-parser: 5.11.2
       tslib: 2.8.1
 
-  '@azure/identity@4.14.0':
+  '@azure/identity@4.14.1':
     dependencies:
       '@azure/abort-controller': 2.2.0
       '@azure/core-auth': 1.11.0
@@ -5247,7 +5250,7 @@ snapshots:
       '@azure/core-util': 1.14.0
       '@azure/logger': 1.4.0
       '@azure/msal-browser': 5.25.1
-      '@azure/msal-node': 6.0.1
+      '@azure/msal-node': 7.1.2
       open: 11.0.4
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -5264,13 +5267,13 @@ snapshots:
     dependencies:
       '@azure/msal-common': 16.14.2
 
-  '@azure/msal-common@16.14.1': {}
-
   '@azure/msal-common@16.14.2': {}
 
-  '@azure/msal-node@6.0.1':
+  '@azure/msal-common@16.15.0': {}
+
+  '@azure/msal-node@7.1.2':
     dependencies:
-      '@azure/msal-common': 16.14.1
+      '@azure/msal-common': 16.15.0
       jsonwebtoken: 9.0.3
 
   '@azure/storage-blob@12.34.0':
@@ -7698,7 +7701,7 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.44.7(@electric-sql/pglite@0.3.16)(postgres@3.4.9):
+  drizzle-orm@0.45.4(@electric-sql/pglite@0.3.16)(postgres@3.4.9):
     optionalDependencies:
       '@electric-sql/pglite': 0.3.16
       postgres: 3.4.9
