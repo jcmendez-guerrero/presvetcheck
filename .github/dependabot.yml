@@ -25,6 +25,8 @@ updates:
         applies-to: version-updates
         dependency-type: development
         update-types: [minor, patch]
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: github-actions
     directory: /
@@ -38,3 +40,5 @@ updates:
     groups:
       acciones:
         patterns: ['*']
+    cooldown:
+      default-days: 7
