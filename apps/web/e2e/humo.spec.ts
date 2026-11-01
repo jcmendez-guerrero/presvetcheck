@@ -14,7 +14,9 @@ test('receta de compañía completa hasta la dispensación', async ({ page }) =>
   // Revisión: la IA propone, la persona decide.
   await expect(page.getByRole('heading', { name: 'Revisión de datos' })).toBeVisible();
   await expect(page.getByTestId('firma')).not.toBeChecked();
-  await page.getByTestId('elegir-570016').click();
+  // El medicamento se identifica por nombre en CIMAVet y llega propuesto (CN 570016); la persona lo confirma con
+  // «Comprobado». La lista «Elegir» solo aparece si no hay propuesta.
+  await expect(page.getByText('570016', { exact: true })).toBeVisible();
   await page.getByTestId('especie').selectOption('14');
   await page.getByTestId('firma').check();
   await page.getByTestId('comprobado').check();
