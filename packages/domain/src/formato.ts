@@ -16,7 +16,9 @@ import { contenidoEnvase, totalPaEnvase, type Concentracion } from './unidades';
 /** Nombre comercial sin dosis ni forma: "CLAVUBAY 400 mg / 100 mg COMPRIMIDOS…" → "CLAVUBAY". */
 export function nombreComercial(nombre: string): string {
   return nombre
-    .split(/(?:^|\s+)\d|,/)[0]!
+    // Corta en la primera coma o en el primer dígito a principio de palabra. Con *lookbehind* el coste es lineal
+    // (`(?:^|\s+)\d` reintentaba cada tramo de espacios desde cada posición: CodeQL js/polynomial-redos).
+    .split(/,|(?<=^|\s)\d/)[0]!
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()

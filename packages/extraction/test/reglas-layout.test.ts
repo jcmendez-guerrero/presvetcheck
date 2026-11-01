@@ -138,3 +138,26 @@ describe('titular: solo dentro de su bloque', () => {
     expect(prescriptorDesdeTexto('CLIENTE: Nombre: ANA\nDirección: C/ FALSA 1')).toEqual({});
   });
 });
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('respaldo por texto del OCR con contenidos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['«código nacional» y espacios', 'código nacional' + ' '.repeat(n) + 'x'],
+    ['«cód. nac.» con separadores y espacios', 'cód. nac' + ' '.repeat(n / 2) + '.' + ' '.repeat(n / 2) + 'x'],
+    ['«nº colegiado» y espacios', 'nº colegiado' + ' '.repeat(n) + 'x'],
+    ['«colegiado :» y espacios', 'colegiado' + ' '.repeat(n / 2) + ':' + ' '.repeat(n / 2) + 'x'],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, content) => expect(ms(() => camposDesdeLayout({ content }, 1, []))).toBeLessThan(1000));
+
+  it('sigue leyendo el CN y el nº de colegiado con separadores', () => {
+    const m = camposDesdeLayout({ content: 'Código nacional . : 584159 Nº de colegiado : 2801234', keyValuePairs: [kv('Fármaco:', 'PRUEBAVET')] }, 1, []);
+    expect(m.lineas[0]?.cn).toMatchObject({ valor: '584159' });
+    expect(m.receta.veterinarioNumColegiado).toMatchObject({ valor: '2801234' });
+  });
+});

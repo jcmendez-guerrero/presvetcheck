@@ -55,7 +55,8 @@ export function parseDecimal(s: string | number | null | undefined): Decimal | n
 /** Parsea "500 mg", "0,5 g", "50 mg/ml", "2,5 %" → cantidad + unidad (posiblemente compuesta). */
 export function parseCantidadTexto(texto: string | null | undefined): { valor: Decimal; unidad: string } | null {
   if (!texto) return null;
-  const m = /^\s*(\d+(?:[.,]\d+)?)\s*([^\d\s].*?)\s*$/.exec(texto);
+  // Se recorta antes: `.*?\s*$` probaba el final desde cada posición del texto (coste cuadrático).
+  const m = /^(\d+(?:[.,]\d+)?)\s*([^\d\s].*)$/.exec(texto.trim());
   if (!m) return null;
   const valor = parseDecimal(m[1]);
   return valor ? { valor, unidad: (m[2] as string).trim() } : null;

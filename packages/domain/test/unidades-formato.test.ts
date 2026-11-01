@@ -190,3 +190,25 @@ describe('mismo medicamento (menor concentración, DUDA-09)', () => {
     expect(mismoMedicamento(a, amoxicilina(250, { nombre: '250 mg', labtitular: a.labtitular }))).toBe(false);
   });
 });
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['nombreComercial · espacios sin dígito', () => nombreComercial(' '.repeat(n) + 'x')],
+    ['nombreComercial · espacios y letras alternados', () => nombreComercial(' a'.repeat(n / 2))],
+    ['parseCantidadTexto · espacios antes de un carácter final', () => parseCantidadTexto('1 a' + ' '.repeat(n) + 'b')],
+    ['parseCantidadTexto · unidad muy larga', () => parseCantidadTexto('5 ' + 'mg '.repeat(n / 3))],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+
+  it('el resultado no cambia con espacios alrededor', () => {
+    expect(nombreComercial('  CLAVUBAY 400 mg')).toBe('CLAVUBAY');
+    expect(parseCantidadTexto('  50 mg/ml  ')).toEqual({ valor: new Decimal(50), unidad: 'mg/ml' });
+  });
+});
