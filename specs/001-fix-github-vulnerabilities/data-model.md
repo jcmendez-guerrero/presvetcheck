@@ -7,7 +7,7 @@ Este trabajo no crea tablas ni cambia el esquema de PostgreSQL (FR-004). Las «e
 Vive en GitHub (Dependabot o CodeQL). No se almacena en el repositorio; se referencia por su identificador.
 
 | Campo | Tipo | Regla |
-|-------|------|-------|
+| --- | --- | --- |
 | `numero` | entero | Identificador de la alerta en GitHub (p. ej. Dependabot #85, CodeQL #7). |
 | `origen` | `dependabot` \| `codeql` | — |
 | `ghsa` / `regla` | texto | GHSA para dependencias (`GHSA-gcqx-w48m-w2h4`); id de regla para código (`js/polynomial-redos`). |
@@ -22,7 +22,7 @@ Vive en GitHub (Dependabot o CodeQL). No se almacena en el repositorio; se refer
 Vive en `package.json` / `pnpm-lock.yaml`.
 
 | Campo | Tipo | Regla |
-|-------|------|-------|
+| --- | --- | --- |
 | `nombre` | texto | — |
 | `version_actual` / `version_segura` | semver | `version_actual ≥ version_segura` al cerrar PR 1 (FR-001, FR-010). |
 | `tipo` | `directa` \| `transitiva` | — |
@@ -34,7 +34,7 @@ Vive en `package.json` / `pnpm-lock.yaml`.
 Fila de la tabla de excepciones de `docs/adr/0016-dependencias-vulnerables-y-excepciones.md`. Formato exacto en [contracts/adr-excepciones.md](./contracts/adr-excepciones.md).
 
 | Campo | Tipo | Regla |
-|-------|------|-------|
+| --- | --- | --- |
 | `id` | `EXC-NN` | Único, correlativo, no se reutiliza. |
 | `tipo` | `descarte` \| `forzado` | `descarte` = alerta cerrada sin corregir (FR-012); `forzado` = `pnpm.overrides` (FR-013). |
 | `paquete` y `rango` | texto | Para `forzado`, la clave exacta del override. |

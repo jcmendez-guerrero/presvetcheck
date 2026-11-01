@@ -8,7 +8,13 @@
 
 Cerrar las 97 alertas de seguridad abiertas en GitHub (90 de Dependabot y 7 de CodeQL) en 3 PR independientes (FR-017):
 
-1. **PR 1 — Dependencias** (`fix(deps)`): subir las dependencias directas a versiones corregidas dentro de la línea más cercana posible (nodemailer 7 → 10, @fastify/static 8 → 10, vitest 3 → 4, drizzle-orm 0.44 → 0.45, eslint 9 → 10, vite 6.4.5, uuid 11.1.1+, yauzl 3.2.1+), refrescar el fichero de bloqueo para las transitivas que ya admiten la versión corregida (undici, @azure/msal-node, fast-uri, seroval, serialize-javascript), forzar con `pnpm.overrides` acotados las que no (esbuild, glob, minimatch, uuid de exceljs), y descartar con justificación las que no tienen salida compatible (deepmerge y, si las pruebas lo confirman, las copias antiguas de glob/minimatch que arrastra exceljs). Crea la ADR 0016 con la política y la tabla de excepciones.
+1. **PR 1 — Dependencias** (`fix(deps)`): subir las dependencias directas a versiones corregidas dentro de la línea
+  más cercana posible (nodemailer 7 → 10, @fastify/static 8 → 10, vitest 3 → 4, drizzle-orm 0.44 → 0.45, eslint 9 → 10,
+  vite 6.4.5, uuid 11.1.1+, yauzl 3.2.1+), refrescar el fichero de bloqueo para las transitivas que ya admiten la versión
+  corregida (undici, @azure/msal-node, fast-uri, seroval, serialize-javascript), forzar con `pnpm.overrides` acotados las
+  que no (esbuild, glob, minimatch, uuid de exceljs), y descartar con justificación las que no tienen salida compatible
+  (deepmerge y, si las pruebas lo confirman, las copias antiguas de glob/minimatch que arrastra exceljs). Crea la ADR 0016
+  con la política y la tabla de excepciones.
 2. **PR 2 — Expresiones regulares** (`fix(seguridad)`): reescribir las 7 expresiones señaladas por CodeQL para que su coste sea lineal, revisar las ~112 expresiones de `domain`, `gs1`, `extraction`, `cimavet` y `siweb`, corregir las vulnerables y añadir una prueba de entrada patológica por función corregida.
 3. **PR 3 — Prevención** (`ci`): `.github/dependabot.yml` con actualizaciones agrupadas y un job `dependency-review` en la integración continua con el umbral acordado (altas/críticas de ejecución, críticas de desarrollo), alimentado por la tabla de excepciones de la ADR.
 
@@ -39,7 +45,7 @@ Todas las incógnitas técnicas se resolvieron en [research.md](./research.md); 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 | Principio / regla | Cómo se cumple | Estado |
-|-------------------|----------------|--------|
+| --- | --- | --- |
 | I. Calidad: dominio puro, TS estricto, sin dependencias pesadas nuevas | Las correcciones de expresiones en `packages/domain` no añaden I/O ni reloj. No se añade ninguna librería nueva: solo se suben versiones; `pnpm.overrides` no es una dependencia. No se sustituye exceljs. | ✅ |
 | II. Pruebas: `lint && typecheck && test` en verde; `test:int` si se tocan integraciones; casos por tabla | Las 3 PR exigen las 3 órdenes; PR 1 añade `test:int` y `test:e2e` (sube Testcontainers/undici, Vite, Vitest). PR 2 añade casos `it.each` patológicos y no toca los resultados esperados existentes. | ✅ |
 | II. Nunca servicios reales en pruebas/CI | `dependency-review-action` consulta la base de avisos de GitHub, no CIMAVet/Siweb360/Azure. | ✅ |
@@ -54,7 +60,11 @@ Sin violaciones: no hace falta *Complexity Tracking*.
 
 **Re-check tras la fase 1 (diseño)**: sigue sin violaciones. El diseño no añade dependencias (dependency-review-action es una acción de GitHub en CI, no una dependencia del producto), no toca el esquema, mantiene `packages/domain` puro (la medición de tiempo en pruebas usa `performance.now()`, no el reloj de negocio) y deja cada excepción trazable en la ADR 0016.
 
-**Desviación de la spec detectada en la investigación**: SC-001 decía «como máximo 1 descartada (deepmerge)». La investigación muestra que exceljs 4.4.0 (última versión, sin mantenimiento desde 12/2024) arrastra glob 7 y minimatch 5 vía archiver 5, cuya API es incompatible con las versiones corregidas (glob ≥ 14.0.2, minimatch ≥ 11.0.1). Se actualizó SC-001 para permitir descartes justificados según FR-012 cuando no exista versión corregida alcanzable sin sustituir una librería y el código vulnerable no se alcance con datos externos.
+**Desviación de la spec detectada en la investigación**: SC-001 decía «como máximo 1 descartada (deepmerge)».
+La investigación muestra que exceljs 4.4.0 (última versión, sin mantenimiento desde 12/2024) arrastra glob 7 y
+minimatch 5 vía archiver 5, cuya API es incompatible con las versiones corregidas (glob ≥ 14.0.2, minimatch ≥ 11.0.1).
+Se actualizó SC-001 para permitir descartes justificados según FR-012 cuando no exista versión corregida alcanzable
+sin sustituir una librería y el código vulnerable no se alcance con datos externos.
 
 ## Project Structure
 
@@ -108,7 +118,7 @@ docs/adr/0016-dependencias-vulnerables-y-excepciones.md  # PR 1 (crea), PR 3 (am
 ## Riesgos
 
 | Riesgo | Mitigación |
-|--------|------------|
+| --- | --- |
 | nodemailer 10 interpreta direcciones de forma más estricta | Prueba de `mailer.ts` con las direcciones de `.env.example` y con varios destinatarios; revisar CHANGELOG 8/9/10. |
 | @fastify/static 10 cambia el manejo de rutas no canónicas | Pruebas de API nuevas: `/../`, `%2e%2e%2f`, `%2f`, `//`; deben devolver 404 o `index.html`, nunca un fichero externo. |
 | vitest 4 cambia configuración o cobertura | Las 9 configuraciones son simples (`include`, `coverage.v8`, umbrales); comprobar que los umbrales del dominio siguen ≥ 90 %. |
