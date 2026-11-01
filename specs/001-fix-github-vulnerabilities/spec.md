@@ -19,7 +19,7 @@ A 2026-11-01 el repositorio `jcmendez-guerrero/presvetcheck` tiene abiertas en G
 Resumen por librería afectada (alertas abiertas, gravedad máxima, versión mínima corregida):
 
 | Librería | Uso en el sistema | Alertas | Máx. | Corrige desde | Origen |
-|----------|-------------------|---------|------|---------------|--------|
+| --- | --- | --- | --- | --- | --- |
 | nodemailer | Envío de informes por correo | 40 | Alta | 10.1.4 | Directa (`packages/reports`) |
 | undici | Cliente HTTP de los contenedores de prueba | 9 | Alta | 7.30.1 | Transitiva (pruebas de integración) |
 | drizzle-orm | Acceso a la base de datos | 7 | Alta | 0.45.2 | Directa (api, worker, db, cimavet, siweb, reports) |
@@ -40,7 +40,7 @@ Resumen por librería afectada (alertas abiertas, gravedad máxima, versión mí
 Expresiones regulares señaladas por CodeQL (todas procesan texto que no controla el sistema):
 
 | Ubicación | Qué procesa |
-|-----------|-------------|
+| --- | --- |
 | `packages/domain/src/formato.ts:18` | Nombre comercial del medicamento (CIMAVet / receta) |
 | `packages/domain/src/sku.ts:29` | Texto con el código nacional de un artículo |
 | `packages/domain/src/unidades.ts:58` | Cantidad con unidad escrita en texto libre |
@@ -61,7 +61,10 @@ Expresiones regulares señaladas por CodeQL (todas procesan texto que no control
 
 ### User Story 1 - Eliminar las vulnerabilidades críticas y altas que afectan al sistema en producción (Priority: P1)
 
-Como responsable del sistema, quiero que ninguna librería que se ejecuta en producción (API, *worker*, informes por correo, acceso a base de datos, autenticación con Azure, servido de la web) tenga vulnerabilidades conocidas de gravedad alta o crítica, para que un atacante no pueda leer ficheros del servidor, saltarse rutas protegidas, inyectar SQL, interceptar credenciales o desviar correos con datos de propietarios.
+Como responsable del sistema, quiero que ninguna librería que se ejecuta en producción
+(API, *worker*, informes por correo, acceso a base de datos, autenticación con Azure, servido de la web)
+tenga vulnerabilidades conocidas de gravedad alta o crítica, para que un atacante no pueda leer ficheros del servidor,
+saltarse rutas protegidas, inyectar SQL, interceptar credenciales o desviar correos con datos de propietarios.
 
 **Why this priority**: son las vulnerabilidades explotables en el entorno real. Algunas afectan directamente al principio III de la constitución (protección de datos personales): desvío de correos con informes a dominios no previstos, fuga de credenciales SMTP o de Azure, o lectura de ficheros del servidor.
 
@@ -167,7 +170,12 @@ Como responsable del sistema, quiero que las nuevas vulnerabilidades se detecten
 **Código propio (expresiones regulares)**
 
 - **FR-006**: Las funciones de `formato.ts`, `sku.ts`, `unidades.ts`, `borrador.ts`, `reglas-layout.ts` y `gs1/index.ts` señaladas por CodeQL MUST procesar cualquier texto de entrada en un tiempo que crece de forma lineal con su longitud.
-- **FR-006a**: Todas las demás expresiones regulares de `packages/domain`, `packages/gs1`, `packages/extraction`, `packages/cimavet` y `packages/siweb` que se apliquen a texto externo (escáner, reconocimiento de imagen, CIMAVet, Siweb360, entrada del usuario) MUST revisarse; las que resulten vulnerables a tiempo desproporcionado MUST corregirse con los mismos requisitos FR-006 a FR-008. El resultado de la revisión (expresiones revisadas y cuáles se corrigieron) MUST constar en la descripción del PR de expresiones regulares.
+- **FR-006a**: Todas las demás expresiones regulares de `packages/domain`, `packages/gs1`,
+  `packages/extraction`, `packages/cimavet` y `packages/siweb` que se apliquen a texto externo
+  (escáner, reconocimiento de imagen, CIMAVet, Siweb360, entrada del usuario) MUST revisarse; las que resulten
+  vulnerables a tiempo desproporcionado MUST corregirse con los mismos requisitos FR-006 a FR-008.
+  El resultado de la revisión (expresiones revisadas y cuáles se corrigieron) MUST constar en la descripción
+  del PR de expresiones regulares.
 - **FR-007**: Esas funciones MUST devolver exactamente el mismo resultado que hoy para todas las entradas válidas cubiertas por las pruebas existentes.
 - **FR-008**: Cada función corregida MUST tener al menos un caso de prueba nuevo con una entrada patológica larga que verifique el tiempo acotado.
 - **FR-009**: Las correcciones del dominio MUST mantener la pureza de `packages/domain` (sin I/O ni reloj del sistema) y la cobertura ≥ 90 % de líneas y ramas.
@@ -179,7 +187,11 @@ Como responsable del sistema, quiero que las nuevas vulnerabilidades se detecten
 
 **Gestión de alertas**
 
-- **FR-012**: Toda alerta sin versión corregida alcanzable sin sustituir una librería (hoy deepmerge; posiblemente las copias antiguas de glob y minimatch que arrastra exceljs) y cuyo código vulnerable no se alcance con datos externos MUST descartarse en GitHub con un motivo escrito y registrarse en la tabla de excepciones de la ADR de seguridad de dependencias (`docs/adr/0016-…`), con fecha, responsable y condición de revisión.
+- **FR-012**: Toda alerta sin versión corregida alcanzable sin sustituir una librería
+  (hoy deepmerge; posiblemente las copias antiguas de glob y minimatch que arrastra exceljs)
+  y cuyo código vulnerable no se alcance con datos externos MUST descartarse en GitHub con un motivo
+  escrito y registrarse en la tabla de excepciones de la ADR de seguridad de dependencias (`docs/adr/0016-…`),
+  con fecha, responsable y condición de revisión.
 - **FR-013**: Cuando una dependencia transitiva se fuerce a una versión concreta desde la raíz del monorepo, MUST registrarse en la misma tabla de excepciones de esa ADR, con el motivo y la condición para retirar ese forzado.
 - **FR-013a**: Esa ADR MUST recoger también la política de bloqueo de la integración continua (FR-016) y MUST actualizarse en el mismo PR que añada, cambie o retire una excepción.
 - **FR-014**: Al terminar, el panel de seguridad de GitHub MUST mostrar 0 alertas abiertas de dependencias y 0 de análisis de código en la rama principal.
@@ -187,7 +199,11 @@ Como responsable del sistema, quiero que las nuevas vulnerabilidades se detecten
 **Prevención**
 
 - **FR-015**: El repositorio MUST tener configuradas propuestas automáticas de actualización de seguridad, agrupadas para el monorepo, para las dependencias de npm y de los *workflows* de GitHub Actions.
-- **FR-016**: La integración continua MUST fallar cuando un cambio introduzca una vulnerabilidad conocida de gravedad alta o crítica en una dependencia de ejecución, o de gravedad crítica en una dependencia de desarrollo o compilación. Las vulnerabilidades altas de desarrollo y todas las medias y bajas MUST mostrarse como aviso sin bloquear. La comprobación no llama a servicios reales (CIMAVet, Siweb360, Azure).
+- **FR-016**: La integración continua MUST fallar cuando un cambio introduzca una vulnerabilidad
+  conocida de gravedad alta o crítica en una dependencia de ejecución, o de gravedad crítica en una
+  dependencia de desarrollo o compilación. Las vulnerabilidades altas de desarrollo y todas las medias
+  y bajas MUST mostrarse como aviso sin bloquear. La comprobación no llama a servicios reales
+  (CIMAVet, Siweb360, Azure).
 
 **Trazabilidad y forma de entrega**
 
@@ -204,7 +220,10 @@ Como responsable del sistema, quiero que las nuevas vulnerabilidades se detecten
 
 ### Measurable Outcomes
 
-- **SC-001**: El número de alertas de seguridad abiertas en GitHub pasa de 97 (90 de dependencias + 7 de código) a 0. Solo se descartan con justificación las alertas que cumplen FR-012: sin versión corregida alcanzable sin sustituir una librería, y con el código vulnerable no alcanzable con datos externos. Se prevé deepmerge y, si los forzados de versión no son compatibles, las copias antiguas de glob y minimatch que arrastra exceljs.
+- **SC-001**: El número de alertas de seguridad abiertas en GitHub pasa de 97 (90 de dependencias + 7 de código)
+  a 0. Solo se descartan con justificación las alertas que cumplen FR-012: sin versión corregida alcanzable sin
+  sustituir una librería, y con el código vulnerable no alcanzable con datos externos. Se prevé deepmerge y, si los
+  forzados de versión no son compatibles, las copias antiguas de glob y minimatch que arrastra exceljs.
 - **SC-002**: 0 alertas críticas o altas abiertas en cualquier ámbito al terminar la User Story 1, la 2 y la 3.
 - **SC-003**: El 100 % de los casos de prueba existentes (dominio, GS1, extracción, CIMAVet, Siweb360, informes, API y extremo a extremo) pasan sin modificar sus resultados esperados.
 - **SC-004**: Cada función con expresiones corregidas (las 7 señaladas y las que añada la revisión de FR-006a) procesa una entrada patológica de 100 000 caracteres en menos de 1 segundo.

@@ -38,7 +38,11 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 
 **⚠️ CRITICAL**: PR2 (US2) no depende de esta fase y puede empezar tras la Phase 1.
 
-- [X] T005 PR1 · Crear `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` con el formato de las ADR existentes (`# ADR-16 · …`, `- **Estado:** propuesta (fecha)`), secciones Contexto (alertas de partida del 2026-11-01: 90 Dependabot, 7 CodeQL), Decisión (orden de preferencia directa → lockfile → padre → override acotado → descarte; criterio de descarte de FR-012; regla de mantenimiento de FR-013a), tabla de excepciones vacía con las columnas de `specs/001-fix-github-vulnerabilities/contracts/adr-excepciones.md`, y Consecuencias; en español
+- [X] T005 PR1 · Crear `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` con el formato de las ADR existentes
+  (`# ADR-16 · …`, `- **Estado:** propuesta (fecha)`), secciones Contexto (alertas de partida del 2026-11-01:
+  90 Dependabot, 7 CodeQL), Decisión (orden de preferencia directa → lockfile → padre → override acotado → descarte;
+  criterio de descarte de FR-012; regla de mantenimiento de FR-013a), tabla de excepciones vacía con las columnas de
+  `specs/001-fix-github-vulnerabilities/contracts/adr-excepciones.md`, y Consecuencias; en español
 - [X] T006 PR1 · Añadir la ADR 0016 al índice `docs/adr/README.md`
 
 **Checkpoint**: la ADR existe; las historias pueden empezar.
@@ -53,8 +57,17 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 
 ### Tests for User Story 1 (escribir antes de actualizar; deben pasar con las versiones actuales y seguir pasando después)
 
-- [X] T007 [P] [US1] PR1 · Crear `packages/reports/test/mailer.test.ts`: con `vi.mock('nodemailer')` capturar los argumentos de `createTransport` y `sendMail` de `SmtpMailer` (`packages/reports/src/mailer.ts`) y comprobar host/port/`secure` (465 → true), `auth` solo si hay usuario, y que `from`, `to` (varios destinatarios), `subject`, `text` y `attachments` (`filename`, `content` Buffer, `contentType`) llegan sin cambios; datos sintéticos, sin datos de propietarios (FR-018)
-- [X] T008 [P] [US1] PR1 · Crear `apps/api/test/estaticos.test.ts`: con `entorno()` de `apps/api/test/entorno.ts` y `WEB_DIST_DIR` apuntando a una carpeta temporal con `index.html` y `assets/app.js` (y un fichero `secreto.txt` fuera de esa carpeta), comprobar con `app.inject` que `/assets/app.js` se sirve, que `/ruta-spa` devuelve `index.html`, que `/api/no-existe` devuelve 404 `NO_ENCONTRADO`, y que `/../secreto.txt`, `/%2e%2e/secreto.txt`, `/%2e%2e%2fsecreto.txt`, `/assets%2f..%2f..%2fsecreto.txt`, `//secreto.txt` y `/assets/` nunca devuelven el contenido de `secreto.txt` ni un listado de directorio (FR-003)
+- [X] T007 [P] [US1] PR1 · Crear `packages/reports/test/mailer.test.ts`: con `vi.mock('nodemailer')` capturar
+  los argumentos de `createTransport` y `sendMail` de `SmtpMailer` (`packages/reports/src/mailer.ts`)
+  y comprobar host/port/`secure` (465 → true), `auth` solo si hay usuario, y que `from`, `to` (varios destinatarios),
+  `subject`, `text` y `attachments` (`filename`, `content` Buffer, `contentType`) llegan sin cambios;
+  datos sintéticos, sin datos de propietarios (FR-018)
+- [X] T008 [P] [US1] PR1 · Crear `apps/api/test/estaticos.test.ts`: con `entorno()` de `apps/api/test/entorno.ts`
+  y `WEB_DIST_DIR` apuntando a una carpeta temporal con `index.html` y `assets/app.js` (y un fichero `secreto.txt`
+  fuera de esa carpeta), comprobar con `app.inject` que `/assets/app.js` se sirve, que `/ruta-spa` devuelve `index.html`,
+  que `/api/no-existe` devuelve 404 `NO_ENCONTRADO`, y que `/../secreto.txt`, `/%2e%2e/secreto.txt`,
+  `/%2e%2e%2fsecreto.txt`, `/assets%2f..%2f..%2fsecreto.txt`, `//secreto.txt` y `/assets/` nunca devuelven el contenido
+  de `secreto.txt` ni un listado de directorio (FR-003)
 
 ### Implementation for User Story 1
 
@@ -96,7 +109,11 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 - [X] T026 [P] [US2] PR2 · Reescribir la expresión de `plazo` en `packages/extraction/src/borrador.ts:43` (`/(\d+)\s*(d[ií]as?|mes(?:es)?)/i`) para que no reintente desde cada dígito de una serie larga (p. ej. limitar `\s{0,3}` y `\d{1,4}`, o buscar primero la palabra y leer el número anterior)
 - [X] T027 [P] [US2] PR2 · Reescribir `RE_CN` y `RE_COLEGIADO` en `packages/extraction/src/azure/reglas-layout.ts` acotando los separadores (`\s{0,3}`, `\.?` único) para que el coste sea lineal sobre el contenido completo del documento
 - [X] T028 [US2] PR2 · Ejecutar `pnpm --filter @mmx/domain --filter @mmx/gs1 --filter @mmx/extraction test` y la cobertura del dominio (≥ 90 % líneas y ramas, FR-009); ningún valor esperado preexistente puede cambiar (FR-007); commit `fix(seguridad): expresiones regulares de coste lineal (CodeQL js/polynomial-redos)`
-- [X] T029 [US2] PR2 · Revisión ampliada (FR-006a): listar todas las expresiones de `packages/domain/src`, `packages/gs1/src`, `packages/extraction/src`, `packages/cimavet/src` y `packages/siweb/src` (`grep -rnE "new RegExp|/[^/]+/[gimsuy]*\.(exec|test)|\.match\(|\.replace\(/|\.split\(/"`, ~112 sitios) y clasificar cada una: recibe texto externo (sí/no) y tiene cuantificadores que pueden casar los mismos caracteres (sí/no); guardar la tabla en el directorio temporal para la descripción del PR
+- [X] T029 [US2] PR2 · Revisión ampliada (FR-006a): listar todas las expresiones de `packages/domain/src`,
+  `packages/gs1/src`, `packages/extraction/src`, `packages/cimavet/src` y `packages/siweb/src`
+  (`grep -rnE "new RegExp|/[^/]+/[gimsuy]*\.(exec|test)|\.match\(|\.replace\(/|\.split\(/"`, ~112 sitios) y clasificar
+  cada una: recibe texto externo (sí/no) y tiene cuantificadores que pueden casar los mismos caracteres (sí/no);
+  guardar la tabla en el directorio temporal para la descripción del PR
 - [X] T030 [US2] PR2 · Corregir cada expresión clasificada como vulnerable en T029 en su fichero de `src/`, con su caso patológico en el `test/` del mismo paquete (mismos criterios que T017–T027); commit `fix(seguridad): expresiones regulares adicionales de la revisión`
 - [ ] T031 [US2] PR2 · Abrir PR2 con la tabla de T029 en la descripción, la lista de tablas de casos del dominio afectadas (revisión explícita exigida por la constitución) y `Co-Authored-By`/atribución según las instrucciones del repo
 
@@ -156,7 +173,11 @@ description: "Lista de tareas: corrección de las vulnerabilidades detectadas en
 ### Implementation for User Story 5
 
 - [X] T047 [P] [US5] PR3 · Crear `.github/dependabot.yml` según `specs/001-fix-github-vulnerabilities/contracts/ci-seguridad.md`: `npm` en `/` semanal con grupos `produccion` (`dependency-type: production`) y `desarrollo` (`development`), `commit-message.prefix` `fix(deps)` / `chore(deps)`; `github-actions` en `/` semanal con prefijo `ci`
-- [X] T048 [US5] PR3 · Añadir a `.github/workflows/ci.yml` el job `dependencias` (solo `pull_request`, permisos `contents: read` y `pull-requests: write`) con dos pasos `actions/dependency-review-action@v4`: (1) `fail-on-severity: high`, `fail-on-scopes: runtime`; (2) `fail-on-severity: critical`, `fail-on-scopes: development`; ambos con `allow-ghsas` igual a los GHSA de las filas `descarte` vigentes de la ADR 0016 y `comment-summary-in-pr: on-failure`
+- [X] T048 [US5] PR3 · Añadir a `.github/workflows/ci.yml` el job `dependencias` (solo `pull_request`,
+  permisos `contents: read` y `pull-requests: write`) con dos pasos `actions/dependency-review-action@v4`:
+  (1) `fail-on-severity: high`, `fail-on-scopes: runtime`; (2) `fail-on-severity: critical`,
+  `fail-on-scopes: development`; ambos con `allow-ghsas` igual a los GHSA de las filas `descarte` vigentes de la ADR 0016
+  y `comment-summary-in-pr: on-failure`
 - [X] T049 [US5] PR3 · Ampliar `docs/adr/0016-dependencias-vulnerables-y-excepciones.md` con la política de CI (tabla de casos de `contracts/ci-seguridad.md`) y la regla de que `allow-ghsas` debe coincidir con la tabla de excepciones (FR-013a)
 - [ ] T050 [US5] PR3 · Verificar en una rama de prueba (sin fusionar, borrar al terminar): añadir una versión de ejecución con vulnerabilidad alta conocida (p. ej. `nodemailer@9.0.0` en `packages/reports/package.json`) → el job falla; cambiarla por una con vulnerabilidad media → el job pasa con aviso
 - [ ] T051 [US5] PR3 · Commit `ci: Dependabot agrupado y revisión de dependencias en PR`, abrir PR3 e indicar en la descripción el ajuste manual pendiente: marcar `dependencias` como comprobación obligatoria en la protección de `main`

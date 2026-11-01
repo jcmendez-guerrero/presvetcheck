@@ -7,7 +7,7 @@
 - **No** llama a CIMAVet, Siweb360 ni Azure; solo a la base de avisos de GitHub.
 
 | Caso introducido por el PR | Resultado |
-|----------------------------|-----------|
+| --- | --- |
 | Vulnerabilidad crítica o alta en dependencia de **ejecución** | ❌ falla, bloquea la fusión |
 | Vulnerabilidad crítica en dependencia de **desarrollo/compilación** | ❌ falla, bloquea la fusión |
 | Vulnerabilidad alta en dependencia de desarrollo | ⚠️ aviso en el resumen, permite fusionar |
@@ -20,7 +20,7 @@ Implementación prevista: dos pasos de `actions/dependency-review-action@v4` con
 ## `.github/dependabot.yml`
 
 | Ecosistema | Directorio | Frecuencia | Agrupación |
-|------------|-----------|------------|------------|
+| --- | --- | --- | --- |
 | `npm` (pnpm por lockfile) | `/` | semanal | `produccion` (dependencias) y `desarrollo` (devDependencies); actualizaciones de seguridad agrupadas aparte |
 | `github-actions` | `/` | semanal | un grupo |
 
