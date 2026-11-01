@@ -13,7 +13,7 @@ export default tseslint.config(
       '**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.turbo/**', 'fixtures/**', 'docs/ref/**',
       'apps/web/dev-dist/**', 'packages/db/migrations/**', '**/playwright-report/**', '**/test-results/**',
       // Recursos de las skills de Copilot (copiados de terceros, no son código del producto).
-      '.github/skills/**',
+      '.github/skills/**', '.claude/**',
     ],
   },
   js.configs.recommended,
