@@ -1,5 +1,5 @@
-import { and, asc, desc, eq, inArray, isNotNull } from 'drizzle-orm';
-import { albaranDocumento, appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, MAESTRA } from '@mmx/db';
+import { and, asc, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { albaranDocumento, appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, siwebVariantMap, MAESTRA } from '@mmx/db';
 import { sha256 } from '@mmx/reports';
 import type { LecturaAlbaran } from '@mmx/extraction';
 import {
@@ -10,6 +10,8 @@ import {
   entradaCaducada,
   fechaEs,
   normalizarCn,
+  precioConDescuento,
+  totalesCompra,
   type LineaEntrada,
 } from '@mmx/domain';
 import { DomainError, normalizeText } from '@mmx/shared';
@@ -31,6 +33,11 @@ export interface NuevaLineaEntrada {
   cnEscaneado: string | null;
   precioNetoCompra: string | null;
   ivaPct: number | null;
+  /** Precio del documento antes del descuento y descuento en %; si vienen, el neto se calcula con ellos. */
+  precioBruto?: string | null;
+  descuentoPct?: number | null;
+  actualizarStock?: boolean;
+  actualizarPrecio?: boolean;
 }
 
 /** Recepción de mercancía (SPEC §4.9). */
@@ -165,6 +172,7 @@ export class RecepcionesService {
       proveedor: lectura.proveedor,
       numero: lectura.numero,
       fecha: lectura.fecha,
+      totales: lectura.totales,
       modelo: lectura.modelo,
       simulada: this.d.lectorAlbaranes.simulado,
       lineas,
@@ -212,6 +220,7 @@ export class RecepcionesService {
         descripcion: l.descripcion,
         cantidad: l.cantidad,
         precioUnitario: l.precioUnitario,
+        descuentoPct: l.descuentoPct,
         cn: l.cn,
         lote: l.lote,
         caducidad: l.caducidad,
@@ -235,7 +244,7 @@ export class RecepcionesService {
     if (!clave(numero)) return [];
     const filas = await this.d.db.select().from(recepcion).where(eq(recepcion.distribuidorId, distribuidorId));
     return filas
-      .filter((r) => r.albaran && clave(r.albaran) === clave(numero))
+      .filter((r) => r.estado !== 'DESCARTADA' && r.albaran && clave(r.albaran) === clave(numero))
       .map((r) => ({ id: r.id, albaran: r.albaran, fechaCompra: r.fechaCompra, estado: r.estado }));
   }
 
@@ -277,6 +286,7 @@ export class RecepcionesService {
       proveedor: lectura.proveedor,
       numero: lectura.numero,
       fecha: lectura.fecha,
+      totales: lectura.totales,
       modelo: lectura.modelo,
       simulada: this.d.lectorAlbaranes.simulado,
       lineas: await this.proponerLineas(lectura),
@@ -304,7 +314,56 @@ export class RecepcionesService {
   }
 
   async listar(limite = 50) {
-    return this.d.db.select().from(recepcion).orderBy(desc(recepcion.createdAt)).limit(limite);
+    return this.d.db.select().from(recepcion).where(ne(recepcion.estado, 'DESCARTADA')).orderBy(desc(recepcion.createdAt)).limit(limite);
+  }
+
+  /**
+   * Cambia la cabecera de una recepción abierta (distribuidor, nº de albarán, fechas, régimen). Si cambia el
+   * régimen se recalcula el recargo de las líneas. Mismo aviso de duplicados que al crearla.
+   */
+  async editar(
+    id: string,
+    b: { distribuidor?: string | undefined; albaran?: string | null | undefined; fechaCompra?: string | undefined; fechaRecepcion?: string | null | undefined; regimen?: 'recargo_equivalencia' | 'nacional' | undefined; confirmarDuplicado?: boolean | undefined },
+    c: ContextoPeticion,
+  ) {
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE');
+    const dist = b.distribuidor ? await this.distribuidorPorNombre(b.distribuidor, c) : null;
+    const distribuidorId = dist?.id ?? r.distribuidorId;
+    const albaran = b.albaran !== undefined ? b.albaran?.trim() || null : r.albaran;
+    if (albaran && !b.confirmarDuplicado && (albaran !== r.albaran || distribuidorId !== r.distribuidorId)) {
+      const dup = (await this.duplicados(distribuidorId, albaran)).filter((x) => x.id !== id);
+      if (dup.length) throw new DomainError('CONFLICTO', `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`, { duplicados: dup });
+    }
+    const fechaCompra = b.fechaCompra ?? r.fechaCompra;
+    const fechaRecepcion = b.fechaRecepcion !== undefined ? b.fechaRecepcion : r.fechaRecepcion;
+    if (fechaRecepcion && fechaRecepcion < fechaCompra) throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', { campo: 'fechaRecepcion' });
+    const regimen = b.regimen ?? r.regimen;
+    await this.d.db.transaction(async (tx) => {
+      await tx.update(recepcion).set({ distribuidorId, albaran, fechaCompra, fechaRecepcion, regimen }).where(eq(recepcion.id, id));
+      if (regimen !== r.regimen) {
+        const lineas = await tx.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
+        for (const l of lineas) {
+          const imp = this.importes(regimen, { bruto: l.precioBruto, descuentoPct: l.descuentoPct, neto: l.precioNetoCompra, iva: l.ivaPct !== null ? Number(l.ivaPct) : null });
+          await tx.update(recepcionLinea).set(imp).where(eq(recepcionLinea.id, l.id));
+        }
+      }
+      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_editar', entidad: 'recepcion', entidadId: id, despues: { distribuidor: dist?.nombre ?? null, albaran, fechaCompra, fechaRecepcion, regimen }, ip: c.ip, userAgent: c.userAgent });
+    });
+    return this.detalle(id);
+  }
+
+  /** Descarta una recepción abierta que no hace falta: no se borra (queda con quién, cuándo y por qué). */
+  async descartar(id: string, motivo: string, c: ContextoPeticion) {
+    if (motivo.trim().length < 5) throw new DomainError('VALIDACION', 'Indica por qué se descarta (5 caracteres como mínimo)', { campo: 'motivo' });
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE', 'Solo se puede descartar una recepción abierta: una finalizada se corrige con ajustes');
+    await this.d.db.transaction(async (tx) => {
+      await tx.update(recepcion).set({ estado: 'DESCARTADA', descartadaAt: new Date(this.d.clock.now().epochMilliseconds), descartadaPor: c.usuario.id, motivoDescarte: motivo.trim() }).where(eq(recepcion.id, id));
+      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_descartar', entidad: 'recepcion', entidadId: id, despues: { motivo: motivo.trim() }, ip: c.ip, userAgent: c.userAgent });
+    });
   }
 
   async detalle(id: string) {
@@ -316,8 +375,13 @@ export class RecepcionesService {
       .from(recepcionLinea)
       .where(eq(recepcionLinea.recepcionId, id))
       .orderBy(asc(recepcionLinea.numero));
+    const cns = [...new Set(lineas.map((l) => l.cn).filter((x): x is string => !!x))];
+    const mapeos = cns.length ? await this.d.db.select().from(siwebVariantMap).where(inArray(siwebVariantMap.cn, cns)) : [];
+    const skuDe = (variantId: number | null) => (variantId === null ? null : (mapeos.find((m) => m.variantId === variantId)?.sku ?? null));
+    const totales = totalesCompra(lineas.map((l) => ({ neto: l.precioNetoCompra, unidades: l.unidades, ivaPct: l.ivaPct, rePct: l.rePct })));
     return {
       ...r,
+      totales,
       distribuidor: dist?.nombre ?? null,
       lectura: r.lecturaDocumento ?? null,
       documento: r.documentoPath ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') } : null,
@@ -325,6 +389,7 @@ export class RecepcionesService {
       escrituraStock: this.d.config.SIWEB_STOCK_WRITE_MODE,
       lineas: lineas.map((l) => ({
         ...l,
+        siwebSku: skuDe(l.siwebVariantId),
         faltan: camposFaltantes(this.aEntrada(l)),
         avisos: avisosEntrada(
           this.aEntrada(l),
@@ -387,7 +452,7 @@ export class RecepcionesService {
     }
 
     const { datos, siwebVariantId } = await this.datosProducto(b.tipo, cn, b.nombre);
-    const precio = this.precio(b.precioNetoCompra, b.ivaPct);
+    const imp = this.importes(r.regimen, { bruto: b.precioBruto, descuentoPct: b.descuentoPct, neto: b.precioNetoCompra, iva: b.ivaPct });
     const numero = Math.max(0, ...lineas.map((l) => l.numero)) + 1;
     const [nueva] = await this.d.db
       .insert(recepcionLinea)
@@ -405,12 +470,11 @@ export class RecepcionesService {
         unidades: b.unidades,
         seriales: b.serie ? [b.serie] : [],
         gtin: b.gtin,
-        precioNetoCompra: b.precioNetoCompra,
-        ivaPct: precio?.iva ?? null,
-        rePct: precio?.re ?? null,
-        precioCoste: precio?.coste ?? null,
+        ...imp,
         origenDatos: datos.origen,
         siwebVariantId,
+        actualizarStock: b.actualizarStock ?? true,
+        actualizarPrecio: b.actualizarPrecio ?? true,
         empleado: c.usuario.id,
       })
       .returning();
@@ -430,10 +494,27 @@ export class RecepcionesService {
     }
   }
 
-  private precio(neto: string | null | undefined, iva: number | null | undefined) {
-    if (!neto) return null;
-    const p = calcularPrecioCoste(neto, iva ?? null, this.d.rules.bundle.precios);
-    return { coste: p.costeAlmacen, re: p.rePct.toString(), iva: p.ivaPct.toString() };
+  /**
+   * Importes de una línea: el neto sale del precio del documento menos el descuento (o se da directamente), y el
+   * coste añade el recargo de equivalencia salvo en régimen «nacional» (solo IVA).
+   */
+  private importes(
+    regimen: string,
+    v: { bruto: string | null | undefined; descuentoPct: number | string | null | undefined; neto: string | null | undefined; iva: number | null | undefined },
+  ) {
+    const bruto = v.bruto ?? null;
+    const dto = v.descuentoPct !== null && v.descuentoPct !== undefined && Number(v.descuentoPct) > 0 ? String(v.descuentoPct) : null;
+    let neto = v.neto ?? null;
+    if (bruto) {
+      try {
+        neto = precioConDescuento(bruto, dto);
+      } catch (e) {
+        throw new DomainError('VALIDACION', (e as Error).message, { campo: 'descuentoPct' });
+      }
+    }
+    if (!neto) return { precioBruto: bruto, descuentoPct: dto, precioNetoCompra: null, ivaPct: v.iva !== null && v.iva !== undefined ? String(v.iva) : null, rePct: null, precioCoste: null };
+    const p = calcularPrecioCoste(neto, v.iva ?? null, this.d.rules.bundle.precios, { conRecargo: regimen !== 'nacional' });
+    return { precioBruto: bruto, descuentoPct: dto, precioNetoCompra: neto, ivaPct: p.ivaPct.toString(), rePct: p.rePct.toString(), precioCoste: p.costeAlmacen };
   }
 
   /**
@@ -507,6 +588,12 @@ export class RecepcionesService {
       unidades?: number | undefined;
       precioNetoCompra?: string | null | undefined;
       ivaPct?: number | null | undefined;
+      precioBruto?: string | null | undefined;
+      descuentoPct?: number | null | undefined;
+      actualizarStock?: boolean | undefined;
+      actualizarPrecio?: boolean | undefined;
+      /** Variante de Siweb360 elegida para esta línea (tras relacionar el CN con su SKU). */
+      siwebVariantId?: number | null | undefined;
     },
     c: ContextoPeticion,
   ) {
@@ -531,17 +618,19 @@ export class RecepcionesService {
           b.nombre ?? (l.tipo === 'producto' ? l.nombreFarmaco : null),
         )
       : null;
-    const neto = b.precioNetoCompra !== undefined ? b.precioNetoCompra : l.precioNetoCompra;
     const iva = b.ivaPct !== undefined ? b.ivaPct : l.ivaPct !== null ? Number(l.ivaPct) : null;
-    const precio = this.precio(neto, iva);
+    const bruto = b.precioBruto !== undefined ? b.precioBruto : b.precioNetoCompra !== undefined ? null : l.precioBruto;
+    const dto = b.descuentoPct !== undefined ? b.descuentoPct : b.precioNetoCompra !== undefined ? null : l.descuentoPct;
+    const neto = b.precioNetoCompra !== undefined ? b.precioNetoCompra : l.precioNetoCompra;
+    const imp = this.importes(r.regimen, { bruto, descuentoPct: dto, neto, iva });
     const cambios = {
       lote,
       caducidad,
       unidades: b.unidades ?? l.unidades,
-      precioNetoCompra: neto,
-      ivaPct: precio?.iva ?? null,
-      rePct: precio?.re ?? null,
-      precioCoste: precio?.coste ?? null,
+      ...imp,
+      actualizarStock: b.actualizarStock ?? l.actualizarStock,
+      actualizarPrecio: b.actualizarPrecio ?? l.actualizarPrecio,
+      ...(b.siwebVariantId !== undefined ? { siwebVariantId: b.siwebVariantId } : {}),
       ...(producto
         ? {
             cn,

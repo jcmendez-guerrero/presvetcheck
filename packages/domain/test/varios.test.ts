@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Decimal from 'decimal.js';
-import { calcularPrecioCoste, variacionCoste } from '../src/precio';
+import { calcularPrecioCoste, precioConDescuento, totalesCompra, variacionCoste } from '../src/precio';
 import { conciliar } from '../src/conciliacion';
 import {
   extraerCn,
@@ -213,3 +213,29 @@ describe('dispensación parcial (D-10)', () => {
     expect(textoResguardo({ numeroReceta: null, fecha: 'x', telefonoFarmacia: 'y', pendientes: [] })).toContain('(sin número)');
   });
 });
+
+describe('compra con descuento, IVA y recargo de equivalencia (factura de proveedor)', () => {
+  // Importes de una factura real de distribuidor (4 líneas, descuento 12,88 %, IVA 10 % y RE 1,4 %).
+  const lineas = [
+    ['67.67', 1],
+    ['23.08', 1],
+    ['44.03', 1],
+    ['23.46', 1],
+  ].map(([p, u]) => ({ neto: precioConDescuento(p as string, '12.88'), unidades: u as number, ivaPct: '10', rePct: '1.4' }));
+
+  it('neto = precio − descuento, y totales iguales a los de la factura', () => {
+    expect(lineas.map((l) => l.neto)).toEqual(['58.9541', '20.1073', '38.3589', '20.4384']);
+    expect(totalesCompra(lineas)).toEqual({ base: '137.86', iva: '13.79', recargo: '1.93', total: '153.58' });
+  });
+
+  it('régimen solo IVA: sin recargo en el coste', () => {
+    expect(calcularPrecioCoste('10', 10, RULES.precios, { conRecargo: false }).costeAlmacen).toBe('10.0000');
+    expect(calcularPrecioCoste('10', 10, RULES.precios).rePct.toString()).toBe('1.4');
+  });
+
+  it('descuento fuera de rango', () => {
+    expect(() => precioConDescuento('10', '120')).toThrow(/entre 0 y 100/);
+    expect(precioConDescuento('10', null)).toBe('10.0000');
+  });
+});
+

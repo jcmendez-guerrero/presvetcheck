@@ -136,15 +136,16 @@ export async function generarReporteSemanal(ctx: ContextoReporte, periodo: { des
     ],
   });
 
-  // 7. Precios de coste de la semana con variación respecto al coste anterior
-  const conCoste = entradas.filter((e) => e.precioCoste !== null);
+  // 7. Precios de coste de la semana con variación respecto al coste anterior. Solo las líneas marcadas
+  // «Actualizar precio» cuentan como precio de coste de referencia (hoy y como coste anterior).
+  const conCoste = entradas.filter((e) => e.precioCoste !== null && e.actualizarPrecio !== false);
   const filas7: Array<Array<string | number>> = [];
   for (const e of conCoste) {
     const [ant] = await ctx.db
       .select({ coste: recepcionLinea.precioCoste })
       .from(recepcionLinea)
       .innerJoin(recepcion, eq(recepcion.id, recepcionLinea.recepcionId))
-      .where(and(eq(recepcionLinea.cn, e.cn ?? ''), lt(recepcion.fechaCompra, periodo.desde), sql`${recepcionLinea.precioCoste} is not null`))
+      .where(and(eq(recepcionLinea.cn, e.cn ?? ''), eq(recepcionLinea.actualizarPrecio, true), lt(recepcion.fechaCompra, periodo.desde), sql`${recepcionLinea.precioCoste} is not null`))
       .orderBy(desc(recepcion.fechaCompra))
       .limit(1);
     const variacion = ant?.coste && Number(ant.coste) !== 0 ? (((Number(e.precioCoste) - Number(ant.coste)) / Number(ant.coste)) * 100).toFixed(2) : '';

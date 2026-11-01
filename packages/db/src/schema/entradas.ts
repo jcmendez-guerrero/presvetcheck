@@ -1,4 +1,4 @@
-import { date, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
 import { createdOnly, pk, timestamps } from './common';
 import { distribuidor } from './config';
 
@@ -18,7 +18,13 @@ export const recepcion = pgTable(
     /** Propuesta leída del albarán o la factura (Document Intelligence) y ruta del documento en Blob. */
     lecturaDocumento: jsonb(),
     documentoPath: text(),
-    estado: text().notNull().default('ABIERTA'), // ABIERTA | FINALIZADA | SINCRONIZADA | ERROR_SINCRONIZACION
+    /** recargo_equivalencia (farmacia, por defecto) | nacional (solo IVA). */
+    regimen: text().notNull().default('recargo_equivalencia'),
+    estado: text().notNull().default('ABIERTA'), // ABIERTA | FINALIZADA | SINCRONIZADA | ERROR_SINCRONIZACION | DESCARTADA
+    /** Recepción abierta descartada (no se borra: queda con quién, cuándo y por qué). */
+    descartadaAt: timestamp({ withTimezone: true }),
+    descartadaPor: text(),
+    motivoDescarte: text(),
     empleado: text().notNull(),
     finalizadaAt: timestamp({ withTimezone: true }),
     syncEstado: text(),
@@ -47,12 +53,19 @@ export const recepcionLinea = pgTable(
     unidades: integer().notNull(),
     seriales: text().array(),
     gtin: text(),
+    /** Precio unitario antes del descuento y descuento en % (el neto es el resultado; sin IVA ni RE). */
+    precioBruto: numeric({ precision: 14, scale: 4 }),
+    descuentoPct: numeric({ precision: 6, scale: 3 }),
     precioNetoCompra: numeric({ precision: 14, scale: 4 }),
     ivaPct: numeric({ precision: 5, scale: 2 }),
     rePct: numeric({ precision: 5, scale: 2 }),
     precioCoste: numeric({ precision: 14, scale: 4 }),
     origenDatos: text().notNull(), // cimavet | manual
     siwebVariantId: integer(),
+    /** Al finalizar, dar entrada de stock en Siweb360 (si la escritura está activada). */
+    actualizarStock: boolean().notNull().default(true),
+    /** Este precio pasa a ser el precio de coste de referencia (solo en la app: Siweb360 no permite cambiarlo). */
+    actualizarPrecio: boolean().notNull().default(true),
     estado: text().notNull().default('OK'),
     empleado: text().notNull(),
     ...timestamps,

@@ -9,12 +9,12 @@ const real = JSON.parse(readFileSync(resolve(__dirname, '../../../fixtures/albar
 describe('albarán leído con prebuilt-invoice (respuesta real)', () => {
   it('cabecera y líneas: código nacional, cantidad (deducida si falta), precio, lote y caducidad', () => {
     const a = albaranDesdeFactura(real);
-    expect(a).toMatchObject({ proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.', numero: 'ALB-2026-00417', fecha: '2026-10-15' });
+    expect(a).toMatchObject({ proveedor: 'DISTRIBUIDORA VETERINARIA DE PRUEBA S.L.', numero: 'ALB-2026-00417', fecha: '2026-10-15', totales: { base: '57.20', impuestos: '5.72', total: '62.92' } });
     expect(a.lineas).toEqual([
-      { descripcion: 'AMODIP 1,25 MG 30 COMP MASTICABLES', codigo: '584159', cn: '584159', cantidad: 3, precioUnitario: '11.20', lote: 'AMD-2801', caducidad: '2028-01-31' },
+      { descripcion: 'AMODIP 1,25 MG 30 COMP MASTICABLES', codigo: '584159', cn: '584159', cantidad: 3, precioUnitario: '11.20', descuentoPct: null, lote: 'AMD-2801', caducidad: '2028-01-31' },
       // El modelo no leyó la cantidad: 13,70 / 6,85 = 2.
-      { descripcion: 'CLAVUBAY 400/100 MG 10 COMP', codigo: '570016', cn: '570016', cantidad: 2, precioUnitario: '6.85', lote: 'CLV-2805', caducidad: '2028-05-31' },
-      { descripcion: 'COLLAR ANTIPARASITARIO PERRO GRANDE', codigo: '999999', cn: '999999', cantidad: 1, precioUnitario: '9.90', lote: null, caducidad: null },
+      { descripcion: 'CLAVUBAY 400/100 MG 10 COMP', codigo: '570016', cn: '570016', cantidad: 2, precioUnitario: '6.85', descuentoPct: null, lote: 'CLV-2805', caducidad: '2028-05-31' },
+      { descripcion: 'COLLAR ANTIPARASITARIO PERRO GRANDE', codigo: '999999', cn: '999999', cantidad: 1, precioUnitario: '9.90', descuentoPct: null, lote: null, caducidad: null },
     ]);
   });
 
@@ -71,7 +71,7 @@ describe('lote y caducidad en columnas de la tabla del albarán', () => {
       {
         fields: {
           InvoiceId: { valueString: '77' },
-          Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016' }, Description: { valueString: 'CLAVUBAY 400/100 MG 10 COMP' }, Quantity: { valueNumber: 2 } } }] },
+          Items: { valueArray: [{ valueObject: { ProductCode: { valueString: '570016', content: '570016' }, Description: { valueString: 'CLAVUBAY 400/100 MG 10 COMP' }, Quantity: { valueNumber: 2 }, UnitPrice: { content: '6,85' }, Amount: { content: '11,94' } } }] },
         },
       },
     ],
@@ -79,6 +79,6 @@ describe('lote y caducidad en columnas de la tabla del albarán', () => {
 
   it('toma lote y caducidad de las columnas («Lote», «F. Cad.») emparejando la fila por el código', () => {
     const l = albaranDesdeFactura(r).lineas[0]!;
-    expect(l).toMatchObject({ cn: '570016', lote: 'CLV-9', caducidad: '2028-05-31', cantidad: 2 });
+    expect(l).toMatchObject({ cn: '570016', lote: 'CLV-9', caducidad: '2028-05-31', cantidad: 2, precioUnitario: '6.85', descuentoPct: '12.85' });
   });
 });

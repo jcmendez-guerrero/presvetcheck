@@ -292,6 +292,32 @@ const SECCIONES: Seccion[] = [
             'Para finalizar, ninguna línea puede tener datos obligatorios sin completar (lápiz para modificarla).',
           ]}
         />
+        <P>
+          <B>Como la factura</B>: el documento se ve a la izquierda (con zoom) y los datos a la derecha. Cada
+          línea lleva precio, descuento, IVA y recargo de equivalencia, y abajo están la base, el IVA, el
+          recargo y el total, comparados con el total del documento. El <B>régimen</B> de la cabecera indica
+          si el documento lleva recargo de equivalencia (lo normal en farmacia) o solo IVA.
+        </P>
+        <L
+          items={[
+            <>
+              <B>SKU de Siweb360</B>: en cada medicamento se ve el producto de Siweb360 relacionado; con
+              «Elegir SKU» o «Cambiar» se indica otro, y queda relacionado para las próximas veces.
+            </>,
+            <>
+              <B>Actualizar stock</B>: al finalizar, da entrada de esas unidades (con lote y caducidad) en
+              Siweb360, si la escritura de stock está activada. Desmárcala si la línea no debe sumar stock.
+            </>,
+            <>
+              <B>Actualizar precio</B>: ese precio pasa a ser el precio de coste de referencia en la app
+              (informe de precios de coste). El precio de Siweb360 se cambia allí: su API no lo permite.
+            </>,
+            <>
+              <B>Modificar o descartar</B>: mientras la recepción está abierta se puede cambiar la cabecera o
+              descartarla con un motivo (no se borra). Una recepción finalizada ya no se modifica.
+            </>,
+          ]}
+        />
       </>
     ),
   },

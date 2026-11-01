@@ -63,6 +63,11 @@ export class OutboxService {
     let encoladas = 0;
     let pendientesAlta = 0;
     for (const l of meds) {
+      // La persona puede decidir no dar entrada de stock de una línea («Actualizar stock» desmarcado).
+      if (!l.actualizarStock) {
+        await tx.update(recepcionLinea).set({ estado: 'SIN_ACTUALIZAR_STOCK' }).where(eq(recepcionLinea.id, l.id));
+        continue;
+      }
       if (l.siwebVariantId === null) {
         await tx.update(recepcionLinea).set({ estado: 'PENDIENTE_ALTA_SIWEB' }).where(eq(recepcionLinea.id, l.id));
         pendientesAlta++;
