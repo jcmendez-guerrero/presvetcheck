@@ -93,7 +93,12 @@ export const receta = pgTable(
     creadaPor: text().notNull(),
     ...timestamps,
   },
-  (t) => [index().on(t.numero, t.numColegiado), index().on(t.sha256), index().on(t.phash), index().on(t.estado)],
+  (t) => [
+    index().on(t.numero, t.numColegiado),
+    index().on(t.sha256),
+    index().on(t.phash),
+    index().on(t.estado),
+  ],
 );
 
 export const recetaImagen = pgTable(

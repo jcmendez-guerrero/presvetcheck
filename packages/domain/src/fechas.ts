@@ -14,7 +14,9 @@ export function fecha(iso: FechaIso): Temporal.PlainDate {
  */
 export function sumarPlazo(iso: FechaIso, plazo: Plazo): FechaIso {
   const d = fecha(iso);
-  return (plazo.meses !== undefined ? d.add({ months: plazo.meses }) : d.add({ days: plazo.dias ?? 0 })).toString();
+  return (
+    plazo.meses !== undefined ? d.add({ months: plazo.meses }) : d.add({ days: plazo.dias ?? 0 })
+  ).toString();
 }
 
 export function sumarDias(iso: FechaIso, dias: number): FechaIso {

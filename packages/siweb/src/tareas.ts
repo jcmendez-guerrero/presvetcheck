@@ -31,13 +31,17 @@ export interface PropuestaRenombrado {
   correlativo: number;
 }
 
-export type ResultadoPrefijo = { requierePrefijo: true; sugerido: string } | { requierePrefijo: false; prefijo: string };
+export type ResultadoPrefijo =
+  | { requierePrefijo: true; sugerido: string }
+  | { requierePrefijo: false; prefijo: string };
 
 /** Puerto de escritura de catálogo. v1: tareas manuales. TODO(decision D-04b) */
 export interface SiwebCatalogWriter {
   readonly tipo: 'manual' | 'api';
   solicitarAlta(d: SolicitudAlta): Promise<{ tareaId: string; propuesta: PropuestaAlta } | ResultadoPrefijo>;
-  solicitarRenombrado(d: SolicitudRenombrado): Promise<{ tareaId: string; propuesta: PropuestaRenombrado } | ResultadoPrefijo>;
+  solicitarRenombrado(
+    d: SolicitudRenombrado,
+  ): Promise<{ tareaId: string; propuesta: PropuestaRenombrado } | ResultadoPrefijo>;
 }
 
 export interface SolicitudAlta {
@@ -69,8 +73,13 @@ export class SkuReservas {
   ) {}
 
   async prefijoDe(labtitular: string): Promise<ResultadoPrefijo> {
-    const [r] = await this.db.select().from(laboratorioSkuPrefijo).where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular));
-    return r ? { requierePrefijo: false, prefijo: r.prefijo } : { requierePrefijo: true, sugerido: sugerirPrefijo(labtitular) };
+    const [r] = await this.db
+      .select()
+      .from(laboratorioSkuPrefijo)
+      .where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular));
+    return r
+      ? { requierePrefijo: false, prefijo: r.prefijo }
+      : { requierePrefijo: true, sugerido: sugerirPrefijo(labtitular) };
   }
 
   /**
@@ -78,26 +87,49 @@ export class SkuReservas {
    * tareas pendientes, último reservado) + 1, con bloqueo de fila para que dos tareas simultáneas no
    * propongan el mismo SKU.
    */
-  async reservar(labtitular: string, prefijoConfirmado?: string): Promise<{ prefijo: string; correlativo: number } | ResultadoPrefijo> {
+  async reservar(
+    labtitular: string,
+    prefijoConfirmado?: string,
+  ): Promise<{ prefijo: string; correlativo: number } | ResultadoPrefijo> {
     const actual = await this.prefijoDe(labtitular);
     let prefijo: string;
     if (actual.requierePrefijo) {
       if (!prefijoConfirmado) return actual;
       prefijo = prefijoConfirmado.trim().toUpperCase();
-      if (!/^[A-Z0-9]{2,12}$/.test(prefijo)) throw new Error('El prefijo debe tener entre 2 y 12 letras o números');
-      await this.db.insert(laboratorioSkuPrefijo).values({ labtitularCimavet: labtitular, prefijo, ultimoReservado: 0 }).onConflictDoNothing();
+      if (!/^[A-Z0-9]{2,12}$/.test(prefijo))
+        throw new Error('El prefijo debe tener entre 2 y 12 letras o números');
+      await this.db
+        .insert(laboratorioSkuPrefijo)
+        .values({ labtitularCimavet: labtitular, prefijo, ultimoReservado: 0 })
+        .onConflictDoNothing();
     } else prefijo = actual.prefijo;
 
     // Fuera de la transacción: lectura de Siweb360 (paginada).
     const skus = (await this.client.variants({ search: `${prefijo}-` })).map((v) => v.sku ?? '');
     return this.db.transaction(async (tx) => {
-      const [fila] = await tx.select().from(laboratorioSkuPrefijo).where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular)).for('update');
+      const [fila] = await tx
+        .select()
+        .from(laboratorioSkuPrefijo)
+        .where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular))
+        .for('update');
       const pendientes = await tx
         .select({ n: siwebTarea.correlativoReservado })
         .from(siwebTarea)
-        .where(and(eq(siwebTarea.prefijo, prefijo), eq(siwebTarea.estado, 'pendiente'), isNotNull(siwebTarea.correlativoReservado)));
-      const correlativo = siguienteCorrelativo(skus, prefijo, [...pendientes.map((p) => p.n as number), fila?.ultimoReservado ?? 0]);
-      await tx.update(laboratorioSkuPrefijo).set({ ultimoReservado: correlativo }).where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular));
+        .where(
+          and(
+            eq(siwebTarea.prefijo, prefijo),
+            eq(siwebTarea.estado, 'pendiente'),
+            isNotNull(siwebTarea.correlativoReservado),
+          ),
+        );
+      const correlativo = siguienteCorrelativo(skus, prefijo, [
+        ...pendientes.map((p) => p.n as number),
+        fila?.ultimoReservado ?? 0,
+      ]);
+      await tx
+        .update(laboratorioSkuPrefijo)
+        .set({ ultimoReservado: correlativo })
+        .where(eq(laboratorioSkuPrefijo.labtitularCimavet, labtitular));
       return { prefijo, correlativo };
     });
   }
@@ -176,9 +208,15 @@ export class ManualTaskCatalogWriter implements SiwebCatalogWriter {
  * Fábrica del escritor de catálogo. `SIWEB_CATALOG_WRITE=true` solo tendrá sentido si Siweb360
  * publica endpoints de alta/edición. TODO(decision D-04b)
  */
-export function crearCatalogWriter(cfg: { catalogWrite: boolean }, db: Db, reservas: SkuReservas): SiwebCatalogWriter {
+export function crearCatalogWriter(
+  cfg: { catalogWrite: boolean },
+  db: Db,
+  reservas: SkuReservas,
+): SiwebCatalogWriter {
   if (cfg.catalogWrite) {
-    throw new Error('SIWEB_CATALOG_WRITE=true: no hay ApiCatalogWriter porque la API pública de Siweb360 no permite alta/edición (D-04b)');
+    throw new Error(
+      'SIWEB_CATALOG_WRITE=true: no hay ApiCatalogWriter porque la API pública de Siweb360 no permite alta/edición (D-04b)',
+    );
   }
   return new ManualTaskCatalogWriter(db, reservas);
 }
@@ -199,7 +237,11 @@ export class BandejaSiweb {
   ) {}
 
   pendientes() {
-    return this.db.select().from(siwebTarea).where(eq(siwebTarea.estado, 'pendiente')).orderBy(asc(siwebTarea.createdAt));
+    return this.db
+      .select()
+      .from(siwebTarea)
+      .where(eq(siwebTarea.estado, 'pendiente'))
+      .orderBy(asc(siwebTarea.createdAt));
   }
 
   /**
@@ -211,26 +253,47 @@ export class BandejaSiweb {
     if (!t || t.estado !== 'pendiente') throw new Error('Tarea no encontrada o ya resuelta');
     const p = t.propuesta as { sku?: string; skuNuevo?: string; variantId?: number };
     const skuPropuesto = (p.sku ?? p.skuNuevo ?? '').toUpperCase();
-    let variante: Variant | undefined = (await this.client.variants({ search: skuPropuesto })).find((v) => (v.sku ?? '').toUpperCase() === skuPropuesto);
+    let variante: Variant | undefined = (await this.client.variants({ search: skuPropuesto })).find(
+      (v) => (v.sku ?? '').toUpperCase() === skuPropuesto,
+    );
     if (!variante && t.tipo === 'renombrar' && p.variantId) variante = await this.client.variant(p.variantId);
     if (!variante) {
       const r = await this.resolver.resolver(t.cn, null);
       if (r.estado === 'MAPEADO') variante = await this.client.variant(r.variantes[0]!.variantId);
     }
-    if (!variante) throw new Error('No se encuentra el producto en Siweb360: comprueba el SKU o el CN en el nombre');
+    if (!variante)
+      throw new Error('No se encuentra el producto en Siweb360: comprueba el SKU o el CN en el nombre');
     await this.resolver.guardar(t.cn, variante, 'manual', actor);
     const skuDistinto = (variante.sku ?? '').toUpperCase() !== skuPropuesto;
     await this.db.transaction(async (tx) => {
-      await tx.update(siwebTarea).set({ estado: 'hecha', resueltaPor: actor, resueltaAt: new Date(), skuReal: variante.sku ?? null }).where(eq(siwebTarea.id, id));
-      await appendAudit(tx, { actor, accion: 'siweb_tarea_hecha', entidad: 'siweb_tarea', entidadId: id, despues: { variantId: variante.id, sku: variante.sku, skuDistinto } });
+      await tx
+        .update(siwebTarea)
+        .set({ estado: 'hecha', resueltaPor: actor, resueltaAt: new Date(), skuReal: variante.sku ?? null })
+        .where(eq(siwebTarea.id, id));
+      await appendAudit(tx, {
+        actor,
+        accion: 'siweb_tarea_hecha',
+        entidad: 'siweb_tarea',
+        entidadId: id,
+        despues: { variantId: variante.id, sku: variante.sku, skuDistinto },
+      });
     });
     return { variantId: variante.id, skuReal: variante.sku ?? null, skuDistinto };
   }
 
   async descartar(id: string, actor: string, motivo: string): Promise<void> {
     await this.db.transaction(async (tx) => {
-      await tx.update(siwebTarea).set({ estado: 'descartada', resueltaPor: actor, resueltaAt: new Date() }).where(and(eq(siwebTarea.id, id), eq(siwebTarea.estado, 'pendiente')));
-      await appendAudit(tx, { actor, accion: 'siweb_tarea_descartada', entidad: 'siweb_tarea', entidadId: id, despues: { motivo } });
+      await tx
+        .update(siwebTarea)
+        .set({ estado: 'descartada', resueltaPor: actor, resueltaAt: new Date() })
+        .where(and(eq(siwebTarea.id, id), eq(siwebTarea.estado, 'pendiente')));
+      await appendAudit(tx, {
+        actor,
+        accion: 'siweb_tarea_descartada',
+        entidad: 'siweb_tarea',
+        entidadId: id,
+        despues: { motivo },
+      });
     });
   }
 }

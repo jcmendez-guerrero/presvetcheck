@@ -45,7 +45,11 @@ function zip(ficheros: Record<string, string>): Buffer {
 }
 
 const fetchDe = (body: Buffer | null, status = 200) =>
-  (async () => new Response(body, { status, headers: { 'last-modified': 'Thu, 08 Oct 2026 04:03:23 GMT' } })) as unknown as typeof fetch;
+  (async () =>
+    new Response(body, {
+      status,
+      headers: { 'last-modified': 'Thu, 08 Oct 2026 04:03:23 GMT' },
+    })) as unknown as typeof fetch;
 
 describe('descarga del Nomenclátor', () => {
   it('descarga el zip, extrae solo los .xml (sin rutas) y borra el zip', async () => {
@@ -53,7 +57,14 @@ describe('descarga del Nomenclátor', () => {
     const r = await descargarNomenclator({
       url: 'https://cimavet.test/prescripcionVET.zip',
       destino,
-      fetch: fetchDe(zip({ 'PrescripcionVET.xml': '<a/>', 'DICCIONARIO_ATC.xml': '<b/>', 'LEEME.txt': 'x', 'sub/DICCIONARIO_X.xml': 'x' })),
+      fetch: fetchDe(
+        zip({
+          'PrescripcionVET.xml': '<a/>',
+          'DICCIONARIO_ATC.xml': '<b/>',
+          'LEEME.txt': 'x',
+          'sub/DICCIONARIO_X.xml': 'x',
+        }),
+      ),
     });
     expect(r.ficheros).toEqual(['DICCIONARIO_ATC.xml', 'PrescripcionVET.xml']);
     expect(r.ultimaModificacion).toMatch(/2026/);
@@ -63,21 +74,36 @@ describe('descarga del Nomenclátor', () => {
 
   it('rechaza un zip con rutas relativas que saldrían del destino', async () => {
     const destino = mkdtempSync(join(tmpdir(), 'mmx-nom-'));
-    await expect(descargarNomenclator({ url: 'https://x/z.zip', destino, fetch: fetchDe(zip({ '../fuera.xml': 'x', 'PrescripcionVET.xml': '<a/>' })) })).rejects.toThrow(/relative path/);
+    await expect(
+      descargarNomenclator({
+        url: 'https://x/z.zip',
+        destino,
+        fetch: fetchDe(zip({ '../fuera.xml': 'x', 'PrescripcionVET.xml': '<a/>' })),
+      }),
+    ).rejects.toThrow(/relative path/);
     expect(existsSync(join(destino, '..', 'fuera.xml'))).toBe(false);
   });
 
   it('falla si la AEMPS responde error o el zip no trae PrescripcionVET.xml', async () => {
     const destino = mkdtempSync(join(tmpdir(), 'mmx-nom-'));
-    await expect(descargarNomenclator({ url: 'https://x/z.zip', destino, fetch: fetchDe(null, 403) })).rejects.toThrow(/HTTP 403/);
-    await expect(descargarNomenclator({ url: 'https://x/z.zip', destino, fetch: fetchDe(zip({ 'otro.xml': '<a/>' })) })).rejects.toThrow(/PrescripcionVET/);
+    await expect(
+      descargarNomenclator({ url: 'https://x/z.zip', destino, fetch: fetchDe(null, 403) }),
+    ).rejects.toThrow(/HTTP 403/);
+    await expect(
+      descargarNomenclator({ url: 'https://x/z.zip', destino, fetch: fetchDe(zip({ 'otro.xml': '<a/>' })) }),
+    ).rejects.toThrow(/PrescripcionVET/);
     expect(readdirSync(destino).filter((f) => f.endsWith('.zip'))).toEqual([]);
   });
 
   it('limita el tamaño descomprimido por fichero', async () => {
     const destino = mkdtempSync(join(tmpdir(), 'mmx-nom-'));
     await expect(
-      descargarNomenclator({ url: 'https://x/z.zip', destino, maxBytesFichero: 3, fetch: fetchDe(zip({ 'PrescripcionVET.xml': '<grande/>' })) }),
+      descargarNomenclator({
+        url: 'https://x/z.zip',
+        destino,
+        maxBytesFichero: 3,
+        fetch: fetchDe(zip({ 'PrescripcionVET.xml': '<grande/>' })),
+      }),
     ).rejects.toThrow(/supera/);
   });
 });

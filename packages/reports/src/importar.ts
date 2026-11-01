@@ -49,7 +49,12 @@ export interface SalidaImportada {
   numColegiado: string | null;
   clinica: string | null;
   direccionVeterinario: string | null;
-  propietario: { nombre: string | null; movil: string | null; dni: string | null; direccion: string | null } | null;
+  propietario: {
+    nombre: string | null;
+    movil: string | null;
+    dni: string | null;
+    direccion: string | null;
+  } | null;
 }
 
 export interface AnalisisImportacion<T> {
@@ -61,7 +66,11 @@ export interface AnalisisImportacion<T> {
   errores: { fila: number; mensajes: string[] }[];
 }
 
-const n = (s: string) => normalizeText(s).replace(/[^a-z0-9% ]/g, ' ').replace(/\s+/g, ' ').trim();
+const n = (s: string) =>
+  normalizeText(s)
+    .replace(/[^a-z0-9% ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /** Campo → nombres de columna aceptados (los de la exportación de la app y variantes habituales). */
 const COL_ENTRADAS: Record<keyof Omit<EntradaImportada, 'fila'>, string[]> = {
@@ -76,7 +85,12 @@ const COL_ENTRADAS: Record<keyof Omit<EntradaImportada, 'fila'>, string[]> = {
   unidades: ['unidades'],
   distribuidor: ['distribuidor', 'proveedor'],
   albaran: ['n albaran', 'albaran', 'n factura', 'factura'],
-  precioNetoCompra: ['precio neto compra sin iva ni re', 'precio neto compra sin iva', 'precio neto compra', 'precio neto'],
+  precioNetoCompra: [
+    'precio neto compra sin iva ni re',
+    'precio neto compra sin iva',
+    'precio neto compra',
+    'precio neto',
+  ],
   ivaPct: ['iva %', 'iva'],
   rePct: ['re %', 're'],
   precioCoste: ['precio coste'],
@@ -95,7 +109,14 @@ const COL_SALIDAS: Record<string, string[]> = {
   numeroReceta: ['n receta', 'numero receta', 'numero de receta'],
   veterinario: ['veterinario'],
   numColegiado: ['n colegiado', 'numero de colegiado'],
-  clinica: ['nombre clinica', 'clinica', 'centro veterinario', 'nombre centro veterinario', 'clinica veterinaria', 'nombre de la clinica'],
+  clinica: [
+    'nombre clinica',
+    'clinica',
+    'centro veterinario',
+    'nombre centro veterinario',
+    'clinica veterinaria',
+    'nombre de la clinica',
+  ],
   direccionVeterinario: ['direccion veterinario'],
   propNombre: ['nombre propietario', 'propietario', 'titular'],
   propMovil: ['movil', 'telefono'],
@@ -117,7 +138,11 @@ function indice(cabecera: string[], mapa: Record<string, string[]>) {
       }
     }
   }
-  return { idx, reconocidas: [...usadas].map((i) => cabecera[i] as string), ignoradas: cabecera.filter((c, i) => c && !usadas.has(i)) };
+  return {
+    idx,
+    reconocidas: [...usadas].map((i) => cabecera[i] as string),
+    ignoradas: cabecera.filter((c, i) => c && !usadas.has(i)),
+  };
 }
 
 const texto = (v: Celda | undefined) => {
@@ -135,7 +160,8 @@ export function fechaDe(v: Celda | undefined): string | null {
   const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
   if (iso) return valida(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   const dma = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(s);
-  if (dma) return valida(Number(dma[3]!.length === 2 ? `20${dma[3]}` : dma[3]), Number(dma[2]), Number(dma[1]));
+  if (dma)
+    return valida(Number(dma[3]!.length === 2 ? `20${dma[3]}` : dma[3]), Number(dma[2]), Number(dma[1]));
   return null;
 }
 function valida(a: number, m: number, d: number): string | null {
@@ -152,14 +178,32 @@ export function importeDe(v: Celda | undefined): string | null | undefined {
   return /^\d+(\.\d+)?$/.test(normal) ? normal : undefined;
 }
 
-export function analizarEntradas(cabecera: string[], filas: Celda[][]): AnalisisImportacion<EntradaImportada> {
+export function analizarEntradas(
+  cabecera: string[],
+  filas: Celda[][],
+): AnalisisImportacion<EntradaImportada> {
   const cab = cabecera.map((c) => n(c ?? ''));
   const { idx, reconocidas, ignoradas } = indice(cab, COL_ENTRADAS);
   const errores: AnalisisImportacion<EntradaImportada>['errores'] = [];
-  const faltan = (['nombreFarmaco', 'fecha', 'unidades', 'distribuidor'] as const).filter((c) => idx[c] === undefined);
+  const faltan = (['nombreFarmaco', 'fecha', 'unidades', 'distribuidor'] as const).filter(
+    (c) => idx[c] === undefined,
+  );
   if (faltan.length) {
-    const nombres = { nombreFarmaco: 'NOMBRE DEL FÁRMACO', fecha: 'FECHA COMPRA', unidades: 'UNIDADES', distribuidor: 'DISTRIBUIDOR' };
-    return { tipo: 'entradas', reconocidas, ignoradas, filas: [], errores: [{ fila: 1, mensajes: [`Faltan columnas obligatorias: ${faltan.map((c) => nombres[c]).join(', ')}`] }] };
+    const nombres = {
+      nombreFarmaco: 'NOMBRE DEL FÁRMACO',
+      fecha: 'FECHA COMPRA',
+      unidades: 'UNIDADES',
+      distribuidor: 'DISTRIBUIDOR',
+    };
+    return {
+      tipo: 'entradas',
+      reconocidas,
+      ignoradas,
+      filas: [],
+      errores: [
+        { fila: 1, mensajes: [`Faltan columnas obligatorias: ${faltan.map((c) => nombres[c]).join(', ')}`] },
+      ],
+    };
   }
   const out: EntradaImportada[] = [];
   filas.forEach((f, k) => {
@@ -181,8 +225,17 @@ export function analizarEntradas(cabecera: string[], filas: Celda[][]): Analisis
     if (!Number.isInteger(uds) || uds < 1) m.push('Unidades no válidas (número entero de 1 o más)');
     const cn = texto(v('cn'));
     if (cn && !/^\d{6,7}$/.test(cn)) m.push('Código nacional no válido (6 o 7 cifras)');
-    const precios = { precioNetoCompra: importeDe(v('precioNetoCompra')), ivaPct: importeDe(v('ivaPct')), rePct: importeDe(v('rePct')), precioCoste: importeDe(v('precioCoste')) };
-    for (const [k2, p] of Object.entries(precios)) if (p === undefined) m.push(`Importe no válido en ${k2 === 'precioNetoCompra' ? 'precio neto' : k2 === 'precioCoste' ? 'precio coste' : k2 === 'ivaPct' ? 'IVA' : 'RE'}`);
+    const precios = {
+      precioNetoCompra: importeDe(v('precioNetoCompra')),
+      ivaPct: importeDe(v('ivaPct')),
+      rePct: importeDe(v('rePct')),
+      precioCoste: importeDe(v('precioCoste')),
+    };
+    for (const [k2, p] of Object.entries(precios))
+      if (p === undefined)
+        m.push(
+          `Importe no válido en ${k2 === 'precioNetoCompra' ? 'precio neto' : k2 === 'precioCoste' ? 'precio coste' : k2 === 'ivaPct' ? 'IVA' : 'RE'}`,
+        );
     if (m.length) return errores.push({ fila, mensajes: m });
     out.push({
       fila,
@@ -206,21 +259,58 @@ export function analizarEntradas(cabecera: string[], filas: Celda[][]): Analisis
   return { tipo: 'entradas', reconocidas, ignoradas, filas: out, errores };
 }
 
-const TIPOS: Record<string, 'A' | 'B' | 'C'> = { 'con receta': 'A', 'sin receta presencial': 'B', 'sin receta online': 'C', a: 'A', b: 'B', c: 'C' };
+const TIPOS: Record<string, 'A' | 'B' | 'C'> = {
+  'con receta': 'A',
+  'sin receta presencial': 'B',
+  'sin receta online': 'C',
+  a: 'A',
+  b: 'B',
+  c: 'C',
+};
 
 /**
  * Salidas: la plantilla de cada fila sale de la columna «TIPO DE SALIDA» (informe «Todas las salidas») o, si no
  * la hay, de la elegida al importar (A, B o C).
  */
-export function analizarSalidas(cabecera: string[], filas: Celda[][], plantillaPorDefecto: 'A' | 'B' | 'C' | null): AnalisisImportacion<SalidaImportada> {
+export function analizarSalidas(
+  cabecera: string[],
+  filas: Celda[][],
+  plantillaPorDefecto: 'A' | 'B' | 'C' | null,
+): AnalisisImportacion<SalidaImportada> {
   const cab = cabecera.map((c) => n(c ?? ''));
   const { idx, reconocidas, ignoradas } = indice(cab, COL_SALIDAS);
   const faltan = (['nombreFarmaco', 'fecha'] as const).filter((c) => idx[c] === undefined);
   if (faltan.length) {
-    return { tipo: 'salidas', reconocidas, ignoradas, filas: [], errores: [{ fila: 1, mensajes: [`Faltan columnas obligatorias: ${faltan.map((c) => (c === 'fecha' ? 'FECHA VENTA' : 'NOMBRE DEL FÁRMACO')).join(', ')}`] }] };
+    return {
+      tipo: 'salidas',
+      reconocidas,
+      ignoradas,
+      filas: [],
+      errores: [
+        {
+          fila: 1,
+          mensajes: [
+            `Faltan columnas obligatorias: ${faltan.map((c) => (c === 'fecha' ? 'FECHA VENTA' : 'NOMBRE DEL FÁRMACO')).join(', ')}`,
+          ],
+        },
+      ],
+    };
   }
   if (idx.tipoSalida === undefined && !plantillaPorDefecto) {
-    return { tipo: 'salidas', reconocidas, ignoradas, filas: [], errores: [{ fila: 1, mensajes: ['Indica la plantilla de las salidas (A con receta, B sin receta presencial, C sin receta online)'] }] };
+    return {
+      tipo: 'salidas',
+      reconocidas,
+      ignoradas,
+      filas: [],
+      errores: [
+        {
+          fila: 1,
+          mensajes: [
+            'Indica la plantilla de las salidas (A con receta, B sin receta presencial, C sin receta online)',
+          ],
+        },
+      ],
+    };
   }
   const errores: AnalisisImportacion<SalidaImportada>['errores'] = [];
   const out: SalidaImportada[] = [];
@@ -245,7 +335,12 @@ export function analizarSalidas(cabecera: string[], filas: Celda[][], plantillaP
     const udsTexto = texto(v('unidades'));
     const uds = udsTexto ? Number(/^\s*(\d+)/.exec(udsTexto)?.[1] ?? NaN) : NaN;
     if (m.length) return errores.push({ fila, mensajes: m });
-    const prop = { nombre: texto(v('propNombre')), movil: texto(v('propMovil')), dni: texto(v('propDni')), direccion: texto(v('propDireccion')) };
+    const prop = {
+      nombre: texto(v('propNombre')),
+      movil: texto(v('propMovil')),
+      dni: texto(v('propDni')),
+      direccion: texto(v('propDireccion')),
+    };
     out.push({
       fila,
       fecha: fecha as string,
@@ -272,9 +367,14 @@ export function analizarSalidas(cabecera: string[], filas: Celda[][], plantillaP
 }
 
 /** Lee la primera hoja de un XLSX o un CSV (separador `;` o `,`, UTF-8 con o sin BOM) → cabecera y filas. */
-export async function leerHoja(bytes: Uint8Array, nombre: string): Promise<{ cabecera: string[]; filas: Celda[][] }> {
+export async function leerHoja(
+  bytes: Uint8Array,
+  nombre: string,
+): Promise<{ cabecera: string[]; filas: Celda[][] }> {
   if (/\.csv$/i.test(nombre)) {
-    const txt = Buffer.from(bytes).toString('utf8').replace(/^\uFEFF/, '');
+    const txt = Buffer.from(bytes)
+      .toString('utf8')
+      .replace(/^\uFEFF/, '');
     const lineas = parsearCsv(txt);
     return { cabecera: (lineas[0] ?? []).map(String), filas: lineas.slice(1) };
   }

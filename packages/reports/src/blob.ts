@@ -33,7 +33,10 @@ export class MemoryBlobStore implements BlobStore {
 export class AzureBlobStore implements BlobStore {
   private constructor(private readonly svc: BlobServiceClient) {}
 
-  static async crear(cfg: { connectionString?: string | undefined; accountUrl?: string | undefined }): Promise<AzureBlobStore> {
+  static async crear(cfg: {
+    connectionString?: string | undefined;
+    accountUrl?: string | undefined;
+  }): Promise<AzureBlobStore> {
     const { BlobServiceClient } = await import('@azure/storage-blob');
     let svc;
     if (cfg.accountUrl) {
@@ -42,7 +45,8 @@ export class AzureBlobStore implements BlobStore {
     } else if (cfg.connectionString) {
       svc = BlobServiceClient.fromConnectionString(cfg.connectionString);
       // Solo en local (Azurite): crea los contenedores si no existen.
-      for (const c of ['recetas', 'reportes', 'albaranes']) await svc.getContainerClient(c).createIfNotExists();
+      for (const c of ['recetas', 'reportes', 'albaranes'])
+        await svc.getContainerClient(c).createIfNotExists();
     } else throw new Error('Sin configuración de Blob Storage');
     return new AzureBlobStore(svc);
   }

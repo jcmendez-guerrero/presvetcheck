@@ -40,24 +40,36 @@ export async function conciliarDia(
       ),
     );
   const mapa = new Map((await db.select().from(siwebVariantMap)).map((m) => [m.variantId, m.cn]));
-  const usados = new Set((await db.select({ m: conciliacion.movimientoId }).from(conciliacion)).map((x) => x.m));
+  const usados = new Set(
+    (await db.select({ m: conciliacion.movimientoId }).from(conciliacion)).map((x) => x.m),
+  );
   const movs: MovimientoVenta[] = (await ventas.movimientos(dia, dia))
     .filter((m) => !usados.has(m.id))
     .map((m) => ({ ...m, cn: m.cn ?? (m.variantId !== null ? mapa.get(m.variantId) : undefined) ?? null }));
   // Las fracciones no se venden como envase en el TPV: no se concilian automáticamente (se informan).
   const fraccionadas = disp.filter((d) => d.unidadesForma !== null);
   const r = conciliar(
-    disp.filter((d) => d.unidadesForma === null).map((d) => ({ id: d.id, cn: d.cn, lote: d.lote, unidades: d.unidades, fecha: dia })),
+    disp
+      .filter((d) => d.unidadesForma === null)
+      .map((d) => ({ id: d.id, cn: d.cn, lote: d.lote, unidades: d.unidades, fecha: dia })),
     movs,
   );
   const ticketDe = new Map(movs.map((m) => [m.id, m.ticket ?? null]));
   for (const c of r.conciliadas) {
     await db
       .insert(conciliacion)
-      .values({ dispensacionId: c.dispensacionId, movimientoId: c.movimientoId, ticket: ticketDe.get(c.movimientoId) ?? null, loteVerificado: c.loteVerificado, origen: o.origen, at: o.ahora })
+      .values({
+        dispensacionId: c.dispensacionId,
+        movimientoId: c.movimientoId,
+        ticket: ticketDe.get(c.movimientoId) ?? null,
+        loteVerificado: c.loteVerificado,
+        origen: o.origen,
+        at: o.ahora,
+      })
       .onConflictDoNothing();
   }
-  const sinPareja = (x: Discrepancia) => x.tipo === 'DISPENSACION_SIN_TICKET' || x.tipo === 'TICKET_SIN_DISPENSACION';
+  const sinPareja = (x: Discrepancia) =>
+    x.tipo === 'DISPENSACION_SIN_TICKET' || x.tipo === 'TICKET_SIN_DISPENSACION';
   const aRegistrar = r.discrepancias.filter((x) => o.cierre || !sinPareja(x));
   let nuevas = 0;
   for (const x of aRegistrar) {
@@ -74,7 +86,9 @@ export async function conciliarDia(
       )
       .limit(1);
     if (ya) continue;
-    await db.insert(discrepancia).values({ tipo: x.tipo, origen: o.origen, fecha: o.ahora, datos: x as never });
+    await db
+      .insert(discrepancia)
+      .values({ tipo: x.tipo, origen: o.origen, fecha: o.ahora, datos: x as never });
     nuevas++;
   }
   return {
@@ -87,14 +101,29 @@ export async function conciliarDia(
 }
 
 /** Estado de conciliación de unas salidas: conciliada, con discrepancia abierta o pendiente. */
-export async function estadoConciliacion(db: Db, ids: string[]): Promise<Map<string, 'conciliada' | 'discrepancia' | 'pendiente'>> {
+export async function estadoConciliacion(
+  db: Db,
+  ids: string[],
+): Promise<Map<string, 'conciliada' | 'discrepancia' | 'pendiente'>> {
   const out = new Map<string, 'conciliada' | 'discrepancia' | 'pendiente'>(ids.map((i) => [i, 'pendiente']));
   if (!ids.length) return out;
-  for (const c of await db.select({ id: conciliacion.dispensacionId }).from(conciliacion).where(inArray(conciliacion.dispensacionId, ids))) out.set(c.id, 'conciliada');
+  for (const c of await db
+    .select({ id: conciliacion.dispensacionId })
+    .from(conciliacion)
+    .where(inArray(conciliacion.dispensacionId, ids)))
+    out.set(c.id, 'conciliada');
   const abiertas = await db
     .select({ datos: discrepancia.datos })
     .from(discrepancia)
-    .where(and(eq(discrepancia.estado, 'abierta'), sql`${discrepancia.datos}->>'dispensacionId' in (${sql.join(ids.map((i) => sql`${i}`), sql`, `)})`));
+    .where(
+      and(
+        eq(discrepancia.estado, 'abierta'),
+        sql`${discrepancia.datos}->>'dispensacionId' in (${sql.join(
+          ids.map((i) => sql`${i}`),
+          sql`, `,
+        )})`,
+      ),
+    );
   for (const d of abiertas) {
     const id = (d.datos as { dispensacionId?: string }).dispensacionId;
     if (id && out.get(id) === 'pendiente') out.set(id, 'discrepancia');
@@ -113,7 +142,10 @@ export class DemoSalesMovementsSource implements SalesMovementsSource {
 
   async movimientos(desde: string, hasta: string): Promise<MovimientoVenta[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
-    const filas = await this.db.select().from(ticketDemo).where(and(gte(ticketDemo.fecha, ini), lt(ticketDemo.fecha, fin)));
+    const filas = await this.db
+      .select()
+      .from(ticketDemo)
+      .where(and(gte(ticketDemo.fecha, ini), lt(ticketDemo.fecha, fin)));
     return filas.map((t) => ({
       id: `demo:${t.id}`,
       variantId: null,

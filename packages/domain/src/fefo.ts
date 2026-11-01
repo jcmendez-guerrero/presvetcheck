@@ -46,7 +46,8 @@ export function proponerLotes(input: {
   const validos: LoteStock[] = [];
   for (const l of input.lotes) {
     if (l.disponible <= 0) excluidos.push({ lote: l.lote, motivo: 'SIN_DISPONIBLE' });
-    else if (l.caducidad !== null && comparar(l.caducidad, input.hoy) < 0) excluidos.push({ lote: l.lote, motivo: 'CADUCADO' });
+    else if (l.caducidad !== null && comparar(l.caducidad, input.hoy) < 0)
+      excluidos.push({ lote: l.lote, motivo: 'CADUCADO' });
     else validos.push(l);
   }
   const ordenados = ordenarFefo(validos);
@@ -55,7 +56,12 @@ export function proponerLotes(input: {
   const avisos: AvisoFefo[] = [];
   let alternativaQueCubre: LoteStock | null = null;
 
-  if (recomendado && input.duracionDias !== null && input.duracionDias > 0 && recomendado.caducidad !== null) {
+  if (
+    recomendado &&
+    input.duracionDias !== null &&
+    input.duracionDias > 0 &&
+    recomendado.caducidad !== null
+  ) {
     const finTratamiento = sumarDias(input.hoy, input.duracionDias);
     if (comparar(recomendado.caducidad, finTratamiento) < 0) {
       avisos.push({

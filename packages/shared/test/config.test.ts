@@ -53,7 +53,16 @@ describe('loadConfig', () => {
   it('EXTRACTOR=azure sin configuración: desactivado en local, error en producción', () => {
     expect(loadConfig({ ...base, EXTRACTOR: 'azure' }).EXTRACTOR).toBe('azure');
     expect(() =>
-      loadConfig({ DATABASE_URL: 'x', NODE_ENV: 'production', AUTH_MODE: 'entra', ENTRA_TENANT_ID: 't', ENTRA_CLIENT_ID: 'c', BLOB_ACCOUNT_URL: 'https://b', KEY_VAULT_URL: 'https://k', EXTRACTOR: 'azure' }),
+      loadConfig({
+        DATABASE_URL: 'x',
+        NODE_ENV: 'production',
+        AUTH_MODE: 'entra',
+        ENTRA_TENANT_ID: 't',
+        ENTRA_CLIENT_ID: 'c',
+        BLOB_ACCOUNT_URL: 'https://b',
+        KEY_VAULT_URL: 'https://k',
+        EXTRACTOR: 'azure',
+      }),
     ).toThrow(/DOCINTEL_ENDPOINT/);
   });
 
@@ -65,7 +74,12 @@ describe('loadConfig', () => {
   });
 
   it('interpreta booleanos y números', () => {
-    const c = loadConfig({ ...base, PRODUCT_VALIDITY_HARD_BLOCK: 'true', SIWEB_WAREHOUSE_ID: '14', CIMAVET_RPS: '2' });
+    const c = loadConfig({
+      ...base,
+      PRODUCT_VALIDITY_HARD_BLOCK: 'true',
+      SIWEB_WAREHOUSE_ID: '14',
+      CIMAVET_RPS: '2',
+    });
     expect(c.PRODUCT_VALIDITY_HARD_BLOCK).toBe(true);
     expect(c.SIWEB_WAREHOUSE_ID).toBe(14);
     expect(c.CIMAVET_RPS).toBe(2);

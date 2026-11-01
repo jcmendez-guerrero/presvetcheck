@@ -33,7 +33,15 @@ export function canonicalJson(value: unknown): string {
 
 export function computeAuditHash(
   hashPrev: string,
-  e: { at: Date; actor: string; accion: string; entidad: string; entidadId: string | null; antes: unknown; despues: unknown },
+  e: {
+    at: Date;
+    actor: string;
+    accion: string;
+    entidad: string;
+    entidadId: string | null;
+    antes: unknown;
+    despues: unknown;
+  },
 ): string {
   const payload = canonicalJson({
     at: e.at.toISOString(),
@@ -53,7 +61,11 @@ export function computeAuditHash(
  */
 export async function appendAudit(tx: DbOrTx, input: AuditInput): Promise<{ hash: string }> {
   await tx.execute(sql`select pg_advisory_xact_lock(7210001)`);
-  const last = await tx.select({ hash: auditEvent.hash }).from(auditEvent).orderBy(desc(auditEvent.seq)).limit(1);
+  const last = await tx
+    .select({ hash: auditEvent.hash })
+    .from(auditEvent)
+    .orderBy(desc(auditEvent.seq))
+    .limit(1);
   const hashPrev = last[0]?.hash ?? GENESIS_HASH;
   const at = input.at ?? new Date();
   // Se redondea a milisegundos para que el hash sea idéntico al releerlo de la BD.

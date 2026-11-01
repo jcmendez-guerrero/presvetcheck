@@ -25,7 +25,8 @@ export function validarCampos(
 ): Incidencia[] {
   const out: Incidencia[] = [];
   const produccion = r.especieProduccion;
-  const idIndividual = r.especie.especieId !== null && pol.rules.especies_id_individual.includes(r.especie.especieId);
+  const idIndividual =
+    r.especie.especieId !== null && pol.rules.especies_id_individual.includes(r.especie.especieId);
 
   const severidadCampo = (campo: CampoReceta): SeveridadCampo => {
     const regla = pol.rules.campos[campo];
@@ -37,7 +38,11 @@ export function validarCampos(
   // Dispensación ágil: en compañía, los datos diferibles que constan en la receta se transcriben después.
   const diferido = r.registroDiferido && !produccion;
   const pendientes = new Set<CampoReceta>();
-  const exigir = (campo: CampoReceta, ok: boolean, extra: { linea?: number; params?: Record<string, string | number> } = {}) => {
+  const exigir = (
+    campo: CampoReceta,
+    ok: boolean,
+    extra: { linea?: number; params?: Record<string, string | number> } = {},
+  ) => {
     if (ok) return;
     if (diferido && pol.rules.diferibles_registro.includes(campo)) {
       pendientes.add(campo);
@@ -51,7 +56,9 @@ export function validarCampos(
       severidad: sev,
       ambito: extra.linea !== undefined ? 'linea' : 'receta',
       campo,
-      ...(extra.linea !== undefined ? { linea: extra.linea, params: { linea: extra.linea, ...extra.params } } : {}),
+      ...(extra.linea !== undefined
+        ? { linea: extra.linea, params: { linea: extra.linea, ...extra.params } }
+        : {}),
     });
   };
 
@@ -61,7 +68,12 @@ export function validarCampos(
   exigir('tipo_dispensacion', presente(r.tipoDispensacion));
   if (r.tipoDispensacion && r.tipoDispensacion !== 'dispensacion') {
     const nombre = r.tipoDispensacion === 'botiquin' ? 'de botiquín' : 'de no dispensación';
-    out.push(incidencia('TIPO_DISPENSACION_NO_DISPENSABLE', pol, { campo: 'tipo_dispensacion', params: { tipo: nombre } }));
+    out.push(
+      incidencia('TIPO_DISPENSACION_NO_DISPENSABLE', pol, {
+        campo: 'tipo_dispensacion',
+        params: { tipo: nombre },
+      }),
+    );
   }
   exigir('titular_nombre', presente(r.titular.nombre));
   exigir('titular_telefono', presente(r.titular.telefono));
@@ -71,7 +83,12 @@ export function validarCampos(
   exigir('num_animales', presente(r.numAnimales));
   exigir('fecha_emision', presente(r.fechaEmision));
   if (r.fechaEmision && comparar(r.fechaEmision, hoy) > 0) {
-    out.push(incidencia('FECHA_EMISION_FUTURA', pol, { campo: 'fecha_emision', params: { fecha: fechaEs(r.fechaEmision) } }));
+    out.push(
+      incidencia('FECHA_EMISION_FUTURA', pol, {
+        campo: 'fecha_emision',
+        params: { fecha: fechaEs(r.fechaEmision) },
+      }),
+    );
   }
   exigir('veterinario_nombre', presente(r.veterinario.nombre));
   exigir('veterinario_telefono', presente(r.veterinario.telefono));
@@ -87,7 +104,9 @@ export function validarCampos(
     const tieneNombre = presente(l.medicamentoTexto);
     const tienePa = presente(l.principioActivoTexto);
     if (!tieneNombre && tienePa) {
-      out.push(incidencia('PRESCRIPCION_SOLO_PA', pol, { linea, campo: 'medicamento_nombre', params: { linea } }));
+      out.push(
+        incidencia('PRESCRIPCION_SOLO_PA', pol, { linea, campo: 'medicamento_nombre', params: { linea } }),
+      );
     } else {
       exigir('medicamento_nombre', tieneNombre, { linea });
     }
@@ -97,7 +116,10 @@ export function validarCampos(
     exigir('cantidad', presente(l.cantidadEnvases) || presente(l.unidadesForma), { linea });
     exigir(
       'posologia',
-      l.posologia !== null && presente(l.posologia.via) && presente(l.posologia.dosis) && presente(l.posologia.duracionDias),
+      l.posologia !== null &&
+        presente(l.posologia.via) &&
+        presente(l.posologia.dosis) &&
+        presente(l.posologia.duracionDias),
       { linea },
     );
     exigir('tiempo_espera', presente(l.tiempoEsperaTexto), { linea });
@@ -105,6 +127,7 @@ export function validarCampos(
       exigir('declaracion_antimicrobiano', l.declaracionAntimicrobiano?.declarada === true, { linea });
     }
   }
-  if (pendientes.size) out.push(incidencia('REGISTRO_PENDIENTE', pol, { params: { campos: [...pendientes].join(', ') } }));
+  if (pendientes.size)
+    out.push(incidencia('REGISTRO_PENDIENTE', pol, { params: { campos: [...pendientes].join(', ') } }));
   return out;
 }

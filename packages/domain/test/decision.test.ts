@@ -16,7 +16,14 @@ function decidir(o: Partial<EntradaDecision> = {}) {
     prescrito: { medicamento: P500, presentacion: PRES500, envases: 1 },
     candidatos: [],
     stock: {},
-    ctx: { especieId: ESPECIE.PERROS, especieProduccion: false, clase: 'ordinaria', indicacion: 'Infecciones de la piel por bacterias sensibles', viaPrescritaId: null, duracionDias: 5 },
+    ctx: {
+      especieId: ESPECIE.PERROS,
+      especieProduccion: false,
+      clase: 'ordinaria',
+      indicacion: 'Infecciones de la piel por bacterias sensibles',
+      viaPrescritaId: null,
+      duracionDias: 5,
+    },
     exclusiones: [],
     politica: POL,
     equivalencia: RULES.equivalencia,
@@ -29,7 +36,12 @@ function decidir(o: Partial<EntradaDecision> = {}) {
 
 /** Equivalente genérico de otro laboratorio (misma composición, forma, vía, especie e indicación). */
 const generico = (o: Partial<MedicamentoInfo> = {}) =>
-  amoxicilina(500, { nregistro: '3000 ESP', nombre: 'GENERICAMOX 500 mg', labtitular: 'LABORATORIO B', ...o });
+  amoxicilina(500, {
+    nregistro: '3000 ESP',
+    nombre: 'GENERICAMOX 500 mg',
+    labtitular: 'LABORATORIO B',
+    ...o,
+  });
 const cand = (medicamento: MedicamentoInfo, cn: string, o: Partial<Candidato> = {}): Candidato => ({
   medicamento,
   presentacion: pres({ cn, nregistro: medicamento.nregistro, nombre: `${medicamento.nombre} (${cn})` }),
@@ -54,7 +66,12 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
   it('mismo caso con el lote más próximo caducado → recomienda el siguiente', () => {
     const r = decidir({
-      stock: { '570016': [lote({ lote: 'L-CADUCADO', caducidad: '2026-10-13' }), lote({ lote: 'L-OK', caducidad: '2027-03-31' })] },
+      stock: {
+        '570016': [
+          lote({ lote: 'L-CADUCADO', caducidad: '2026-10-13' }),
+          lote({ lote: 'L-OK', caducidad: '2027-03-31' }),
+        ],
+      },
     });
     expect(r.decision).toBe('DISPENSAR');
     expect(r.evidencias.lotes?.recomendado?.lote).toBe('L-OK');
@@ -63,13 +80,31 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
   it('lote que caduca antes del fin del tratamiento → AVISO y propuesta alternativa', () => {
     const r = decidir({
-      ctx: { especieId: ESPECIE.PERROS, especieProduccion: false, clase: 'ordinaria', indicacion: 'x', viaPrescritaId: null, duracionDias: 30 },
-      stock: { '570016': [lote({ lote: 'L-CORTO', caducidad: '2026-10-20' }), lote({ lote: 'L-LARGO', caducidad: '2027-03-31' })] },
+      ctx: {
+        especieId: ESPECIE.PERROS,
+        especieProduccion: false,
+        clase: 'ordinaria',
+        indicacion: 'x',
+        viaPrescritaId: null,
+        duracionDias: 30,
+      },
+      stock: {
+        '570016': [
+          lote({ lote: 'L-CORTO', caducidad: '2026-10-20' }),
+          lote({ lote: 'L-LARGO', caducidad: '2027-03-31' }),
+        ],
+      },
     });
     expect(r.decision).toBe('DISPENSAR');
     expect(r.evidencias.lotes?.recomendado?.lote).toBe('L-CORTO');
     expect(r.evidencias.lotes?.alternativaQueCubre?.lote).toBe('L-LARGO');
-    expect(r.motivos).toEqual([expect.objectContaining({ code: 'LOTE_CADUCA_ANTES_FIN_TRATAMIENTO', severidad: 'AVISO', params: { lote: 'L-CORTO', fecha: '20/10/2026' } })]);
+    expect(r.motivos).toEqual([
+      expect.objectContaining({
+        code: 'LOTE_CADUCA_ANTES_FIN_TRATAMIENTO',
+        severidad: 'AVISO',
+        params: { lote: 'L-CORTO', fecha: '20/10/2026' },
+      }),
+    ]);
   });
 
   it('Siweb360 no responde → PENDIENTE_STOCK (nunca se recomienda dispensar sin confirmar stock)', () => {
@@ -83,7 +118,10 @@ describe('motor de decisión (SPEC §4.3)', () => {
     const forma: Incidencia = incidencia('PRESCRIPCION_SOLO_PA', POL, { linea: 1 });
 
     it('BLOQUEANTE_DURO → NO_CONFORME no forzable, aunque se pida forzar', () => {
-      const r = decidir({ incidencias: [duro, forma], forzado: { codigos: ['PRESCRIPCION_SOLO_PA'], motivo: 'x'.repeat(20) } });
+      const r = decidir({
+        incidencias: [duro, forma],
+        forzado: { codigos: ['PRESCRIPCION_SOLO_PA'], motivo: 'x'.repeat(20) },
+      });
       expect(r.decision).toBe('NO_CONFORME');
       expect(r.evidencias.forzable).toBe(false);
     });
@@ -107,8 +145,14 @@ describe('motor de decisión (SPEC §4.3)', () => {
     });
 
     it('forzado que no cubre todos los defectos de forma → sigue NO_CONFORME', () => {
-      const otro = incidencia('FIRMA_FALTA' as never, { ...POL, rules: { ...POL.rules, incidencias: { ...POL.rules.incidencias, FIRMA_FALTA: 'BLOQUEANTE_FORMA' } } });
-      const r = decidir({ incidencias: [forma, otro], forzado: { codigos: ['PRESCRIPCION_SOLO_PA'], motivo: 'x'.repeat(20) } });
+      const otro = incidencia('FIRMA_FALTA' as never, {
+        ...POL,
+        rules: { ...POL.rules, incidencias: { ...POL.rules.incidencias, FIRMA_FALTA: 'BLOQUEANTE_FORMA' } },
+      });
+      const r = decidir({
+        incidencias: [forma, otro],
+        forzado: { codigos: ['PRESCRIPCION_SOLO_PA'], motivo: 'x'.repeat(20) },
+      });
       expect(r.decision).toBe('NO_CONFORME');
       expect(r.evidencias.forzable).toBe(true);
     });
@@ -120,7 +164,10 @@ describe('motor de decisión (SPEC §4.3)', () => {
     const p200 = amoxicilina(200);
 
     it('prescrito 500 mg × 10, stock 250 mg × 10 → 2 envases (5.000 mg) con nota de administración', () => {
-      const r = decidir({ candidatos: [cand(p250, '570250')], stock: { '570250': [lote({ lote: 'L250' })] } });
+      const r = decidir({
+        candidatos: [cand(p250, '570250')],
+        stock: { '570250': [lote({ lote: 'L250' })] },
+      });
       expect(r.decision).toBe('DISPENSAR_CON_AVISO');
       expect(r.evidencias.alternativaFormato?.envases).toBe(2);
       expect(r.evidencias.alternativaFormato?.formato.totalPrescrito?.toString()).toBe('5000');
@@ -131,31 +178,53 @@ describe('motor de decisión (SPEC §4.3)', () => {
     });
 
     it('stock 1.000 mg → descartado (CONCENTRACION_SUPERIOR)', () => {
-      const r = decidir({ candidatos: [cand(p1000, '571000')], stock: { '571000': [lote({ lote: 'L1000' })] } });
+      const r = decidir({
+        candidatos: [cand(p1000, '571000')],
+        stock: { '571000': [lote({ lote: 'L1000' })] },
+      });
       expect(r.decision).toBe('PEDIR');
-      expect(r.evidencias.alternativasDescartadas).toEqual([expect.objectContaining({ cn: '571000', motivos: ['CONCENTRACION_SUPERIOR'] })]);
+      expect(r.evidencias.alternativasDescartadas).toEqual([
+        expect.objectContaining({ cn: '571000', motivos: ['CONCENTRACION_SUPERIOR'] }),
+      ]);
     });
 
     it('prescrito 500 mg; stock 200 mg → AVISO de dosis no ajustable con unidades enteras', () => {
-      const r = decidir({ candidatos: [cand(p200, '570200')], stock: { '570200': [lote({ lote: 'L200' })] } });
+      const r = decidir({
+        candidatos: [cand(p200, '570200')],
+        stock: { '570200': [lote({ lote: 'L200' })] },
+      });
       expect(r.decision).toBe('DISPENSAR_CON_AVISO');
       expect(r.motivos.map((m) => m.code)).toEqual(['DOSIS_NO_AJUSTABLE', 'CAMBIO_CONCENTRACION']);
       expect(r.evidencias.alternativaFormato?.envases).toBe(2); // 4.000 mg ≤ 5.000 mg
     });
 
     it('mismo medicamento con envase de 20 → cantidad superior; envase de 5 → cambio de formato (2 envases)', () => {
-      const env20 = { medicamento: P500, presentacion: pres({ cn: '570020', nregistro: '1000 ESP', contenido: '20' }) };
-      const env5 = { medicamento: P500, presentacion: pres({ cn: '570005', nregistro: '1000 ESP', contenido: '5' }) };
-      const r = decidir({ candidatos: [env20, env5], stock: { '570020': [lote({ lote: 'A' })], '570005': [lote({ lote: 'B' })] } });
+      const env20 = {
+        medicamento: P500,
+        presentacion: pres({ cn: '570020', nregistro: '1000 ESP', contenido: '20' }),
+      };
+      const env5 = {
+        medicamento: P500,
+        presentacion: pres({ cn: '570005', nregistro: '1000 ESP', contenido: '5' }),
+      };
+      const r = decidir({
+        candidatos: [env20, env5],
+        stock: { '570020': [lote({ lote: 'A' })], '570005': [lote({ lote: 'B' })] },
+      });
       expect(r.decision).toBe('DISPENSAR_CON_AVISO');
       expect(r.evidencias.alternativaFormato?.cn).toBe('570005');
       expect(r.evidencias.alternativaFormato?.envases).toBe(2);
       expect(r.motivos.map((m) => m.code)).toEqual(['CAMBIO_FORMATO']);
-      expect(r.evidencias.alternativasDescartadas).toEqual([expect.objectContaining({ cn: '570020', motivos: ['CANTIDAD_SUPERIOR'] })]);
+      expect(r.evidencias.alternativasDescartadas).toEqual([
+        expect.objectContaining({ cn: '570020', motivos: ['CANTIDAD_SUPERIOR'] }),
+      ]);
     });
 
     it('se prefiere el cambio de formato al de concentración', () => {
-      const env5 = { medicamento: P500, presentacion: pres({ cn: '570005', nregistro: '1000 ESP', contenido: '5' }) };
+      const env5 = {
+        medicamento: P500,
+        presentacion: pres({ cn: '570005', nregistro: '1000 ESP', contenido: '5' }),
+      };
       const r = decidir({
         candidatos: [cand(p250, '570250'), env5],
         stock: { '570250': [lote({ lote: 'A' })], '570005': [lote({ lote: 'B' })] },
@@ -174,7 +243,10 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
     it.each([
       ['de otro laboratorio', { nregistro: '4250 ESP', labtitular: 'LABORATORIO C' }],
-      ['del mismo laboratorio pero otro medicamento', { nregistro: '4251 ESP', nombre: 'OTRAMOX 250 mg COMPRIMIDOS' }],
+      [
+        'del mismo laboratorio pero otro medicamento',
+        { nregistro: '4251 ESP', nombre: 'OTRAMOX 250 mg COMPRIMIDOS' },
+      ],
     ])('menor concentración %s → nunca se propone (ni formato ni sustitución): PEDIR', (_n, o) => {
       const otro = amoxicilina(250, o);
       const r = decidir({ candidatos: [cand(otro, '590250')], stock: { '590250': [lote({ lote: 'X' })] } });
@@ -187,7 +259,14 @@ describe('motor de decisión (SPEC §4.3)', () => {
   describe('sustitución (§4.4)', () => {
     it('sin stock, prescripción excepcional → PEDIR sin evaluar equivalentes', () => {
       const r = decidir({
-        ctx: { especieId: ESPECIE.PERROS, especieProduccion: false, clase: 'excepcional', indicacion: 'x', viaPrescritaId: null, duracionDias: null },
+        ctx: {
+          especieId: ESPECIE.PERROS,
+          especieProduccion: false,
+          clase: 'excepcional',
+          indicacion: 'x',
+          viaPrescritaId: null,
+          duracionDias: null,
+        },
         candidatos: [cand(generico(), '580001')],
         stock: { '580001': [lote({ lote: 'G1' })] },
       });
@@ -200,18 +279,25 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
     it('sin stock, clase no indicada → PEDIR (se bloquea la sustitución)', () => {
       const r = decidir({
-        ctx: { especieId: ESPECIE.PERROS, especieProduccion: false, clase: null, indicacion: 'x', viaPrescritaId: null, duracionDias: null },
+        ctx: {
+          especieId: ESPECIE.PERROS,
+          especieProduccion: false,
+          clase: null,
+          indicacion: 'x',
+          viaPrescritaId: null,
+          duracionDias: null,
+        },
       });
       expect(r.decision).toBe('PEDIR');
       expect(r.evidencias.sustitucionBloqueada).toEqual(['SUSTITUCION_PROHIBIDA_CLASE_NO_INDICADA']);
     });
 
     it.each`
-      descripcion                  | prescrito                             | exclusiones                                                            | motivo
-      ${'inmunológico'}            | ${{ inmunologico: true }}             | ${[]}                                                                  | ${'SUSTITUCION_PROHIBIDA_INMUNOLOGICO'}
-      ${'biológico'}               | ${{ biologico: true }}                | ${[]}                                                                  | ${'SUSTITUCION_PROHIBIDA_BIOLOGICO'}
-      ${'excluido por nregistro'}  | ${{}}                                 | ${[{ nregistro: '1000 ESP', pa_id: null, motivo: 'm', fuente: 'f' }]}  | ${'SUSTITUCION_PROHIBIDA_EXCLUSION'}
-      ${'excluido por PA'}         | ${{}}                                 | ${[{ nregistro: null, pa_id: 161, motivo: 'm', fuente: 'f' }]}         | ${'SUSTITUCION_PROHIBIDA_EXCLUSION'}
+      descripcion                 | prescrito                 | exclusiones                                                           | motivo
+      ${'inmunológico'}           | ${{ inmunologico: true }} | ${[]}                                                                 | ${'SUSTITUCION_PROHIBIDA_INMUNOLOGICO'}
+      ${'biológico'}              | ${{ biologico: true }}    | ${[]}                                                                 | ${'SUSTITUCION_PROHIBIDA_BIOLOGICO'}
+      ${'excluido por nregistro'} | ${{}}                     | ${[{ nregistro: '1000 ESP', pa_id: null, motivo: 'm', fuente: 'f' }]} | ${'SUSTITUCION_PROHIBIDA_EXCLUSION'}
+      ${'excluido por PA'}        | ${{}}                     | ${[{ nregistro: null, pa_id: 161, motivo: 'm', fuente: 'f' }]}        | ${'SUSTITUCION_PROHIBIDA_EXCLUSION'}
     `('sin stock, $descripcion → PEDIR', ({ prescrito, exclusiones, motivo }) => {
       const r = decidir({
         prescrito: { medicamento: amoxicilina(500, prescrito), presentacion: PRES500, envases: 1 },
@@ -224,9 +310,17 @@ describe('motor de decisión (SPEC §4.3)', () => {
     });
 
     it('sin stock, equivalente (composición, forma, vía, especie e indicación) con stock → SUSTITUIR', () => {
-      const r = decidir({ candidatos: [cand(generico(), '580001')], stock: { '580001': [lote({ lote: 'G1', caducidad: '2027-05-31' })] } });
+      const r = decidir({
+        candidatos: [cand(generico(), '580001')],
+        stock: { '580001': [lote({ lote: 'G1', caducidad: '2027-05-31' })] },
+      });
       expect(r.decision).toBe('SUSTITUIR');
-      expect(r.evidencias.sustitutos[0]).toMatchObject({ cn: '580001', origen: 'EQUIVALENTE', modo: 'POST', caducidadFefo: '2027-05-31' });
+      expect(r.evidencias.sustitutos[0]).toMatchObject({
+        cn: '580001',
+        origen: 'EQUIVALENTE',
+        modo: 'POST',
+        caducidadFefo: '2027-05-31',
+      });
       expect(r.evidencias.sustitutos[0]?.equivalencia.indicacion).toBe('COINCIDE');
       expect(r.motivos.map((m) => m.code)).toEqual(['SUSTITUCION']);
     });
@@ -251,30 +345,42 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
     it('lotes sin caducidad van detrás en el orden de sustitutos', () => {
       const r = decidir({
-        candidatos: [cand(generico({ nregistro: 'G-A' }), '580001'), cand(generico({ nregistro: 'G-B' }), '580002')],
-        stock: { '580001': [lote({ lote: 'A', caducidad: null })], '580002': [lote({ lote: 'B', caducidad: '2027-01-31' })] },
+        candidatos: [
+          cand(generico({ nregistro: 'G-A' }), '580001'),
+          cand(generico({ nregistro: 'G-B' }), '580002'),
+        ],
+        stock: {
+          '580001': [lote({ lote: 'A', caducidad: null })],
+          '580002': [lote({ lote: 'B', caducidad: '2027-01-31' })],
+        },
       });
       expect(r.evidencias.sustitutos.map((s) => s.cn)).toEqual(['580002', '580001']);
     });
 
     it.each`
-      descripcion                       | cambio                                                                                                                   | motivo
-      ${'distinta concentración'}       | ${{ composicion: { pas: [{ paId: 161, nombre: 'AMOXICILINA', cantidad: '600', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' } }} | ${'CONCENTRACION_DISTINTA'}
-      ${'distinta forma'}               | ${{ formaId: 99 }}                                                                                                       | ${'FORMA_DISTINTA'}
-      ${'distinta especie'}             | ${{ especieIds: [ESPECIE.GATOS] }}                                                                                       | ${'ESPECIE_NO_AUTORIZADA'}
-      ${'distinta vía'}                 | ${{ viaIds: [41] }}                                                                                                      | ${'VIA_NO_AUTORIZADA'}
-      ${'distinta indicación'}          | ${{ indicaciones: [{ especieId: null, texto: 'Mastitis clínica en vacas' }] }}                                          | ${'INDICACION_NO_COINCIDE'}
-      ${'distinta composición'}         | ${{ composicion: { pas: [{ paId: 999, nombre: 'X', cantidad: '500', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' } }} | ${'COMPOSICION_DISTINTA'}
-      ${'no comercializado'}            | ${{ comerc: false }}                                                                                                     | ${'NO_COMERCIALIZADO'}
-      ${'suspendido'}                   | ${{ estado: 'suspendido' }}                                                                                              | ${'NO_AUTORIZADO'}
+      descripcion                 | cambio                                                                                                                                        | motivo
+      ${'distinta concentración'} | ${{ composicion: { pas: [{ paId: 161, nombre: 'AMOXICILINA', cantidad: '600', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' } }} | ${'CONCENTRACION_DISTINTA'}
+      ${'distinta forma'}         | ${{ formaId: 99 }}                                                                                                                            | ${'FORMA_DISTINTA'}
+      ${'distinta especie'}       | ${{ especieIds: [ESPECIE.GATOS] }}                                                                                                            | ${'ESPECIE_NO_AUTORIZADA'}
+      ${'distinta vía'}           | ${{ viaIds: [41] }}                                                                                                                           | ${'VIA_NO_AUTORIZADA'}
+      ${'distinta indicación'}    | ${{ indicaciones: [{ especieId: null, texto: 'Mastitis clínica en vacas' }] }}                                                                | ${'INDICACION_NO_COINCIDE'}
+      ${'distinta composición'}   | ${{ composicion: { pas: [{ paId: 999, nombre: 'X', cantidad: '500', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Comprimido' } }}           | ${'COMPOSICION_DISTINTA'}
+      ${'no comercializado'}      | ${{ comerc: false }}                                                                                                                          | ${'NO_COMERCIALIZADO'}
+      ${'suspendido'}             | ${{ estado: 'suspendido' }}                                                                                                                   | ${'NO_AUTORIZADO'}
     `('equivalente con $descripcion → descartado con motivo', ({ cambio, motivo }) => {
-      const r = decidir({ candidatos: [cand(generico(cambio), '580001')], stock: { '580001': [lote({ lote: 'G1' })] } });
+      const r = decidir({
+        candidatos: [cand(generico(cambio), '580001')],
+        stock: { '580001': [lote({ lote: 'G1' })] },
+      });
       expect(r.decision).toBe('PEDIR');
       expect(r.evidencias.descartados[0]?.motivos).toContain(motivo);
     });
 
     it('nunca se sustituye por un medicamento de uso humano', () => {
-      const r = decidir({ candidatos: [cand(generico({ usoHumano: true }), '580001')], stock: { '580001': [lote({ lote: 'G1' })] } });
+      const r = decidir({
+        candidatos: [cand(generico({ usoHumano: true }), '580001')],
+        stock: { '580001': [lote({ lote: 'G1' })] },
+      });
       expect(r.decision).toBe('PEDIR');
       expect(r.evidencias.descartados).toEqual([expect.objectContaining({ motivos: ['USO_HUMANO'] })]);
     });
@@ -284,10 +390,20 @@ describe('motor de decisión (SPEC §4.3)', () => {
         especieIds: [ESPECIE.BOVINO],
         tiemposEspera: [{ especieId: ESPECIE.BOVINO, tejido: 'Carne', dias: 10, noAplica: false }],
       });
-      const sustituto = generico({ especieIds: [ESPECIE.BOVINO], tiemposEspera: [{ especieId: ESPECIE.BOVINO, tejido: 'Carne', dias: 14, noAplica: false }] });
+      const sustituto = generico({
+        especieIds: [ESPECIE.BOVINO],
+        tiemposEspera: [{ especieId: ESPECIE.BOVINO, tejido: 'Carne', dias: 14, noAplica: false }],
+      });
       const r = decidir({
         prescrito: { medicamento: prescrito, presentacion: PRES500, envases: 1 },
-        ctx: { especieId: ESPECIE.BOVINO, especieProduccion: true, clase: 'ordinaria', indicacion: 'Infecciones de la piel', viaPrescritaId: null, duracionDias: null },
+        ctx: {
+          especieId: ESPECIE.BOVINO,
+          especieProduccion: true,
+          clase: 'ordinaria',
+          indicacion: 'Infecciones de la piel',
+          viaPrescritaId: null,
+          duracionDias: null,
+        },
         candidatos: [cand(sustituto, '580001')],
         stock: { '580001': [lote({ lote: 'G1' })] },
       });
@@ -297,7 +413,14 @@ describe('motor de decisión (SPEC §4.3)', () => {
 
     it('indicación PROBABLE → se propone con aprobación previa del garante (modo PRE)', () => {
       const r = decidir({
-        ctx: { especieId: ESPECIE.PERROS, especieProduccion: false, clase: 'ordinaria', indicacion: 'Infecciones de piel y otitis externa', viaPrescritaId: null, duracionDias: null },
+        ctx: {
+          especieId: ESPECIE.PERROS,
+          especieProduccion: false,
+          clase: 'ordinaria',
+          indicacion: 'Infecciones de piel y otitis externa',
+          viaPrescritaId: null,
+          duracionDias: null,
+        },
         candidatos: [cand(generico(), '580001')],
         stock: { '580001': [lote({ lote: 'G1' })] },
       });
@@ -307,7 +430,13 @@ describe('motor de decisión (SPEC §4.3)', () => {
     });
 
     it('cantidades no normalizables → "revisar manualmente", no se propone solo', () => {
-      const raro = generico({ composicion: { pas: [{ paId: 161, nombre: 'AMOXICILINA', cantidad: '500', unidad: 'mg' }], porCantidad: '1', porUnidad: 'Unidad rara' } });
+      const raro = generico({
+        composicion: {
+          pas: [{ paId: 161, nombre: 'AMOXICILINA', cantidad: '500', unidad: 'mg' }],
+          porCantidad: '1',
+          porUnidad: 'Unidad rara',
+        },
+      });
       const r = decidir({ candidatos: [cand(raro, '580001')], stock: { '580001': [lote({ lote: 'G1' })] } });
       expect(r.decision).toBe('PEDIR');
       expect(r.evidencias.revisarManual).toEqual([expect.objectContaining({ cn: '580001' })]);
@@ -334,18 +463,29 @@ describe('motor de decisión (SPEC §4.3)', () => {
   });
 
   it('el aviso de stock ilimitado del adaptador acompaña a la decisión', () => {
-    const r = decidir({ avisosStock: [incidencia('STOCK_ILIMITADO_CONFIGURACION', POL, { params: { sku: 'X' } })], stock: { '570016': [lote({ lote: 'L' })] } });
+    const r = decidir({
+      avisosStock: [incidencia('STOCK_ILIMITADO_CONFIGURACION', POL, { params: { sku: 'X' } })],
+      stock: { '570016': [lote({ lote: 'L' })] },
+    });
     expect(r.motivos.map((m) => m.code)).toEqual(['STOCK_ILIMITADO_CONFIGURACION']);
   });
 
   it('el prescrito ya incluido entre los candidatos no se trata como sustituto', () => {
-    const r = decidir({ candidatos: [{ medicamento: P500, presentacion: pres({ cn: '570099', nregistro: '1000 ESP', contenido: '100' }) }], stock: {} });
+    const r = decidir({
+      candidatos: [
+        { medicamento: P500, presentacion: pres({ cn: '570099', nregistro: '1000 ESP', contenido: '100' }) },
+      ],
+      stock: {},
+    });
     expect(r.decision).toBe('PEDIR');
     expect(r.evidencias.sustitutos).toEqual([]);
   });
 
   it('no se pone el psicótropo como evidencia si no lo es', () => {
     expect(decidir().evidencias.psicotropo).toBe(false);
-    expect(decidir({ prescrito: { medicamento: med({ psicotropo: true }), presentacion: PRES500, envases: 1 } }).evidencias.psicotropo).toBe(true);
+    expect(
+      decidir({ prescrito: { medicamento: med({ psicotropo: true }), presentacion: PRES500, envases: 1 } })
+        .evidencias.psicotropo,
+    ).toBe(true);
   });
 });

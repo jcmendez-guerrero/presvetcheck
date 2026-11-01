@@ -21,7 +21,14 @@ const N = readFileSync(MUESTRA, 'utf8').split('<prescription>').length - 1;
 let h: DbHandle;
 let repo: CimavetRepository;
 const server = setupServer();
-const client = new CimavetClient({ baseUrl: BASE, rps: 1000, sleep: async () => {}, random: () => 0, baseDelayMs: 1, maxRetries: 1 });
+const client = new CimavetClient({
+  baseUrl: BASE,
+  rps: 1000,
+  sleep: async () => {},
+  random: () => 0,
+  baseDelayMs: 1,
+  maxRetries: 1,
+});
 
 beforeAll(async () => {
   server.listen({ onUnhandledRequest: 'error' });
@@ -39,8 +46,18 @@ afterAll(async () => {
 
 describe('importador del Nomenclátor (muestra real, streaming)', () => {
   it('carga la muestra con informe de nuevos/actualizados/descartados', async () => {
-    const informe = await jobNomenclatorImport({ repo, path: MUESTRA, now: () => new Date('2026-10-08T06:00:00Z') });
-    expect(informe).toMatchObject({ leidos: N, nuevos: N, actualizados: 0, descartados: 0, listado: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    const informe = await jobNomenclatorImport({
+      repo,
+      path: MUESTRA,
+      now: () => new Date('2026-10-08T06:00:00Z'),
+    });
+    expect(informe).toMatchObject({
+      leidos: N,
+      nuevos: N,
+      actualizados: 0,
+      descartados: 0,
+      listado: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
   });
 
   it('es idempotente: la segunda carga actualiza sin duplicar', async () => {
@@ -72,13 +89,18 @@ describe('importador del Nomenclátor (muestra real, streaming)', () => {
       porCantidad: '1',
       porUnidad: 'Comprimido',
     });
-    expect(await repo.presentacion('570016')).toMatchObject({ contenido: '10', unidadContenido: 'Comprimido', comerc: false });
+    expect(await repo.presentacion('570016')).toMatchObject({
+      contenido: '10',
+      unidadContenido: 'Comprimido',
+      comerc: false,
+    });
     expect(m?.indicaciones.length).toBeGreaterThan(0);
   });
 
   it('tiempos de espera con forma/vía y "no aplica tejido" (estructura de julio de 2024)', async () => {
     const regs = await h.db.execute(
-      (await import('drizzle-orm')).sql`select count(*)::int as n from cimavet_med_tiempo_espera where no_aplica_tejido and forma_via_admin is not null`,
+      (await import('drizzle-orm'))
+        .sql`select count(*)::int as n from cimavet_med_tiempo_espera where no_aplica_tejido and forma_via_admin is not null`,
     );
     const n = ((regs as unknown as { rows: Array<{ n: number }> }).rows[0]?.n ?? 0) as number;
     expect(n).toBeGreaterThan(0);
@@ -97,8 +119,14 @@ describe('importador del Nomenclátor (muestra real, streaming)', () => {
     expect(r[0]!.puntuacion).toBeGreaterThan(0.3);
     expect((await repo.buscar('570016'))[0]?.cn).toBe('570016');
     // La especie no filtra (cascada): solo ordena y marca si está autorizado.
-    expect((await repo.buscar('clavubay', { especieId: 1 }))[0]).toMatchObject({ cn: '570016', autorizadoEspecie: false });
-    expect((await repo.buscar('clavubay', { especieId: 14 }))[0]).toMatchObject({ cn: '570016', autorizadoEspecie: true });
+    expect((await repo.buscar('clavubay', { especieId: 1 }))[0]).toMatchObject({
+      cn: '570016',
+      autorizadoEspecie: false,
+    });
+    expect((await repo.buscar('clavubay', { especieId: 14 }))[0]).toMatchObject({
+      cn: '570016',
+      autorizadoEspecie: true,
+    });
     expect(r[0]!.autorizadoEspecie).toBeNull();
     expect(await repo.buscar('   ')).toEqual([]);
     // Por principio activo (CLAVUBAY lleva amoxicilina), por debajo de una coincidencia de marca.
@@ -111,22 +139,50 @@ describe('importador del Nomenclátor (muestra real, streaming)', () => {
   });
 
   it('descarta registros sin CN o sin nº de registro', () => {
-    const dic = { unidades: new Map(), principiosActivos: new Map(), laboratorios: new Map(), indicaciones: new Map() };
-    expect(registroDesdeNomenclator({ cod_nacion: ['1'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'CN_AUSENTE_O_INVALIDO' });
-    expect(registroDesdeNomenclator({ cod_nacion: ['123456'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'NREGISTRO_AUSENTE' });
-    expect(registroDesdeNomenclator({ cod_nacion: ['123456'], nro_definitivo: ['1 ESP'] }, dic, new Date())).toMatchObject({ ok: false, motivo: 'NOMBRE_AUSENTE' });
+    const dic = {
+      unidades: new Map(),
+      principiosActivos: new Map(),
+      laboratorios: new Map(),
+      indicaciones: new Map(),
+    };
+    expect(registroDesdeNomenclator({ cod_nacion: ['1'] }, dic, new Date())).toMatchObject({
+      ok: false,
+      motivo: 'CN_AUSENTE_O_INVALIDO',
+    });
+    expect(registroDesdeNomenclator({ cod_nacion: ['123456'] }, dic, new Date())).toMatchObject({
+      ok: false,
+      motivo: 'NREGISTRO_AUSENTE',
+    });
+    expect(
+      registroDesdeNomenclator({ cod_nacion: ['123456'], nro_definitivo: ['1 ESP'] }, dic, new Date()),
+    ).toMatchObject({ ok: false, motivo: 'NOMBRE_AUSENTE' });
     expect(estadoNomenclator('3')).toBe('revocado');
     expect(estadoNomenclator('5')).toBe('suspendido');
     expect(estadoNomenclator(null)).toBe('autorizado');
   });
 
   it('unidad del principio activo: el código 3 es «µg» aunque el diccionario diga «l» (ADR-15)', () => {
-    const dic = { unidades: new Map([[3, 'l'], [4, 'mg']]), principiosActivos: new Map([[1, 'LEVOTIROXINA SODICA']]), laboratorios: new Map(), indicaciones: new Map() };
+    const dic = {
+      unidades: new Map([
+        [3, 'l'],
+        [4, 'mg'],
+      ]),
+      principiosActivos: new Map([[1, 'LEVOTIROXINA SODICA']]),
+      laboratorios: new Map(),
+      indicaciones: new Map(),
+    };
     const nodo = {
       cod_nacion: ['999995'],
       nro_definitivo: ['9999 ESP'],
       nombre_med: ['MEDICAMENTO DE PRUEBA 400 microgramos COMPRIMIDOS'],
-      formafarmaceutica: [{ principiosactivos: [{ cod_principio_activo: ['1'], cantidad: ['400'], cod_unidad_cantidad: ['3'] }, { cod_principio_activo: ['1'], cantidad: ['5'], cod_unidad_cantidad: ['4'] }] }],
+      formafarmaceutica: [
+        {
+          principiosactivos: [
+            { cod_principio_activo: ['1'], cantidad: ['400'], cod_unidad_cantidad: ['3'] },
+            { cod_principio_activo: ['1'], cantidad: ['5'], cod_unidad_cantidad: ['4'] },
+          ],
+        },
+      ],
     };
     const r = registroDesdeNomenclator(nodo as never, dic as never, new Date());
     expect(r.ok && r.registro.principiosActivos?.map((p) => p.unidadRaw)).toEqual(['µg', 'mg']);
@@ -173,16 +229,27 @@ describe('jobs de sincronización', () => {
 
   it('cimavet-delta: un fallo en un medicamento no detiene el resto y queda registrado', async () => {
     server.use(
-      http.get(`${BASE}registroCambios`, () => HttpResponse.json(registroCambiosApi([{ nregistro: '1868 ESP', fecha: '2026-10-14', tipoCambio: 3 }]))),
+      http.get(`${BASE}registroCambios`, () =>
+        HttpResponse.json(
+          registroCambiosApi([{ nregistro: '1868 ESP', fecha: '2026-10-14', tipoCambio: 3 }]),
+        ),
+      ),
       http.get(`${BASE}medicamento`, () => new HttpResponse(null, { status: 500 })),
     );
-    const r = await jobCimavetDelta({ client, repo, now: () => new Date('2026-10-15T04:30:00Z'), log: () => {} });
+    const r = await jobCimavetDelta({
+      client,
+      repo,
+      now: () => new Date('2026-10-15T04:30:00Z'),
+      log: () => {},
+    });
     expect(r.errores).toBe(1);
   });
 
   it('cimavet-delta: si registroCambios falla, el job falla y se registra el error', async () => {
     server.use(http.get(`${BASE}registroCambios`, () => new HttpResponse(null, { status: 500 })));
-    await expect(jobCimavetDelta({ client, repo, now: () => new Date('2026-10-16T04:30:00Z') })).rejects.toThrow();
+    await expect(
+      jobCimavetDelta({ client, repo, now: () => new Date('2026-10-16T04:30:00Z') }),
+    ).rejects.toThrow();
     // Se busca la ejecución fallida (las demás pruebas registran ejecuciones con la fecha real).
     const fallida = (await repo.ultimasSync(50)).find((x) => x.error);
     expect(fallida?.error).toMatch(/HTTP 500/);
@@ -194,7 +261,11 @@ describe('jobs de sincronización', () => {
     server.use(
       http.get(`${BASE}maestras`, ({ request }) => {
         const u = new URL(request.url);
-        return HttpResponse.json(u.searchParams.get('maestra') === '7' && u.searchParams.get('pagina') === '1' ? especies : listaApi([], 2));
+        return HttpResponse.json(
+          u.searchParams.get('maestra') === '7' && u.searchParams.get('pagina') === '1'
+            ? especies
+            : listaApi([], 2),
+        );
       }),
       http.get(`${BASE}medicamento`, () => {
         medicamentos++;
@@ -218,20 +289,31 @@ describe('jobs de sincronización', () => {
       http.get(`${BASE}medicamento`, () => HttpResponse.json({ ...med1868, psum: true })),
       http.get(`${BASE}notas/:n`, () => HttpResponse.json([])),
     );
-    expect(await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24)).toEqual({ actualizado: true, cacheDesde: null });
+    expect(await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24)).toEqual({
+      actualizado: true,
+      cacheDesde: null,
+    });
     expect((await repo.medicamento('1868 ESP'))?.psum).toBe(true);
     // Ya conocido y reciente: sin llamada.
     server.use(http.get(`${BASE}medicamento`, () => HttpResponse.error()));
     const reciente = await verificarEnVivo({ client, repo, now: () => new Date() }, '1868 ESP', 24);
     expect(reciente).toEqual({ actualizado: false, cacheDesde: null });
-    const caido = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000), log: () => {} }, '1868 ESP', 24);
+    const caido = await verificarEnVivo(
+      { client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000), log: () => {} },
+      '1868 ESP',
+      24,
+    );
     expect(caido.actualizado).toBe(false);
     expect(caido.cacheDesde).toBeInstanceOf(Date);
     server.use(
       http.get(`${BASE}medicamento`, () => HttpResponse.json(med1868)),
       http.get(`${BASE}notas/:n`, () => HttpResponse.json([])),
     );
-    const ok = await verificarEnVivo({ client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000) }, '1868 ESP', 24);
+    const ok = await verificarEnVivo(
+      { client, repo, now: () => new Date(Date.now() + 48 * 3600 * 1000) },
+      '1868 ESP',
+      24,
+    );
     expect(ok).toEqual({ actualizado: true, cacheDesde: null });
   });
 });
