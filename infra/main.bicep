@@ -22,7 +22,7 @@ param sustitucionModo string = 'POST'
 param modeloDocIntel string = ''
 @allowed(['off', 'entries_only'])
 param escrituraStock string = 'off'
-// Asistente de consultas (specs/001-prescription-chat-assistant, ADR-16): usa un despliegue de chat de Azure OpenAI /
+// Asistente de consultas (specs/002-prescription-chat-assistant, ADR-17): usa un despliegue de chat de Azure OpenAI /
 // Foundry YA existente en la UE al que la identidad de la app tiene acceso; no se crean recursos ni claves.
 // TODO(decision DUDA-29): despliegue concreto y límite mensual. Desactivado por defecto.
 @allowed(['off', 'azure'])

@@ -47,7 +47,7 @@ export interface AppDeps {
   asistente: AsistenteDeps;
 }
 
-/** Asistente de consultas (specs/001-prescription-chat-assistant). */
+/** Asistente de consultas (specs/002-prescription-chat-assistant). */
 export interface AsistenteDeps {
   /** null con ASSISTANT=off: no hay asistente. */
   modelo: AssistantModel | null;

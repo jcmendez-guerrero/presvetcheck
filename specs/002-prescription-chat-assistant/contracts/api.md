@@ -61,12 +61,12 @@ Lo usa la web para mostrar u ocultar el botón y para el aviso de pausa.
 
 Errores:
 
-| HTTP | `code` | Cuándo | Qué hace la web |
-|---|---|---|---|
-| 403 | `ASISTENTE_CONVERSACION_AJENA` | la conversación es de otro usuario | — |
-| 409 | `ASISTENTE_CONVERSACION_CERRADA` | la conversación está cerrada | ofrece abrir una nueva |
-| 429 | `ASISTENTE_LIMITE_MENSUAL` | se ha alcanzado el límite del mes; no se llama al modelo | mensaje de FR-027a con enlace a la Ayuda |
-| 503 | `ASISTENTE_NO_DISPONIBLE` | *timeout*, 5xx o fallo de configuración | mensaje de FR-026 con enlace a la Ayuda |
+| HTTP | `code`                           | Cuándo                                                   | Qué hace la web                          |
+| ---- | -------------------------------- | -------------------------------------------------------- | ---------------------------------------- |
+| 403  | `ASISTENTE_CONVERSACION_AJENA`   | la conversación es de otro usuario                       | —                                        |
+| 409  | `ASISTENTE_CONVERSACION_CERRADA` | la conversación está cerrada                             | ofrece abrir una nueva                   |
+| 429  | `ASISTENTE_LIMITE_MENSUAL`       | se ha alcanzado el límite del mes; no se llama al modelo | mensaje de FR-027a con enlace a la Ayuda |
+| 503  | `ASISTENTE_NO_DISPONIBLE`        | _timeout_, 5xx o fallo de configuración                  | mensaje de FR-026 con enlace a la Ayuda  |
 
 Para trazabilidad, los errores también dejan un intercambio con `estado='error'` o `estado='limite'`.
 
@@ -112,8 +112,14 @@ Abre la fuente citada desde la respuesta (FR-007).
 ```ts
 // querystring { version?: string }
 // 200
-{ fuenteId: string; tipo: 'regla' | 'guia' | 'ayuda' | 'cimavet' | 'motor'; titulo: string;
-  version: string; versionVigente: boolean; contenido: string /* fragmento en texto */ }
+{
+  fuenteId: string;
+  tipo: 'regla' | 'guia' | 'ayuda' | 'cimavet' | 'motor';
+  titulo: string;
+  version: string;
+  versionVigente: boolean;
+  contenido: string; /* fragmento en texto */
+}
 ```
 
 Si se pide una `version` que ya no está vigente, se devuelve el contenido actual con `versionVigente=false`, y la
@@ -138,7 +144,9 @@ personales.
 ### `PUT /api/admin/asistente/consumo/limite` (A, con MFA, como el resto de acciones de administración)
 
 ```ts
-{ limiteTokens: number /* > tokens usados del mes en curso */ }
+{
+  limiteTokens: number; /* > tokens usados del mes en curso */
+}
 // 200 ConsumoMesDto
 ```
 

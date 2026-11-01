@@ -42,7 +42,12 @@ const intercambio = (conversacionId: string, orden: number, createdAt?: Date) =>
 async function conversacion(createdAt?: Date) {
   const [c] = await h.db
     .insert(asistenteConversacion)
-    .values({ usuarioOid: 'u1', usuarioNombre: 'Empleada', contextoTipo: 'general', ...(createdAt ? { createdAt } : {}) })
+    .values({
+      usuarioOid: 'u1',
+      usuarioNombre: 'Empleada',
+      contextoTipo: 'general',
+      ...(createdAt ? { createdAt } : {}),
+    })
     .returning();
   return c!;
 }
@@ -55,14 +60,20 @@ describe('asistente_intercambio es de solo inserción', () => {
       h.db.update(asistenteIntercambio).set({ respuesta: 'otra' }).where(eq(asistenteIntercambio.id, i!.id)),
       /solo inserción/,
     );
-    await expectPgError(h.db.delete(asistenteIntercambio).where(eq(asistenteIntercambio.id, i!.id)), /solo inserción/);
+    await expectPgError(
+      h.db.delete(asistenteIntercambio).where(eq(asistenteIntercambio.id, i!.id)),
+      /solo inserción/,
+    );
     await expectPgError(h.db.execute(sql`truncate asistente_intercambio cascade`), /solo inserción/);
   });
 
   it('el orden es único dentro de la conversación', async () => {
     const c = await conversacion();
     await h.db.insert(asistenteIntercambio).values(intercambio(c.id, 1));
-    await expectPgError(h.db.insert(asistenteIntercambio).values(intercambio(c.id, 1)), /unique|duplicate|asistente_intercambio/i);
+    await expectPgError(
+      h.db.insert(asistenteIntercambio).values(intercambio(c.id, 1)),
+      /unique|duplicate|asistente_intercambio/i,
+    );
   });
 });
 
@@ -72,13 +83,21 @@ describe('purga por retención de 1 año', () => {
   it('sin la marca de purga no se borra ni una conversación con más de 1 año', async () => {
     const c = await conversacion(haceDias(400));
     await h.db.insert(asistenteIntercambio).values(intercambio(c.id, 1, haceDias(400)));
-    await expectPgError(h.db.delete(asistenteConversacion).where(eq(asistenteConversacion.id, c.id)), /solo inserción/);
+    await expectPgError(
+      h.db.delete(asistenteConversacion).where(eq(asistenteConversacion.id, c.id)),
+      /solo inserción/,
+    );
   });
 
   it('con la marca de purga borra lo de más de 1 año (en cascada) y conserva lo reciente', async () => {
     const vieja = await conversacion(haceDias(400));
-    const [iv] = await h.db.insert(asistenteIntercambio).values(intercambio(vieja.id, 1, haceDias(400))).returning();
-    await h.db.insert(asistenteValoracion).values({ intercambioId: iv!.id, usuarioOid: 'u1', valor: 'incorrecta' });
+    const [iv] = await h.db
+      .insert(asistenteIntercambio)
+      .values(intercambio(vieja.id, 1, haceDias(400)))
+      .returning();
+    await h.db
+      .insert(asistenteValoracion)
+      .values({ intercambioId: iv!.id, usuarioOid: 'u1', valor: 'incorrecta' });
     const reciente = await conversacion(haceDias(364));
     await h.db.insert(asistenteIntercambio).values(intercambio(reciente.id, 1, haceDias(364)));
 
@@ -95,11 +114,20 @@ describe('purga por retención de 1 año', () => {
       /solo inserción/,
     );
 
-    const quedan = await h.db.select().from(asistenteIntercambio).where(eq(asistenteIntercambio.conversacionId, vieja.id));
+    const quedan = await h.db
+      .select()
+      .from(asistenteIntercambio)
+      .where(eq(asistenteIntercambio.conversacionId, vieja.id));
     expect(quedan).toHaveLength(0);
-    const val = await h.db.select().from(asistenteValoracion).where(eq(asistenteValoracion.intercambioId, iv!.id));
+    const val = await h.db
+      .select()
+      .from(asistenteValoracion)
+      .where(eq(asistenteValoracion.intercambioId, iv!.id));
     expect(val).toHaveLength(0);
-    const rec = await h.db.select().from(asistenteIntercambio).where(eq(asistenteIntercambio.conversacionId, reciente.id));
+    const rec = await h.db
+      .select()
+      .from(asistenteIntercambio)
+      .where(eq(asistenteIntercambio.conversacionId, reciente.id));
     expect(rec).toHaveLength(1);
   });
 });

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TipoTratamiento } from '../enums';
 
 /**
- * Esquemas del asistente de consultas (specs/001-prescription-chat-assistant/contracts). Las herramientas que
+ * Esquemas del asistente de consultas (specs/002-prescription-chat-assistant/contracts). Las herramientas que
  * puede llamar el modelo, la salida estructurada del modelo y la API HTTP salen de aquí; los tipos se infieren.
  */
 
@@ -268,7 +268,7 @@ export const CasoEvaluacion = z.object({
   /** Para US2: id de la línea de la seed sobre la que se pregunta. */
   contexto: z.enum(['general', 'linea', 'medicamento']).default('general'),
   lineaSeed: z.string().optional(),
-  validado: z.boolean().default(false),
+  validado: z.boolean().default(true),
   esperado: z.object({
     tipo: TipoRespuesta,
     contiene: z.array(z.string()).default([]),

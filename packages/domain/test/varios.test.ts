@@ -14,7 +14,13 @@ import {
   sugerirPrefijo,
   varianteCoincideCn,
 } from '../src/sku';
-import { acumularEscaneo, avisosEntrada, camposFaltantes, entradaCaducada, type LineaEntrada } from '../src/recepcion';
+import {
+  acumularEscaneo,
+  avisosEntrada,
+  camposFaltantes,
+  entradaCaducada,
+  type LineaEntrada,
+} from '../src/recepcion';
 import { planificarDispensacion, textoResguardo } from '../src/parcial';
 import { HOY, RULES, politica } from './builders';
 
@@ -85,35 +91,44 @@ describe('conciliación ticket ↔ dispensación (SPEC §5.2.4)', () => {
     );
     expect(r.conciliadas).toEqual([{ dispensacionId: 'd1', movimientoId: 't1', loteVerificado: false }]);
     expect(r.discrepancias).toEqual([
-      expect.objectContaining({ tipo: 'UNIDADES_DISTINTAS', dispensacionId: 'd2', movimientoId: 't2', loteTicket: null, ticket: 'T-2', unidadesTicket: 2 }),
+      expect.objectContaining({
+        tipo: 'UNIDADES_DISTINTAS',
+        dispensacionId: 'd2',
+        movimientoId: 't2',
+        loteTicket: null,
+        ticket: 'T-2',
+        unidadesTicket: 2,
+      }),
     ]);
   });
 });
 
 describe('convención de SKU y CN (SPEC §5.2.2)', () => {
   it.each`
-    texto                          | anclado  | cn
-    ${'ZOETIS-0007-CN123456'}      | ${true}  | ${'123456'}
-    ${'ZOETIS-0007-CN1234567'}     | ${true}  | ${'123456'}
-    ${'CN123456-OTRO'}             | ${true}  | ${null}
-    ${'Amoxivet 500 CN570016 caja'} | ${false} | ${'570016'}
+    texto                                            | anclado  | cn
+    ${'ZOETIS-0007-CN123456'}                        | ${true}  | ${'123456'}
+    ${'ZOETIS-0007-CN1234567'}                       | ${true}  | ${'123456'}
+    ${'CN123456-OTRO'}                               | ${true}  | ${null}
+    ${'Amoxivet 500 CN570016 caja'}                  | ${false} | ${'570016'}
     ${'AMOXIBACTIN 250 10 COMPRIMIDOS- CN 584187.8'} | ${false} | ${'584187'}
-    ${'Producto C.N.: 5841878'}    | ${false} | ${'584187'}
-    ${'Producto CN584187-8 caja'}  | ${false} | ${'584187'}
-    ${'Lote 12345678 sin código'}  | ${false} | ${null}
-    ${'CN 58418'}                  | ${false} | ${null}
-    ${'DECHRA-00002'}              | ${true}  | ${null}
-    ${'DECHRA-00002-CN-584187.8'}  | ${true}  | ${'584187'}
-    ${'DECHRA-00002-CN584187.8'}   | ${true}  | ${'584187'}
-    ${'SKU-ANTIGUO-77'}            | ${true}  | ${null}
-    ${null}                        | ${true}  | ${null}
+    ${'Producto C.N.: 5841878'}                      | ${false} | ${'584187'}
+    ${'Producto CN584187-8 caja'}                    | ${false} | ${'584187'}
+    ${'Lote 12345678 sin código'}                    | ${false} | ${null}
+    ${'CN 58418'}                                    | ${false} | ${null}
+    ${'DECHRA-00002'}                                | ${true}  | ${null}
+    ${'DECHRA-00002-CN-584187.8'}                    | ${true}  | ${'584187'}
+    ${'DECHRA-00002-CN584187.8'}                     | ${true}  | ${'584187'}
+    ${'SKU-ANTIGUO-77'}                              | ${true}  | ${null}
+    ${null}                                          | ${true}  | ${null}
   `('extraerCn($texto) = $cn', ({ texto, anclado, cn }) => {
     expect(extraerCn(texto, PATRON, anclado)).toBe(cn);
   });
   it('coincidencia de variante por SKU o nombre', () => {
     expect(varianteCoincideCn({ sku: 'X', name: 'Amoxivet CN570016' }, '5700163', PATRON)).toBe(true);
     expect(varianteCoincideCn({ sku: 'ZOE-0001-CN570016', name: null }, '570016', PATRON)).toBe(true);
-    expect(varianteCoincideCn({ sku: 'X', name: 'Y', productName: 'Z CN570016' }, '570016', PATRON)).toBe(true);
+    expect(varianteCoincideCn({ sku: 'X', name: 'Y', productName: 'Z CN570016' }, '570016', PATRON)).toBe(
+      true,
+    );
     expect(varianteCoincideCn({ sku: 'X', name: 'Y' }, '570016', PATRON)).toBe(false);
   });
   it('correlativo por laboratorio con reservas', () => {
@@ -163,12 +178,21 @@ describe('recepción de mercancía (SPEC §4.9)', () => {
   });
   it('campos obligatorios', () => {
     expect(camposFaltantes(linea())).toEqual([]);
-    expect(camposFaltantes(linea({ lote: null, caducidad: null, unidades: 0 }))).toEqual(['unidades', 'caducidad', 'lote']);
+    expect(camposFaltantes(linea({ lote: null, caducidad: null, unidades: 0 }))).toEqual([
+      'unidades',
+      'caducidad',
+      'lote',
+    ]);
     expect(camposFaltantes(linea({ tipo: 'producto', cn: null, lote: null }))).toEqual([]);
-    expect(camposFaltantes(linea({ tipo: 'producto', unidades: null, nombreFarmaco: null }))).toEqual(['unidades', 'nombreFarmaco']);
+    expect(camposFaltantes(linea({ tipo: 'producto', unidades: null, nombreFarmaco: null }))).toEqual([
+      'unidades',
+      'nombreFarmaco',
+    ]);
   });
   it('caducidad próxima (< hoy + 90 días) → aviso', () => {
-    expect(avisosEntrada(linea({ caducidad: '2026-12-01' }), HOY, 90, politica()).map((i) => i.code)).toEqual(['CADUCIDAD_PROXIMA_ENTRADA']);
+    expect(avisosEntrada(linea({ caducidad: '2026-12-01' }), HOY, 90, politica()).map((i) => i.code)).toEqual(
+      ['CADUCIDAD_PROXIMA_ENTRADA'],
+    );
     expect(avisosEntrada(linea(), HOY, 90, politica())).toEqual([]);
     expect(avisosEntrada(linea({ caducidad: null }), HOY, 90, politica())).toEqual([]);
   });
@@ -192,7 +216,14 @@ describe('dispensación parcial (D-10)', () => {
       true,
       'papel',
     );
-    expect(plan).toEqual({ dispensables: [1], pendientesEntrega: [2], bloqueadas: [3], esParcial: true, permitido: true, retenerReceta: true });
+    expect(plan).toEqual({
+      dispensables: [1],
+      pendientesEntrega: [2],
+      bloqueadas: [3],
+      esParcial: true,
+      permitido: true,
+      retenerReceta: true,
+    });
   });
   it('ALLOW_PARTIAL_DISPENSATION=false impide la dispensación parcial', () => {
     const plan = planificarDispensacion(
@@ -207,10 +238,17 @@ describe('dispensación parcial (D-10)', () => {
     expect(plan.retenerReceta).toBe(false);
   });
   it('resguardo para el tutor', () => {
-    const t = textoResguardo({ numeroReceta: 'R1', fecha: '14/10/2026', telefonoFarmacia: '900 000 000', pendientes: [{ nombre: 'AMOXIVET', unidades: 1 }] });
+    const t = textoResguardo({
+      numeroReceta: 'R1',
+      fecha: '14/10/2026',
+      telefonoFarmacia: '900 000 000',
+      pendientes: [{ nombre: 'AMOXIVET', unidades: 1 }],
+    });
     expect(t).toContain('Receta nº: R1');
     expect(t).toContain('AMOXIVET — 1 envase(s)');
-    expect(textoResguardo({ numeroReceta: null, fecha: 'x', telefonoFarmacia: 'y', pendientes: [] })).toContain('(sin número)');
+    expect(
+      textoResguardo({ numeroReceta: null, fecha: 'x', telefonoFarmacia: 'y', pendientes: [] }),
+    ).toContain('(sin número)');
   });
 });
 
@@ -221,7 +259,12 @@ describe('compra con descuento, IVA y recargo de equivalencia (factura de provee
     ['23.08', 1],
     ['44.03', 1],
     ['23.46', 1],
-  ].map(([p, u]) => ({ neto: precioConDescuento(p as string, '12.88'), unidades: u as number, ivaPct: '10', rePct: '1.4' }));
+  ].map(([p, u]) => ({
+    neto: precioConDescuento(p as string, '12.88'),
+    unidades: u as number,
+    ivaPct: '10',
+    rePct: '1.4',
+  }));
 
   it('neto = precio − descuento, y totales iguales a los de la factura', () => {
     expect(lineas.map((l) => l.neto)).toEqual(['58.9541', '20.1073', '38.3589', '20.4384']);
@@ -239,3 +282,22 @@ describe('compra con descuento, IVA y recargo de equivalencia (factura de provee
   });
 });
 
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('extraerCn con textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['nombre · «CN» y espacios', () => extraerCn('CN' + ' '.repeat(n) + 'x', 'CN(\\d{6})$', false)],
+    [
+      'nombre · «C.N.:» y espacios',
+      () => extraerCn('C.N.' + ' '.repeat(n) + ':' + ' '.repeat(n) + 'x', 'CN(\\d{6})$', false),
+    ],
+    ['nombre · muchos «CN »', () => extraerCn('CN '.repeat(n / 3), 'CN(\\d{6})$', false)],
+    ['SKU · separadores', () => extraerCn('CN' + '-'.repeat(n) + 'x', 'CN(\\d{6,7})$', true)],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+});

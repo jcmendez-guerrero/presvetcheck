@@ -56,17 +56,21 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
 
   // Duplicados y plataforma (SPEC §4.1.5)
   if (r.tipo === 'papel' && e.yaDispensada) incs.push(incidencia('RECETA_YA_DISPENSADA', pol));
-  if (e.recetaSimilarId) incs.push(incidencia('RECETA_POSIBLE_DUPLICADO', pol, { params: { recetaId: e.recetaSimilarId } }));
+  if (e.recetaSimilarId)
+    incs.push(incidencia('RECETA_POSIBLE_DUPLICADO', pol, { params: { recetaId: e.recetaSimilarId } }));
   if (r.tipo === 'electronica') {
     if (e.plataforma === null || e.plataforma === 'desconocida') {
       incs.push(incidencia('PLATAFORMA_DESCONOCIDA', pol));
     } else if (e.plataforma.reconocidaMapa === false) {
       incs.push(incidencia('PLATAFORMA_NO_RECONOCIDA', pol, { params: { plataforma: e.plataforma.nombre } }));
     } else if (e.plataforma.reconocidaMapa === null) {
-      incs.push(incidencia('PLATAFORMA_PENDIENTE_VERIFICAR', pol, { params: { plataforma: e.plataforma.nombre } }));
+      incs.push(
+        incidencia('PLATAFORMA_PENDIENTE_VERIFICAR', pol, { params: { plataforma: e.plataforma.nombre } }),
+      );
     }
   }
-  if (e.cimavetCacheDesde) incs.push(incidencia('CIMAVET_NO_DISPONIBLE', pol, { params: { fecha: fechaEs(e.cimavetCacheDesde) } }));
+  if (e.cimavetCacheDesde)
+    incs.push(incidencia('CIMAVET_NO_DISPONIBLE', pol, { params: { fecha: fechaEs(e.cimavetCacheDesde) } }));
 
   // Validez temporal (SPEC §4.1.3)
   let validez: ResultadoValidez | null = null;
@@ -100,7 +104,12 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
       );
     }
     if (recetaCaducada(validez.efectiva, fechaReferencia)) {
-      incs.push(incidencia('RECETA_CADUCADA', pol, { campo: 'fecha_emision', params: { fecha: fechaEs(validez.efectiva) } }));
+      incs.push(
+        incidencia('RECETA_CADUCADA', pol, {
+          campo: 'fecha_emision',
+          params: { fecha: fechaEs(validez.efectiva) },
+        }),
+      );
     }
   }
 
@@ -122,12 +131,16 @@ export function evaluarReceta(e: EntradaEvaluacion): ResultadoEvaluacion {
     const estado = m.estado !== 'autorizado' ? m.estado : res.presentacion.estado;
     if (estado === 'suspendido') incs.push(incidencia('MEDICAMENTO_SUSPENDIDO', pol, { linea, params: p }));
     if (estado === 'revocado') incs.push(incidencia('MEDICAMENTO_REVOCADO', pol, { linea, params: p }));
-    if (!m.comerc || !res.presentacion.comerc) incs.push(incidencia('MEDICAMENTO_NO_COMERCIALIZADO', pol, { linea, params: p }));
+    if (!m.comerc || !res.presentacion.comerc)
+      incs.push(incidencia('MEDICAMENTO_NO_COMERCIALIZADO', pol, { linea, params: p }));
     if (m.psum) incs.push(incidencia('PROBLEMA_SUMINISTRO', pol, { linea, params: p }));
     // Desconocido (Nomenclátor sin consulta a CIMAVet): se avisa para que no se dé por bueno.
     else if (m.psum === null) incs.push(incidencia('SUMINISTRO_NO_COMPROBADO', pol, { linea, params: p }));
     if (m.notas) incs.push(incidencia('NOTAS_SEGURIDAD', pol, { linea, params: p }));
-    if (r.especie.especieId !== null && !autorizadoParaEspecie(m, r.especie.especieId, e.rules.equivalencia.especie_padre)) {
+    if (
+      r.especie.especieId !== null &&
+      !autorizadoParaEspecie(m, r.especie.especieId, e.rules.equivalencia.especie_padre)
+    ) {
       incs.push(incidencia('MEDICAMENTO_ESPECIE_NO_AUTORIZADA', pol, { linea, params: p }));
     }
   }

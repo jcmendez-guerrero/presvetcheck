@@ -74,7 +74,7 @@ export const envSchema = z
     EXTRACTION_CONFIDENCE_THRESHOLD: num(0.85).pipe(z.number().min(0).max(1)),
 
     /**
-     * Asistente de consultas (specs/001-prescription-chat-assistant). `off`: sin asistente; `fake`: modelo con
+     * Asistente de consultas (specs/002-prescription-chat-assistant). `off`: sin asistente; `fake`: modelo con
      * guiones (demo y tests); `azure`: despliegue de chat de Azure OpenAI / Foundry en la UE.
      */
     // TODO(decision DUDA-29): despliegue de chat concreto, precios y límite mensual por defecto.
@@ -86,8 +86,18 @@ export const envSchema = z
     /** Límite mensual global de tokens (entrada + salida). Al 80 % avisa; al 100 % pausa el asistente. */
     ASSISTANT_MONTHLY_TOKEN_LIMIT: num(3_000_000).pipe(z.number().int().min(1)),
     /** Precio por 1.000 tokens en euros (solo para la estimación de coste). */
-    ASSISTANT_PRICE_IN_PER_1K_EUR: optStr.pipe(z.string().regex(/^\d+(\.\d+)?$/).optional()),
-    ASSISTANT_PRICE_OUT_PER_1K_EUR: optStr.pipe(z.string().regex(/^\d+(\.\d+)?$/).optional()),
+    ASSISTANT_PRICE_IN_PER_1K_EUR: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .optional(),
+    ),
+    ASSISTANT_PRICE_OUT_PER_1K_EUR: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .optional(),
+    ),
 
     SUBSTITUTION_APPROVAL_MODE: z.enum(['POST', 'PRE']).default('POST'),
     SUBSTITUTION_SIGN_MAX_DAYS: num(7),
@@ -102,7 +112,12 @@ export const envSchema = z
     // TODO(decision D-05c): cuándo pasar "producto no válido" a no forzable.
     PRODUCT_VALIDITY_HARD_BLOCK: bool(false),
     PSYCHOTROPIC_ALLOW_FORCE: bool(false),
-    ENTRY_CUTOVER_DATE: optStr.pipe(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+    ENTRY_CUTOVER_DATE: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    ),
 
     AUTH_MODE: z.enum(['entra', 'dev']).default('entra'),
     ENTRA_TENANT_ID: optStr,
@@ -158,7 +173,11 @@ export const envSchema = z
       req('ASSISTANT_DEPLOYMENT', 'con ASSISTANT=azure');
     }
     if (env.ASSISTANT === 'fake' && env.NODE_ENV === 'production') {
-      ctx.addIssue({ code: 'custom', path: ['ASSISTANT'], message: 'ASSISTANT=fake no se admite en producción' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ASSISTANT'],
+        message: 'ASSISTANT=fake no se admite en producción',
+      });
     }
     if (env.MAILER === 'acs') {
       req('ACS_ENDPOINT', 'con MAILER=acs');
@@ -172,7 +191,11 @@ export const envSchema = z
       req('BLOB_ACCOUNT_URL', 'en producción');
       req('KEY_VAULT_URL', 'en producción');
       if (env.EXTRACTOR === 'fake') {
-        ctx.addIssue({ code: 'custom', path: ['EXTRACTOR'], message: 'EXTRACTOR=fake no se admite en producción' });
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EXTRACTOR'],
+          message: 'EXTRACTOR=fake no se admite en producción',
+        });
       }
       if (env.SIWEB_TOKEN) {
         ctx.addIssue({

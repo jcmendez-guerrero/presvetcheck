@@ -33,7 +33,7 @@ import { useAuth } from '../lib/auth';
 import { Boton } from './ui';
 
 /**
- * Asistente de consultas (specs/001-prescription-chat-assistant): botón «Preguntar» y panel lateral. Solo informa:
+ * Asistente de consultas (specs/002-prescription-chat-assistant): botón «Preguntar» y panel lateral. Solo informa:
  * no autoriza ni modifica nada. El detalle de las simulaciones y del resultado del motor se pinta desde los datos
  * del motor, nunca desde el texto del modelo.
  */

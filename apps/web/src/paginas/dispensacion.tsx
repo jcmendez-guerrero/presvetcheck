@@ -353,7 +353,9 @@ export function Dispensacion() {
             )}
           </div>
           <ListaMotivos motivos={l.resultado.motivos.filter((m) => m.severidad === 'AVISO')} />
-          {l.lineaId && <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />}
+          {l.lineaId && (
+            <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />
+          )}
           <Tarjeta titulo="Lote recomendado (caduca antes)">
             {objetivo.lote ? (
               <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">

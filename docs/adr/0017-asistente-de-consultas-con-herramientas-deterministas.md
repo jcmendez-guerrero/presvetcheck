@@ -1,15 +1,17 @@
-# ADR-16 · Asistente de consultas con herramientas deterministas
+# ADR-17 · Asistente de consultas con herramientas deterministas
 
 - **Estado:** propuesta (pendiente de aprobación de JC)
-- **Especificación:** `specs/001-prescription-chat-assistant/`
+- **Especificación:** `specs/002-prescription-chat-assistant/`
 
 ## Contexto
+
 El personal tiene dudas de mostrador (validez de una receta, sustitución, cambio de formato, psicótropos…) cuya
 respuesta está repartida entre la guía de la receta, las reglas versionadas del motor y la Ayuda. ADR-12 (DUDA-27)
 retiró Azure OpenAI de la extracción de recetas; esta decisión reintroduce un modelo generativo con un papel
 distinto: **explicar**, nunca decidir.
 
 ## Decisión
+
 Un asistente conversacional en español que usa un modelo de chat de Azure OpenAI ya desplegado (directo o
 a través de Azure AI Foundry: la API de chat es la misma y solo cambia la URL configurada).
 
@@ -30,12 +32,14 @@ a través de Azure AI Foundry: la API de chat es la misma y solo cambia la URL c
 7. **Coste:** límite mensual global de tokens; aviso al 80 %, pausa al 100 %.
 
 ## Alternativas descartadas
+
 - Reglas dentro del prompt: incumple la constitución (III) y obliga a reescribir el prompt al cambiar una regla.
 - Búsqueda vectorial (Azure AI Search, pgvector): coste e infraestructura sin ganancia para un corpus pequeño.
-- *Agents* de Foundry con estado en el servicio: las herramientas deben ejecutarse en la API y las
+- _Agents_ de Foundry con estado en el servicio: las herramientas deben ejecutarse en la API y las
   conversaciones han de vivir en nuestra base de datos para cumplir la retención.
 - Preguntas frecuentes estáticas: no entienden otras formulaciones ni casos hipotéticos.
 
 ## Consecuencias
+
 - Actualizar `SPEC.md` §9.2 y §9.3 y el Registro de Actividades de Tratamiento (Facilita).
 - El banco de evaluación (`pnpm eval:asistente`) es orientativo y no condiciona la activación.

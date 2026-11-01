@@ -110,15 +110,29 @@ export class ConsumoRepo {
 
   /** Meses anteriores (más recientes primero), sin el actual. */
   async historico(ahora: Date, meses: number): Promise<EstadoMes[]> {
-    const filas = await this.db.select().from(asistenteConsumoMes).orderBy(desc(asistenteConsumoMes.mes)).limit(meses + 1);
-    return filas.filter((f) => f.mes !== mesMadrid(ahora)).slice(0, meses).map((f) => this.derivar(f));
+    const filas = await this.db
+      .select()
+      .from(asistenteConsumoMes)
+      .orderBy(desc(asistenteConsumoMes.mes))
+      .limit(meses + 1);
+    return filas
+      .filter((f) => f.mes !== mesMadrid(ahora))
+      .slice(0, meses)
+      .map((f) => this.derivar(f));
   }
 
   /** Amplía el límite del mes en curso (administración). Devuelve el estado anterior y el nuevo. */
-  async ampliar(ahora: Date, limiteTokens: number, por: string): Promise<{ antes: EstadoMes; despues: EstadoMes }> {
+  async ampliar(
+    ahora: Date,
+    limiteTokens: number,
+    por: string,
+  ): Promise<{ antes: EstadoMes; despues: EstadoMes }> {
     const antes = await this.mes(ahora);
     if (limiteTokens <= antes.usados) {
-      throw new DomainError('VALIDACION', `El nuevo límite debe superar lo ya consumido este mes (${antes.usados} tokens).`);
+      throw new DomainError(
+        'VALIDACION',
+        `El nuevo límite debe superar lo ya consumido este mes (${antes.usados} tokens).`,
+      );
     }
     await this.db
       .update(asistenteConsumoMes)

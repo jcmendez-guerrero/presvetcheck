@@ -231,7 +231,21 @@ function mensajeCorreccion(errores: ErrorValidacion[]): string {
 }
 
 function candidatosDe(datos: unknown): CandidatoMedicamento[] {
-  const cs = (datos as { candidatos?: { nregistro: string; nombre: string; laboratorio: string | null; presentaciones?: { cn: string }[] }[] } | null)?.candidatos;
+  const cs = (
+    datos as {
+      candidatos?: {
+        nregistro: string;
+        nombre: string;
+        laboratorio: string | null;
+        presentaciones?: { cn: string }[];
+      }[];
+    } | null
+  )?.candidatos;
   if (!Array.isArray(cs) || cs.length < 2) return [];
-  return cs.map((c) => ({ nregistro: c.nregistro, nombre: c.nombre, laboratorio: c.laboratorio ?? null, cn: c.presentaciones?.[0]?.cn ?? null }));
+  return cs.map((c) => ({
+    nregistro: c.nregistro,
+    nombre: c.nombre,
+    laboratorio: c.laboratorio ?? null,
+    cn: c.presentaciones?.[0]?.cn ?? null,
+  }));
 }

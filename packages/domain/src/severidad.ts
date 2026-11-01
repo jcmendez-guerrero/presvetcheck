@@ -24,16 +24,27 @@ type Extra = Omit<Incidencia, 'code' | 'severidad' | 'ambito'> & { ambito?: Inci
 
 export function incidencia(code: CodigoIncidencia, pol: PoliticaSeveridad, extra: Extra = {}): Incidencia {
   const { ambito, ...rest } = extra;
-  return { code, severidad: severidadDe(code, pol), ambito: ambito ?? (rest.linea !== undefined ? 'linea' : 'receta'), ...rest };
+  return {
+    code,
+    severidad: severidadDe(code, pol),
+    ambito: ambito ?? (rest.linea !== undefined ? 'linea' : 'receta'),
+    ...rest,
+  };
 }
 
 /**
  * En psicótropos, con PSYCHOTROPIC_ALLOW_FORCE=false, los defectos de forma pasan a no forzables
  * (SPEC §4.1.5).
  */
-export function aplicarPoliticaPsicotropo(incs: Incidencia[], esPsicotropo: boolean, pol: PoliticaSeveridad): Incidencia[] {
+export function aplicarPoliticaPsicotropo(
+  incs: Incidencia[],
+  esPsicotropo: boolean,
+  pol: PoliticaSeveridad,
+): Incidencia[] {
   if (!esPsicotropo || pol.psychotropicAllowForce) return incs;
-  return incs.map((i) => (i.severidad === 'BLOQUEANTE_FORMA' ? { ...i, severidad: 'BLOQUEANTE_DURO', porPsicotropo: true } : i));
+  return incs.map((i) =>
+    i.severidad === 'BLOQUEANTE_FORMA' ? { ...i, severidad: 'BLOQUEANTE_DURO', porPsicotropo: true } : i,
+  );
 }
 
 export function peorSeveridad(incs: Incidencia[]): Severidad | null {

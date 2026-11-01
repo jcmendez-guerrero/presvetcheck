@@ -15,7 +15,9 @@ export const DIR_NOMENCLATOR = resolve(__dirname, '../../../fixtures/nomenclator
 export const MUESTRA = resolve(DIR_NOMENCLATOR, 'PrescripcionVET.sample.xml');
 
 if (!existsSync(MUESTRA)) {
-  throw new Error('Faltan los XML del Nomenclátor (no se versionan). Ejecuta `pnpm nomenclator:fetch` para descargarlos de CIMAVet.');
+  throw new Error(
+    'Faltan los XML del Nomenclátor (no se versionan). Ejecuta `pnpm nomenclator:fetch` para descargarlos de CIMAVet.',
+  );
 }
 
 type Mapa = Map<number, string>;
@@ -68,14 +70,21 @@ export function muestra(): Promise<Muestra> {
 /** AAAA-MM-DD → ms epoch de la medianoche en Madrid (como los devuelve la API real). */
 export function msMadrid(fecha: string): number {
   const utc = Date.parse(`${fecha}T00:00:00Z`);
-  const desfase = new Date(utc).toLocaleString('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' }).match(/GMT([+-]\d+)/);
+  const desfase = new Date(utc)
+    .toLocaleString('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' })
+    .match(/GMT([+-]\d+)/);
   return utc - Number(desfase?.[1] ?? 0) * 3_600_000;
 }
 
 const estadoApi = (codigo: string | null | undefined, desde: number) =>
-  codigo === 'revocado' ? { aut: desde, rev: desde } : codigo === 'suspendido' ? { aut: desde, susp: desde } : { aut: desde };
+  codigo === 'revocado'
+    ? { aut: desde, rev: desde }
+    : codigo === 'suspendido'
+      ? { aut: desde, susp: desde }
+      : { aut: desde };
 
-const item = (id: number | null | undefined, m: Mapa) => (id === null || id === undefined ? null : { id, nombre: m.get(id) ?? null });
+const item = (id: number | null | undefined, m: Mapa) =>
+  id === null || id === undefined ? null : { id, nombre: m.get(id) ?? null };
 
 /** `GET medicamento?nregistro=` construido a partir del registro del Nomenclátor. */
 export async function medicamentoApi(nregistro: string): Promise<Record<string, unknown>> {
@@ -100,26 +109,56 @@ export async function medicamentoApi(nregistro: string): Promise<Record<string, 
     ema: false,
     atcs: (r.atc ?? []).map((codigo) => ({ codigo, nivel: 5 })),
     formasFarmaceuticas: [item(m.formaId, formas)].filter(Boolean),
-    principiosActivos: (r.principiosActivos ?? []).map((p) => ({ id: p.paId, nombre: p.nombre, cantidad: p.cantidadRaw, unidad: p.unidadRaw, orden: p.orden })),
+    principiosActivos: (r.principiosActivos ?? []).map((p) => ({
+      id: p.paId,
+      nombre: p.nombre,
+      cantidad: p.cantidadRaw,
+      unidad: p.unidadRaw,
+      orden: p.orden,
+    })),
     viasAdministracion: (r.vias ?? []).map((id) => item(id, vias)),
     especies: (r.especies ?? []).map((id) => item(id, especies)),
-    indicaciones: (r.indicaciones ?? []).map((i) => ({ especie: item(i.especieId, especies), id: i.indicacionId, nombre: i.nombre })),
+    indicaciones: (r.indicaciones ?? []).map((i) => ({
+      especie: item(i.especieId, especies),
+      id: i.indicacionId,
+      nombre: i.nombre,
+    })),
     tiemposEspera: (r.tiemposEspera ?? []).map((t) => ({
       especie: item(t.especieId, especies),
       ...(t.tejido ? { tejido: { nombre: t.tejido } } : {}),
       ...(t.cantidad ? { cantidad: t.cantidad } : {}),
       ...(t.unidad ? { unidadTiempo: { nombre: t.unidad } } : {}),
     })),
-    presentaciones: r.presentaciones.map((p) => ({ cn: p.cn, nombre: p.nombre, estado: estadoApi(p.estadoCodigo, aut), comerc: p.comerc, psum: false })),
+    presentaciones: r.presentaciones.map((p) => ({
+      cn: p.cn,
+      nombre: p.nombre,
+      estado: estadoApi(p.estadoCodigo, aut),
+      comerc: p.comerc,
+      psum: false,
+    })),
   };
 }
 
 /** Envoltorio real de las listas paginadas. */
-export const listaApi = (resultados: unknown[], pagina = 1, tamanioPagina = 25) => ({ totalFilas: resultados.length, pagina, tamanioPagina, resultados });
+export const listaApi = (resultados: unknown[], pagina = 1, tamanioPagina = 25) => ({
+  totalFilas: resultados.length,
+  pagina,
+  tamanioPagina,
+  resultados,
+});
 
 /** `GET registroCambios`: tipoCambio 1 alta, 2 baja, 3 modificación (doc v1.4). */
-export const registroCambiosApi = (cambios: { nregistro: string; fecha: string; tipoCambio: 1 | 2 | 3; cambio?: string[] }[]) =>
-  listaApi(cambios.map((c) => ({ nregistro: c.nregistro, fecha: msMadrid(c.fecha), tipoCambio: c.tipoCambio, cambio: c.cambio ?? [] })));
+export const registroCambiosApi = (
+  cambios: { nregistro: string; fecha: string; tipoCambio: 1 | 2 | 3; cambio?: string[] }[],
+) =>
+  listaApi(
+    cambios.map((c) => ({
+      nregistro: c.nregistro,
+      fecha: msMadrid(c.fecha),
+      tipoCambio: c.tipoCambio,
+      cambio: c.cambio ?? [],
+    })),
+  );
 
 /** `GET maestras?maestra=7` (especies) desde DICCIONARIO_ESPECIES_DESTINO.xml. */
 export async function maestraEspeciesApi(ids: number[]) {
@@ -132,7 +171,10 @@ export function capitalizarClaves(v: unknown, claves: string[]): unknown {
   if (Array.isArray(v)) return v.map((x) => capitalizarClaves(x, claves));
   if (v && typeof v === 'object') {
     return Object.fromEntries(
-      Object.entries(v as Record<string, unknown>).map(([k, x]) => [claves.includes(k) ? k[0]!.toUpperCase() + k.slice(1) : k, capitalizarClaves(x, claves)]),
+      Object.entries(v as Record<string, unknown>).map(([k, x]) => [
+        claves.includes(k) ? k[0]!.toUpperCase() + k.slice(1) : k,
+        capitalizarClaves(x, claves),
+      ]),
     );
   }
   return v;

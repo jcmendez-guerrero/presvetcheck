@@ -23,7 +23,10 @@ export interface ConCrudo<T> {
 }
 
 export class CimavetValidationError extends Error {
-  constructor(public readonly endpoint: string, public readonly issues: string[]) {
+  constructor(
+    public readonly endpoint: string,
+    public readonly issues: string[],
+  ) {
     super(`Respuesta de CIMAVet no válida en ${endpoint}: ${issues.join('; ')}`);
     this.name = 'CimavetValidationError';
   }
@@ -58,7 +61,20 @@ export type FiltrosMedicamentos = Partial<
 >;
 
 /** Maestras de `GET maestras?maestra=` (SPEC §5.1.1). */
-export const MAESTRAS_API = { 1: 'principios activos', 2: 'formas', 3: 'vías', 4: 'laboratorios', 5: 'ATC', 6: 'excipientes', 7: 'especies', 8: 'medicamentos', 9: 'interacciones', 10: 'contraindicaciones', 11: 'indicaciones', 12: 'reacciones adversas' } as const;
+export const MAESTRAS_API = {
+  1: 'principios activos',
+  2: 'formas',
+  3: 'vías',
+  4: 'laboratorios',
+  5: 'ATC',
+  6: 'excipientes',
+  7: 'especies',
+  8: 'medicamentos',
+  9: 'interacciones',
+  10: 'contraindicaciones',
+  11: 'indicaciones',
+  12: 'reacciones adversas',
+} as const;
 
 /**
  * Cliente REST de CIMAVet (SPEC §5.1.1): rate limit (CIMAVET_RPS), reintentos con backoff y jitter
@@ -85,7 +101,10 @@ export class CimavetClient {
     });
   }
 
-  private url(path: string, params: Record<string, string | number | Array<string | number> | undefined> = {}): string {
+  private url(
+    path: string,
+    params: Record<string, string | number | Array<string | number> | undefined> = {},
+  ): string {
     const u = new URL(path, this.base);
     for (const [k, v] of Object.entries(params)) {
       if (v === undefined) continue;
@@ -96,13 +115,24 @@ export class CimavetClient {
 
   private parse<S extends z.ZodTypeAny>(schema: S, json: unknown, endpoint: string): z.output<S> {
     const r = schema.safeParse(lowerKeys(json));
-    if (!r.success) throw new CimavetValidationError(endpoint, r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`));
+    if (!r.success)
+      throw new CimavetValidationError(
+        endpoint,
+        r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+      );
     return r.data;
   }
 
-  private async lista<S extends z.ZodTypeAny>(schema: S, url: string, endpoint: string): Promise<ConCrudo<z.output<S>>[] & { tamanio?: number }> {
+  private async lista<S extends z.ZodTypeAny>(
+    schema: S,
+    url: string,
+    endpoint: string,
+  ): Promise<ConCrudo<z.output<S>>[] & { tamanio?: number }> {
     const { json } = await this.http.request(url);
-    const items: ConCrudo<z.output<S>>[] & { tamanio?: number } = extraerLista(json).map((raw) => ({ data: this.parse(schema, raw, endpoint), raw }));
+    const items: ConCrudo<z.output<S>>[] & { tamanio?: number } = extraerLista(json).map((raw) => ({
+      data: this.parse(schema, raw, endpoint),
+      raw,
+    }));
     const tam = tamanioPagina(json);
     if (tam !== null) items.tamanio = tam;
     return items;
@@ -170,7 +200,10 @@ export class CimavetClient {
     }
   }
 
-  maestras(maestra: keyof typeof MAESTRAS_API, filtros: { nombre?: string; id?: number; codigo?: string } = {}): Promise<ConCrudo<ItemApi>[]> {
+  maestras(
+    maestra: keyof typeof MAESTRAS_API,
+    filtros: { nombre?: string; id?: number; codigo?: string } = {},
+  ): Promise<ConCrudo<ItemApi>[]> {
     return this.paginado(ItemSchema, 'maestras', { maestra, ...filtros });
   }
 

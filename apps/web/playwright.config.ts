@@ -15,7 +15,9 @@ export default defineConfig({
       url: 'http://localhost:3101/api/ready',
       timeout: 120_000,
       reuseExistingServer: false,
-      env: { DEV_BOOTSTRAP: '1', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'memory', AUTH_MODE: 'dev', EXTRACTOR: 'fake', ASSISTANT: 'fake', PORT: '3101', LOG_LEVEL: 'warn', NODE_ENV: 'development' },
+      // Clave de cifrado de columnas solo de desarrollo (la misma de .env.example): sin ella la API no arranca en la CI,
+      // donde no hay .env.
+      env: { DEV_BOOTSTRAP: '1', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'memory', AUTH_MODE: 'dev', EXTRACTOR: 'fake', ASSISTANT: 'fake', PORT: '3101', LOG_LEVEL: 'warn', NODE_ENV: 'development', COLUMN_ENCRYPTION_KEY: 'ZGV2LWtleS1ub3QtZm9yLXByb2R1Y3Rpb24tMzJiISE=' },
     },
     {
       command: `${NODE} node_modules/vite/bin/vite.js --port 5174 --strictPort`,

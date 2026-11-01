@@ -3,7 +3,10 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
   const aUtc = (iso: string) => {
     // Desfase de Madrid ese día (CET/CEST), calculado con Intl.
     const guess = new Date(`${iso}T00:00:00Z`);
-    const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' }).formatToParts(guess).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
+    const offset =
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', timeZoneName: 'shortOffset' })
+        .formatToParts(guess)
+        .find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+1';
     const h = Number(/GMT([+-]\d+)/.exec(offset)?.[1] ?? 1);
     return new Date(guess.getTime() - h * 3600_000);
   };
@@ -14,6 +17,10 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
 
 /** Mes natural `YYYY-MM` de un instante en Europe/Madrid (consumo mensual del asistente). */
 export function mesMadrid(instante: Date): string {
-  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit' }).formatToParts(instante);
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(instante);
   return `${partes.find((p) => p.type === 'year')?.value}-${partes.find((p) => p.type === 'month')?.value}`;
 }

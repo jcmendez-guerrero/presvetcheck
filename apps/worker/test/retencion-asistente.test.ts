@@ -154,15 +154,13 @@ describe('weekly-reports · consumo del asistente (FR-027b)', () => {
     await JOBS['weekly-reports']!(c, {});
     expect(mailer.enviados[0]?.texto).not.toContain('Asistente de consultas');
 
-    await h.db
-      .insert(asistenteConsumoMes)
-      .values({
-        mes: '2026-10',
-        limiteTokens: 3_000_000,
-        tokensEntrada: 2_000_000,
-        tokensSalida: 500_000,
-        preguntas: 120,
-      });
+    await h.db.insert(asistenteConsumoMes).values({
+      mes: '2026-10',
+      limiteTokens: 3_000_000,
+      tokensEntrada: 2_000_000,
+      tokensSalida: 500_000,
+      preguntas: 120,
+    });
     await JOBS['weekly-reports']!(c, {});
     expect(mailer.enviados[1]?.texto).toContain(
       'Asistente de consultas (2026-10): 2500000 tokens, 83.3 % del límite, 120 pregunta(s), coste estimado 10.00 € · cerca del límite.',

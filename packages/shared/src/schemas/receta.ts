@@ -36,7 +36,11 @@ export const RecetaLineaConfirmada = z.object({
     .default(null),
   /** Medicamento elegido por la persona (nunca autoseleccionado, SPEC §4.2.2). */
   nregistro: z.string().nullable().default(null),
-  cn: z.string().regex(/^\d{6}$/).nullable().default(null),
+  cn: z
+    .string()
+    .regex(/^\d{6}$/)
+    .nullable()
+    .default(null),
 });
 export type RecetaLineaConfirmada = z.output<typeof RecetaLineaConfirmada>;
 

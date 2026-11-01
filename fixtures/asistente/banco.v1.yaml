@@ -1,7 +1,7 @@
-# Banco de evaluación del asistente de consultas (specs/001-prescription-chat-assistant, FR-028 y FR-029).
+# Banco de evaluación del asistente de consultas (specs/002-prescription-chat-assistant, FR-028 y FR-029).
 # Cada caso: la pregunta, el tipo de respuesta esperado, lo que debe aparecer en el texto (`contiene`), las fuentes
 # que debe citar (prefijos de fuenteId) y si debe incluir una simulación del motor.
-# `validado: false` = pendiente de que JC valide la respuesta esperada (TODO: ver docs/dudas.md, DUDA-29).
+# Validado por JC (DUDA-29). Si una regla cambia, hay que revisar el caso correspondiente.
 # Los valores esperados salen de las reglas versionadas y de la guía; si una regla cambia, hay que revisar el caso.
 version: 1
 casos:

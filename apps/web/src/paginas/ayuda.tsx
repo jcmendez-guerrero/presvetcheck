@@ -8,7 +8,8 @@ import { Pagina } from '../componentes/layout';
  * `packages/shared/src/ayuda` (datos), para que también lo use el asistente de consultas. Describe el
  * comportamiento de la app; las reglas legales están en el motor de reglas, no aquí.
  */
-const inline = (xs: Inline[]): ReactNode[] => xs.map((x, i) => (typeof x === 'string' ? x : <strong key={i}>{x.b}</strong>));
+const inline = (xs: Inline[]): ReactNode[] =>
+  xs.map((x, i) => (typeof x === 'string' ? x : <strong key={i}>{x.b}</strong>));
 
 const bloque = (b: Bloque, i: number): ReactNode =>
   'p' in b ? (
@@ -23,7 +24,11 @@ const bloque = (b: Bloque, i: number): ReactNode =>
     </ul>
   );
 
-const SECCIONES = SECCIONES_AYUDA.map((s) => ({ id: s.id, titulo: s.titulo, contenido: <>{s.bloques.map(bloque)}</> }));
+const SECCIONES = SECCIONES_AYUDA.map((s) => ({
+  id: s.id,
+  titulo: s.titulo,
+  contenido: <>{s.bloques.map(bloque)}</>,
+}));
 
 export function Ayuda() {
   const [q, setQ] = useState('');

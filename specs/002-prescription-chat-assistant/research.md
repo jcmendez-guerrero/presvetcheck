@@ -5,21 +5,21 @@ se toman y qué alternativas se descartaron.
 
 ## R1 · Servicio de IA: Azure OpenAI directo o a través de Azure AI Foundry
 
-- **Decisión**: un único cliente HTTP compatible con la API de *chat completions* de Azure OpenAI
-  (`POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…`), con *tool calling* y
-  *structured outputs* (`response_format: json_schema`). Un despliegue de Azure OpenAI dentro de un recurso de
+- **Decisión**: un único cliente HTTP compatible con la API de _chat completions_ de Azure OpenAI
+  (`POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…`), con _tool calling_ y
+  _structured outputs_ (`response_format: json_schema`). Un despliegue de Azure OpenAI dentro de un recurso de
   Azure AI Foundry expone el mismo endpoint, así que ambas opciones son la misma integración y solo cambia la URL
   configurada (`ASSISTANT_ENDPOINT`). La credencial es la de la app, como en Document Intelligence; no se añade
   ninguna clave ni ningún recurso de infraestructura.
-- **Requisito del despliegue**: tipo *Data Zone Standard* UE o regional en una región de la UE (FR-021), con un
-  modelo que admita *tool calling* y *structured outputs* (familia GPT-4o / GPT-4.1 o posterior). El nombre del
+- **Requisito del despliegue**: tipo _Data Zone Standard_ UE o regional en una región de la UE (FR-021), con un
+  modelo que admita _tool calling_ y _structured outputs_ (familia GPT-4o / GPT-4.1 o posterior). El nombre del
   despliegue va en la configuración (`ASSISTANT_DEPLOYMENT`) y se guarda en cada intercambio.
 - **Por qué**: el proyecto ya tiene el patrón de cliente HTTP propio contra Cognitive Services
   (`DocumentIntelligenceClient`), sin SDK. Hacer lo mismo evita dependencias pesadas (constitución I) y permite
   probar con MSW.
 - **Alternativas descartadas**:
   - SDK `openai` o `@azure/ai-projects`: añaden dependencias y no aportan nada que haga falta aquí.
-  - *Agents* de Foundry (estado y herramientas en el servicio): las herramientas tienen que ejecutarse dentro de
+  - _Agents_ de Foundry (estado y herramientas en el servicio): las herramientas tienen que ejecutarse dentro de
     la API para usar el motor y la caché, la conversación se guarda en nuestra base de datos para trazabilidad y
     retención, y los hilos guardados en el servicio complicarían cumplir FR-023a.
 
@@ -35,6 +35,7 @@ se toman y qué alternativas se descartaron.
   La guía (2.470 líneas) se divide por encabezados y se indexa en memoria con búsqueda léxica sobre texto
   normalizado (`packages/shared/src/text.ts`) y una lista corta de sinónimos del dominio (antibiótico ↔
   antimicrobiano, caducidad ↔ validez…).
+
 - **Por qué**:
   - FR-006: cambiar el YAML cambia la respuesta sin tocar el asistente, porque las reglas se leen en el momento.
   - FR-007: cada resultado de herramienta lleva un `fuenteId` con versión que se puede citar y abrir.
@@ -51,7 +52,7 @@ se toman y qué alternativas se descartaron.
 
 - **Decisión**: el modelo responde siempre con salida estructurada
   `{ tipo, texto, fuentes[], simulaciones[], aclaracion? }`, donde `tipo ∈ respondida | sin_informacion |
-  fuera_de_ambito | aclaracion | rechazo_reglas`. La API valida:
+fuera_de_ambito | aclaracion | rechazo_reglas`. La API valida:
   1. Que cada `fuenteId` citado fue devuelto por una herramienta **en ese mismo turno**.
   2. Que una respuesta `respondida` cita al menos una fuente.
   3. Que cada `simulacionId` existe en el turno.
@@ -61,6 +62,7 @@ se toman y qué alternativas se descartaron.
   **se pintan en la interfaz desde los datos de la herramienta** (tarjetas «Simulación» y «Resultado del motor»),
   no desde el texto del modelo. Así se garantiza FR-015 y SC-003 aunque el texto parafrasee. Contrato en
   [contracts/salida-modelo.md](./contracts/salida-modelo.md).
+
 - **Alternativas descartadas**:
   - Confiar solo en las instrucciones: no se puede verificar.
   - Un segundo modelo que juzgue la respuesta: duplica coste y tiempo y tampoco es determinista.
@@ -81,6 +83,7 @@ se toman y qué alternativas se descartaron.
 
   Un test (`instrucciones.test.ts`) falla si las instrucciones contienen plazos, cantidades o porcentajes
   (patrones `\d+\s*(días|meses|mg|%|envase)`) o nombres de códigos de regla.
+
 - **Por qué**: lo exige la constitución III («legal rules are never embedded in AI prompts») y FR-006.
 
 ## R5 · Datos personales (FR-018 a FR-021a)
@@ -98,6 +101,7 @@ se toman y qué alternativas se descartaron.
        titular y del veterinario, que se descifran **solo en memoria** para comparar.
 
      Lo detectado se sustituye por `[dato eliminado]`, se marca `piiEliminada=true` y la interfaz avisa.
+
   3. **Logger**: se añaden `*.pregunta`, `*.respuesta` y `*.texto` a `REDACCION` y nunca se registra el cuerpo de
      las llamadas al modelo.
 - **Limitación conocida**: un nombre propio sin receta en contexto no se puede detectar de forma fiable. La
@@ -119,6 +123,7 @@ se toman y qué alternativas se descartaron.
   datos usados). Si faltan datos obligatorios, devuelve `decision: 'FALTAN_DATOS'` con la lista de campos, y el
   modelo los pide (no supone). Los medicamentos de las simulaciones de formato y equivalencia se resuelven por
   `nregistro` y `cn` en la caché; el modelo nunca inventa composiciones.
+
 - **Por qué**: reutiliza el motor real (sin lógica duplicada), es determinista, se prueba con `it.each` y no
   escribe nada.
 
@@ -127,7 +132,7 @@ se toman y qué alternativas se descartaron.
 - **Decisión**:
   - Tablas `asistente_conversacion`, `asistente_intercambio`, `asistente_valoracion` y `asistente_consumo_mes`
     (ver [data-model.md](./data-model.md)).
-  - `asistente_intercambio` es de solo inserción, con un *trigger* que rechaza `UPDATE` y `DELETE` salvo con la
+  - `asistente_intercambio` es de solo inserción, con un _trigger_ que rechaza `UPDATE` y `DELETE` salvo con la
     marca de sesión `mmx.purga_retencion='on'` y filas de más de 1 año (mismo patrón que la migración 0004).
   - El job `retention-sweep` (mensual) añade un paso que borra las conversaciones de más de 1 año en cascada
     (intercambios y valoraciones). La valoración es una fila nueva por intercambio: una por empleado, que se puede
@@ -142,7 +147,7 @@ se toman y qué alternativas se descartaron.
     (`ASSISTANT_PRICE_IN_PER_1K_EUR` y `ASSISTANT_PRICE_OUT_PER_1K_EUR`, en `decimal.js`).
   - El límite por defecto es `ASSISTANT_MONTHLY_TOKEN_LIMIT=3000000`. Administración puede ampliarlo para el mes
     en curso; queda en `asistente_consumo_mes.limite_ampliado` y genera `audit_event`.
-  - El incremento es un *upsert* atómico por `mes` (`YYYY-MM` en `Europe/Madrid`).
+  - El incremento es un _upsert_ atómico por `mes` (`YYYY-MM` en `Europe/Madrid`).
   - Antes de cada turno se comprueba el estado; si está `en_pausa`, se devuelve `ASISTENTE_LIMITE_MENSUAL` y no se
     llama al modelo.
   - Al cruzar el 80 % se envía **un único** correo a `REPORT_RECIPIENTS` con el mailer existente
@@ -155,12 +160,12 @@ se toman y qué alternativas se descartaron.
 ## R9 · Disponibilidad y errores (FR-026)
 
 - **Decisión**:
-  - *Timeout* de 20 s por turno (`ASSISTANT_TIMEOUT_MS`) y un reintento solo si hay 429 o 5xx con
+  - _Timeout_ de 20 s por turno (`ASSISTANT_TIMEOUT_MS`) y un reintento solo si hay 429 o 5xx con
     `retry-after` ≤ 3 s.
   - Cualquier fallo → `DomainError('ASISTENTE_NO_DISPONIBLE')` → mensaje «El asistente no está disponible ahora;
     consulta la Ayuda». La pregunta se guarda con `estado='error'` para trazabilidad, sin respuesta.
   - Un filtro de contenido del proveedor se trata como `fuera_de_ambito`.
-  - El asistente se crea con *lazy init*: un fallo de configuración no impide que arranque la API, igual que
+  - El asistente se crea con _lazy init_: un fallo de configuración no impide que arranque la API, igual que
     `DisabledRecipeExtractor`.
 - **Configuración**: `ASSISTANT=off|fake|azure` (por defecto `off`). Con `off` no se muestra el botón (FR-027).
   En producción, `ASSISTANT=azure` exige `ASSISTANT_ENDPOINT` y `ASSISTANT_DEPLOYMENT` (validado con zod).
@@ -178,7 +183,7 @@ se toman y qué alternativas se descartaron.
     su versión), las tarjetas de «Simulación» o «Resultado del motor» y los botones 👍/👎 con comentario.
   - El panel **no roba el foco del campo de escaneo** en dispensación: se abre solo a petición y lo devuelve al
     cerrarse.
-  - No hay *streaming* en v1: un indicador «Buscando en las reglas…» basta para SC-006 y simplifica la validación
+  - No hay _streaming_ en v1: un indicador «Buscando en las reglas…» basta para SC-006 y simplifica la validación
     de R3.
   - Página «Consultas al asistente» (histórico): `veterinaria_responsable` y `admin` ven todas; `empleado` solo las
     suyas.
@@ -200,7 +205,7 @@ se toman y qué alternativas se descartaron.
 
 ## R12 · Documentación y gobierno
 
-- ADR-16 «Asistente de consultas con herramientas deterministas»: recoge R1–R4 y la reintroducción del servicio
+- ADR-17 «Asistente de consultas con herramientas deterministas»: recoge R1–R4 y la reintroducción del servicio
   generativo (frente a DUDA-27).
 - `SPEC.md` §9.3: «La IA extrae datos y explica reglas y resultados; las decisiones legales son del motor
   determinista y de la persona».

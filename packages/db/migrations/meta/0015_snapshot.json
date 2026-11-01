@@ -1,5 +1,5 @@
 {
-  "id": "27618f07-de94-42ef-96e4-c8195c449377",
+  "id": "5aba1219-838c-4f27-8435-1a9a709552f2",
   "prevId": "10d541f8-59ba-4a04-836b-29da7a857849",
   "version": "7",
   "dialect": "postgresql",
@@ -57,9 +57,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -99,15 +99,15 @@
         "cimavet_med_atc_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_atc_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_atc",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -146,15 +146,15 @@
         "cimavet_med_especie_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_especie_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_especie",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -218,24 +218,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "cimavet_med_indicacion_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_indicacion_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_indicacion",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -316,24 +316,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "cimavet_med_principio_activo_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_principio_activo_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_principio_activo",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -416,24 +416,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "cimavet_med_tiempo_espera_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_tiempo_espera_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_tiempo_espera",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -464,15 +464,15 @@
         "cimavet_med_via_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_med_via_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_med_via",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -657,9 +657,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -828,24 +828,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "cimavet_presentacion_nregistro_cimavet_medicamento_nregistro_fk": {
           "name": "cimavet_presentacion_nregistro_cimavet_medicamento_nregistro_fk",
           "tableFrom": "cimavet_presentacion",
-          "tableTo": "cimavet_medicamento",
           "columnsFrom": [
             "nregistro"
           ],
+          "tableTo": "cimavet_medicamento",
           "columnsTo": [
             "nregistro"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1061,10 +1061,10 @@
       "uniqueConstraints": {
         "laboratorio_sku_prefijo_prefijo_unique": {
           "name": "laboratorio_sku_prefijo_prefijo_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "prefijo"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1233,9 +1233,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1325,9 +1325,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1453,9 +1453,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "siweb_tarea_prefijo_index": {
           "name": "siweb_tarea_prefijo_index",
@@ -1468,9 +1468,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1565,9 +1565,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "siweb_variant_map_cn_index": {
           "name": "siweb_variant_map_cn_index",
@@ -1580,9 +1580,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1968,9 +1968,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "dispensacion_receta_linea_id_index": {
           "name": "dispensacion_receta_linea_id_index",
@@ -1983,9 +1983,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "dispensacion_cn_lote_index": {
           "name": "dispensacion_cn_lote_index",
@@ -2004,9 +2004,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "dispensacion_anula_dispensacion_id_index": {
           "name": "dispensacion_anula_dispensacion_id_index",
@@ -2019,50 +2019,50 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "dispensacion_receta_linea_id_receta_linea_id_fk": {
           "name": "dispensacion_receta_linea_id_receta_linea_id_fk",
           "tableFrom": "dispensacion",
-          "tableTo": "receta_linea",
           "columnsFrom": [
             "receta_linea_id"
           ],
+          "tableTo": "receta_linea",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "dispensacion_receta_id_receta_id_fk": {
           "name": "dispensacion_receta_id_receta_id_fk",
           "tableFrom": "dispensacion",
-          "tableTo": "receta",
           "columnsFrom": [
             "receta_id"
           ],
+          "tableTo": "receta",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "dispensacion_propietario_id_propietario_id_fk": {
           "name": "dispensacion_propietario_id_propietario_id_fk",
           "tableFrom": "dispensacion",
-          "tableTo": "propietario",
           "columnsFrom": [
             "propietario_id"
           ],
+          "tableTo": "propietario",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2157,9 +2157,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pedido_pendiente_cn_index": {
           "name": "pedido_pendiente_cn_index",
@@ -2172,24 +2172,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "pedido_pendiente_receta_linea_id_receta_linea_id_fk": {
           "name": "pedido_pendiente_receta_linea_id_receta_linea_id_fk",
           "tableFrom": "pedido_pendiente",
-          "tableTo": "receta_linea",
           "columnsFrom": [
             "receta_linea_id"
           ],
+          "tableTo": "receta_linea",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2271,9 +2271,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2534,9 +2534,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "receta_sha256_index": {
           "name": "receta_sha256_index",
@@ -2549,9 +2549,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "receta_phash_index": {
           "name": "receta_phash_index",
@@ -2564,9 +2564,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "receta_estado_index": {
           "name": "receta_estado_index",
@@ -2579,63 +2579,63 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "receta_plataforma_id_plataforma_receta_electronica_id_fk": {
           "name": "receta_plataforma_id_plataforma_receta_electronica_id_fk",
           "tableFrom": "receta",
-          "tableTo": "plataforma_receta_electronica",
           "columnsFrom": [
             "plataforma_id"
           ],
+          "tableTo": "plataforma_receta_electronica",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "receta_veterinario_id_veterinario_id_fk": {
           "name": "receta_veterinario_id_veterinario_id_fk",
           "tableFrom": "receta",
-          "tableTo": "veterinario",
           "columnsFrom": [
             "veterinario_id"
           ],
+          "tableTo": "veterinario",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "receta_propietario_id_propietario_id_fk": {
           "name": "receta_propietario_id_propietario_id_fk",
           "tableFrom": "receta",
-          "tableTo": "propietario",
           "columnsFrom": [
             "propietario_id"
           ],
+          "tableTo": "propietario",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "receta_regla_version_id_regla_version_id_fk": {
           "name": "receta_regla_version_id_regla_version_id_fk",
           "tableFrom": "receta",
-          "tableTo": "regla_version",
           "columnsFrom": [
             "regla_version_id"
           ],
+          "tableTo": "regla_version",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2710,24 +2710,24 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "receta_imagen_receta_id_receta_id_fk": {
           "name": "receta_imagen_receta_id_receta_id_fk",
           "tableFrom": "receta_imagen",
-          "tableTo": "receta",
           "columnsFrom": [
             "receta_id"
           ],
+          "tableTo": "receta",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2894,24 +2894,24 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "receta_linea_receta_id_receta_id_fk": {
           "name": "receta_linea_receta_id_receta_id_fk",
           "tableFrom": "receta_linea",
-          "tableTo": "receta",
           "columnsFrom": [
             "receta_id"
           ],
+          "tableTo": "receta",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3048,24 +3048,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "sustitucion_receta_linea_id_receta_linea_id_fk": {
           "name": "sustitucion_receta_linea_id_receta_linea_id_fk",
           "tableFrom": "sustitucion",
-          "tableTo": "receta_linea",
           "columnsFrom": [
             "receta_linea_id"
           ],
+          "tableTo": "receta_linea",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3159,9 +3159,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3237,9 +3237,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "albaran_documento_recepcion_id_index": {
           "name": "albaran_documento_recepcion_id_index",
@@ -3252,24 +3252,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "albaran_documento_recepcion_id_recepcion_id_fk": {
           "name": "albaran_documento_recepcion_id_recepcion_id_fk",
           "tableFrom": "albaran_documento",
-          "tableTo": "recepcion",
           "columnsFrom": [
             "recepcion_id"
           ],
+          "tableTo": "recepcion",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3401,24 +3401,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "recepcion_distribuidor_id_distribuidor_id_fk": {
           "name": "recepcion_distribuidor_id_distribuidor_id_fk",
           "tableFrom": "recepcion",
-          "tableTo": "distribuidor",
           "columnsFrom": [
             "distribuidor_id"
           ],
+          "tableTo": "distribuidor",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3474,15 +3474,15 @@
         "recepcion_ajuste_recepcion_linea_id_recepcion_linea_id_fk": {
           "name": "recepcion_ajuste_recepcion_linea_id_recepcion_linea_id_fk",
           "tableFrom": "recepcion_ajuste",
-          "tableTo": "recepcion_linea",
           "columnsFrom": [
             "recepcion_linea_id"
           ],
+          "tableTo": "recepcion_linea",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3688,9 +3688,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "recepcion_linea_cn_index": {
           "name": "recepcion_linea_cn_index",
@@ -3703,24 +3703,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "recepcion_linea_recepcion_id_recepcion_id_fk": {
           "name": "recepcion_linea_recepcion_id_recepcion_id_fk",
           "tableFrom": "recepcion_linea",
-          "tableTo": "recepcion",
           "columnsFrom": [
             "recepcion_id"
           ],
+          "tableTo": "recepcion",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3830,9 +3830,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3840,10 +3840,10 @@
       "uniqueConstraints": {
         "audit_event_seq_unique": {
           "name": "audit_event_seq_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "seq"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -3909,9 +3909,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3919,10 +3919,10 @@
       "uniqueConstraints": {
         "conciliacion_dispensacionId_unique": {
           "name": "conciliacion_dispensacionId_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "dispensacion_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4015,9 +4015,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4156,9 +4156,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "outbox_status_index": {
           "name": "outbox_status_index",
@@ -4171,9 +4171,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4310,10 +4310,10 @@
       "uniqueConstraints": {
         "sesion_movil_tokenHash_unique": {
           "name": "sesion_movil_tokenHash_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "token_hash"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4374,24 +4374,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "sesion_movil_evento_sesion_id_sesion_movil_id_fk": {
           "name": "sesion_movil_evento_sesion_id_sesion_movil_id_fk",
           "tableFrom": "sesion_movil_evento",
-          "tableTo": "sesion_movil",
           "columnsFrom": [
             "sesion_id"
           ],
+          "tableTo": "sesion_movil",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4581,9 +4581,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "entrada_importada_importacion_id_index": {
           "name": "entrada_importada_importacion_id_index",
@@ -4596,24 +4596,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "entrada_importada_importacion_id_importacion_id_fk": {
           "name": "entrada_importada_importacion_id_importacion_id_fk",
           "tableFrom": "entrada_importada",
-          "tableTo": "importacion",
           "columnsFrom": [
             "importacion_id"
           ],
+          "tableTo": "importacion",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4864,9 +4864,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "salida_importada_importacion_id_index": {
           "name": "salida_importada_importacion_id_index",
@@ -4879,504 +4879,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "salida_importada_importacion_id_importacion_id_fk": {
           "name": "salida_importada_importacion_id_importacion_id_fk",
           "tableFrom": "salida_importada",
-          "tableTo": "importacion",
           "columnsFrom": [
             "importacion_id"
           ],
+          "tableTo": "importacion",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.asistente_consumo_mes": {
-      "name": "asistente_consumo_mes",
-      "schema": "",
-      "columns": {
-        "mes": {
-          "name": "mes",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tokens_entrada": {
-          "name": "tokens_entrada",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "tokens_salida": {
-          "name": "tokens_salida",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "preguntas": {
-          "name": "preguntas",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "limite_tokens": {
-          "name": "limite_tokens",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "limite_ampliado": {
-          "name": "limite_ampliado",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ampliado_por": {
-          "name": "ampliado_por",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ampliado_at": {
-          "name": "ampliado_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "aviso_enviado_at": {
-          "name": "aviso_enviado_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pausado_at": {
-          "name": "pausado_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.asistente_conversacion": {
-      "name": "asistente_conversacion",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "usuario_oid": {
-          "name": "usuario_oid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "usuario_nombre": {
-          "name": "usuario_nombre",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contexto_tipo": {
-          "name": "contexto_tipo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "receta_linea_id": {
-          "name": "receta_linea_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nregistro": {
-          "name": "nregistro",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "estado": {
-          "name": "estado",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'abierta'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "cerrada_at": {
-          "name": "cerrada_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "asistente_conversacion_usuario_oid_created_at_index": {
-          "name": "asistente_conversacion_usuario_oid_created_at_index",
-          "columns": [
-            {
-              "expression": "usuario_oid",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "asistente_conversacion_created_at_index": {
-          "name": "asistente_conversacion_created_at_index",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "asistente_conversacion_receta_linea_id_receta_linea_id_fk": {
-          "name": "asistente_conversacion_receta_linea_id_receta_linea_id_fk",
-          "tableFrom": "asistente_conversacion",
-          "tableTo": "receta_linea",
-          "columnsFrom": [
-            "receta_linea_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.asistente_intercambio": {
-      "name": "asistente_intercambio",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "conversacion_id": {
-          "name": "conversacion_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "orden": {
-          "name": "orden",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pregunta": {
-          "name": "pregunta",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pii_eliminada": {
-          "name": "pii_eliminada",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "estado": {
-          "name": "estado",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tipo_respuesta": {
-          "name": "tipo_respuesta",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "respuesta": {
-          "name": "respuesta",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fuentes": {
-          "name": "fuentes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "simulaciones": {
-          "name": "simulaciones",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "contexto_motor": {
-          "name": "contexto_motor",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "regla_version": {
-          "name": "regla_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fuentes_version": {
-          "name": "fuentes_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "modelo": {
-          "name": "modelo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "instrucciones_version": {
-          "name": "instrucciones_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tokens_entrada": {
-          "name": "tokens_entrada",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "tokens_salida": {
-          "name": "tokens_salida",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "rondas_herramientas": {
-          "name": "rondas_herramientas",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "duracion_ms": {
-          "name": "duracion_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "error_code": {
-          "name": "error_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "asistente_intercambio_conversacion_id_orden_index": {
-          "name": "asistente_intercambio_conversacion_id_orden_index",
-          "columns": [
-            {
-              "expression": "conversacion_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "orden",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "asistente_intercambio_created_at_index": {
-          "name": "asistente_intercambio_created_at_index",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "asistente_intercambio_conversacion_id_asistente_conversacion_id_fk": {
-          "name": "asistente_intercambio_conversacion_id_asistente_conversacion_id_fk",
-          "tableFrom": "asistente_intercambio",
-          "tableTo": "asistente_conversacion",
-          "columnsFrom": [
-            "conversacion_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.asistente_valoracion": {
-      "name": "asistente_valoracion",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "intercambio_id": {
-          "name": "intercambio_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "usuario_oid": {
-          "name": "usuario_oid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "valor": {
-          "name": "valor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "comentario": {
-          "name": "comentario",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "asistente_valoracion_intercambio_id_usuario_oid_index": {
-          "name": "asistente_valoracion_intercambio_id_usuario_oid_index",
-          "columns": [
-            {
-              "expression": "intercambio_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "usuario_oid",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "asistente_valoracion_intercambio_id_asistente_intercambio_id_fk": {
-          "name": "asistente_valoracion_intercambio_id_asistente_intercambio_id_fk",
-          "tableFrom": "asistente_valoracion",
-          "tableTo": "asistente_intercambio",
-          "columnsFrom": [
-            "intercambio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5388,10 +4908,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

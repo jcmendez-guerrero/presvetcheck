@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { normalizeText, SECCIONES_AYUDA, textoPlanoAyuda, type FuenteCitada, type SeccionAyuda } from '@mmx/shared';
+import {
+  normalizeText,
+  SECCIONES_AYUDA,
+  textoPlanoAyuda,
+  type FuenteCitada,
+  type SeccionAyuda,
+} from '@mmx/shared';
 import { esPalabraVacia, expandir } from './sinonimos';
 import type { FuentesReferencia } from './tipos';
 
@@ -81,7 +87,7 @@ export function seccionesGuia(texto: string): { num: string; titulo: string; tex
     .replace(/Página\s*GUÍA PRÁCTICA\s+DE MEDICAMENTOS\s+VETERINARIOS EN LA\s+OFICINA DE FARMACIA/g, '\n')
     .replace(/^[ \t]*\d{1,3}[ \t]*$/gm, '');
   const lineas = limpio.split('\n');
-  const esIndice = (l: string) => /\.{4,}/.test(l) || /\s\d{1,3}$/.test(l.trim()) && /\.{2,}/.test(l);
+  const esIndice = (l: string) => /\.{4,}/.test(l) || (/\s\d{1,3}$/.test(l.trim()) && /\.{2,}/.test(l));
   const heads: { i: number; num: string; titulo: string }[] = [];
   lineas.forEach((l, i) => {
     const m = ENCABEZADO.exec(l.trim());
@@ -121,17 +127,29 @@ export class IndiceFuentes implements FuentesReferencia {
     if (guiaTexto) {
       for (const s of seccionesGuia(guiaTexto)) {
         const partes = trocear(s.texto, MAX_FRAGMENTO);
-        partes.forEach((p, k) => this.anadir('guia', `${s.num}${partes.length > 1 ? `#${k + 1}` : ''}`, `${s.num}. ${s.titulo}`, p));
+        partes.forEach((p, k) =>
+          this.anadir('guia', `${s.num}${partes.length > 1 ? `#${k + 1}` : ''}`, `${s.num}. ${s.titulo}`, p),
+        );
       }
     }
     for (const s of ayuda) {
       const partes = trocear(textoPlanoAyuda(s), MAX_FRAGMENTO);
-      partes.forEach((p, k) => this.anadir('ayuda', `${s.id}${partes.length > 1 ? `#${k + 1}` : ''}`, s.titulo, p));
+      partes.forEach((p, k) =>
+        this.anadir('ayuda', `${s.id}${partes.length > 1 ? `#${k + 1}` : ''}`, s.titulo, p),
+      );
     }
   }
 
   private anadir(tipo: 'guia' | 'ayuda', ancla: string, titulo: string, texto: string) {
-    const f: Fragmento = { fuenteId: `${tipo}:${ancla}`, tipo, titulo, ancla, texto, norm: normalizeText(texto), tituloNorm: normalizeText(titulo) };
+    const f: Fragmento = {
+      fuenteId: `${tipo}:${ancla}`,
+      tipo,
+      titulo,
+      ancla,
+      texto,
+      norm: normalizeText(texto),
+      tituloNorm: normalizeText(titulo),
+    };
     this.fragmentos.push(f);
     this.porId.set(f.fuenteId, f);
   }
@@ -149,7 +167,13 @@ export class IndiceFuentes implements FuentesReferencia {
   }
 
   private cita(f: Fragmento): FuenteCitada {
-    return { fuenteId: f.fuenteId, tipo: f.tipo, titulo: f.titulo, version: this.versionDe(f), ancla: f.ancla };
+    return {
+      fuenteId: f.fuenteId,
+      tipo: f.tipo,
+      titulo: f.titulo,
+      version: this.versionDe(f),
+      ancla: f.ancla,
+    };
   }
 
   abrir(fuenteId: string): { fuente: FuenteCitada; contenido: string } | null {
@@ -159,13 +183,21 @@ export class IndiceFuentes implements FuentesReferencia {
 
   /** Búsqueda léxica con sinónimos. Lista vacía = no hay fuente que cubra la consulta. */
   buscar(consulta: string, tipo: 'guia' | 'ayuda', max = 3): ResultadoBusqueda[] {
-    const terminos = [...new Set(normalizeText(consulta).split(' ').filter((t) => t.length > 2 && !esPalabraVacia(t)))];
+    const terminos = [
+      ...new Set(
+        normalizeText(consulta)
+          .split(' ')
+          .filter((t) => t.length > 2 && !esPalabraVacia(t)),
+      ),
+    ];
     if (!terminos.length) return [];
     const grupos = terminos.map((t) => expandir(t));
     const candidatos = this.fragmentos.filter((f) => f.tipo === tipo);
     // Peso de cada término de la consulta: los poco frecuentes (psicótropo) pesan más que los comunes (receta).
     const pesos = grupos.map((g) => {
-      const df = candidatos.filter((f) => g.some((t) => ocurrencias(f.norm, t) > 0 || ocurrencias(f.tituloNorm, t) > 0)).length;
+      const df = candidatos.filter((f) =>
+        g.some((t) => ocurrencias(f.norm, t) > 0 || ocurrencias(f.tituloNorm, t) > 0),
+      ).length;
       return Math.log(1 + candidatos.length / Math.max(df, 1)) ** 2;
     });
     const puntuados = candidatos

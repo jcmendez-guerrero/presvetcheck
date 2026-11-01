@@ -35,7 +35,12 @@ function titularDeReceta(conf: unknown, c: ColumnCipher, dniCompleto: boolean): 
   if (!t || !(conf as { _cifrado?: boolean })._cifrado) return null;
   const d = (k: string) => c.decrypt(t[k] ?? null);
   const dni = d('dni');
-  const out = { nombre: d('nombre'), movil: d('telefono'), dni: dniCompleto ? dni : maskDni(dni), direccion: d('direccion') };
+  const out = {
+    nombre: d('nombre'),
+    movil: d('telefono'),
+    dni: dniCompleto ? dni : maskDni(dni),
+    direccion: d('direccion'),
+  };
   return Object.values(out).some(Boolean) ? out : null;
 }
 
@@ -43,10 +48,22 @@ export class RegistrosService {
   constructor(private readonly d: { db: Db; cipher: ColumnCipher }) {}
 
   /** Salidas del periodo, con anulaciones marcadas. Datos del propietario solo si se piden. */
-  async salidas(desde: string, hasta: string, opts: { incluirPropietario: boolean; dniCompleto: boolean }): Promise<Salida[]> {
+  async salidas(
+    desde: string,
+    hasta: string,
+    opts: { incluirPropietario: boolean; dniCompleto: boolean },
+  ): Promise<Salida[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
     const filas = await this.d.db
-      .select({ d: dispensacion, r: receta, v: veterinario, p: propietario, pl: plataformaRecetaElectronica, s: sustitucion, cc: conciliacion })
+      .select({
+        d: dispensacion,
+        r: receta,
+        v: veterinario,
+        p: propietario,
+        pl: plataformaRecetaElectronica,
+        s: sustitucion,
+        cc: conciliacion,
+      })
       .from(dispensacion)
       .leftJoin(receta, eq(receta.id, dispensacion.recetaId))
       .leftJoin(veterinario, eq(veterinario.id, receta.veterinarioId))
@@ -54,7 +71,13 @@ export class RegistrosService {
       .leftJoin(plataformaRecetaElectronica, eq(plataformaRecetaElectronica.id, receta.plataformaId))
       .leftJoin(sustitucion, eq(sustitucion.id, dispensacion.sustitucionId))
       .leftJoin(conciliacion, eq(conciliacion.dispensacionId, dispensacion.id))
-      .where(and(gte(dispensacion.fechaVenta, ini), lt(dispensacion.fechaVenta, fin), sql`${dispensacion.anulaDispensacionId} is null`))
+      .where(
+        and(
+          gte(dispensacion.fechaVenta, ini),
+          lt(dispensacion.fechaVenta, fin),
+          sql`${dispensacion.anulaDispensacionId} is null`,
+        ),
+      )
       .orderBy(asc(dispensacion.fechaVenta));
     const anuladas = new Set(
       (
@@ -65,7 +88,12 @@ export class RegistrosService {
       ).map((x) => x.id),
     );
     const conDiscrepancia = new Set(
-      (await this.d.db.select({ datos: discrepancia.datos }).from(discrepancia).where(eq(discrepancia.estado, 'abierta')))
+      (
+        await this.d.db
+          .select({ datos: discrepancia.datos })
+          .from(discrepancia)
+          .where(eq(discrepancia.estado, 'abierta'))
+      )
         .map((x) => (x.datos as { dispensacionId?: string | null }).dispensacionId)
         .filter(Boolean),
     );
@@ -96,7 +124,12 @@ export class RegistrosService {
         propietario: !opts.incluirPropietario
           ? null
           : p
-            ? { nombre: c.decrypt(p.nombreEnc), movil: c.decrypt(p.movilEnc), dni: opts.dniCompleto ? dni : maskDni(dni), direccion: c.decrypt(p.direccionEnc) }
+            ? {
+                nombre: c.decrypt(p.nombreEnc),
+                movil: c.decrypt(p.movilEnc),
+                dni: opts.dniCompleto ? dni : maskDni(dni),
+                direccion: c.decrypt(p.direccionEnc),
+              }
             : titularDeReceta(r?.confirmacion, c, opts.dniCompleto),
         tipoReceta: r?.tipo ?? null,
         plataforma: pl?.nombre ?? null,
@@ -108,25 +141,47 @@ export class RegistrosService {
         empleado: d.empleado,
         metodoCaptura: d.metodoCaptura,
         anulada: anuladas.has(d.id),
-        registro: !r ? 'no aplica' : (r.confirmacion as { registroDiferido?: boolean } | null)?.registroDiferido && !r.registroCompletadoAt ? 'pendiente' : 'completo',
+        registro: !r
+          ? 'no aplica'
+          : (r.confirmacion as { registroDiferido?: boolean } | null)?.registroDiferido &&
+              !r.registroCompletadoAt
+            ? 'pendiente'
+            : 'completo',
         conciliacion: cc ? 'conciliada' : conDiscrepancia.has(d.id) ? 'discrepancia' : 'pendiente',
       };
     });
-    return [...propias, ...(await this.salidasImportadas(desde, hasta, opts))].sort((a, b) => new Date(a.fechaVenta).getTime() - new Date(b.fechaVenta).getTime());
+    return [...propias, ...(await this.salidasImportadas(desde, hasta, opts))].sort(
+      (a, b) => new Date(a.fechaVenta).getTime() - new Date(b.fechaVenta).getTime(),
+    );
   }
 
   /** Salidas anteriores a la app importadas de Excel (sin las importaciones anuladas). */
-  private async salidasImportadas(desde: string, hasta: string, opts: { incluirPropietario: boolean; dniCompleto: boolean }): Promise<Salida[]> {
+  private async salidasImportadas(
+    desde: string,
+    hasta: string,
+    opts: { incluirPropietario: boolean; dniCompleto: boolean },
+  ): Promise<Salida[]> {
     const filas = await this.d.db
       .select({ s: salidaImportada, i: importacion })
       .from(salidaImportada)
       .innerJoin(importacion, eq(importacion.id, salidaImportada.importacionId))
-      .where(and(gte(salidaImportada.fecha, desde), sql`${salidaImportada.fecha} <= ${hasta}`, sql`${importacion.anuladaAt} is null`))
+      .where(
+        and(
+          gte(salidaImportada.fecha, desde),
+          sql`${salidaImportada.fecha} <= ${hasta}`,
+          sql`${importacion.anuladaAt} is null`,
+        ),
+      )
       .orderBy(asc(salidaImportada.fecha), asc(salidaImportada.fila));
     const c = this.d.cipher;
     return filas.map(({ s, i }) => {
       const dni = c.decrypt(s.propietarioDniEnc);
-      const prop = { nombre: c.decrypt(s.propietarioNombreEnc), movil: c.decrypt(s.propietarioMovilEnc), dni: opts.dniCompleto ? dni : maskDni(dni), direccion: c.decrypt(s.propietarioDireccionEnc) };
+      const prop = {
+        nombre: c.decrypt(s.propietarioNombreEnc),
+        movil: c.decrypt(s.propietarioMovilEnc),
+        dni: opts.dniCompleto ? dni : maskDni(dni),
+        direccion: c.decrypt(s.propietarioDireccionEnc),
+      };
       return {
         id: s.id,
         canal: s.plantilla === 'C' ? 'online' : 'presencial',
@@ -207,7 +262,13 @@ export class RegistrosService {
       .select({ e: entradaImportada, i: importacion })
       .from(entradaImportada)
       .innerJoin(importacion, eq(importacion.id, entradaImportada.importacionId))
-      .where(and(gte(entradaImportada.fecha, desde), sql`${entradaImportada.fecha} <= ${hasta}`, sql`${importacion.anuladaAt} is null`))
+      .where(
+        and(
+          gte(entradaImportada.fecha, desde),
+          sql`${entradaImportada.fecha} <= ${hasta}`,
+          sql`${importacion.anuladaAt} is null`,
+        ),
+      )
       .orderBy(asc(entradaImportada.fecha), asc(entradaImportada.fila));
     const otras: Entrada[] = importadas.map(({ e, i }) => ({
       recepcionId: i.id,
@@ -236,19 +297,45 @@ export class RegistrosService {
   /** Movimientos de psicótropos (entradas, salidas, anulaciones) para el registro del garante. TODO(decision D-06b) */
   async psicotropos(desde: string, hasta: string): Promise<MovimientoPsicotropo[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
-    const psico = (await this.d.db.select({ n: cimavetMedicamento.nregistro }).from(cimavetMedicamento).where(eq(cimavetMedicamento.psicotropo, true))).map((x) => x.n);
+    const psico = (
+      await this.d.db
+        .select({ n: cimavetMedicamento.nregistro })
+        .from(cimavetMedicamento)
+        .where(eq(cimavetMedicamento.psicotropo, true))
+    ).map((x) => x.n);
     if (!psico.length) return [];
     const salidas = await this.d.db
       .select()
       .from(dispensacion)
-      .where(and(inArray(dispensacion.nregistro, psico), gte(dispensacion.fechaVenta, ini), lt(dispensacion.fechaVenta, fin)));
+      .where(
+        and(
+          inArray(dispensacion.nregistro, psico),
+          gte(dispensacion.fechaVenta, ini),
+          lt(dispensacion.fechaVenta, fin),
+        ),
+      );
     const entradas = await this.d.db
       .select({ l: recepcionLinea, r: recepcion })
       .from(recepcionLinea)
       .innerJoin(recepcion, eq(recepcion.id, recepcionLinea.recepcionId))
-      .where(and(inArray(recepcionLinea.nregistro, psico), gte(recepcion.fechaCompra, desde), sql`${recepcion.fechaCompra} <= ${hasta}`, sql`${recepcion.estado} <> 'ABIERTA'`));
+      .where(
+        and(
+          inArray(recepcionLinea.nregistro, psico),
+          gte(recepcion.fechaCompra, desde),
+          sql`${recepcion.fechaCompra} <= ${hasta}`,
+          sql`${recepcion.estado} <> 'ABIERTA'`,
+        ),
+      );
     return [
-      ...entradas.map(({ l, r }) => ({ fecha: r.fechaCompra, tipo: 'ENTRADA' as const, cn: l.cn ?? '', nombre: l.nombreFarmaco, lote: l.lote ?? '', unidades: l.unidades, referencia: `MMX-REC-${r.id}-L${l.numero}` })),
+      ...entradas.map(({ l, r }) => ({
+        fecha: r.fechaCompra,
+        tipo: 'ENTRADA' as const,
+        cn: l.cn ?? '',
+        nombre: l.nombreFarmaco,
+        lote: l.lote ?? '',
+        unidades: l.unidades,
+        referencia: `MMX-REC-${r.id}-L${l.numero}`,
+      })),
       ...salidas.map((s) => ({
         fecha: s.fechaVenta,
         tipo: (s.anulaDispensacionId ? 'ANULACIÓN SALIDA' : 'SALIDA') as MovimientoPsicotropo['tipo'],

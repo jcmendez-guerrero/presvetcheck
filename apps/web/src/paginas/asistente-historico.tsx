@@ -8,7 +8,7 @@ import { Pagina } from '../componentes/layout';
 import { Boton, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
 
 /**
- * Consultas al asistente (specs/001-prescription-chat-assistant, US4): cada persona ve las suyas; veterinaria
+ * Consultas al asistente (specs/002-prescription-chat-assistant, US4): cada persona ve las suyas; veterinaria
  * responsable y administración, las de todos. Muestra las fuentes y la versión de las reglas del momento en que se
  * respondió, aunque las reglas hayan cambiado después. Las conversaciones se eliminan al año.
  */
