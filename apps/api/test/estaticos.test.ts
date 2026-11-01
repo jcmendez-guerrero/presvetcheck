@@ -60,6 +60,15 @@ describe('SPA estática desde la API', () => {
     expect(r.body).not.toContain(SECRETO);
   });
 
+  it('la documentación de la API (/api/docs) sigue sirviéndose', async () => {
+    const html = await api(E.app, 'dev-empleado', 'GET', '/api/docs/');
+    expect(html.status).toBe(200);
+    expect(html.res.body).toContain('swagger');
+    const json = await api(E.app, 'dev-empleado', 'GET', '/api/docs/json');
+    expect(json.status).toBe(200);
+    expect(json.json).toHaveProperty('openapi');
+  });
+
   it('no ofrece listados de directorio', async () => {
     const r = await get('/assets/');
     expect(r.body).not.toContain('app.js');
