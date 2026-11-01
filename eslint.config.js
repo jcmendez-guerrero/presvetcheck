@@ -12,6 +12,8 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.turbo/**', 'fixtures/**', 'docs/ref/**',
       'apps/web/dev-dist/**', 'packages/db/migrations/**', '**/playwright-report/**', '**/test-results/**',
+      // Recursos de las skills de Copilot (copiados de terceros, no son código del producto).
+      '.github/skills/**',
     ],
   },
   js.configs.recommended,
