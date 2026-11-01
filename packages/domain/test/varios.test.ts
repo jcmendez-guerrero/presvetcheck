@@ -239,3 +239,20 @@ describe('compra con descuento, IVA y recargo de equivalencia (factura de provee
   });
 });
 
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('extraerCn con textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['nombre · «CN» y espacios', () => extraerCn('CN' + ' '.repeat(n) + 'x', 'CN(\\d{6})$', false)],
+    ['nombre · «C.N.:» y espacios', () => extraerCn('C.N.' + ' '.repeat(n) + ':' + ' '.repeat(n) + 'x', 'CN(\\d{6})$', false)],
+    ['nombre · muchos «CN »', () => extraerCn('CN '.repeat(n / 3), 'CN(\\d{6})$', false)],
+    ['SKU · separadores', () => extraerCn('CN' + '-'.repeat(n) + 'x', 'CN(\\d{6,7})$', true)],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+});

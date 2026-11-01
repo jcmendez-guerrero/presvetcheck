@@ -305,3 +305,23 @@ describe('prescripción excepcional en el texto de la receta', () => {
     [null, false],
   ])('%s → %s', (t, esperado) => expect(esExcepcional(t)).toBe(esperado));
 });
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('plazo con textos patológicos: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['serie larga de dígitos', () => plazo('1'.repeat(n))],
+    ['dígitos y espacios alternados', () => plazo('1 '.repeat(n / 2))],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+
+  it('toma la serie de dígitos completa', () => {
+    expect(plazo('validez 123 días')).toEqual({ cantidad: 123, unidad: 'dias' });
+    expect(plazo('6meses')).toEqual({ cantidad: 6, unidad: 'meses' });
+  });
+});

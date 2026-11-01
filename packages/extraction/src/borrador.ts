@@ -40,7 +40,9 @@ const enumDe = <T extends string>(s: string | null, opciones: readonly T[]): T |
 
 export function plazo(s: string | null): { cantidad: number; unidad: 'dias' | 'meses' } | null {
   if (!s) return null;
-  const m = /(\d+)\s*(d[ií]as?|mes(?:es)?)/i.exec(s);
+  // El número empieza donde empieza la serie de dígitos: sin el *lookbehind*, una serie larga se reintentaba desde
+  // cada dígito (coste cuadrático). El resultado es el mismo: la coincidencia más a la izquierda empieza ahí.
+  const m = /(?<!\d)(\d+)\s*(d[ií]as?|mes(?:es)?)/i.exec(s);
   if (!m) return null;
   return { cantidad: Number(m[1]), unidad: /^d/i.test(m[2] as string) ? 'dias' : 'meses' };
 }

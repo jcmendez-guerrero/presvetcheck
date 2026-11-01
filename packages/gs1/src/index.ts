@@ -113,7 +113,10 @@ function leerAi(s: string, i: number): string | null {
 }
 
 export function parseGs1(raw: string, opts: OpcionesGs1 = {}): Gs1Resultado {
-  let input = raw.replace(/[\r\n]+$/g, '');
+  // Saltos de línea finales del lector: recorte manual (`/[\r\n]+$/` reintentaba desde cada posición).
+  let fin = raw.length;
+  while (fin > 0 && (raw[fin - 1] === '\r' || raw[fin - 1] === '\n')) fin--;
+  let input = raw.slice(0, fin);
   if (opts.gsSubstitute) input = input.split(opts.gsSubstitute).join(GS);
   input = input.trim();
   if (!input) return { ok: false, error: 'VACIO', detalle: 'Código vacío' };

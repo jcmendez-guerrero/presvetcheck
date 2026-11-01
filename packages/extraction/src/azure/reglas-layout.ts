@@ -157,8 +157,10 @@ export function prescriptorDesdeTexto(contenido: string): Partial<Record<'veteri
   return out;
 }
 
-const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\s*\.?\s*:?\s*(\d{6})/i;
-const RE_COLEGIADO = /n[º°o.]?\s*(?:de\s+)?colegiado\s*:?\s*(\d{3,})/i;
+// Los separadores opcionales («.», «:») van dentro de grupos con sus espacios detrás, para que varios `\s*`
+// seguidos no se repartan los mismos espacios (coste cúbico o cuadrático con textos de OCR anómalos).
+const RE_CN = /c[oó]d(?:igo)?\.?\s*nac(?:ional)?\s*(?:\.\s*)?(?::\s*)?(\d{6})/i;
+const RE_COLEGIADO = /n[º°o.]?\s*(?:de\s+)?colegiado\s*(?::\s*)?(\d{3,})/i;
 
 /** Pares clave-valor de una página → campos de receta y líneas (solo los encontrados). */
 export function camposDesdeLayout(

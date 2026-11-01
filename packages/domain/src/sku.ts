@@ -14,7 +14,9 @@ export function normalizarCn(cn: string): string {
  * (control) es opcional y se descarta.
  */
 const CN_AL_FINAL = /C\.?N[\s.:#-]*(\d{6})(?:[.-]?\d)?$/i;
-const CN_EN_NOMBRE = /\bC\.?\s?N\.?\s*[:#-]?\s*(\d{6})(?:[.\-\s]?\d)?(?!\d)/i;
+// Separador tras «CN»: espacios, un «:», «#» o «-» opcional y más espacios. Se escribe con el separador dentro del
+// grupo opcional para que dos `\s*` seguidos no se repartan los mismos espacios (coste cuadrático).
+const CN_EN_NOMBRE = /\bC\.?\s?N\.?(?:\s*[:#-])?\s*(\d{6})(?:[.\-\s]?\d)?(?!\d)/i;
 
 /**
  * Extrae el CN de un SKU (patrón configurado, anclado al final) o de un nombre (sin anclar). Si no cumple el

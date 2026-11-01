@@ -138,3 +138,22 @@ describe('utilidades', () => {
     expect(bytesLegibles(`01${GS}10\r\n\u0004`)).toBe('01<GS>10<CR><LF><4>');
   });
 });
+
+/** Milisegundos que tarda `f` (para comprobar que las expresiones tienen coste lineal con textos patológicos). */
+const ms = (f: () => unknown) => {
+  const t = performance.now();
+  f();
+  return performance.now() - t;
+};
+
+describe('parseGs1 con lecturas patológicas: coste lineal (CodeQL js/polynomial-redos)', () => {
+  const n = 100_000;
+  it.each([
+    ['saltos de línea seguidos de un carácter', () => parseGs1('\r\n'.repeat(n / 2) + 'x')],
+    ['solo saltos de línea', () => parseGs1('\n'.repeat(n))],
+  ])('%s: < 1 s con 100 000 caracteres', (_n, f) => expect(ms(f)).toBeLessThan(1000));
+
+  it('sigue quitando los saltos de línea finales del lector', () => {
+    expect(parseGs1('0108712345678906\r\n\n')).toEqual(parseGs1('0108712345678906'));
+  });
+});
