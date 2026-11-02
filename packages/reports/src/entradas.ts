@@ -26,6 +26,11 @@ export interface Entrada {
   actualizarPrecio?: boolean;
 }
 
+/** Fecha con la que cuenta la entrada: la de recepción (llegada del producto); si falta, la de compra. */
+export function fechaEntrada(e: Pick<Entrada, 'fechaCompra' | 'fechaRecepcion'>): string {
+  return e.fechaRecepcion ?? e.fechaCompra;
+}
+
 export const COLUMNAS_ENTRADAS = [
   'NOMBRE DEL FÁRMACO',
   'PRINCIPIO ACTIVO',

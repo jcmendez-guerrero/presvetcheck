@@ -1331,6 +1331,39 @@ describe('recepción: validación previa, edición de líneas, fecha de recepci�
     );
   });
 
+  it('los registros de entradas y movimientos cuentan la fecha de recepción, no la de compra', async () => {
+    const id = (
+      await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', {
+        distribuidor: 'Distribuidora Veterinaria de Prueba S.L.',
+        fechaCompra: '2026-09-29',
+        fechaRecepcion: '2026-10-02',
+      })
+    ).json.id as string;
+    const linea = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, {
+      cn: '570016',
+      lote: 'FREC-1',
+      caducidad: '2027-12-31',
+      unidades: 1,
+    });
+    expect(linea.status).toBe(201);
+    expect((await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/finalizar`)).status).toBe(200);
+
+    const filas = async (ruta: string, desde: string, hasta: string) =>
+      (
+        (await api(E.app, 'dev-empleado', 'GET', `/api/registros/${ruta}?desde=${desde}&hasta=${hasta}`)).json
+          .tablas[0].filas as string[][]
+      ).filter((f) => f.includes('FREC-1'));
+
+    const octubre = await filas('entradas', '2026-10-01', '2026-10-31');
+    expect(octubre).toHaveLength(1);
+    expect(octubre[0]).toEqual(expect.arrayContaining(['29/09/2026', '02/10/2026']));
+    expect(await filas('entradas', '2026-09-01', '2026-09-30')).toEqual([]);
+
+    const mov = await filas('movimientos', '2026-10-01', '2026-10-31');
+    expect(mov[0]?.[0]).toBe('02/10/2026');
+    expect(await filas('movimientos', '2026-09-01', '2026-09-30')).toEqual([]);
+  });
+
   it('no deja añadir un producto caducado; explica qué campo falla; precio con coma; medicamento no encontrado', async () => {
     const id = await nueva();
     const caducado = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, {
