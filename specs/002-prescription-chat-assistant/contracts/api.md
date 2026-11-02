@@ -34,7 +34,8 @@ Lo usa la web para mostrar u ocultar el botón y para el aviso de pausa.
     | { tipo: 'linea'; recetaLineaId: string /* uuid */ }
     | { tipo: 'medicamento'; nregistro?: string } }
 // 201
-{ id: string; contexto: ContextoConversacion; createdAt: string }
+{ id: string; contexto: ContextoConversacion; createdAt: string;
+  preguntasEjemplo: string[] }         // FR-004, según el contexto
 ```
 
 - `linea`: la línea tiene que existir y estar evaluada (si no, `404 RECETA_LINEA_NO_ENCONTRADA`). El contexto se
@@ -51,12 +52,19 @@ Lo usa la web para mostrar u ocultar el botón y para el aviso de pausa.
     id: string; orden: number;
     pregunta: string;                    // ya saneada
     piiEliminada: boolean;               // la web muestra el aviso FR-019
+    estado: 'respondida' | 'error' | 'limite';  // aquí siempre 'respondida'; en el histórico, las demás llevan tipo y texto null
     tipo: 'respondida' | 'sin_informacion' | 'fuera_de_ambito' | 'aclaracion' | 'rechazo_reglas';
     texto: string;
     fuentes: FuenteCitada[];             // ver data-model.md
     simulaciones: SimulacionGuardada[];  // la web las pinta como tarjeta «Simulación»
     resultadoMotor: ResultadoLineaDto | null;  // si la respuesta se apoya en la línea: tarjeta «Resultado del motor»
-    reglaVersion: string; createdAt: string } }
+    reglaVersion: string;
+    fuentesVersion: string;              // versión de la guía y de la Ayuda cuando se respondió
+    valoracion: { valor: 'util' | 'incorrecta'; comentario: string | null } | null;
+    candidatos?: { nregistro: string; nombre: string; laboratorio: string | null; cn: string | null }[];
+                                         // solo en esta respuesta, con tipo 'aclaracion' y varios medicamentos
+                                         // posibles (FR-017); no se guardan. La web los pinta como botones.
+    createdAt: string } }
 ```
 
 Errores:

@@ -279,12 +279,14 @@ con sus datos completos y que se pueden filtrar por fecha y por valoración.
 - **FR-027b**: Administración DEBE poder ver el consumo del mes en curso y de los meses anteriores, y el reporte
   semanal DEBE incluir el consumo acumulado del mes.
 - **FR-028**: DEBE existir un banco de evaluación con preguntas de referencia y respuestas esperadas (validadas por
-  JC) que cubra al menos los casos mínimos del dominio (`SPEC.md` §12.2), preguntas fuera de ámbito, intentos de
-  saltarse las reglas y preguntas con datos personales, ejecutable sin llamar a servicios reales en las pruebas
+  JC) que cubra al menos los casos de validez, sustitución, cambio de formato y psicótropos de `SPEC.md` §12.2,
+  preguntas fuera de ámbito, intentos de saltarse las reglas, preguntas con datos personales, preguntas en otro
+  idioma y preguntas ambiguas, ejecutable sin llamar a servicios reales en las pruebas
   automáticas.
 - **FR-029**: El banco de evaluación DEBE poder ejecutarse manualmente contra el servicio de IA real y su resultado
   (aciertos por criterio SC-001 a SC-005, versión de modelo y de instrucciones, fecha) DEBE quedar guardado para su
-  revisión. El banco es orientativo: su resultado NO condiciona que el asistente pueda activarse en producción.
+  revisión (como informe en fichero, JSON y Markdown, fuera del control de versiones; no en la base de datos). El banco
+  es orientativo: su resultado NO condiciona que el asistente pueda activarse en producción.
 
 ### Entidades clave
 

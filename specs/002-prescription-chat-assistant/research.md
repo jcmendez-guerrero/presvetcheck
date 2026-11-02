@@ -69,7 +69,7 @@ fuera_de_ambito | aclaracion | rechazo_reglas`. La API valida:
 
 ## R4 · Instrucciones del modelo sin reglas legales
 
-- **Decisión**: `packages/assistant/src/instrucciones.v1.md` (versión guardada en cada intercambio) contiene solo
+- **Decisión**: `packages/assistant/src/instrucciones.ts` (constante TypeScript, para que viaje en el empaquetado; versión guardada en cada intercambio) contiene solo
   comportamiento:
   - el rol;
   - responder en español claro;

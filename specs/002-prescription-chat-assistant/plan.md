@@ -35,7 +35,7 @@ Drizzle ORM, React + Vite (web), `@azure/identity` (ya presente), `decimal.js`, 
 cliente del modelo es HTTP propio con `fetch`, como `DocumentIntelligenceClient`. **No se añade ningún SDK de IA
 ni una base vectorial** (research R2, R3).
 
-**Storage**: PostgreSQL 16 (tablas nuevas `asistente_*`, migración `0015_asistente.sql`) y PGlite en los tests.
+**Storage**: PostgreSQL 16 (tablas nuevas `asistente_*`, migración `0016_asistente.sql`) y PGlite en los tests.
 Índice léxico en memoria para la guía y la Ayuda, construido al arrancar.
 
 **Testing**: Vitest (dominio con `it.each`, servicio con `FakeAssistantModel`, cliente Azure con MSW y
@@ -127,17 +127,17 @@ packages/
 │   │   ├── fake.ts                  # FakeAssistantModel (guiones)
 │   │   ├── azure/chat-client.ts     # cliente HTTP de chat completions (Azure OpenAI / Foundry)
 │   │   ├── factory.ts               # crearModeloAsistente(config) → fake | azure | desactivado
-│   │   ├── instrucciones.v1.md      # instrucciones de comportamiento (sin reglas legales)
+│   │   ├── instrucciones.ts         # instrucciones de comportamiento (sin reglas legales)
 │   │   ├── orchestrator.ts          # ChatOrchestrator: ronda de herramientas, validación y respuesta
 │   │   ├── tools/                   # herramientas: reglas, guía, ayuda, cimavet, línea, simulaciones
 │   │   ├── fuentes/indice.ts        # índice léxico de la guía y la Ayuda por secciones
 │   │   ├── pii.ts                   # PiiScrubber
 │   │   ├── citas.ts                 # validación de citas y respuestas «sin información»
-│   │   └── eval/run.ts              # pnpm eval:asistente
+│   │   └── (el banco real es apps/api/src/cli/eval-asistente.ts)  # pnpm eval:asistente
 │   └── test/
 └── db/
     ├── src/schema/asistente.ts      # NUEVO: tablas asistente_*
-    └── migrations/0015_asistente.sql
+    └── migrations/0016_asistente.sql
 
 apps/
 ├── api/src/
