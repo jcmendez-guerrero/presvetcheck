@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
-import { albaranDocumento, appendAudit, distribuidor, pedidoPendiente, recepcion, recepcionLinea, siwebVariantMap, MAESTRA } from '@mmx/db';
+import { albaranDocumento, appendAudit, auditEvent, distribuidor, pedidoPendiente, recepcion, recepcionLinea, siwebVariantMap, MAESTRA } from '@mmx/db';
 import { sha256 } from '@mmx/reports';
 import type { LecturaAlbaran } from '@mmx/extraction';
 import {
@@ -366,6 +366,71 @@ export class RecepcionesService {
     });
   }
 
+  /**
+   * Corrige la cabecera de una recepción ya finalizada (distribuidor, nº de albarán, fechas) cuando se registró
+   * mal. Las líneas no cambian (son de solo inserción) ni el régimen (recalcularía sus importes). Pide motivo y
+   * deja en la auditoría los valores de antes y de después.
+   */
+  async corregir(
+    id: string,
+    b: { distribuidor?: string | undefined; albaran?: string | null | undefined; fechaCompra?: string | undefined; fechaRecepcion?: string | null | undefined; motivo: string; confirmarDuplicado?: boolean | undefined },
+    c: ContextoPeticion,
+  ) {
+    const motivo = b.motivo.trim();
+    if (motivo.length < 5) throw new DomainError('VALIDACION', 'Indica por qué se corrige (5 caracteres como mínimo)', { campo: 'motivo' });
+    const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.estado === 'ABIERTA') throw new DomainError('VALIDACION', 'La recepción está abierta: modifícala directamente');
+    if (r.estado === 'DESCARTADA') throw new DomainError('RECEPCION_NO_EDITABLE', 'Una recepción descartada no se corrige');
+    const [distAntes] = await this.d.db.select().from(distribuidor).where(eq(distribuidor.id, r.distribuidorId));
+    const nombreNuevo = b.distribuidor?.trim().replace(/\s+/g, ' ');
+    const cambiaDist = !!nombreNuevo && normalizeText(nombreNuevo) !== normalizeText(distAntes?.nombre ?? '');
+    const dist = cambiaDist ? await this.distribuidorPorNombre(nombreNuevo, c) : null;
+    const distribuidorId = dist?.id ?? r.distribuidorId;
+    const albaran = b.albaran !== undefined ? b.albaran?.trim() || null : r.albaran;
+    const fechaCompra = b.fechaCompra ?? r.fechaCompra;
+    const fechaRecepcion = b.fechaRecepcion !== undefined ? b.fechaRecepcion : r.fechaRecepcion;
+    const hoy = hoyDe(this.d);
+    if (fechaCompra > hoy) throw new DomainError('VALIDACION', 'La fecha de compra no puede ser posterior a hoy', { campo: 'fechaCompra' });
+    if (fechaRecepcion && fechaRecepcion > hoy) throw new DomainError('VALIDACION', 'La fecha de recepción no puede ser posterior a hoy', { campo: 'fechaRecepcion' });
+    if (fechaRecepcion && fechaRecepcion < fechaCompra) throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', { campo: 'fechaRecepcion' });
+    const antes = { distribuidor: distAntes?.nombre ?? null, albaran: r.albaran, fechaCompra: r.fechaCompra, fechaRecepcion: r.fechaRecepcion };
+    const despues = { distribuidor: dist?.nombre ?? antes.distribuidor, albaran, fechaCompra, fechaRecepcion };
+    const cambios = (Object.keys(antes) as Array<keyof typeof antes>).filter((k) => antes[k] !== despues[k]);
+    if (!cambios.length) throw new DomainError('VALIDACION', 'No has cambiado ningún dato');
+    if (albaran && !b.confirmarDuplicado && (albaran !== r.albaran || distribuidorId !== r.distribuidorId)) {
+      const dup = (await this.duplicados(distribuidorId, albaran)).filter((x) => x.id !== id);
+      if (dup.length) throw new DomainError('CONFLICTO', `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`, { duplicados: dup });
+    }
+    await this.d.db.transaction(async (tx) => {
+      await tx.update(recepcion).set({ distribuidorId, albaran, fechaCompra, fechaRecepcion }).where(eq(recepcion.id, id));
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_corregir',
+        entidad: 'recepcion',
+        entidadId: id,
+        antes: Object.fromEntries(cambios.map((k) => [k, antes[k]])),
+        despues: { ...Object.fromEntries(cambios.map((k) => [k, despues[k]])), motivo },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
+    });
+    return this.detalle(id);
+  }
+
+  /** Correcciones de la cabecera tras finalizar (de la auditoría), de la más reciente a la más antigua. */
+  private async correcciones(id: string) {
+    const filas = await this.d.db
+      .select({ at: auditEvent.at, actor: auditEvent.actor, antes: auditEvent.antes, despues: auditEvent.despues })
+      .from(auditEvent)
+      .where(and(eq(auditEvent.entidad, 'recepcion'), eq(auditEvent.entidadId, id), eq(auditEvent.accion, 'recepcion_corregir')))
+      .orderBy(desc(auditEvent.seq));
+    return filas.map((f) => {
+      const { motivo, ...despues } = (f.despues ?? {}) as Record<string, string | null>;
+      return { at: f.at, actor: f.actor, motivo: motivo ?? null, antes: (f.antes ?? {}) as Record<string, string | null>, despues };
+    });
+  }
+
   async detalle(id: string) {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
@@ -383,6 +448,7 @@ export class RecepcionesService {
       ...r,
       totales,
       distribuidor: dist?.nombre ?? null,
+      correcciones: r.estado === 'ABIERTA' ? [] : await this.correcciones(id),
       lectura: r.lecturaDocumento ?? null,
       documento: r.documentoPath ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') } : null,
       fechaCorte: this.d.config.ENTRY_CUTOVER_DATE ?? null,

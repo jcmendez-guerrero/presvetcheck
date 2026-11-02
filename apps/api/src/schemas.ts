@@ -182,6 +182,16 @@ export const EditarRecepcionDto = z.object({
   confirmarDuplicado: z.boolean().optional(),
 });
 
+/** Corrección de la cabecera de una recepción finalizada: con motivo; el régimen y las líneas no cambian. */
+export const CorregirRecepcionDto = z.object({
+  distribuidor: z.string().trim().min(2).max(120).optional(),
+  albaran: z.string().max(60).nullable().optional(),
+  fechaCompra: IsoDate.optional(),
+  fechaRecepcion: IsoDate.nullable().optional(),
+  motivo: z.string().max(500),
+  confirmarDuplicado: z.boolean().optional(),
+});
+
 /** Modificación de una línea de una recepción abierta (lo no indicado no cambia). */
 export const EditarLineaEntradaDto = z.object({
   cn: z

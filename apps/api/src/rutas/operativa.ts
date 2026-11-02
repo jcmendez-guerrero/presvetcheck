@@ -16,6 +16,7 @@ import {
   SustitucionCrearDto,
   EditarLineaEntradaDto,
   EditarRecepcionDto,
+  CorregirRecepcionDto,
 } from '../schemas';
 import { DispensacionesService } from '../servicios/dispensaciones';
 import { RecepcionesService } from '../servicios/recepciones';
@@ -150,6 +151,11 @@ export async function rutasOperativa(app: App, d: AppDeps) {
     '/api/recepciones/:id',
     { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Cambia la cabecera de una recepción abierta', params: IdParam, body: EditarRecepcionDto } },
     async (req) => rec.editar(req.params.id, req.body, ctx(req)),
+  );
+  app.post(
+    '/api/recepciones/:id/correccion',
+    { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Corrige la cabecera de una recepción finalizada (con motivo, queda auditado)', params: IdParam, body: CorregirRecepcionDto } },
+    async (req) => rec.corregir(req.params.id, req.body, ctx(req)),
   );
   app.post(
     '/api/recepciones/:id/descartar',
