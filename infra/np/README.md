@@ -41,10 +41,12 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 
 Correo: `MAILER=console` (los reportes se descargan desde la app); SMTP en una segunda fase.
 
-## Asistente de consultas (opcional)
-`ASSISTANT=off` por defecto. No crea recursos ni claves: usa un despliegue de chat de Azure OpenAI o Foundry **ya
-existente en la UE** al que la identidad `azu-umi-presvetcheck-np-01` tiene acceso. Para activarlo, en la fase 2:
-`ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>` (el límite
-mensual de tokens es `asistenteLimiteTokens`, 3.000.000 por defecto). Antes de activarlo: ADR-17 aprobado y el RAT de
-Facilita actualizado (DUDA-29). El aviso del 80 % usa `REPORT_RECIPIENTS`.
+## Asistente de consultas
+En np está activado con **Gemini** (`ASSISTANT=gemini`, modelo `gemini-3.5-flash-lite`). No crea recursos ni claves: la
+app lee la clave del secreto `gcp-gemini-api-key` de `azukvappmascotix01`, que `azu-umi-presvetcheck-np-01` ya puede
+leer (*Key Vault Secrets User* sobre el almacén). Para cambiar de modelo, `ASISTENTE_DESPLIEGUE=<modelo>`; para usar
+Azure OpenAI o Foundry, `ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>`;
+para apagarlo, `ASISTENTE=off`. El límite mensual de tokens es `asistenteLimiteTokens` (3.000.000 por defecto). Las
+preguntas salen a Google: usar solo datos de prueba hasta que protección de datos lo valide y el RAT de Facilita esté
+actualizado (DUDA-29). El aviso del 80 % usa `REPORT_RECIPIENTS`.
 
