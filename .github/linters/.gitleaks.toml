@@ -12,9 +12,22 @@ paths = [
   '''.github/instructions/code-review-generic.instructions.md''',
 ]
 # Valores públicos o de desarrollo que no son secretos: la clave conocida del emulador Azurite, la clave de columnas de
-# desarrollo ("dev-key-not-for-production-32b!!" en base64) y el nombre (no el contenido) del Key Vault de np.
+# desarrollo ("dev-key-not-for-production-32b!!" en base64).
 regexes = [
   '''Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==''',
   '''ZGV2LWtleS1ub3QtZm9yLXByb2R1Y3Rpb24tMzJiISE=''',
-  '''<key-vault>''',
 ]
+
+# Repositorio público: bloquear datos que no son secretos pero no deben publicarse (auditoría 02/11/2026).
+# Los valores reales viven en Confluence (PreVetCheck) y en ficheros locales ignorados por git.
+[[rules]]
+id = "correo-personal"
+description = "Correo personal en un repositorio público"
+regex = '''[A-Za-z0-9._%+-]+@(?:gmail|googlemail|hotmail|outlook|live|yahoo|icloud)\.(?:com|es)'''
+keywords = ["gmail", "googlemail", "hotmail", "outlook", "live", "yahoo", "icloud"]
+
+[[rules]]
+id = "nombre-recurso-azure-interno"
+description = "Nombre real de un recurso de Azure del entorno np (va en infra/np/main.bicepparam, no versionado)"
+regex = '''\bazu(?:-(?:rg|vnet|snet|psql|umi|di|kv|sa|acr)-[a-z0-9-]*np-[0-9]{2}|(?:kv|acr|sa)[a-z0-9]{8,})\b'''
+keywords = ["azu"]

@@ -1,6 +1,6 @@
 ---
 description: 'Playwright test generation instructions'
-applyTo: '**'
+applyTo: 'apps/web/e2e/**'
 ---
 
 ## Test Writing Guidelines

@@ -19,3 +19,14 @@ fixtures/recetas/*.pdf
 fixtures/recetas/reales/
 # Árbol de medicamentos veterinarios de la AEMPS (40 MB): no se versiona; ver docs/ref/README.md.
 docs/ref/*Arbol_Medicamentos_VET*.xlsx
+# Worktrees de Claude Code (copias locales del repositorio por sesión).
+.claude/worktrees/
+# Parámetros reales del despliegue np (nombres internos, appId, correos): plantilla en main.bicepparam.example.
+infra/np/main.bicepparam
+# Imágenes de recetas reales (datos personales). Las anonimizadas se añaden con `git add -f` tras revisarlas.
+fixtures/recetas/*.jpg
+fixtures/recetas/*.jpeg
+fixtures/recetas/*.png
+fixtures/recetas/*.heic
+fixtures/recetas/*.tif
+fixtures/recetas/*.tiff

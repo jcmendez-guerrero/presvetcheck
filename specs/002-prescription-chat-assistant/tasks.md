@@ -227,7 +227,7 @@ de US1 (ver Dependencias).
 - [x] T077 [P] Smoke test e2e `apps/web/e2e/asistente.spec.ts` con `EXTRACTOR=fake` y `ASSISTANT=fake`: escenarios 1, 4 y 8 del quickstart, y foco devuelto al campo de escaneo al cerrar el panel en dispensación
 - [x] T078 [P] Actualizar `SPEC.md` §9.3 («la IA extrae datos y explica reglas y resultados; las decisiones legales son del motor determinista y de la persona»), §9.2 (Microsoft como encargado también del asistente) y §8 (panel y página de histórico), y añadir la funcionalidad a la lista de §0.1
 - [x] T079 [P] Añadir «Asistente», «Simulación» y «Fuente de referencia» a `docs/glosario.md`
-- [x] T080 [P] Añadir a `docs/dudas.md` una DUDA nueva para JC: modelo y despliegue concretos (UE, _tool calling_, _structured outputs_), precios por 1.000 tokens, validación del banco v1 y recordatorio de actualizar el RAT de Facilita (finalidad, sin datos del titular, retención de 1 año)
+- [x] T080 [P] Añadir a `docs/dudas.md` una DUDA nueva para JC: modelo y despliegue concretos (UE, _tool calling_, _structured outputs_), precios por 1.000 tokens, validación del banco v1 y recordatorio de actualizar el RAT (finalidad, sin datos del titular, retención de 1 año)
 - [x] T081 [P] Añadir a la Ayuda (`packages/shared/src/ayuda/secciones.ts`) una sección «Asistente de consultas»: qué responde, que no decide ni autoriza, que no hay que escribir datos del cliente, cómo valorar las respuestas y qué hacer si está en pausa
 - [x] T082 [P] Regenerar `apps/api/openapi.json` (`pnpm --filter @mmx/api openapi`) con las rutas nuevas
 - [x] T083 [P] Añadir las variables `ASSISTANT_*` a la plantilla de Container Apps en `infra/np/` (y en `infra/modules/containerapps.bicep`), sin recursos ni claves nuevos, y documentarlas en `infra/np/README.md`
