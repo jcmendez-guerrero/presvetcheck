@@ -15,6 +15,8 @@ resource subred 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
     addressPrefixes: [prefijo]
     delegations: [{ name: 'aca', properties: { serviceName: 'Microsoft.App/environments' } }]
     serviceEndpoints: [{ service: 'Microsoft.Storage' }]
+    // Como está desplegada (sin endpoints privados en esta subred); sin esto, el valor por defecto la cambiaría.
+    privateEndpointNetworkPolicies: 'Disabled'
   }
 }
 
