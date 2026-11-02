@@ -249,16 +249,14 @@ describe('worker', () => {
       .values({ recetaId: r!.id, orden: 1, createdAt: viejo })
       .returning();
     await blob.put('recetas', `${r!.id}/pagina-1.png`, new Uint8Array([1]), 'image/png');
-    await h.db
-      .insert(recetaImagen)
-      .values({
-        recetaId: r!.id,
-        pagina: 1,
-        blobPath: `${r!.id}/pagina-1.png`,
-        mime: 'image/png',
-        sha256: 'x',
-        createdAt: viejo,
-      });
+    await h.db.insert(recetaImagen).values({
+      recetaId: r!.id,
+      pagina: 1,
+      blobPath: `${r!.id}/pagina-1.png`,
+      mime: 'image/png',
+      sha256: 'x',
+      createdAt: viejo,
+    });
     const base = {
       canal: 'presencial',
       conReceta: true,
@@ -280,32 +278,28 @@ describe('worker', () => {
       .insert(dispensacion)
       .values({ ...base, conReceta: false })
       .returning();
-    await h.db
-      .insert(dispensacion)
-      .values({
-        ...base,
-        conReceta: false,
-        anulaDispensacionId: o!.id,
-        motivoAnulacion: 'x',
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        fechaVenta: new Date('2026-01-01T00:00:00Z'),
-      });
+    await h.db.insert(dispensacion).values({
+      ...base,
+      conReceta: false,
+      anulaDispensacionId: o!.id,
+      motivoAnulacion: 'x',
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      fechaVenta: new Date('2026-01-01T00:00:00Z'),
+    });
     const [d] = await h.db.insert(distribuidor).values({ nombre: 'Viejo' }).returning();
     const [rc] = await h.db
       .insert(recepcion)
       .values({ distribuidorId: d!.id, fechaCompra: '2020-01-01', empleado: 'e', createdAt: viejo })
       .returning();
-    await h.db
-      .insert(recepcionLinea)
-      .values({
-        recepcionId: rc!.id,
-        numero: 1,
-        nombreFarmaco: 'X',
-        unidades: 1,
-        empleado: 'e',
-        origenDatos: 'manual',
-        createdAt: viejo,
-      });
+    await h.db.insert(recepcionLinea).values({
+      recepcionId: rc!.id,
+      numero: 1,
+      nombreFarmaco: 'X',
+      unidades: 1,
+      empleado: 'e',
+      origenDatos: 'manual',
+      createdAt: viejo,
+    });
     await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, rc!.id));
 
     // Registros anteriores importados: uno antiguo (se purga) y uno reciente (se queda).
