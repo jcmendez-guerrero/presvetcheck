@@ -1,5 +1,15 @@
 import { and, asc, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
-import { albaranDocumento, appendAudit, auditEvent, distribuidor, pedidoPendiente, recepcion, recepcionLinea, siwebVariantMap, MAESTRA } from '@mmx/db';
+import {
+  albaranDocumento,
+  appendAudit,
+  auditEvent,
+  distribuidor,
+  pedidoPendiente,
+  recepcion,
+  recepcionLinea,
+  siwebVariantMap,
+  MAESTRA,
+} from '@mmx/db';
 import { sha256 } from '@mmx/reports';
 import type { LecturaAlbaran } from '@mmx/extraction';
 import {
@@ -80,8 +90,13 @@ export class RecepcionesService {
     },
     c: ContextoPeticion,
   ) {
-    const [doc] = b.documentoId ? await this.d.db.select().from(albaranDocumento).where(eq(albaranDocumento.id, b.documentoId)) : [];
-    if (b.documentoId && (!doc || doc.recepcionId)) throw new DomainError('VALIDACION', 'El documento leído no existe o ya pertenece a otra recepción', { campo: 'documentoId' });
+    const [doc] = b.documentoId
+      ? await this.d.db.select().from(albaranDocumento).where(eq(albaranDocumento.id, b.documentoId))
+      : [];
+    if (b.documentoId && (!doc || doc.recepcionId))
+      throw new DomainError('VALIDACION', 'El documento leído no existe o ya pertenece a otra recepción', {
+        campo: 'documentoId',
+      });
     const [dist] = b.distribuidor
       ? [await this.distribuidorPorNombre(b.distribuidor, c)]
       : await this.d.db
@@ -110,13 +125,19 @@ export class RecepcionesService {
           ...(doc ? { lecturaDocumento: doc.lectura, documentoPath: doc.documentoPath } : {}),
         })
         .returning();
-      if (doc) await tx.update(albaranDocumento).set({ recepcionId: r!.id }).where(eq(albaranDocumento.id, doc.id));
+      if (doc)
+        await tx.update(albaranDocumento).set({ recepcionId: r!.id }).where(eq(albaranDocumento.id, doc.id));
       await appendAudit(tx, {
         actor: c.usuario.id,
         accion: 'recepcion_crear',
         entidad: 'recepcion',
         entidadId: r!.id,
-        despues: { distribuidor: dist.nombre, albaran: b.albaran, documento: doc?.id ?? null, duplicadoConfirmado: !!b.confirmarDuplicado },
+        despues: {
+          distribuidor: dist.nombre,
+          albaran: b.albaran,
+          documento: doc?.id ?? null,
+          duplicadoConfirmado: !!b.confirmarDuplicado,
+        },
         ip: c.ip,
         userAgent: c.userAgent,
       });
@@ -178,7 +199,14 @@ export class RecepcionesService {
       lineas,
     };
     await this.d.db.transaction(async (tx) => {
-      await tx.insert(albaranDocumento).values({ sha256: sha256(doc.bytes), documentoPath: path, mime: doc.mime, lectura: guardada, recepcionId: id, creadoPor: c.usuario.id });
+      await tx.insert(albaranDocumento).values({
+        sha256: sha256(doc.bytes),
+        documentoPath: path,
+        mime: doc.mime,
+        lectura: guardada,
+        recepcionId: id,
+        creadoPor: c.usuario.id,
+      });
       await tx
         .update(recepcion)
         .set({
@@ -242,7 +270,10 @@ export class RecepcionesService {
   async duplicados(distribuidorId: string, numero: string) {
     const clave = (x: string) => normalizeText(x).replace(/[^a-z0-9]/g, '');
     if (!clave(numero)) return [];
-    const filas = await this.d.db.select().from(recepcion).where(eq(recepcion.distribuidorId, distribuidorId));
+    const filas = await this.d.db
+      .select()
+      .from(recepcion)
+      .where(eq(recepcion.distribuidorId, distribuidorId));
     return filas
       .filter((r) => r.estado !== 'DESCARTADA' && r.albaran && clave(r.albaran) === clave(numero))
       .map((r) => ({ id: r.id, albaran: r.albaran, fechaCompra: r.fechaCompra, estado: r.estado }));
@@ -251,7 +282,13 @@ export class RecepcionesService {
   /** Distribuidor de la app (o proveedor de Siweb360) que mejor encaja con el proveedor leído del documento. */
   private async distribuidorSugerido(proveedor: string | null) {
     if (!proveedor) return null;
-    const palabras = (x: string) => new Set(normalizeText(x).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !['s l', 'sl', 'sa', 'slu', 'the'].includes(w)));
+    const palabras = (x: string) =>
+      new Set(
+        normalizeText(x)
+          .replace(/[^a-z0-9 ]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !['s l', 'sl', 'sa', 'slu', 'the'].includes(w)),
+      );
     const leido = palabras(proveedor);
     let mejor: { nombre: string; parecido: number } | null = null;
     for (const p of (await this.proveedores()).proveedores) {
@@ -274,7 +311,10 @@ export class RecepcionesService {
    */
   async leerAlbaran(doc: { bytes: Uint8Array; mime: string }, c: ContextoPeticion) {
     if (!this.d.lectorAlbaranes)
-      throw new DomainError('EXTRACTOR_NO_CONFIGURADO', 'La lectura de albaranes no está configurada (Document Intelligence): registra la recepción a mano');
+      throw new DomainError(
+        'EXTRACTOR_NO_CONFIGURADO',
+        'La lectura de albaranes no está configurada (Document Intelligence): registra la recepción a mano',
+      );
     const hash = sha256(doc.bytes);
     const [mismo] = await this.d.db
       .select({ recepcionId: albaranDocumento.recepcionId })
@@ -292,8 +332,25 @@ export class RecepcionesService {
       lineas: await this.proponerLineas(lectura),
     };
     const path = await this.guardarFichero(doc, `lecturas/${Date.now()}-${hash.slice(0, 12)}`);
-    const [fila] = await this.d.db.insert(albaranDocumento).values({ sha256: hash, documentoPath: path, mime: doc.mime, lectura: guardada, creadoPor: c.usuario.id }).returning();
-    await appendAudit(this.d.db, { actor: c.usuario.id, accion: 'albaran_leer', entidad: 'albaran_documento', entidadId: fila!.id, despues: { lineas: guardada.lineas.length, modelo: lectura.modelo }, ip: c.ip, userAgent: c.userAgent });
+    const [fila] = await this.d.db
+      .insert(albaranDocumento)
+      .values({
+        sha256: hash,
+        documentoPath: path,
+        mime: doc.mime,
+        lectura: guardada,
+        creadoPor: c.usuario.id,
+      })
+      .returning();
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'albaran_leer',
+      entidad: 'albaran_documento',
+      entidadId: fila!.id,
+      despues: { lineas: guardada.lineas.length, modelo: lectura.modelo },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
     const sugerido = await this.distribuidorSugerido(lectura.proveedor);
     return {
       documentoId: fila!.id,
@@ -314,7 +371,12 @@ export class RecepcionesService {
   }
 
   async listar(limite = 50) {
-    return this.d.db.select().from(recepcion).where(ne(recepcion.estado, 'DESCARTADA')).orderBy(desc(recepcion.createdAt)).limit(limite);
+    return this.d.db
+      .select()
+      .from(recepcion)
+      .where(ne(recepcion.estado, 'DESCARTADA'))
+      .orderBy(desc(recepcion.createdAt))
+      .limit(limite);
   }
 
   /**
@@ -323,7 +385,14 @@ export class RecepcionesService {
    */
   async editar(
     id: string,
-    b: { distribuidor?: string | undefined; albaran?: string | null | undefined; fechaCompra?: string | undefined; fechaRecepcion?: string | null | undefined; regimen?: 'recargo_equivalencia' | 'nacional' | undefined; confirmarDuplicado?: boolean | undefined },
+    b: {
+      distribuidor?: string | undefined;
+      albaran?: string | null | undefined;
+      fechaCompra?: string | undefined;
+      fechaRecepcion?: string | null | undefined;
+      regimen?: 'recargo_equivalencia' | 'nacional' | undefined;
+      confirmarDuplicado?: boolean | undefined;
+    },
     c: ContextoPeticion,
   ) {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
@@ -334,35 +403,82 @@ export class RecepcionesService {
     const albaran = b.albaran !== undefined ? b.albaran?.trim() || null : r.albaran;
     if (albaran && !b.confirmarDuplicado && (albaran !== r.albaran || distribuidorId !== r.distribuidorId)) {
       const dup = (await this.duplicados(distribuidorId, albaran)).filter((x) => x.id !== id);
-      if (dup.length) throw new DomainError('CONFLICTO', `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`, { duplicados: dup });
+      if (dup.length)
+        throw new DomainError(
+          'CONFLICTO',
+          `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`,
+          { duplicados: dup },
+        );
     }
     const fechaCompra = b.fechaCompra ?? r.fechaCompra;
     const fechaRecepcion = b.fechaRecepcion !== undefined ? b.fechaRecepcion : r.fechaRecepcion;
-    if (fechaRecepcion && fechaRecepcion < fechaCompra) throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', { campo: 'fechaRecepcion' });
+    if (fechaRecepcion && fechaRecepcion < fechaCompra)
+      throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', {
+        campo: 'fechaRecepcion',
+      });
     const regimen = b.regimen ?? r.regimen;
     await this.d.db.transaction(async (tx) => {
-      await tx.update(recepcion).set({ distribuidorId, albaran, fechaCompra, fechaRecepcion, regimen }).where(eq(recepcion.id, id));
+      await tx
+        .update(recepcion)
+        .set({ distribuidorId, albaran, fechaCompra, fechaRecepcion, regimen })
+        .where(eq(recepcion.id, id));
       if (regimen !== r.regimen) {
         const lineas = await tx.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
         for (const l of lineas) {
-          const imp = this.importes(regimen, { bruto: l.precioBruto, descuentoPct: l.descuentoPct, neto: l.precioNetoCompra, iva: l.ivaPct !== null ? Number(l.ivaPct) : null });
+          const imp = this.importes(regimen, {
+            bruto: l.precioBruto,
+            descuentoPct: l.descuentoPct,
+            neto: l.precioNetoCompra,
+            iva: l.ivaPct !== null ? Number(l.ivaPct) : null,
+          });
           await tx.update(recepcionLinea).set(imp).where(eq(recepcionLinea.id, l.id));
         }
       }
-      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_editar', entidad: 'recepcion', entidadId: id, despues: { distribuidor: dist?.nombre ?? null, albaran, fechaCompra, fechaRecepcion, regimen }, ip: c.ip, userAgent: c.userAgent });
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_editar',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { distribuidor: dist?.nombre ?? null, albaran, fechaCompra, fechaRecepcion, regimen },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
     });
     return this.detalle(id);
   }
 
   /** Descarta una recepción abierta que no hace falta: no se borra (queda con quién, cuándo y por qué). */
   async descartar(id: string, motivo: string, c: ContextoPeticion) {
-    if (motivo.trim().length < 5) throw new DomainError('VALIDACION', 'Indica por qué se descarta (5 caracteres como mínimo)', { campo: 'motivo' });
+    if (motivo.trim().length < 5)
+      throw new DomainError('VALIDACION', 'Indica por qué se descarta (5 caracteres como mínimo)', {
+        campo: 'motivo',
+      });
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
-    if (r.estado !== 'ABIERTA') throw new DomainError('RECEPCION_NO_EDITABLE', 'Solo se puede descartar una recepción abierta: una finalizada se corrige con ajustes');
+    if (r.estado !== 'ABIERTA')
+      throw new DomainError(
+        'RECEPCION_NO_EDITABLE',
+        'Solo se puede descartar una recepción abierta: una finalizada se corrige con ajustes',
+      );
     await this.d.db.transaction(async (tx) => {
-      await tx.update(recepcion).set({ estado: 'DESCARTADA', descartadaAt: new Date(this.d.clock.now().epochMilliseconds), descartadaPor: c.usuario.id, motivoDescarte: motivo.trim() }).where(eq(recepcion.id, id));
-      await appendAudit(tx, { actor: c.usuario.id, accion: 'recepcion_descartar', entidad: 'recepcion', entidadId: id, despues: { motivo: motivo.trim() }, ip: c.ip, userAgent: c.userAgent });
+      await tx
+        .update(recepcion)
+        .set({
+          estado: 'DESCARTADA',
+          descartadaAt: new Date(this.d.clock.now().epochMilliseconds),
+          descartadaPor: c.usuario.id,
+          motivoDescarte: motivo.trim(),
+        })
+        .where(eq(recepcion.id, id));
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'recepcion_descartar',
+        entidad: 'recepcion',
+        entidadId: id,
+        despues: { motivo: motivo.trim() },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
     });
   }
 
@@ -373,16 +489,31 @@ export class RecepcionesService {
    */
   async corregir(
     id: string,
-    b: { distribuidor?: string | undefined; albaran?: string | null | undefined; fechaCompra?: string | undefined; fechaRecepcion?: string | null | undefined; motivo: string; confirmarDuplicado?: boolean | undefined },
+    b: {
+      distribuidor?: string | undefined;
+      albaran?: string | null | undefined;
+      fechaCompra?: string | undefined;
+      fechaRecepcion?: string | null | undefined;
+      motivo: string;
+      confirmarDuplicado?: boolean | undefined;
+    },
     c: ContextoPeticion,
   ) {
     const motivo = b.motivo.trim();
-    if (motivo.length < 5) throw new DomainError('VALIDACION', 'Indica por qué se corrige (5 caracteres como mínimo)', { campo: 'motivo' });
+    if (motivo.length < 5)
+      throw new DomainError('VALIDACION', 'Indica por qué se corrige (5 caracteres como mínimo)', {
+        campo: 'motivo',
+      });
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
-    if (r.estado === 'ABIERTA') throw new DomainError('VALIDACION', 'La recepción está abierta: modifícala directamente');
-    if (r.estado === 'DESCARTADA') throw new DomainError('RECEPCION_NO_EDITABLE', 'Una recepción descartada no se corrige');
-    const [distAntes] = await this.d.db.select().from(distribuidor).where(eq(distribuidor.id, r.distribuidorId));
+    if (r.estado === 'ABIERTA')
+      throw new DomainError('VALIDACION', 'La recepción está abierta: modifícala directamente');
+    if (r.estado === 'DESCARTADA')
+      throw new DomainError('RECEPCION_NO_EDITABLE', 'Una recepción descartada no se corrige');
+    const [distAntes] = await this.d.db
+      .select()
+      .from(distribuidor)
+      .where(eq(distribuidor.id, r.distribuidorId));
     const nombreNuevo = b.distribuidor?.trim().replace(/\s+/g, ' ');
     const cambiaDist = !!nombreNuevo && normalizeText(nombreNuevo) !== normalizeText(distAntes?.nombre ?? '');
     const dist = cambiaDist ? await this.distribuidorPorNombre(nombreNuevo, c) : null;
@@ -391,19 +522,46 @@ export class RecepcionesService {
     const fechaCompra = b.fechaCompra ?? r.fechaCompra;
     const fechaRecepcion = b.fechaRecepcion !== undefined ? b.fechaRecepcion : r.fechaRecepcion;
     const hoy = hoyDe(this.d);
-    if (fechaCompra > hoy) throw new DomainError('VALIDACION', 'La fecha de compra no puede ser posterior a hoy', { campo: 'fechaCompra' });
-    if (fechaRecepcion && fechaRecepcion > hoy) throw new DomainError('VALIDACION', 'La fecha de recepción no puede ser posterior a hoy', { campo: 'fechaRecepcion' });
-    if (fechaRecepcion && fechaRecepcion < fechaCompra) throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', { campo: 'fechaRecepcion' });
-    const antes = { distribuidor: distAntes?.nombre ?? null, albaran: r.albaran, fechaCompra: r.fechaCompra, fechaRecepcion: r.fechaRecepcion };
-    const despues = { distribuidor: dist?.nombre ?? antes.distribuidor, albaran, fechaCompra, fechaRecepcion };
+    if (fechaCompra > hoy)
+      throw new DomainError('VALIDACION', 'La fecha de compra no puede ser posterior a hoy', {
+        campo: 'fechaCompra',
+      });
+    if (fechaRecepcion && fechaRecepcion > hoy)
+      throw new DomainError('VALIDACION', 'La fecha de recepción no puede ser posterior a hoy', {
+        campo: 'fechaRecepcion',
+      });
+    if (fechaRecepcion && fechaRecepcion < fechaCompra)
+      throw new DomainError('VALIDACION', 'La mercancía no puede llegar antes de comprarla', {
+        campo: 'fechaRecepcion',
+      });
+    const antes = {
+      distribuidor: distAntes?.nombre ?? null,
+      albaran: r.albaran,
+      fechaCompra: r.fechaCompra,
+      fechaRecepcion: r.fechaRecepcion,
+    };
+    const despues = {
+      distribuidor: dist?.nombre ?? antes.distribuidor,
+      albaran,
+      fechaCompra,
+      fechaRecepcion,
+    };
     const cambios = (Object.keys(antes) as Array<keyof typeof antes>).filter((k) => antes[k] !== despues[k]);
     if (!cambios.length) throw new DomainError('VALIDACION', 'No has cambiado ningún dato');
     if (albaran && !b.confirmarDuplicado && (albaran !== r.albaran || distribuidorId !== r.distribuidorId)) {
       const dup = (await this.duplicados(distribuidorId, albaran)).filter((x) => x.id !== id);
-      if (dup.length) throw new DomainError('CONFLICTO', `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`, { duplicados: dup });
+      if (dup.length)
+        throw new DomainError(
+          'CONFLICTO',
+          `Ya hay una recepción del albarán ${albaran} de ese distribuidor (compra del ${fechaEs(dup[0]!.fechaCompra)}). Si es otro albarán distinto, confírmalo.`,
+          { duplicados: dup },
+        );
     }
     await this.d.db.transaction(async (tx) => {
-      await tx.update(recepcion).set({ distribuidorId, albaran, fechaCompra, fechaRecepcion }).where(eq(recepcion.id, id));
+      await tx
+        .update(recepcion)
+        .set({ distribuidorId, albaran, fechaCompra, fechaRecepcion })
+        .where(eq(recepcion.id, id));
       await appendAudit(tx, {
         actor: c.usuario.id,
         accion: 'recepcion_corregir',
@@ -421,13 +579,30 @@ export class RecepcionesService {
   /** Correcciones de la cabecera tras finalizar (de la auditoría), de la más reciente a la más antigua. */
   private async correcciones(id: string) {
     const filas = await this.d.db
-      .select({ at: auditEvent.at, actor: auditEvent.actor, antes: auditEvent.antes, despues: auditEvent.despues })
+      .select({
+        at: auditEvent.at,
+        actor: auditEvent.actor,
+        antes: auditEvent.antes,
+        despues: auditEvent.despues,
+      })
       .from(auditEvent)
-      .where(and(eq(auditEvent.entidad, 'recepcion'), eq(auditEvent.entidadId, id), eq(auditEvent.accion, 'recepcion_corregir')))
+      .where(
+        and(
+          eq(auditEvent.entidad, 'recepcion'),
+          eq(auditEvent.entidadId, id),
+          eq(auditEvent.accion, 'recepcion_corregir'),
+        ),
+      )
       .orderBy(desc(auditEvent.seq));
     return filas.map((f) => {
       const { motivo, ...despues } = (f.despues ?? {}) as Record<string, string | null>;
-      return { at: f.at, actor: f.actor, motivo: motivo ?? null, antes: (f.antes ?? {}) as Record<string, string | null>, despues };
+      return {
+        at: f.at,
+        actor: f.actor,
+        motivo: motivo ?? null,
+        antes: (f.antes ?? {}) as Record<string, string | null>,
+        despues,
+      };
     });
   }
 
@@ -441,16 +616,28 @@ export class RecepcionesService {
       .where(eq(recepcionLinea.recepcionId, id))
       .orderBy(asc(recepcionLinea.numero));
     const cns = [...new Set(lineas.map((l) => l.cn).filter((x): x is string => !!x))];
-    const mapeos = cns.length ? await this.d.db.select().from(siwebVariantMap).where(inArray(siwebVariantMap.cn, cns)) : [];
-    const skuDe = (variantId: number | null) => (variantId === null ? null : (mapeos.find((m) => m.variantId === variantId)?.sku ?? null));
-    const totales = totalesCompra(lineas.map((l) => ({ neto: l.precioNetoCompra, unidades: l.unidades, ivaPct: l.ivaPct, rePct: l.rePct })));
+    const mapeos = cns.length
+      ? await this.d.db.select().from(siwebVariantMap).where(inArray(siwebVariantMap.cn, cns))
+      : [];
+    const skuDe = (variantId: number | null) =>
+      variantId === null ? null : (mapeos.find((m) => m.variantId === variantId)?.sku ?? null);
+    const totales = totalesCompra(
+      lineas.map((l) => ({
+        neto: l.precioNetoCompra,
+        unidades: l.unidades,
+        ivaPct: l.ivaPct,
+        rePct: l.rePct,
+      })),
+    );
     return {
       ...r,
       totales,
       distribuidor: dist?.nombre ?? null,
       correcciones: r.estado === 'ABIERTA' ? [] : await this.correcciones(id),
       lectura: r.lecturaDocumento ?? null,
-      documento: r.documentoPath ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') } : null,
+      documento: r.documentoPath
+        ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') }
+        : null,
       fechaCorte: this.d.config.ENTRY_CUTOVER_DATE ?? null,
       escrituraStock: this.d.config.SIWEB_STOCK_WRITE_MODE,
       lineas: lineas.map((l) => ({
@@ -518,7 +705,12 @@ export class RecepcionesService {
     }
 
     const { datos, siwebVariantId } = await this.datosProducto(b.tipo, cn, b.nombre);
-    const imp = this.importes(r.regimen, { bruto: b.precioBruto, descuentoPct: b.descuentoPct, neto: b.precioNetoCompra, iva: b.ivaPct });
+    const imp = this.importes(r.regimen, {
+      bruto: b.precioBruto,
+      descuentoPct: b.descuentoPct,
+      neto: b.precioNetoCompra,
+      iva: b.ivaPct,
+    });
     const numero = Math.max(0, ...lineas.map((l) => l.numero)) + 1;
     const [nueva] = await this.d.db
       .insert(recepcionLinea)
@@ -566,10 +758,18 @@ export class RecepcionesService {
    */
   private importes(
     regimen: string,
-    v: { bruto: string | null | undefined; descuentoPct: number | string | null | undefined; neto: string | null | undefined; iva: number | null | undefined },
+    v: {
+      bruto: string | null | undefined;
+      descuentoPct: number | string | null | undefined;
+      neto: string | null | undefined;
+      iva: number | null | undefined;
+    },
   ) {
     const bruto = v.bruto ?? null;
-    const dto = v.descuentoPct !== null && v.descuentoPct !== undefined && Number(v.descuentoPct) > 0 ? String(v.descuentoPct) : null;
+    const dto =
+      v.descuentoPct !== null && v.descuentoPct !== undefined && Number(v.descuentoPct) > 0
+        ? String(v.descuentoPct)
+        : null;
     let neto = v.neto ?? null;
     if (bruto) {
       try {
@@ -578,9 +778,26 @@ export class RecepcionesService {
         throw new DomainError('VALIDACION', (e as Error).message, { campo: 'descuentoPct' });
       }
     }
-    if (!neto) return { precioBruto: bruto, descuentoPct: dto, precioNetoCompra: null, ivaPct: v.iva !== null && v.iva !== undefined ? String(v.iva) : null, rePct: null, precioCoste: null };
-    const p = calcularPrecioCoste(neto, v.iva ?? null, this.d.rules.bundle.precios, { conRecargo: regimen !== 'nacional' });
-    return { precioBruto: bruto, descuentoPct: dto, precioNetoCompra: neto, ivaPct: p.ivaPct.toString(), rePct: p.rePct.toString(), precioCoste: p.costeAlmacen };
+    if (!neto)
+      return {
+        precioBruto: bruto,
+        descuentoPct: dto,
+        precioNetoCompra: null,
+        ivaPct: v.iva !== null && v.iva !== undefined ? String(v.iva) : null,
+        rePct: null,
+        precioCoste: null,
+      };
+    const p = calcularPrecioCoste(neto, v.iva ?? null, this.d.rules.bundle.precios, {
+      conRecargo: regimen !== 'nacional',
+    });
+    return {
+      precioBruto: bruto,
+      descuentoPct: dto,
+      precioNetoCompra: neto,
+      ivaPct: p.ivaPct.toString(),
+      rePct: p.rePct.toString(),
+      precioCoste: p.costeAlmacen,
+    };
   }
 
   /**
@@ -685,8 +902,14 @@ export class RecepcionesService {
         )
       : null;
     const iva = b.ivaPct !== undefined ? b.ivaPct : l.ivaPct !== null ? Number(l.ivaPct) : null;
-    const bruto = b.precioBruto !== undefined ? b.precioBruto : b.precioNetoCompra !== undefined ? null : l.precioBruto;
-    const dto = b.descuentoPct !== undefined ? b.descuentoPct : b.precioNetoCompra !== undefined ? null : l.descuentoPct;
+    const bruto =
+      b.precioBruto !== undefined ? b.precioBruto : b.precioNetoCompra !== undefined ? null : l.precioBruto;
+    const dto =
+      b.descuentoPct !== undefined
+        ? b.descuentoPct
+        : b.precioNetoCompra !== undefined
+          ? null
+          : l.descuentoPct;
     const neto = b.precioNetoCompra !== undefined ? b.precioNetoCompra : l.precioNetoCompra;
     const imp = this.importes(r.regimen, { bruto, descuentoPct: dto, neto, iva });
     const cambios = {
