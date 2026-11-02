@@ -27,6 +27,7 @@ This repository implements the prescription verification, dispensing, and stock 
 - Do not write stock to Siweb360 except for inbound receipts through the outbox and in accordance with `SIWEB_STOCK_WRITE_MODE` (default `off`). **Never write outbound stock movements**; the POS ticket decrements stock.
 - Do not `UPDATE` or `DELETE` `dispensacion`, finalized `recepcion_linea`, or `audit_event`. Corrections must be counter-movements.
 - Never put personal data (pet owner name, phone number, ID number, or address) in logs, errors, or telemetry.
+- The repository is **public**. Never commit personal data, real prescription scans (keep them outside the repository folder), internal Azure resource names, IP ranges, tenant/app IDs, or personal e-mails. Real deployment values live in ignored local files (`infra/np/main.bicepparam`) and in internal documentation (Confluence).
 - Do not call real services (CIMAVet, Siweb360, Azure) from tests. Use MSW and fixtures.
 - Do not add heavy dependencies without justification in the PR. Do not add alternative ORMs or additional UI frameworks.
 - Do not silence a vulnerable dependency ad hoc. Follow `docs/adr/0016-dependencias-vulnerables-y-excepciones.md`: upgrade first; every `pnpm.overrides` entry (range-scoped, never global) and every dismissed GitHub alert needs a row in its exceptions table, and dismissals must also be listed in `allow-ghsas` of the `dependencias` CI job — all in the same PR.
@@ -39,7 +40,7 @@ This repository implements the prescription verification, dispensing, and stock 
 - `pnpm db:migrate` / `pnpm db:seed` — run migrations / seed data.
 - `pnpm test` — Vitest across all packages; `pnpm test:int` — integration tests with Testcontainers.
 - `pnpm lint` / `pnpm typecheck` / `pnpm build` — lint / type-check / build.
-- `pnpm eval:extraction` — extraction evaluation bench using `fixtures/recetas/`.
+- `pnpm eval:extraction` — extraction evaluation bench using `fixtures/recetas/` (real labelled scans are never versioned).
 - `pnpm worker <job>` — run a local job (`cimavet-delta`, `cimavet-full`, `outbox-dispatcher`, `sales-reconciliation`, `weekly-reports`, `nomenclator-import`, `retention-sweep`).
 
 Before considering a task complete, `pnpm lint && pnpm typecheck && pnpm test` must pass.
@@ -82,4 +83,7 @@ In production, the app must not start if a required variable is missing (validat
 
 ## Infrastructure
 
-Bicep lives in `infra/`. Target: Azure Container Apps (Consumption) + PostgreSQL Flexible B1ms + Blob + Key Vault + Document Intelligence (custom model; no Azure OpenAI, DUDA-27), in `spaincentral` unless a service is unavailable there. Use managed identity for everything; do not put access keys in app configuration. See `SPEC.md` §10.
+Bicep lives in `infra/`. Target: Azure Container Apps (Consumption) + PostgreSQL Flexible + Blob + Key Vault + Document Intelligence (DUDA-27), in `spaincentral` unless a service is unavailable there.
+The current environment (`infra/np/`) reuses existing shared resources in North Europe; its real parameters are not versioned (see `infra/np/README.md`).
+The optional query assistant (ADR-17, DUDA-29) uses an external chat model; with it on, use test data only until the data-protection record is updated.
+Use managed identity for everything; do not put access keys in app configuration. See `SPEC.md` §10.

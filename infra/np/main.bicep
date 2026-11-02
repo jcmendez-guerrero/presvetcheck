@@ -1,14 +1,13 @@
 // Despliegue sobre recursos EXISTENTES (entorno np, usado también para producción hasta que haga falta escalar).
-// Todo lo nuevo va en <grupo>, en North Europe (la región de la VNet compartida). Reutiliza:
-//   VNet <vnet> (<grupo-red>) · PostgreSQL <servidor-postgres> (endpoint privado) ·
-//   Key Vault <key-vault> y ACR <acr> (<grupo-recursos-compartidos>) · identidad, Document
-//   Intelligence y storage del grupo. Dos fases: `crearApps=false` (base) y `crearApps=true` (Container Apps).
+// Los nombres reales de los recursos compartidos (red, PostgreSQL, Key Vault, ACR…) NO se versionan: van en
+// `infra/np/main.bicepparam` (ignorado por git; plantilla en `main.bicepparam.example`; valores en Confluence, PreVetCheck › Infraestructura np).
+// Dos fases: `crearApps=false` (base) y `crearApps=true` (Container Apps).
 //   az deployment group what-if -g <grupo> -f infra/np/main.bicep -p infra/np/main.bicepparam
 targetScope = 'resourceGroup'
 
 param location string = 'northeurope'
 param crearApps bool = false
-@description('Imagen en el ACR, p. ej. <acr>-…azurecr.io/mmx-recetas:<sha>.')
+@description('Imagen en el ACR: <servidor-acr>/mmx-recetas:<sha>.')
 param imagen string = ''
 param entraTenantId string = subscription().tenantId
 @description('Application (client) ID del registro de la app en Entra ID (fase 2).')
@@ -16,23 +15,28 @@ param entraClientId string = ''
 param presupuestoEuros int = 40
 param inicioPresupuesto string
 param correosAlertas array
+@description('Sufijo de los recursos nuevos: azu-<tipo>-<sufijo>-01.')
+param sufijo string
 
-// Existentes
-param identidadAppNombre string = '<identidad-app>'
-param docIntelNombre string = '<document-intelligence>'
-param storageNombre string = '<cuenta-de-storage>'
-param postgresFqdn string = '<servidor>.postgres.database.azure.com'
+// Existentes (sin valores por defecto: se pasan desde main.bicepparam)
+param identidadAppNombre string
+@description('Identidad de migraciones (se crea si no existe).')
+param identidadMigrNombre string
+param docIntelNombre string
+param storageNombre string
+param postgresFqdn string
 param baseDatos string = 'mmx'
-param rgCompartido string = '<grupo-recursos-compartidos>'
-param keyVaultNombre string = '<key-vault>'
-param acrNombre string = '<acr>'
-param acrServidor string = '<acr>-<hash>.azurecr.io'
-param rgRed string = '<grupo-red>'
-param vnetNombre string = '<vnet>'
-param subredNombre string = '<subred-container-apps>'
-param subredPrefijo string = '<x.x.x.x/27>'
+param rgCompartido string
+param keyVaultNombre string
+param acrNombre string
+@description('Servidor de inicio de sesión del ACR (<nombre>-<hash>.azurecr.io).')
+param acrServidor string
+param rgRed string
+param vnetNombre string
+param subredNombre string
+param subredPrefijo string
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
-param nombreSecretoSiweb string = '<secreto-token-siweb>'
+param nombreSecretoSiweb string
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
 param nombreSecretoCifrado string = 'mmx-column-encryption-key'
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
@@ -59,7 +63,7 @@ resource idApp 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' exi
 // Identidad solo para las migraciones: dueña de las tablas. La de la app solo tiene el rol mmx_app (sin
 // UPDATE/DELETE en los registros).
 resource idMigr 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '<identidad-migraciones>'
+  name: identidadMigrNombre
   location: location
   tags: tags
 }
@@ -78,14 +82,14 @@ module compartido 'modules/roles-compartido.bicep' = {
 }
 
 resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: 'azu-law-presvetcheck-np-01'
+  name: 'azu-law-${sufijo}-01'
   location: location
   tags: tags
   properties: { sku: { name: 'PerGB2018' }, retentionInDays: 30, workspaceCapping: { dailyQuotaGb: json('0.15') } }
 }
 
 resource appi 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'azu-appi-presvetcheck-np-01'
+  name: 'azu-appi-${sufijo}-01'
   location: location
   tags: tags
   kind: 'web'
@@ -93,7 +97,7 @@ resource appi 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 resource alertas 'Microsoft.Insights/actionGroups@2023-01-01' = {
-  name: 'azu-ag-presvetcheck-np-01'
+  name: 'azu-ag-${sufijo}-01'
   location: 'global'
   tags: tags
   properties: { groupShortName: 'presvet', enabled: true, emailReceivers: [for (c, i) in correosAlertas: { name: 'correo${i}', emailAddress: c, useCommonAlertSchema: true }] }
@@ -169,7 +173,7 @@ resource rolDi 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource presupuesto 'Microsoft.Consumption/budgets@2023-11-01' = {
-  name: 'azu-budget-presvetcheck-np-01'
+  name: 'azu-budget-${sufijo}-01'
   properties: {
     category: 'Cost'
     amount: presupuestoEuros
@@ -223,7 +227,7 @@ var envMigr = concat(envBase, [
 ])
 
 resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = if (crearApps) {
-  name: 'azu-cae-presvetcheck-np-01'
+  name: 'azu-cae-${sufijo}-01'
   location: location
   tags: tags
   properties: {
@@ -234,7 +238,7 @@ resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = if (crearApps) {
 }
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = if (crearApps) {
-  name: 'azu-ca-presvetcheck-np-01'
+  name: 'azu-ca-${sufijo}-01'
   location: location
   tags: tags
   identity: { type: 'UserAssigned', userAssignedIdentities: { '${idApp.id}': {} } }

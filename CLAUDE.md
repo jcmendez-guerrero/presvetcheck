@@ -1,23 +1,28 @@
 # Claude Code Repository Guide
 
-Before changing code or project artifacts, read and follow these sources:
+@AGENTS.md
 
-1. **`.specify/memory/constitution.md`** — governing principles. It takes precedence over all other repository conventions.
-2. **`SPEC.md`** — functional and technical requirements, including unresolved decisions in §13.
-3. **`AGENTS.md`** — English-language operational guidance, stack commands, domain conventions, testing requirements, and links to the repository's AI resources.
+## What to read, and when (keep context small)
 
-## AI resources
-
-- **Claude/Spec Kit skills:** `.claude/skills/`. These provide the local Spec Kit workflows for specifying, clarifying, planning, task generation, implementation, analysis, and related activities.
-- **Spec Kit configuration and templates:** `.specify/`, including `memory/constitution.md`, `templates/`, and `workflows/`.
-- **GitHub Copilot custom agents:** `.github/agents/*.agent.md`. These are Copilot agent profiles; use them as project-specific references where useful, but do not assume Claude Code activates them as subagents.
-- **GitHub Copilot path-specific instructions:** `.github/instructions/*.instructions.md`. Consult the matching instruction file when working in its `applyTo` scope.
-- **GitHub Copilot Agent Skills:** `.github/skills/<skill-name>/SKILL.md`. Read the relevant skill and any referenced bundled files when the task matches its purpose.
+- `AGENTS.md` (imported above) is the operational summary of the constitution: follow it always.
+- `.specify/memory/constitution.md` prevails over everything. Read it when a change touches regulation,
+  data protection, traceability or language rules, or when `AGENTS.md` and the code disagree.
+- `SPEC.md` is large (~90 KB). **Do not read it whole**: open only the section you need (`grep -n '^## ' SPEC.md`).
+  Map: §4 domain rules (L149) · §5 integrations (L448) · §6 data model (L567) · §7 API (L618) · §8 screens (L645)
+  · §9 security/GDPR (L665) · §10 Azure (L693) · §12 acceptance (L739) · §13 decisions (L789) · Annex A (L817).
+- Open decisions and doubts: `docs/dudas.md` is an index of `DUDA-xx` → Jira (KAN-1); the full text lives in Jira.
+- Internal documentation (real infra topology, data-protection status, audits) lives in Confluence, space CDE,
+  folder **PreVetCheck**. Actionable work goes to Jira (project KAN).
+- Spec Kit skills are in `.claude/skills/`; templates and workflows in `.specify/`. Copilot-only files
+  (`.github/agents`, `.github/instructions`, `.github/skills`) are optional references; read one only when the task
+  matches it.
 
 ## Working rules
 
-- Preserve the constitution's regulatory, data-protection, traceability, and language requirements. In case of conflict, the constitution prevails and `AGENTS.md` should be updated to remain consistent.
-- Do not invent external integration schemas or regulatory rules. Use the specification, fixtures, and reference files named in `AGENTS.md`.
-- Keep domain logic pure and deterministic; inject time and keep legal rules out of AI prompts and UI components.
+- In conflict, the constitution prevails; update `AGENTS.md` to stay consistent.
+- Do not invent external integration schemas or regulatory rules; use the spec, fixtures and `docs/ref/`.
+- Keep domain logic pure and deterministic; inject time; keep legal rules out of AI prompts and UI components.
 - Never call real CIMAVet, Siweb360, or Azure services from tests. Use fixtures and mocks.
-- Follow the commands and completion gates in `AGENTS.md`; run `pnpm lint && pnpm typecheck && pnpm test` before considering a task complete.
+- This repository is **public**: never commit personal data, real prescriptions, internal Azure resource names,
+  IP ranges, tenant/app IDs or personal e-mails. Real values go in ignored local files and Confluence.
+- Run `pnpm lint && pnpm typecheck && pnpm test` before considering a task complete.

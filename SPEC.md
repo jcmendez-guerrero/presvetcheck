@@ -673,10 +673,10 @@ MFA obligatorio para `farmaceutico_garante` y `admin` (acceso condicional o, si 
 
 ### 9.2 Datos personales (RGPD/LOPDGDD)
 - Datos personales tratados: titular del animal (nombre, teléfono, DNI opcional, dirección) y veterinario prescriptor (datos profesionales). Las imágenes de recetas contienen ambos.
-- Base jurídica principal: cumplimiento de obligación legal (custodia de recetas y registros). Minimización: DNI opcional en venta presencial y obligatorio en pedidos online (D-07; documentar la finalidad en el RAT de Facilita); las exportaciones por defecto **excluyen** los datos del propietario salvo que se pidan expresamente.
+- Base jurídica principal: cumplimiento de obligación legal (custodia de recetas y registros). Minimización: DNI opcional en venta presencial y obligatorio en pedidos online (D-07; documentar la finalidad en el RAT); las exportaciones por defecto **excluyen** los datos del propietario salvo que se pidan expresamente.
 - Cifrado en tránsito (TLS 1.2+) y en reposo (servicio) + cifrado de columnas del propietario a nivel de aplicación.
 - **Retención:** recetas (imagen y datos) y registros de entradas/salidas **5 años**; después, job de purga/anonimización (`retention-sweep`, mensual). Inmutabilidad de Blob con retención temporal acorde.
-- Encargados: Microsoft (Azure, incluidos Document Intelligence y el despliegue de chat de Azure OpenAI / Foundry del asistente de consultas, en la UE y sin uso de los datos para entrenamiento). Actualizar el Registro de Actividades de Tratamiento (Facilita) con este tratamiento.
+- Encargados: Microsoft (Azure, incluidos Document Intelligence y el despliegue de chat de Azure OpenAI / Foundry del asistente de consultas, en la UE y sin uso de los datos para entrenamiento). Actualizar el Registro de Actividades de Tratamiento (RAT) con este tratamiento.
 - No enviar datos personales a ningún servicio fuera de los declarados; no registrar datos personales en logs (redacción automática en el logger: DNI, teléfono, nombre de propietario).
 
 ### 9.3 Uso de IA

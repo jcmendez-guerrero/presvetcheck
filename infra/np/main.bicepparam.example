@@ -1,0 +1,30 @@
+// Plantilla de parámetros del entorno np. Cópiala a `main.bicepparam` (ignorado por git) y rellena los valores
+// reales (Confluence, PreVetCheck › Infraestructura np). Nunca versiones nombres de recursos internos, IP ni correos personales.
+using 'main.bicep'
+
+// Fase 1 (base): crearApps=false. Fase 2: crearApps=true con la imagen del ACR y el client ID de Entra.
+param crearApps = bool(readEnvironmentVariable('CREAR_APPS', 'false'))
+param imagen = readEnvironmentVariable('IMAGEN', '')
+param entraClientId = readEnvironmentVariable('ENTRA_CLIENT_ID', '<app-id-del-registro-entra>')
+param inicioPresupuesto = '2026-10-01'
+param correosAlertas = ['<buzon-de-alertas>@<dominio>']
+// Asistente: 'gemini' (endpoint vacío), 'azure' (ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com) u 'off'.
+param asistente = readEnvironmentVariable('ASISTENTE', 'off')
+param asistenteEndpoint = readEnvironmentVariable('ASISTENTE_ENDPOINT', '')
+param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', '')
+
+param sufijo = '<proyecto>-<entorno>'
+param identidadAppNombre = '<identidad-app>'
+param identidadMigrNombre = '<identidad-migraciones>'
+param docIntelNombre = '<document-intelligence>'
+param storageNombre = '<cuenta-de-storage>'
+param postgresFqdn = '<servidor>.postgres.database.azure.com'
+param rgCompartido = '<grupo-recursos-compartidos>'
+param keyVaultNombre = '<key-vault>'
+param acrNombre = '<acr>'
+param acrServidor = '<acr>-<hash>.azurecr.io'
+param rgRed = '<grupo-red>'
+param vnetNombre = '<vnet>'
+param subredNombre = '<subred-container-apps>'
+param subredPrefijo = '<x.x.x.x/27>'
+param nombreSecretoSiweb = '<secreto-token-siweb>'

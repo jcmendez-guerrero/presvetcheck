@@ -41,5 +41,5 @@ a través de Azure AI Foundry: la API de chat es la misma y solo cambia la URL c
 
 ## Consecuencias
 
-- Actualizar `SPEC.md` §9.2 y §9.3 y el Registro de Actividades de Tratamiento (Facilita).
+- Actualizar `SPEC.md` §9.2 y §9.3 y el Registro de Actividades de Tratamiento (RAT).
 - El banco de evaluación (`pnpm eval:asistente`) es orientativo y no condiciona la activación.
