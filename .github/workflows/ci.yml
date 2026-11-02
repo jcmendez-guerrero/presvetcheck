@@ -45,14 +45,14 @@ jobs:
           allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
           comment-summary-in-pr: on-failure
       - name: Avisos (medias y bajas, y altas de desarrollo; no bloquea)
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 #v5.0.0 
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 #v5.0.0
         with:
           fail-on-severity: low
           fail-on-scopes: runtime, development
           allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
           warn-only: true
 
-  linting: 
+  linting:
     name: Linting
     runs-on: ubuntu-latest
     permissions:
@@ -90,14 +90,14 @@ jobs:
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_TRIVY: false
           FIX_TERRAFORM_FMT: true
-          FILTER_REGEX_EXCLUDE: (.*github/linters.*|.*CHANGELOG.md.*|.*specify/.*)
+          FILTER_REGEX_EXCLUDE: (.*github/linters.*|.*CHANGELOG.md.*|.*specify/.*|.*apps/api/openapi\.json)
           JAVASCRIPT_ES_CONFIG_FILE: eslint.config.js
           TYPESCRIPT_ES_CONFIG_FILE: eslint.config.js
           VALIDATE_SPELL_CODESPELL: false
           VALIDATE_PYTHON_RUFF: false
           VALIDATE_PYTHON_RUFF_FORMAT: false
           SAVE_SUPER_LINTER_SUMMARY: true
-          
+
   calidad:
     name: Lint, tipos, tests y build
     runs-on: ubuntu-latest
@@ -121,7 +121,8 @@ jobs:
         with:
           path: fixtures/nomenclator/*.xml
           key: nomenclator-${{ steps.semana.outputs.clave }}
-      - run: pnpm --filter '!./.github/**' --filter '!./.claude/**' nomenclator:fetch --si-falta
+      # Script de la raíz: con los filtros de arriba ningún paquete lo tiene y el paso no descargaba nada.
+      - run: pnpm nomenclator:fetch --si-falta
       - run: pnpm --filter '!./.github/**' --filter '!./.claude/**' lint
       - run: pnpm --filter '!./.github/**' --filter '!./.claude/**' typecheck
       - run: pnpm --filter '!./.github/**' --filter '!./.claude/**' test

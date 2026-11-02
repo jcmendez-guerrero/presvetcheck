@@ -3,7 +3,7 @@
 Términos del dominio regulatorio que se mantienen en español en el código y su equivalente técnico.
 
 | Término | Significado | En el código |
-|---|---|---|
+| --- | --- | --- |
 | Receta | Prescripción veterinaria (papel o electrónica, RD 666/2023) | `receta`, `RecetaConfirmada` |
 | Nº de registro (`nregistro`) | Identificador del medicamento en CIMAVet (p. ej. `1868 ESP`) | `nregistro` |
 | Código nacional (CN) | Identificador de 6 dígitos de la presentación (7 con dígito de control). En la UI: "Código nacional" | `cn` |
@@ -38,3 +38,6 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Outbox | Cola de escrituras en Siweb360 con reconciliación manual | `OutboxService` |
 | Contramovimiento | Corrección por fila nueva (nunca `UPDATE`) | `anula_dispensacion_id` |
 | D-xx | Decisión de SPEC §13; las pendientes llevan `TODO(decision D-xx)` | — |
+| Asistente (de consultas) | Chat en español que explica las reglas y el resultado de una receta; solo informa, nunca decide ni autoriza (ADR-17) | `@mmx/assistant`, `ChatOrchestrator` |
+| Simulación | Evaluación de un caso hipotético por el motor de reglas (por ejemplo, «receta del 3 de octubre con antibiótico»); no crea ni modifica ninguna receta | `packages/domain/src/simulacion.ts`, `simular_*` |
+| Fuente de referencia | Documento o regla versionada que el asistente cita y se puede abrir: regla del motor (`regla:`), guía de la receta (`guia:`), Ayuda (`ayuda:`), medicamento de CIMAVet (`cimavet:`) o resultado del motor (`motor:`) | `FuenteCitada` |

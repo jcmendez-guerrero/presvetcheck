@@ -17,6 +17,12 @@ const ESTADO: Partial<Record<CodigoError, number>> = {
   CIMAVET_NO_DISPONIBLE: 503,
   EXTRACTOR_NO_CONFIGURADO: 503,
   SIWEB_ESCRITURA_DESACTIVADA: 409,
+  ASISTENTE_DESACTIVADO: 409,
+  ASISTENTE_NO_DISPONIBLE: 503,
+  ASISTENTE_LIMITE_MENSUAL: 429,
+  ASISTENTE_CONVERSACION_AJENA: 403,
+  ASISTENTE_CONVERSACION_CERRADA: 409,
+  RECETA_LINEA_NO_ENCONTRADA: 404,
 };
 
 /**
@@ -44,9 +50,17 @@ export function registrarErrores(app: FastifyInstance) {
     }
     const fe = err as FastifyError;
     if (fe.statusCode && fe.statusCode < 500) {
-      return reply.status(fe.statusCode).send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
+      return reply
+        .status(fe.statusCode)
+        .send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
     }
     req.log.error({ err: { name: err.name, message: err.message, stack: err.stack } }, 'error no controlado');
-    return reply.status(500).send({ error: { code: 'ERROR_INTERNO', mensaje: 'Se ha producido un error. Inténtalo de nuevo.', detalles: null } });
+    return reply.status(500).send({
+      error: {
+        code: 'ERROR_INTERNO',
+        mensaje: 'Se ha producido un error. Inténtalo de nuevo.',
+        detalles: null,
+      },
+    });
   });
 }

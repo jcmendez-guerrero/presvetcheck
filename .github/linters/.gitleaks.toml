@@ -11,3 +11,10 @@ paths = [
   '''.github/instructions/security-and-owasp.instructions.md''',
   '''.github/instructions/code-review-generic.instructions.md''',
 ]
+# Valores públicos o de desarrollo que no son secretos: la clave conocida del emulador Azurite, la clave de columnas de
+# desarrollo ("dev-key-not-for-production-32b!!" en base64) y el nombre (no el contenido) del Key Vault de np.
+regexes = [
+  '''Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==''',
+  '''ZGV2LWtleS1ub3QtZm9yLXByb2R1Y3Rpb24tMzJiISE=''',
+  '''azukvappmascotix01''',
+]

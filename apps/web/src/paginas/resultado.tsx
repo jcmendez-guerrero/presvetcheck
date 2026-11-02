@@ -13,6 +13,7 @@ import { Pagina } from '../componentes/layout';
 import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { ConReceta } from '../componentes/visor-receta';
 import { Boton, Cargando, Mensaje, Tarjeta } from '../componentes/ui';
+import { BotonPreguntarLinea } from '../componentes/asistente';
 
 /** Resultado por línea (SPEC §8.4): estado con icono y texto, motivos legibles y acción principal. */
 export function Resultado() {
@@ -105,6 +106,11 @@ function TarjetaLinea({
         </p>
       )}
       <ListaMotivos motivos={l.resultado.motivos} />
+      {l.lineaId && (
+        <div className="mt-3">
+          <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${l.orden}`} />
+        </div>
+      )}
 
       {decision === 'DISPENSAR' && ev.lotes?.recomendado && (
         <p className="mt-3">

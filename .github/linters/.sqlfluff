@@ -1,0 +1,6 @@
+# Configuración de SQLFluff para Super-linter: https://docs.sqlfluff.com/en/stable/configuration/index.html
+# Las migraciones las genera drizzle-kit (identificadores entre comillas, líneas largas, sangrado propio), así que
+# se desactivan las reglas de estilo y se mantienen las de estructura y el análisis con el dialecto de PostgreSQL.
+[sqlfluff]
+dialect = postgres
+exclude_rules = AL01, AM04, CP01, LT01, LT02, LT05, LT09, LT12, RF06, ST09

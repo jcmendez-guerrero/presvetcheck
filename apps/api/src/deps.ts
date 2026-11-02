@@ -2,12 +2,20 @@ import type { CimavetRepository } from '@mmx/cimavet';
 import type { ColumnCipher, Db } from '@mmx/db';
 import type { Clock, PoliticaSeveridad, RecipeExtractor } from '@mmx/domain';
 import { hoy } from '@mmx/domain';
-import type { AppConfig, RulesBundle } from '@mmx/shared';
+import type { AppConfig, ContextoLineaDto, RulesBundle } from '@mmx/shared';
 import type { LoadedRuleFile } from '@mmx/shared/node';
-import type { BandejaSiweb, OutboxService, SalesMovementsSource, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
+import type {
+  BandejaSiweb,
+  OutboxService,
+  SalesMovementsSource,
+  SiwebCatalogWriter,
+  VariantResolver,
+} from '@mmx/siweb';
 import type { BlobStore } from '@mmx/reports';
 import type { StockPort } from './puertos/stock';
 import type { LectorDocumentosProveedor } from '@mmx/extraction';
+import type { AssistantModel, FuentesReferencia, ToolRegistry } from '@mmx/assistant';
+import type { Mailer } from '@mmx/reports';
 
 /** Dependencias de la API (inyectadas: los tests usan PGlite, stock de demo y extractor falso). */
 export interface AppDeps {
@@ -42,6 +50,24 @@ export interface AppDeps {
   /** Teléfono que figura en el resguardo para el tutor. */
   telefonoFarmacia: string;
   nombreFarmacia: string;
+  asistente: AsistenteDeps;
+}
+
+/** Asistente de consultas (specs/002-prescription-chat-assistant). */
+export interface AsistenteDeps {
+  /** null con ASSISTANT=off: no hay asistente. */
+  modelo: AssistantModel | null;
+  herramientas: ToolRegistry;
+  /** Guía de la receta y Ayuda, para abrir lo que se cita. */
+  fuentes: FuentesReferencia | null;
+  /** Aviso del 80 % a administración (null: solo queda constancia en Administración). */
+  mailer: Mailer | null;
+  /** Valores del titular y del veterinario de una línea que no pueden llegar al modelo ni a los registros (en memoria). */
+  conocidosLinea?: (recetaLineaId: string) => Promise<string[]>;
+  /** La línea existe y está evaluada (si no, RECETA_LINEA_NO_ENCONTRADA). */
+  existeLinea?: (recetaLineaId: string) => Promise<boolean>;
+  /** Contexto sin datos personales de una línea evaluada (para abrir lo que cita el asistente). */
+  cargarLinea?: (recetaLineaId: string) => Promise<ContextoLineaDto | null>;
 }
 
 export function politica(d: Pick<AppDeps, 'config' | 'rules'>): PoliticaSeveridad {

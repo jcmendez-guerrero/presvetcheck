@@ -5,11 +5,17 @@ import multipart from '@fastify/multipart';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
-import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
+import {
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod';
 import type { AppDeps } from './deps';
 import { registrarAuth, type OpcionesAuth } from './plugins/auth';
 import { registrarErrores } from './plugins/errores';
 import { rutasAdmin } from './rutas/admin';
+import { rutasAsistente } from './rutas/asistente';
 import { rutasMedicamentos } from './rutas/medicamentos';
 import { rutasMovil } from './rutas/movil';
 import { rutasOperativa } from './rutas/operativa';
@@ -34,6 +40,10 @@ export const REDACCION = [
   '*.dniRetira',
   '*.movil',
   '*.telefono',
+  '*.pregunta',
+  '*.respuesta',
+  '*.texto',
+  '*.comentario',
   '*.direccion',
   '*.propietario',
   '*.titular',
@@ -64,7 +74,11 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 10, fields: 30 } });
   await app.register(swagger, {
     openapi: {
-      info: { title: 'Mundo Mascotix · Recetas veterinarias', version: '0.1.0', description: 'API de verificación de recetas, dispensación y registro de entradas/salidas (SPEC §7).' },
+      info: {
+        title: 'Mundo Mascotix · Recetas veterinarias',
+        version: '0.1.0',
+        description: 'API de verificación de recetas, dispensación y registro de entradas/salidas (SPEC §7).',
+      },
       components: { securitySchemes: { entra: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } },
       security: [{ entra: [] }],
     },
@@ -73,7 +87,10 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   await app.register(swaggerUi, { routePrefix: '/api/docs' });
   app.get('/api/openapi.json', { schema: { hide: true } }, async () => app.swagger());
 
-  await registrarAuth(app, { config: deps.config, ...(auth?.verificar ? { verificar: auth.verificar } : {}) });
+  await registrarAuth(app, {
+    config: deps.config,
+    ...(auth?.verificar ? { verificar: auth.verificar } : {}),
+  });
   await rutasSistema(app, deps);
   await rutasRecetas(app, deps);
   await rutasMedicamentos(app, deps);
@@ -82,12 +99,17 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   await rutasAdmin(app, deps);
   await rutasReportes(app, deps);
   await rutasMovil(app, deps);
+  await rutasAsistente(app, deps);
 
   // SPA estática (PWA) en producción: misma app "mmx-api" (SPEC §1.1).
   const web = deps.config.WEB_DIST_DIR;
   if (web && existsSync(web)) {
     await app.register(fastifyStatic, { root: web, wildcard: false });
-    app.setNotFoundHandler((req, reply) => (req.url.startsWith('/api/') ? reply.status(404).send({ error: { code: 'NO_ENCONTRADO' } }) : reply.sendFile('index.html')));
+    app.setNotFoundHandler((req, reply) =>
+      req.url.startsWith('/api/')
+        ? reply.status(404).send({ error: { code: 'NO_ENCONTRADO' } })
+        : reply.sendFile('index.html'),
+    );
   }
   return app;
 }

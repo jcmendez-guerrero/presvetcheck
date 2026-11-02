@@ -4,6 +4,7 @@ import { LogOut, ShieldCheck } from 'lucide-react';
 import { USUARIOS_DEV, useAuth } from '../lib/auth';
 import { ProveedorMovil, useMovil } from '../lib/movil';
 import { AvisosMovil, BotonMovil } from './movil-pc';
+import { ProveedorAsistente } from './asistente';
 
 const NAV = [
   { a: '/', t: 'Inicio', roles: null },
@@ -98,7 +99,9 @@ export function Layout() {
         <main className="mx-auto max-w-6xl px-4 py-6">
           {/* Nada pide datos hasta tener sesión (cabeceras de autenticación configuradas). */}
           {usuario ? (
-            <Outlet />
+            <ProveedorAsistente>
+              <Outlet />
+            </ProveedorAsistente>
           ) : (
             <p className="animate-pulse text-slate-600">
               {config ? 'Iniciando sesión…' : 'Conectando con el servidor…'}

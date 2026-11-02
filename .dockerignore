@@ -7,6 +7,7 @@
 .data
 fixtures/recetas
 fixtures/nomenclator
-docs/ref
+docs/ref/*
+!docs/ref/guia-receta-veterinaria.md
 playwright-report
 test-results

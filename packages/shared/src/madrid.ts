@@ -14,3 +14,13 @@ export function rangoMadrid(desde: string, hasta: string): [Date, Date] {
   fin.setUTCDate(fin.getUTCDate() + 1);
   return [aUtc(desde), aUtc(fin.toISOString().slice(0, 10))];
 }
+
+/** Mes natural `YYYY-MM` de un instante en Europe/Madrid (consumo mensual del asistente). */
+export function mesMadrid(instante: Date): string {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(instante);
+  return `${partes.find((p) => p.type === 'year')?.value}-${partes.find((p) => p.type === 'month')?.value}`;
+}

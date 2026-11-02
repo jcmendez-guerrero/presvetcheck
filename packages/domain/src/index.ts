@@ -24,3 +24,4 @@ export * from './sku';
 export * from './recepcion';
 export * from './puertos';
 export * from './fraccion';
+export * from './simulacion';

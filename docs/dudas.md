@@ -234,3 +234,19 @@ nombre. Las "confirmaciones expresas" de la app son siempre de la persona que re
   pantalla **Pendientes** (sustituciones en curso con alerta de plazo y discrepancias con el TPV). Reglas y
   exclusiones las registra administración (MFA para aprobar reglas).
 
+## DUDA-29 · Asistente de consultas: modelo, precios y banco de evaluación — PARCIALMENTE RESUELTA
+- **Contexto:** el asistente (`specs/002-prescription-chat-assistant/`, ADR-17) reintroduce un servicio de IA
+  generativa que DUDA-27 había retirado de la extracción. Aquí solo explica reglas y resultados; no decide.
+- **JC (respuestas):**
+  1. **Despliegue:** están disponibles las dos opciones, Azure OpenAI y Foundry, con el modelo que se quiera. Como la
+      API de chat es la misma, solo hay que fijar `ASSISTANT_ENDPOINT` y `ASSISTANT_DEPLOYMENT` (UE; con herramientas
+      y salida estructurada). **Pendiente:** elegir el modelo concreto.
+  2. **Precio por 1.000 tokens:** se desconoce. Sin precios (`ASSISTANT_PRICE_IN_PER_1K_EUR`, `…_OUT_…`) el coste
+      estimado no se muestra y solo se controla el consumo en tokens. El límite mensual (3.000.000 de tokens,
+      `ASSISTANT_MONTHLY_TOKEN_LIMIT`) es provisional hasta conocer el precio.
+  3. **Banco v1** (`fixtures/asistente/banco.v1.yaml`): validado por JC («parece correcto»). Lanzar
+      `pnpm eval:asistente` contra el servicio real cuando se elija el modelo (orientativo; no condiciona la activación).
+  4. **RAT de Facilita:** se evaluará más adelante. Antes de activar el asistente en producción: finalidad
+      «consultas internas sobre prescripción y dispensación», sin datos del titular ni del veterinario, retención de
+      **1 año**, encargado Microsoft (UE).
+- **Implementado con valores por defecto:** `ASSISTANT=off` (desactivado). `TODO(decision DUDA-29)`.
