@@ -60,6 +60,9 @@ test('pregunta sobre una línea: explica el resultado del motor y devuelve el fo
   if (await elegir.isVisible()) await elegir.click();
   await expect(page.getByText(/Caja de cartón con 2 Blisters/).first()).toBeVisible();
   await page.getByTestId('especie').selectOption('14');
+  // La lectura simulada siempre da DEMO-0001 y el test de humo ya la dispensa (misma base en memoria): con otro
+  // número no salta «receta en papel ya dispensada».
+  await page.getByRole('textbox', { name: /^Nº de receta/ }).fill('DEMO-ASISTENTE-1');
   await page.getByTestId('firma').check();
   await page.getByTestId('comprobado').check();
   await page.getByTestId('evaluar').click();
