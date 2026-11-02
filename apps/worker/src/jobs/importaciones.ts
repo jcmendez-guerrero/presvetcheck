@@ -6,7 +6,13 @@ import { normalizeText } from '@mmx/shared';
 import type { Contexto } from '../contexto';
 
 const ACTOR = 'importaciones-corregir';
-const igual = (a: string | null, b: string | null) => normalizeText(a ?? '').replace(/\s+/g, ' ').trim() === normalizeText(b ?? '').replace(/\s+/g, ' ').trim();
+const igual = (a: string | null, b: string | null) =>
+  normalizeText(a ?? '')
+    .replace(/\s+/g, ' ')
+    .trim() ===
+  normalizeText(b ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /**
  * Pone de acuerdo con CIMAVet las filas importadas: nombre, principio activo y forma según su código nacional o,
@@ -24,13 +30,19 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
   const todas = await ctx.db
     .select()
     .from(importacion)
-    .where(and(isNull(importacion.anuladaAt), ...(args.importacion ? [eq(importacion.id, args.importacion)] : [])))
+    .where(
+      and(isNull(importacion.anuladaAt), ...(args.importacion ? [eq(importacion.id, args.importacion)] : [])),
+    )
     .orderBy(asc(importacion.createdAt));
   const cimavet = datosCimavetImportacion(ctx.cimavet.repo);
   const informe = [];
   for (const imp of todas) {
     const tabla = imp.tipo === 'entradas' ? entradaImportada : salidaImportada;
-    const filas = await ctx.db.select().from(tabla).where(eq(tabla.importacionId, imp.id)).orderBy(asc(tabla.fila));
+    const filas = await ctx.db
+      .select()
+      .from(tabla)
+      .where(eq(tabla.importacionId, imp.id))
+      .orderBy(asc(tabla.fila));
     const cambios = { nombre: 0, principioActivo: 0, forma: 0 };
     const sinCn: number[] = [];
     const cnDesconocido: number[] = [];
@@ -50,8 +62,17 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
       if (!igual(f.nombreFarmaco, nueva.nombreFarmaco)) cambios.nombre++;
       if (!igual(f.principioActivo, nueva.principioActivo)) cambios.principioActivo++;
       if (!igual(f.forma, nueva.forma)) cambios.forma++;
-      if (ejemplos.length < 5 && (!igual(f.nombreFarmaco, nueva.nombreFarmaco) || !igual(f.principioActivo, nueva.principioActivo) || !igual(f.forma, nueva.forma)))
-        ejemplos.push({ fila: f.fila, antes: `${f.nombreFarmaco} | ${f.principioActivo ?? ''} | ${f.forma ?? ''}`, despues: `${nueva.nombreFarmaco} | ${nueva.principioActivo ?? ''} | ${nueva.forma ?? ''}` });
+      if (
+        ejemplos.length < 5 &&
+        (!igual(f.nombreFarmaco, nueva.nombreFarmaco) ||
+          !igual(f.principioActivo, nueva.principioActivo) ||
+          !igual(f.forma, nueva.forma))
+      )
+        ejemplos.push({
+          fila: f.fila,
+          antes: `${f.nombreFarmaco} | ${f.principioActivo ?? ''} | ${f.forma ?? ''}`,
+          despues: `${nueva.nombreFarmaco} | ${nueva.principioActivo ?? ''} | ${nueva.forma ?? ''}`,
+        });
       corregidas.push(nueva);
     }
     const conCambios = cambios.nombre + cambios.principioActivo + cambios.forma > 0;
@@ -70,18 +91,48 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
             createdAt: ahora,
           })
           .returning();
-        const copia = corregidas.map(({ id: _id, createdAt: _c, importacionId: _i, ...resto }) => ({ ...resto, importacionId: n!.id }));
-        for (let i = 0; i < copia.length; i += 500) await tx.insert(tabla).values(copia.slice(i, i + 500) as never);
+        const copia = corregidas.map(({ id: _id, createdAt: _c, importacionId: _i, ...resto }) => ({
+          ...resto,
+          importacionId: n!.id,
+        }));
+        for (let i = 0; i < copia.length; i += 500)
+          await tx.insert(tabla).values(copia.slice(i, i + 500) as never);
         await tx
           .update(importacion)
-          .set({ anuladaAt: ahora, anuladaPor: ACTOR, motivoAnulacion: `Sustituida por la corrección con CIMAVet (importación ${n!.id})` })
+          .set({
+            anuladaAt: ahora,
+            anuladaPor: ACTOR,
+            motivoAnulacion: `Sustituida por la corrección con CIMAVet (importación ${n!.id})`,
+          })
           .where(eq(importacion.id, imp.id));
-        await appendAudit(tx, { actor: ACTOR, accion: 'importacion_corregir_cimavet', entidad: 'importacion', entidadId: n!.id, despues: { original: imp.id, filas: copia.length, cambios } });
-        await appendAudit(tx, { actor: ACTOR, accion: 'anular_importacion', entidad: 'importacion', entidadId: imp.id, despues: { motivo: 'Corrección con CIMAVet', sustituidaPor: n!.id } });
+        await appendAudit(tx, {
+          actor: ACTOR,
+          accion: 'importacion_corregir_cimavet',
+          entidad: 'importacion',
+          entidadId: n!.id,
+          despues: { original: imp.id, filas: copia.length, cambios },
+        });
+        await appendAudit(tx, {
+          actor: ACTOR,
+          accion: 'anular_importacion',
+          entidad: 'importacion',
+          entidadId: imp.id,
+          despues: { motivo: 'Corrección con CIMAVet', sustituidaPor: n!.id },
+        });
         return n!.id;
       });
     }
-    informe.push({ importacion: imp.id, tipo: imp.tipo, filas: filas.length, cambios, sinCn: sinCn.length, cnDesconocido: cnDesconocido.length, sinIdentificar: sinIdentificar.length, ejemplos, corregida });
+    informe.push({
+      importacion: imp.id,
+      tipo: imp.tipo,
+      filas: filas.length,
+      cambios,
+      sinCn: sinCn.length,
+      cnDesconocido: cnDesconocido.length,
+      sinIdentificar: sinIdentificar.length,
+      ejemplos,
+      corregida,
+    });
   }
   const r = { aplicado: aplicar, importaciones: informe };
   ctx.log('importaciones-corregir', r);

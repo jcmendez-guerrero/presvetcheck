@@ -43,12 +43,15 @@ export function datosCimavetImportacion(repo: CimavetRepository) {
   async function delMedicamento(nregistro: string, nombre: string, por: DatosCimavetFila['por']) {
     const m = await repo.medicamento(nregistro);
     if (!m) return null;
-    const formas = m.formaId !== null ? await repo.nombresMaestra(MAESTRA.FORMAS, [m.formaId]) : new Map<number, string>();
+    const formas =
+      m.formaId !== null ? await repo.nombresMaestra(MAESTRA.FORMAS, [m.formaId]) : new Map<number, string>();
     return {
       por,
       nombre,
       principioActivo:
-        m.composicion.pas.map((p) => [p.nombre.toLowerCase(), p.cantidad, p.unidad].filter(Boolean).join(' ')).join('; ') || null,
+        m.composicion.pas
+          .map((p) => [p.nombre.toLowerCase(), p.cantidad, p.unidad].filter(Boolean).join(' '))
+          .join('; ') || null,
       forma: m.formaId !== null ? (formas.get(m.formaId) ?? null) : null,
       marca: marcaDe(m.nombre),
     };
@@ -75,7 +78,12 @@ export function datosCimavetImportacion(repo: CimavetRepository) {
         porNombre.set(
           k,
           repo.buscar(nombre, { limite: 3 }).then((cs) => {
-            const c = cs.find((x) => x.puntuacion >= 0.5 && marcaDe(x.medicamento) !== null && llevaMarca(nombre, marcaDe(x.medicamento)));
+            const c = cs.find(
+              (x) =>
+                x.puntuacion >= 0.5 &&
+                marcaDe(x.medicamento) !== null &&
+                llevaMarca(nombre, marcaDe(x.medicamento)),
+            );
             return c ? delMedicamento(c.nregistro, c.medicamento, 'nombre') : null;
           }),
         );
@@ -88,9 +96,13 @@ export function datosCimavetImportacion(repo: CimavetRepository) {
  * Sustituye en la fila el nombre, el principio activo y la forma por los de CIMAVet (si CIMAVet no tiene alguno
  * de ellos, se queda el del fichero). El código nacional y el resto de columnas no se tocan.
  */
-export function aplicarDatosCimavet<T extends { nombreFarmaco: string; principioActivo: string | null; forma: string | null }>(
-  fila: T,
-  c: DatosCimavetFila,
-): T {
-  return { ...fila, nombreFarmaco: c.nombre, principioActivo: c.principioActivo ?? fila.principioActivo, forma: c.forma ?? fila.forma };
+export function aplicarDatosCimavet<
+  T extends { nombreFarmaco: string; principioActivo: string | null; forma: string | null },
+>(fila: T, c: DatosCimavetFila): T {
+  return {
+    ...fila,
+    nombreFarmaco: c.nombre,
+    principioActivo: c.principioActivo ?? fila.principioActivo,
+    forma: c.forma ?? fila.forma,
+  };
 }
