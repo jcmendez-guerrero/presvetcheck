@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { auditEvent, discrepancia, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
 import { api, confirmar, crearReceta, entorno, multipart, recetaCorrecta, type Entorno } from './entorno';
 
@@ -1401,6 +1401,70 @@ describe('recepción: validación previa, edición de líneas, fecha de recepci�
     await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/finalizar`);
     expect(
       (await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${id}/lineas/${l.id}`, { unidades: 1 })).json
+        .error.code,
+    ).toBe('RECEPCION_NO_EDITABLE');
+  });
+
+  it('tras finalizar se corrige la cabecera con motivo (auditado con antes y después), no las líneas', async () => {
+    const id = await nueva();
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/lineas`, {
+      cn: '570016',
+      lote: 'K1',
+      caducidad: '2027-12-31',
+    });
+    // Abierta: se modifica directamente, no con corrección.
+    expect(
+      (
+        await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/correccion`, {
+          fechaRecepcion: '2026-10-14',
+          motivo: 'fecha mal puesta',
+        })
+      ).status,
+    ).toBe(400);
+    await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/finalizar`);
+    const corregir = (b: Record<string, unknown>) =>
+      api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${id}/correccion`, b);
+    expect((await corregir({ fechaRecepcion: '2026-10-14', motivo: 'x' })).json.error.detalles).toMatchObject(
+      { campo: 'motivo' },
+    );
+    expect(
+      (await corregir({ fechaRecepcion: '2026-10-11', motivo: 'fecha mal puesta' })).json.error.detalles,
+    ).toMatchObject({ campo: 'fechaRecepcion' });
+    expect(
+      (await corregir({ fechaRecepcion: '2026-10-20', motivo: 'fecha mal puesta' })).json.error.detalles,
+    ).toMatchObject({ campo: 'fechaRecepcion' });
+    expect(
+      (await corregir({ fechaRecepcion: '2026-10-13', motivo: 'sin cambios' })).json.error.mensaje,
+    ).toMatch(/No has cambiado/);
+    const ok = await corregir({
+      fechaRecepcion: '2026-10-14',
+      albaran: 'A-77',
+      motivo: 'La mercancía llegó el 14',
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.json).toMatchObject({
+      estado: 'FINALIZADA',
+      fechaRecepcion: '2026-10-14',
+      albaran: 'A-77',
+      fechaCompra: '2026-10-12',
+    });
+    expect(ok.json.correcciones).toHaveLength(1);
+    expect(ok.json.correcciones[0]).toMatchObject({
+      actor: 'dev-empleado',
+      motivo: 'La mercancía llegó el 14',
+      antes: { fechaRecepcion: '2026-10-13', albaran: null },
+      despues: { fechaRecepcion: '2026-10-14', albaran: 'A-77' },
+    });
+    const aud = await E.h.db
+      .select()
+      .from(auditEvent)
+      .where(and(eq(auditEvent.accion, 'recepcion_corregir'), eq(auditEvent.entidadId, id)));
+    expect(aud).toHaveLength(1);
+    expect((await verifyAuditChain(E.h.db)).ok).toBe(true);
+    // Las líneas siguen sin poder cambiarse.
+    const l = ok.json.lineas[0];
+    expect(
+      (await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${id}/lineas/${l.id}`, { unidades: 2 })).json
         .error.code,
     ).toBe('RECEPCION_NO_EDITABLE');
   });

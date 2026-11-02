@@ -73,8 +73,27 @@ interface Recepcion {
   } | null;
   /** Foto o PDF del albarán guardado (contenedor `albaranes`). */
   documento: { url: string; pdf: boolean } | null;
+  /** Correcciones de la cabecera hechas tras finalizar (la más reciente primero). */
+  correcciones: Correccion[];
   lineas: LineaRecepcion[];
 }
+
+type CampoCabecera = 'distribuidor' | 'albaran' | 'fechaCompra' | 'fechaRecepcion';
+interface Correccion {
+  at: string;
+  motivo: string | null;
+  antes: Partial<Record<CampoCabecera, string | null>>;
+  despues: Partial<Record<CampoCabecera, string | null>>;
+}
+
+const NOMBRES_CABECERA: Record<CampoCabecera, string> = {
+  distribuidor: 'Distribuidor',
+  albaran: 'Nº de albarán o factura',
+  fechaCompra: 'Fecha de compra',
+  fechaRecepcion: 'Fecha de recepción',
+};
+const valorCabecera = (k: CampoCabecera, v: string | null | undefined) =>
+  v ? (k.startsWith('fecha') ? fecha(v) : v) : '—';
 
 const NOMBRES_FALTAN: Record<string, string> = {
   unidades: 'unidades',
@@ -576,7 +595,7 @@ export function RecepcionDetalle() {
       <div
         className={
           r.documento
-            ? 'grid items-start gap-4 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]'
+            ? 'grid items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]'
             : 'flex flex-col gap-4'
         }
       >
@@ -1229,7 +1248,7 @@ function TotalesRecepcion({ r }: { r: Recepcion }) {
 
 /**
  * Cabecera de la recepción: distribuidor, nº de albarán o factura, régimen y fechas. Mientras está abierta se puede
- * modificar o descartar (no se borra: queda con el motivo).
+ * modificar o descartar (no se borra: queda con el motivo). Ya finalizada, se corrige con motivo (sin régimen).
  */
 function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void }) {
   const nav = useNavigate();
@@ -1237,7 +1256,7 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
   const prov = useQuery({
     queryKey: ['proveedores'],
     queryFn: () => get<{ proveedores: { nombre: string }[] }>('/api/recepciones/proveedores'),
-    enabled: abierta,
+    enabled: r.estado !== 'DESCARTADA',
   });
   const inicial = () => ({
     distribuidor: r.distribuidor ?? '',
@@ -1246,14 +1265,38 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
     fechaRecepcion: r.fechaRecepcion ?? '',
     regimen: r.regimen,
   });
+  // Abierta → se modifica sin más; finalizada → se corrige con motivo (queda auditado). Descartada → nada.
+  const corregible = !abierta && r.estado !== 'DESCARTADA';
   const [editando, setEditando] = useState(false);
   const [v, setV] = useState(inicial);
+  const [motivo, setMotivo] = useState('');
   const [duplicados, setDuplicados] = useState<Duplicado[]>([]);
   const [confirmar, setConfirmar] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const guardar = async () => {
     setMsg(null);
+    if (!abierta && motivo.trim().length < 5) {
+      setMsg('Indica por qué corriges los datos (5 caracteres como mínimo).');
+      return;
+    }
     try {
+      if (!abierta) {
+        await post(`/api/recepciones/${r.id}/correccion`, {
+          ...(v.distribuidor.trim() !== (r.distribuidor ?? '')
+            ? { distribuidor: v.distribuidor.trim() }
+            : {}),
+          albaran: v.albaran.trim() || null,
+          fechaCompra: v.fechaCompra,
+          fechaRecepcion: v.fechaRecepcion || null,
+          motivo: motivo.trim(),
+          confirmarDuplicado: confirmar,
+        });
+        setEditando(false);
+        setDuplicados([]);
+        setMotivo('');
+        onCambio();
+        return;
+      }
       await put(`/api/recepciones/${r.id}`, {
         ...(v.distribuidor.trim() !== (r.distribuidor ?? '') ? { distribuidor: v.distribuidor.trim() } : {}),
         albaran: v.albaran.trim() || null,
@@ -1319,7 +1362,23 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
             </dd>
           </div>
         </dl>
+        {r.correcciones.length > 0 && <HistorialCorrecciones correcciones={r.correcciones} />}
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+        {corregible && (
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Boton
+              variante="secundario"
+              onClick={() => {
+                setV(inicial());
+                setMotivo('');
+                setMsg(null);
+                setEditando(true);
+              }}
+            >
+              <Pencil aria-hidden className="h-4 w-4" /> Corregir datos
+            </Boton>
+          </div>
+        )}
         {abierta && (
           <div className="mt-3 flex flex-wrap gap-3">
             <Boton
@@ -1360,17 +1419,19 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
           value={v.albaran}
           onChange={(e) => setV({ ...v, albaran: e.target.value })}
         />
-        <label className="flex flex-col gap-1 text-sm">
-          <Etiqueta texto="Régimen" info={AY.regimen} />
-          <select
-            className="min-h-11 rounded-lg border px-2"
-            value={v.regimen}
-            onChange={(e) => setV({ ...v, regimen: e.target.value as Recepcion['regimen'] })}
-          >
-            <option value="recargo_equivalencia">IVA + recargo de equivalencia</option>
-            <option value="nacional">Solo IVA</option>
-          </select>
-        </label>
+        {abierta && (
+          <label className="flex flex-col gap-1 text-sm">
+            <Etiqueta texto="Régimen" info={AY.regimen} />
+            <select
+              className="min-h-11 rounded-lg border px-2"
+              value={v.regimen}
+              onChange={(e) => setV({ ...v, regimen: e.target.value as Recepcion['regimen'] })}
+            >
+              <option value="recargo_equivalencia">IVA + recargo de equivalencia</option>
+              <option value="nacional">Solo IVA</option>
+            </select>
+          </label>
+        )}
         <Campo
           etiqueta="Fecha de emisión (compra)"
           info={AY.fechaCompra}
@@ -1388,6 +1449,23 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
           onChange={(e) => setV({ ...v, fechaRecepcion: e.target.value })}
         />
       </div>
+      {!abierta && (
+        <>
+          <Mensaje tipo="info">
+            La recepción está finalizada: puedes corregir estos datos, pero las líneas y el régimen ya no
+            cambian. La corrección queda registrada con el motivo, quién la hace y cuándo.
+          </Mensaje>
+          <div className="mt-3">
+            <Campo
+              etiqueta="Motivo de la corrección"
+              placeholder="Por ejemplo: la mercancía llegó el 26/10, no el 02/11"
+              maxLength={500}
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+            />
+          </div>
+        </>
+      )}
       <AvisoDuplicados duplicados={duplicados} />
       {duplicados.length > 0 && (
         <label className="mt-2 flex items-center gap-2">
@@ -1398,7 +1476,7 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
       {msg && <Mensaje tipo="error">{msg}</Mensaje>}
       <div className="mt-3 flex gap-3">
         <Boton disabled={duplicados.length > 0 && !confirmar} onClick={() => void guardar()}>
-          Guardar
+          {abierta ? 'Guardar' : 'Guardar corrección'}
         </Boton>
         <Boton
           variante="secundario"
@@ -1412,6 +1490,35 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
         </Boton>
       </div>
     </Tarjeta>
+  );
+}
+
+/** Correcciones de la cabecera hechas tras finalizar: qué cambió, cuándo y por qué. */
+function HistorialCorrecciones({ correcciones }: { correcciones: Correccion[] }) {
+  return (
+    <details className="mt-3 text-sm" open>
+      <summary className="cursor-pointer font-semibold">Correcciones ({correcciones.length})</summary>
+      <ul className="mt-2 flex flex-col gap-2">
+        {correcciones.map((c) => (
+          <li key={c.at} className="rounded-lg bg-fondo p-2">
+            <span className="text-slate-600">
+              {new Date(c.at).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}
+            </span>
+            {c.motivo && <span> · {c.motivo}</span>}
+            <ul className="mt-1">
+              {(Object.keys(c.despues) as CampoCabecera[])
+                .filter((k) => k in NOMBRES_CABECERA)
+                .map((k) => (
+                  <li key={k}>
+                    {NOMBRES_CABECERA[k]}: <s>{valorCabecera(k, c.antes[k])}</s> →{' '}
+                    <strong>{valorCabecera(k, c.despues[k])}</strong>
+                  </li>
+                ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -1555,10 +1662,10 @@ function VisorDocumento({ documento }: { documento: { url: string; pdf: boolean 
             key={zoom}
             title="Albarán"
             src={`${q.data}#zoom=${zoom}`}
-            className="h-[75vh] w-full rounded-lg border"
+            className="h-[75vh] lg:h-[calc(100vh-6rem)] w-full rounded-lg border"
           />
         ) : (
-          <div className="h-[75vh] overflow-auto rounded-lg border">
+          <div className="h-[75vh] lg:h-[calc(100vh-6rem)] overflow-auto rounded-lg border">
             <img src={q.data} alt="Albarán" style={{ width: `${zoom}%`, maxWidth: 'none' }} />
           </div>
         )

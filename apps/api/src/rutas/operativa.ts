@@ -16,6 +16,7 @@ import {
   SustitucionCrearDto,
   EditarLineaEntradaDto,
   EditarRecepcionDto,
+  CorregirRecepcionDto,
 } from '../schemas';
 import { DispensacionesService } from '../servicios/dispensaciones';
 import { RecepcionesService } from '../servicios/recepciones';
@@ -119,23 +120,35 @@ export async function rutasOperativa(app: App, d: AppDeps) {
       preHandler: pre,
       schema: {
         tags: ['recepciones'],
-        summary: 'Lee el albarán o la factura antes de crear la recepción: número, proveedor, fecha, líneas y posibles duplicados',
+        summary:
+          'Lee el albarán o la factura antes de crear la recepción: número, proveedor, fecha, líneas y posibles duplicados',
         consumes: ['multipart/form-data'],
       },
     },
     async (req, reply) => {
       const f = await req.file();
       if (!f) throw new DomainError('VALIDACION', 'Adjunta el albarán o la factura (foto o PDF)');
-      if (!MIMES_ALBARAN.includes(f.mimetype)) throw new DomainError('VALIDACION', `Tipo de fichero no admitido: ${f.mimetype}`);
-      return reply.status(201).send(await rec.leerAlbaran({ bytes: new Uint8Array(await f.toBuffer()), mime: f.mimetype }, ctx(req)));
+      if (!MIMES_ALBARAN.includes(f.mimetype))
+        throw new DomainError('VALIDACION', `Tipo de fichero no admitido: ${f.mimetype}`);
+      return reply
+        .status(201)
+        .send(
+          await rec.leerAlbaran({ bytes: new Uint8Array(await f.toBuffer()), mime: f.mimetype }, ctx(req)),
+        );
     },
   );
   app.get(
     '/api/recepciones/:id/documento',
-    { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Foto o PDF del albarán de la recepción', params: IdParam } },
+    {
+      preHandler: pre,
+      schema: { tags: ['recepciones'], summary: 'Foto o PDF del albarán de la recepción', params: IdParam },
+    },
     async (req, reply) => {
       const b = await rec.documento(req.params.id);
-      return reply.header('Content-Type', b.mime).header('Cache-Control', 'private, max-age=300').send(Buffer.from(b.bytes));
+      return reply
+        .header('Content-Type', b.mime)
+        .header('Cache-Control', 'private, max-age=300')
+        .send(Buffer.from(b.bytes));
     },
   );
   app.get('/api/recepciones', { preHandler: pre, schema: { tags: ['recepciones'] } }, async () =>
@@ -148,12 +161,41 @@ export async function rutasOperativa(app: App, d: AppDeps) {
   );
   app.put(
     '/api/recepciones/:id',
-    { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Cambia la cabecera de una recepción abierta', params: IdParam, body: EditarRecepcionDto } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Cambia la cabecera de una recepción abierta',
+        params: IdParam,
+        body: EditarRecepcionDto,
+      },
+    },
     async (req) => rec.editar(req.params.id, req.body, ctx(req)),
   );
   app.post(
+    '/api/recepciones/:id/correccion',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Corrige la cabecera de una recepción finalizada (con motivo, queda auditado)',
+        params: IdParam,
+        body: CorregirRecepcionDto,
+      },
+    },
+    async (req) => rec.corregir(req.params.id, req.body, ctx(req)),
+  );
+  app.post(
     '/api/recepciones/:id/descartar',
-    { preHandler: pre, schema: { tags: ['recepciones'], summary: 'Descarta una recepción abierta (no se borra)', params: IdParam, body: z.object({ motivo: z.string() }) } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Descarta una recepción abierta (no se borra)',
+        params: IdParam,
+        body: z.object({ motivo: z.string() }),
+      },
+    },
     async (req, reply) => {
       await rec.descartar(req.params.id, req.body.motivo, ctx(req));
       return reply.status(204).send();

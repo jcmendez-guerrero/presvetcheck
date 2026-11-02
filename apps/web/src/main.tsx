@@ -33,7 +33,13 @@ const rRegistro = createRoute({
 const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resultado', component: Resultado });
 const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
 const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
-const r6 = createRoute({ getParentRoute: () => raiz, path: '/recepciones/$id', component: RecepcionDetalle });
+// Documento al lado de los datos: ocupa todo el ancho de la ventana para poder leerlo.
+const r6 = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recepciones/$id',
+  component: RecepcionDetalle,
+  staticData: { anchoCompleto: true },
+});
 const r7 = createRoute({ getParentRoute: () => raiz, path: '/pendientes', component: PaginaPendientes });
 const r8 = createRoute({ getParentRoute: () => raiz, path: '/registros', component: Registros });
 const r9 = createRoute({ getParentRoute: () => raiz, path: '/admin', component: Admin });
@@ -66,6 +72,10 @@ const rVenta = createRoute({
 const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda, rAsistente];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
+  interface StaticDataRouteOption {
+    /** La página usa todo el ancho de la ventana (no el máximo de lectura). */
+    anchoCompleto?: boolean;
+  }
   interface Register {
     router: typeof router;
   }

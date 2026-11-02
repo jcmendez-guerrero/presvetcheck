@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { LogOut, ShieldCheck } from 'lucide-react';
 import { USUARIOS_DEV, useAuth } from '../lib/auth';
 import { ProveedorMovil, useMovil } from '../lib/movil';
@@ -17,6 +17,9 @@ const NAV = [
 
 export function Layout() {
   const { config, usuario, cambiarUsuarioDev, mfaDev, cambiarMfaDev, tiene } = useAuth();
+  const anchoCompleto = useRouterState({
+    select: (s) => s.matches.some((m) => m.staticData?.anchoCompleto),
+  });
   return (
     <ProveedorMovil>
       <div className="min-h-screen">
@@ -96,7 +99,7 @@ export function Layout() {
           )}
           <AvisosMovil />
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6">
+        <main className={`mx-auto px-4 py-6 ${anchoCompleto ? 'max-w-none xl:px-6' : 'max-w-6xl'}`}>
           {/* Nada pide datos hasta tener sesión (cabeceras de autenticación configuradas). */}
           {usuario ? (
             <ProveedorAsistente>
