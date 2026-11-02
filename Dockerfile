@@ -21,7 +21,7 @@ COPY . .
 # tsup empaqueta los paquetes del workspace; las dependencias declaradas de la API (fastify, drizzle, zod…) se
 # instalan aparte en modo producción. El worker usa un subconjunto de ellas.
 RUN pnpm --filter @mmx/api --filter @mmx/worker --filter @mmx/web build \
- && pnpm --filter @mmx/api deploy --prod /out/api
+  && pnpm --filter @mmx/api deploy --prod /out/api
 
 FROM node:22-alpine
 ENV NODE_ENV=production PORT=8080 WEB_DIST_DIR=/app/web TZ=UTC

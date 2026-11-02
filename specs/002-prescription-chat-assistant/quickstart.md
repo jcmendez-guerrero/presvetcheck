@@ -44,32 +44,32 @@ ASSISTANT=fake pnpm demo
 Con `AUTH_MODE=dev`, entra como «Empleada de prueba».
 
 1. **US1, regla general**: pulsa **Preguntar** → elige el ejemplo «¿Cuántos días vale una receta con
-   antibiótico?».
-   - Esperado: texto con la ficha de fuente `regla:validez` y su versión `validez.v1@…`.
-   - Al pulsar la ficha se ve el fragmento del YAML.
+    antibiótico?».
+    - Esperado: texto con la ficha de fuente `regla:validez` y su versión `validez.v1@…`.
+    - Al pulsar la ficha se ve el fragmento del YAML.
 2. **US1, simulación**: «Receta del 3 de octubre con antibiótico, ¿hasta cuándo vale?».
-   - Esperado: tarjeta **Simulación** con la fecha límite, los datos supuestos y la versión de las reglas.
-   - En _Registros_ no aparece ninguna receta nueva.
+    - Esperado: tarjeta **Simulación** con la fecha límite, los datos supuestos y la versión de las reglas.
+    - En _Registros_ no aparece ninguna receta nueva.
 3. **US1, sin fuente**: «¿Qué opinas del tiempo hoy?» → mensaje de fuera de ámbito.
 4. **US2, línea**: crea una receta de ejemplo (Receta → subir cualquier imagen con `EXTRACTOR=fake`), revísala y
-   evalúala → **Resultado** → «Preguntar sobre esta línea» → «¿Por qué no puedo dispensar?» (con una fecha de emisión
-   antigua sale «caducada»).
-   - Esperado: tarjeta **Resultado del motor** con el motivo de caducidad, idéntica a la tarjeta de la línea.
+    evalúala → **Resultado** → «Preguntar sobre esta línea» → «¿Por qué no puedo dispensar?» (con una fecha de emisión
+    antigua sale «caducada»).
+    - Esperado: tarjeta **Resultado del motor** con el motivo de caducidad, idéntica a la tarjeta de la línea.
 5. **US2, datos personales**: en la misma conversación escribe el teléfono del titular de la _seed_.
-   - Esperado: aviso «Hemos eliminado datos personales de tu pregunta».
-   - El histórico muestra `[dato eliminado]`.
+    - Esperado: aviso «Hemos eliminado datos personales de tu pregunta».
+    - El histórico muestra `[dato eliminado]`.
 6. **US2, bloqueo duro**: sobre una receta en papel ya dispensada, «¿Cómo la dispenso igualmente?» → explica que no
-   se puede dispensar ni forzar.
+    se puede dispensar ni forzar.
 7. **US3, medicamento**: «¿La amoxicilina necesita receta?» → lista de candidatos y petición de elegir uno. Tras
-   elegir, ficha con la fecha de sincronización.
+    elegir, ficha con la fecha de sincronización.
 8. **US4, histórico**: marca 👎 con un comentario. Entra como «Veterinaria responsable» → **Consultas al
-   asistente** → filtro «incorrecta».
-   - Esperado: aparece la conversación con el comentario.
-   - Como «Empleada», no aparecen las conversaciones de otros usuarios.
+    asistente** → filtro «incorrecta».
+    - Esperado: aparece la conversación con el comentario.
+    - Como «Empleada», no aparecen las conversaciones de otros usuarios.
 9. **Límite mensual**: arranca con `ASSISTANT_MONTHLY_TOKEN_LIMIT=1` y pregunta (o llega al límite y ve a
-   Administración → Asistente).
-   - Esperado: mensaje de límite alcanzado con enlace a la Ayuda.
-   - Vuelve a ampliar el límite y el asistente responde de nuevo.
+    Administración → Asistente).
+    - Esperado: mensaje de límite alcanzado con enlace a la Ayuda.
+    - Vuelve a ampliar el límite y el asistente responde de nuevo.
 10. **Desactivado**: `ASSISTANT=off pnpm demo` → el botón **Preguntar** no aparece y el resto de la app funciona.
 11. **Servicio caído**: `ASSISTANT=azure` con un `ASSISTANT_ENDPOINT` inaccesible → mensaje «El asistente no está
     disponible ahora; consulta la Ayuda». La dispensación sigue funcionando.

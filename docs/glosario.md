@@ -3,7 +3,7 @@
 Términos del dominio regulatorio que se mantienen en español en el código y su equivalente técnico.
 
 | Término | Significado | En el código |
-|---|---|---|
+| --- | --- | --- |
 | Receta | Prescripción veterinaria (papel o electrónica, RD 666/2023) | `receta`, `RecetaConfirmada` |
 | Nº de registro (`nregistro`) | Identificador del medicamento en CIMAVet (p. ej. `1868 ESP`) | `nregistro` |
 | Código nacional (CN) | Identificador de 6 dígitos de la presentación (7 con dígito de control). En la UI: "Código nacional" | `cn` |

@@ -44,28 +44,30 @@ Lo usa la web para mostrar u ocultar el botón y para el aviso de pausa.
 
 ### `POST /api/asistente/conversaciones/:id/mensajes` (dueño de la conversación)
 
+<!-- editorconfig-checker-disable -->
 ```ts
-// body
-{ pregunta: string /* 1–2.000 caracteres */ }
-// 200
-{ intercambio: {
-    id: string; orden: number;
-    pregunta: string;                    // ya saneada
-    piiEliminada: boolean;               // la web muestra el aviso FR-019
-    estado: 'respondida' | 'error' | 'limite';  // aquí siempre 'respondida'; en el histórico, las demás llevan tipo y texto null
-    tipo: 'respondida' | 'sin_informacion' | 'fuera_de_ambito' | 'aclaracion' | 'rechazo_reglas';
-    texto: string;
-    fuentes: FuenteCitada[];             // ver data-model.md
-    simulaciones: SimulacionGuardada[];  // la web las pinta como tarjeta «Simulación»
-    resultadoMotor: ResultadoLineaDto | null;  // si la respuesta se apoya en la línea: tarjeta «Resultado del motor»
-    reglaVersion: string;
-    fuentesVersion: string;              // versión de la guía y de la Ayuda cuando se respondió
-    valoracion: { valor: 'util' | 'incorrecta'; comentario: string | null } | null;
-    candidatos?: { nregistro: string; nombre: string; laboratorio: string | null; cn: string | null }[];
-                                         // solo en esta respuesta, con tipo 'aclaracion' y varios medicamentos
-                                         // posibles (FR-017); no se guardan. La web los pinta como botones.
-    createdAt: string } }
+ // body
+ { pregunta: string /* 1–2.000 caracteres */ }
+ // 200
+ { intercambio: {
+     id: string; orden: number;
+     pregunta: string;                    // ya saneada
+     piiEliminada: boolean;               // la web muestra el aviso FR-019
+     estado: 'respondida' | 'error' | 'limite';  // aquí siempre 'respondida'; en el histórico, las demás llevan tipo y texto null
+     tipo: 'respondida' | 'sin_informacion' | 'fuera_de_ambito' | 'aclaracion' | 'rechazo_reglas';
+     texto: string;
+     fuentes: FuenteCitada[];             // ver data-model.md
+     simulaciones: SimulacionGuardada[];  // la web las pinta como tarjeta «Simulación»
+     resultadoMotor: ResultadoLineaDto | null;  // si la respuesta se apoya en la línea: tarjeta «Resultado del motor»
+     reglaVersion: string;
+     fuentesVersion: string;              // versión de la guía y de la Ayuda cuando se respondió
+     valoracion: { valor: 'util' | 'incorrecta'; comentario: string | null } | null;
+     candidatos?: { nregistro: string; nombre: string; laboratorio: string | null; cn: string | null }[];
+                                          // solo en esta respuesta, con tipo 'aclaracion' y varios medicamentos
+                                          // posibles (FR-017); no se guardan. La web los pinta como botones.
+     createdAt: string } }
 ```
+<!-- editorconfig-checker-enable -->
 
 Errores:
 
@@ -84,16 +86,18 @@ Para trazabilidad, los errores también dejan un intercambio con `estado='error'
 
 ### `GET /api/asistente/conversaciones` (E: solo las suyas; V, A: todas)
 
+<!-- editorconfig-checker-disable -->
 ```ts
-// querystring
-{ desde?: 'YYYY-MM-DD'; hasta?: 'YYYY-MM-DD'; usuario?: string /* solo V, A */;
-  valoracion?: 'util' | 'incorrecta' | 'sin_valorar'; conReceta?: boolean;
-  pagina?: number; tamano?: number /* ≤ 100 */ }
-// 200
-{ total: number;
-  items: { id: string; usuario: { id: string; nombre: string }; contexto: ContextoConversacion;
-           primeraPregunta: string; intercambios: number; incorrectas: number; createdAt: string }[] }
+ // querystring
+ { desde?: 'YYYY-MM-DD'; hasta?: 'YYYY-MM-DD'; usuario?: string /* solo V, A */;
+   valoracion?: 'util' | 'incorrecta' | 'sin_valorar'; conReceta?: boolean;
+   pagina?: number; tamano?: number /* ≤ 100 */ }
+ // 200
+ { total: number;
+   items: { id: string; usuario: { id: string; nombre: string }; contexto: ContextoConversacion;
+            primeraPregunta: string; intercambios: number; incorrectas: number; createdAt: string }[] }
 ```
+<!-- editorconfig-checker-enable -->
 
 Si un `empleado` pasa `usuario` con un valor distinto del suyo → `403` (FR-025).
 

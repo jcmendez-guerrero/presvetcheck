@@ -16,19 +16,19 @@ Un asistente conversacional en español que usa un modelo de chat de Azure OpenA
 a través de Azure AI Foundry: la API de chat es la misma y solo cambia la URL configurada).
 
 1. **Cliente HTTP propio** (como `DocumentIntelligenceClient`): sin SDK nuevo ni recursos de Azure nuevos; se
-   usa la credencial de la propia app. El procesamiento es en la UE.
+    usa la credencial de la propia app. El procesamiento es en la UE.
 2. **Herramientas, no reglas en el prompt.** Las instrucciones del modelo solo dicen cómo comportarse. Las
-   reglas se leen en el momento de responder (`config/rules/*.yaml`, guía, Ayuda, caché de CIMAVet) y los
-   cálculos los hace `packages/domain` (simulaciones puras, sin escribir nada). Un test falla si las
-   instrucciones contienen plazos, cantidades o códigos de regla.
+    reglas se leen en el momento de responder (`config/rules/*.yaml`, guía, Ayuda, caché de CIMAVet) y los
+    cálculos los hace `packages/domain` (simulaciones puras, sin escribir nada). Un test falla si las
+    instrucciones contienen plazos, cantidades o códigos de regla.
 3. **Todas las herramientas son de solo lectura:** el asistente no autoriza, no fuerza ni modifica nada.
 4. **Fidelidad verificable:** salida estructurada; la API rechaza citas que no procedan de las herramientas del
-   mismo turno, y las simulaciones y el resultado del motor se muestran desde los datos del motor, no desde el
-   texto del modelo.
+    mismo turno, y las simulaciones y el resultado del motor se muestran desde los datos del motor, no desde el
+    texto del modelo.
 5. **Datos personales:** el contexto de una línea es una lista blanca (sin titular ni veterinario) y la pregunta
-   se sanea antes de enviarla y de guardarla.
+    se sanea antes de enviarla y de guardarla.
 6. **Trazabilidad:** cada intercambio es de solo inserción con versión de reglas, fuentes, modelo e
-   instrucciones; se eliminan al año.
+    instrucciones; se eliminan al año.
 7. **Coste:** límite mensual global de tokens; aviso al 80 %, pausa al 100 %.
 
 ## Alternativas descartadas

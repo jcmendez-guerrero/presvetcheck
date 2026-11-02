@@ -7,8 +7,16 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 90_000,
   retries: process.env.CI ? 1 : 0,
-  use: { baseURL: 'http://localhost:5174', viewport: { width: 1024, height: 768 }, locale: 'es-ES', timezoneId: 'Europe/Madrid', trace: 'retain-on-failure' },
-  projects: [{ name: 'tablet', use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 } } }],
+  use: {
+    baseURL: 'http://localhost:5174',
+    viewport: { width: 1024, height: 768 },
+    locale: 'es-ES',
+    timezoneId: 'Europe/Madrid',
+    trace: 'retain-on-failure',
+  },
+  projects: [
+    { name: 'tablet', use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 } } },
+  ],
   webServer: [
     {
       command: `${NODE} ../../node_modules/tsx/dist/cli.mjs ../api/src/main.ts`,
@@ -17,7 +25,18 @@ export default defineConfig({
       reuseExistingServer: false,
       // Clave de cifrado de columnas solo de desarrollo (la misma de .env.example): sin ella la API no arranca en la CI,
       // donde no hay .env.
-      env: { DEV_BOOTSTRAP: '1', DATABASE_URL: 'pglite://memory', BLOB_CONNECTION_STRING: 'memory', AUTH_MODE: 'dev', EXTRACTOR: 'fake', ASSISTANT: 'fake', PORT: '3101', LOG_LEVEL: 'warn', NODE_ENV: 'development', COLUMN_ENCRYPTION_KEY: 'ZGV2LWtleS1ub3QtZm9yLXByb2R1Y3Rpb24tMzJiISE=' },
+      env: {
+        DEV_BOOTSTRAP: '1',
+        DATABASE_URL: 'pglite://memory',
+        BLOB_CONNECTION_STRING: 'memory',
+        AUTH_MODE: 'dev',
+        EXTRACTOR: 'fake',
+        ASSISTANT: 'fake',
+        PORT: '3101',
+        LOG_LEVEL: 'warn',
+        NODE_ENV: 'development',
+        COLUMN_ENCRYPTION_KEY: 'ZGV2LWtleS1ub3QtZm9yLXByb2R1Y3Rpb24tMzJiISE=',
+      },
     },
     {
       command: `${NODE} node_modules/vite/bin/vite.js --port 5174 --strictPort`,

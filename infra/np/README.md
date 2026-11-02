@@ -4,7 +4,7 @@ Entorno actual (también producción hasta que haga falta escalar). Todo lo nuev
 región **North Europe** (la de la VNet). Se reutilizan:
 
 | Recurso | Grupo | Uso |
-|---|---|---|
+| --- | --- | --- |
 | VNet `azu-vnet-np-02` + subred nueva `azu-snet-presvetcheck-aca-np-01` (10.0.130.0/27, delegada) | `azu-rg-vnet-np-01` | Entorno de Container Apps |
 | PostgreSQL `azu-psql-flex-neu-np-01` (endpoint privado, autenticación Entra) | `azu-rg-presvetcheck-np-01` | Base `mmx` |
 | Key Vault `azukvappmascotix01` | `azu-rg-shared-np-01` | `azu-siweb-prod-api-key-01`, `mmx-column-encryption-key`, `mmx-entra-client-secret` |
@@ -35,7 +35,7 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 ## Primera puesta en marcha
 1. `azu-caj-db-migrate-np` (migraciones).
 2. `azu-caj-procedimiento-cargar-np` con `--version`, `--aprobado-por` y `--texto-b64` (directrices de sustitución):
-   en modo POST la app no arranca sin procedimiento vigente.
+    en modo POST la app no arranca sin procedimiento vigente.
 3. `azu-caj-nomenclator-import-np` (Nomenclátor de CIMAVet).
 4. Asignar a cada usuario su rol en la aplicación empresarial `mmx-recetas-np`.
 

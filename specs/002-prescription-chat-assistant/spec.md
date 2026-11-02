@@ -6,7 +6,8 @@
 
 **Estado**: Borrador
 
-**Entrada**: Descripción del usuario: "quiero implementar un sistema de chat que permita al usuario consultar dudas sobre la prescripción de un medicamento basado en las reglas de referencia, la sustitución, etc. Actualmente está la posibilidad de usar Azure Foundry o bien Azure Open AI que ya están desplegados y la UMI del proyecto tiene acceso. No incluir en la spec ningún dato relativo a autententicaciones o similares"
+**Entrada**: Descripción del usuario: "quiero implementar un sistema de chat que permita al usuario consultar dudas sobre la prescripción de un medicamento basado en las reglas de referencia, la sustitución, etc. Actualmente está la posibilidad de usar Azure Foundry o bien Azure Open AI que ya están
+desplegados y la UMI del proyecto tiene acceso. No incluir en la spec ningún dato relativo a autententicaciones o similares"
 
 ## Contexto
 
@@ -24,7 +25,8 @@ saltarse ningún bloqueo (principio «La IA propone, la persona decide», `SPEC.
 
 ### Session 2026-11-01
 
-- Q: Cuando el asistente se abre sobre una línea de receta, ¿qué datos de la receta puede ver además del resultado del motor? → A: Resultado del motor, datos del medicamento y campos no personales de la receta (especie, nº de animales, fecha de emisión, tipo de receta, clase de prescripción, tipo de tratamiento, indicación, posología, forma, concentración y cantidad); nunca datos del titular ni del veterinario.
+- Q: Cuando el asistente se abre sobre una línea de receta, ¿qué datos de la receta puede ver además del resultado del motor? → A: Resultado del motor, datos del medicamento y campos no personales de la receta (especie, nº de animales, fecha de emisión, tipo de receta, clase de prescripción, tipo de
+  tratamiento, indicación, posología, forma, concentración y cantidad); nunca datos del titular ni del veterinario.
 - Q: ¿Cuánto tiempo se guardan las conversaciones con el asistente antes de eliminarlas? → A: 1 año; después se eliminan (no se anonimizan) con el proceso periódico de purga.
 - Q: ¿Puede el asistente pedir al motor de reglas que calcule casos hipotéticos planteados por el empleado, sin guardar nada? → A: Sí; el motor evalúa el caso hipotético sin crear ni modificar ninguna receta y el asistente presenta el resultado como «simulación».
 - Q: ¿Cómo se controla el coste de uso del asistente? → A: Límite mensual global configurable; aviso a administración al 80 % y pausa del asistente al 100 % (mensaje y enlace a la Ayuda) hasta el mes siguiente o hasta que administración lo amplíe.
@@ -49,19 +51,19 @@ comprueba que cada respuesta coincide con la regla vigente y cita su fuente, sin
 **Escenarios de aceptación**:
 
 1. **Dado** que la regla de validez vigente fija 5 días para recetas con antimicrobiano, **cuando** el empleado
-   pregunta cuánto vale una receta con antibiótico, **entonces** el asistente responde «5 días desde la fecha de
-   emisión», cita la regla de validez y su versión, y menciona que el tratamiento debe iniciarse dentro de ese plazo.
+    pregunta cuánto vale una receta con antibiótico, **entonces** el asistente responde «5 días desde la fecha de
+    emisión», cita la regla de validez y su versión, y menciona que el tratamiento debe iniciarse dentro de ese plazo.
 2. **Dado** que los inmunológicos no son sustituibles según las reglas vigentes, **cuando** el empleado pregunta si
-   puede sustituir una vacuna, **entonces** el asistente responde que no, explica el motivo y que la línea pasa a
-   pedido del medicamento prescrito, citando la fuente.
+    puede sustituir una vacuna, **entonces** el asistente responde que no, explica el motivo y que la línea pasa a
+    pedido del medicamento prescrito, citando la fuente.
 3. **Dado** que se ha publicado una nueva versión de una regla (por ejemplo, otro plazo de validez), **cuando** el
-   empleado repite la pregunta, **entonces** la respuesta refleja la nueva versión sin ningún cambio en el asistente.
+    empleado repite la pregunta, **entonces** la respuesta refleja la nueva versión sin ningún cambio en el asistente.
 4. **Dado** que el empleado plantea un caso hipotético («receta emitida el 3 de octubre con antibiótico, ¿hasta
-   cuándo vale?»), **cuando** lo pregunta, **entonces** el asistente muestra como «Simulación» la fecha límite
-   calculada por el motor, con los datos supuestos y la versión de la regla, sin que se cree ninguna receta.
+    cuándo vale?»), **cuando** lo pregunta, **entonces** el asistente muestra como «Simulación» la fecha límite
+    calculada por el motor, con los datos supuestos y la versión de la regla, sin que se cree ninguna receta.
 5. **Dado** que la pregunta no está cubierta por ninguna fuente de referencia, **cuando** el empleado la formula,
-   **entonces** el asistente dice expresamente que no tiene información para responder y recomienda consultar al
-   farmacéutico garante o al veterinario prescriptor, sin inventar una respuesta.
+    **entonces** el asistente dice expresamente que no tiene información para responder y recomienda consultar al
+    farmacéutico garante o al veterinario prescriptor, sin inventar una respuesta.
 
 ---
 
@@ -83,21 +85,21 @@ comprueba que la explicación del asistente coincide con los motivos y datos dev
 **Escenarios de aceptación**:
 
 1. **Dado** una línea con resultado `NO_CONFORME` por receta caducada, **cuando** el empleado pregunta por qué no
-   puede dispensar, **entonces** el asistente indica la fecha de caducidad calculada por el motor, la regla aplicada y
-   que este defecto no se resuelve forzando sino con una receta nueva.
+    puede dispensar, **entonces** el asistente indica la fecha de caducidad calculada por el motor, la regla aplicada y
+    que este defecto no se resuelve forzando sino con una receta nueva.
 2. **Dado** una línea en estado `SUSTITUIR` con equivalentes propuestos por el motor, **cuando** el empleado pregunta
-   qué alternativas tiene, **entonces** el asistente enumera exactamente los equivalentes del motor (mismo orden y los
-   mismos datos) y recuerda los requisitos obligatorios: consentimiento del tutor y aviso al veterinario.
+    qué alternativas tiene, **entonces** el asistente enumera exactamente los equivalentes del motor (mismo orden y los
+    mismos datos) y recuerda los requisitos obligatorios: consentimiento del tutor y aviso al veterinario.
 3. **Dado** una pregunta que requiere un cálculo (fecha límite, número de envases equivalentes, cantidad total de
-   principio activo), **cuando** el empleado la formula, **entonces** el resultado numérico procede del motor de
-   reglas y el asistente lo presenta como tal; el asistente nunca da un resultado calculado por sí mismo.
+    principio activo), **cuando** el empleado la formula, **entonces** el resultado numérico procede del motor de
+    reglas y el asistente lo presenta como tal; el asistente nunca da un resultado calculado por sí mismo.
 4. **Dado** una línea con un bloqueo no forzable (por ejemplo, receta en papel ya dispensada o un estupefaciente),
-   **cuando** el empleado pregunta cómo dispensarla igualmente, **entonces** el asistente explica que no se puede
-   dispensar ni forzar y por qué.
+    **cuando** el empleado pregunta cómo dispensarla igualmente, **entonces** el asistente explica que no se puede
+    dispensar ni forzar y por qué.
 5. **Dado** una línea de receta, **cuando** se abre el asistente sobre ella, **entonces** el asistente no recibe ni
-   muestra datos personales del titular del animal (nombre, teléfono, DNI, dirección) ni la identidad del veterinario
-   prescriptor, pero sí los campos no personales de la receta (especie, fecha de emisión, tipo de tratamiento,
-   indicación, posología, etc.).
+    muestra datos personales del titular del animal (nombre, teléfono, DNI, dirección) ni la identidad del veterinario
+    prescriptor, pero sí los campos no personales de la receta (especie, fecha de emisión, tipo de tratamiento,
+    indicación, posología, etc.).
 
 ---
 
@@ -118,12 +120,12 @@ problemas de suministro, exclusión de sustitución).
 **Escenarios de aceptación**:
 
 1. **Dado** un nombre que corresponde a varios medicamentos, **cuando** el empleado pregunta por él, **entonces** el
-   asistente muestra los candidatos (nombre, presentación, código nacional) y pide que el empleado elija uno.
+    asistente muestra los candidatos (nombre, presentación, código nacional) y pide que el empleado elija uno.
 2. **Dado** un medicamento marcado con problema de suministro en CIMAVet, **cuando** el empleado pregunta por él,
-   **entonces** el asistente lo indica junto con la fecha de la última sincronización de los datos.
+    **entonces** el asistente lo indica junto con la fecha de la última sincronización de los datos.
 3. **Dado** un nombre que no existe en los datos de medicamentos veterinarios, **cuando** el empleado pregunta,
-   **entonces** el asistente indica que no lo encuentra y recuerda que un medicamento de uso humano requiere
-   revisión del garante y no se dispensa automáticamente.
+    **entonces** el asistente indica que no lo encuentra y recuerda que un medicamento de uso humano requiere
+    revisión del garante y no se dispensa automáticamente.
 
 ---
 
@@ -142,11 +144,11 @@ con sus datos completos y que se pueden filtrar por fecha y por valoración.
 **Escenarios de aceptación**:
 
 1. **Dado** que un empleado ha marcado una respuesta como incorrecta con un comentario, **cuando** la veterinaria
-   responsable abre el histórico filtrando por valoración, **entonces** ve esa conversación con el comentario.
+    responsable abre el histórico filtrando por valoración, **entonces** ve esa conversación con el comentario.
 2. **Dado** una conversación pasada, **cuando** se consulta en el histórico, **entonces** se ve la versión de las
-   reglas y de las fuentes vigente en el momento de la respuesta, aunque las reglas hayan cambiado después.
+    reglas y de las fuentes vigente en el momento de la respuesta, aunque las reglas hayan cambiado después.
 3. **Dado** un usuario con rol `empleado`, **cuando** intenta abrir el histórico de otros empleados, **entonces** no
-   tiene acceso; solo ve sus propias conversaciones.
+    tiene acceso; solo ve sus propias conversaciones.
 
 ---
 
