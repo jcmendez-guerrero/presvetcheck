@@ -1,11 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { appendAudit, entradaImportada, importacion, salidaImportada } from '@mmx/db';
 import { analizarEntradas, analizarSalidas, leerHoja, sha256 } from '@mmx/reports';
-import { DomainError, normalizeText } from '@mmx/shared';
-import { MAESTRA } from '@mmx/db';
+import { aplicarDatosCimavet, datosCimavetImportacion, llevaMarca } from '@mmx/cimavet';
+import { DomainError } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
-import { marcaPresente } from './identificacion';
-import { MedicamentosService } from './medicamentos';
 import type { ContextoPeticion } from './recetas';
 
 type FilaMedicamento = { fila: number; cn: string | null; nombreFarmaco: string; principioActivo: string | null; forma: string | null };
@@ -21,65 +19,45 @@ const MUESTRA = 5;
  * Los datos del propietario de las salidas se guardan cifrados y nunca se devuelven en la muestra.
  */
 export class ImportacionesService {
-  private readonly med: MedicamentosService;
-  constructor(private readonly d: AppDeps) {
-    this.med = new MedicamentosService(d);
-  }
+  constructor(private readonly d: AppDeps) {}
 
   /**
-   * Validación contra CIMAVet (la caché local del Nomenclátor y la API):
-   * - con código nacional: tiene que existir en CIMAVet (si no, error de la fila). El principio activo y la forma
-   *   vacíos se completan con los de CIMAVet; si el nombre no lleva la marca del medicamento, aviso;
+   * Validación contra CIMAVet (la caché local del Nomenclátor). Lo importado se guarda con los datos de CIMAVet
+   * (nombre, principio activo y forma), no con lo escrito a mano en el fichero:
+   * - con código nacional: tiene que existir en CIMAVet (si no, error de la fila). Se guarda con el nombre de la
+   *   presentación; si el nombre del fichero no lleva la marca del medicamento, aviso;
    * - sin código nacional: si el nombre corresponde a un medicamento de CIMAVet, se importa con aviso y con su
-   *   principio activo y forma; si no, no es un medicamento y no va al registro (se omite y se informa).
+   *   nombre, principio activo y forma (sin código nacional: no se sabe el envase); si no, no es un medicamento y
+   *   no va al registro (se omite y se informa).
    */
   private async validarCimavet<T extends FilaMedicamento>(filas: T[]): Promise<{ filas: T[]; errores: Incidencias; avisos: Incidencias; omitidas: { fila: number; nombre: string }[] }> {
     const out: T[] = [];
     const errores: Incidencias = [];
     const avisos: Incidencias = [];
     const omitidas: { fila: number; nombre: string }[] = [];
-    const porCn = new Map<string, Awaited<ReturnType<typeof this.datosCn>>>();
-    const porNombre = new Map<string, Awaited<ReturnType<typeof this.datosNombre>>>();
+    const cimavet = datosCimavetImportacion(this.d.cimavet);
     for (const f of filas) {
       if (f.cn) {
         const cn = f.cn.replace(/\D/g, '').slice(0, 6);
-        if (!porCn.has(cn)) porCn.set(cn, await this.datosCn(cn));
-        const c = porCn.get(cn);
+        const c = await cimavet.cn(cn);
         if (!c) {
           errores.push({ fila: f.fila, mensajes: [`El código nacional ${f.cn} no está en CIMAVet: revísalo`] });
           continue;
         }
-        if (c.marca && !normalizeText(f.nombreFarmaco).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).includes(c.marca))
-          avisos.push({ fila: f.fila, mensajes: [`El nombre no coincide con el del código nacional ${cn} en CIMAVet («${c.nombre}»)`] });
-        out.push({ ...f, cn, principioActivo: f.principioActivo ?? c.pa, forma: f.forma ?? c.forma });
+        if (!llevaMarca(f.nombreFarmaco, c.marca))
+          avisos.push({ fila: f.fila, mensajes: [`El nombre no coincide con el del código nacional ${cn}: se guarda como «${c.nombre}» (CIMAVet)`] });
+        out.push({ ...aplicarDatosCimavet(f, c), cn });
         continue;
       }
-      const clave = normalizeText(f.nombreFarmaco);
-      if (!porNombre.has(clave)) porNombre.set(clave, await this.datosNombre(f.nombreFarmaco));
-      const m = porNombre.get(clave);
+      const m = await cimavet.nombre(f.nombreFarmaco);
       if (!m) {
         omitidas.push({ fila: f.fila, nombre: f.nombreFarmaco });
         continue;
       }
       avisos.push({ fila: f.fila, mensajes: [`Sin código nacional: se identifica como ${m.nombre} en CIMAVet`] });
-      out.push({ ...f, principioActivo: f.principioActivo ?? m.pa, forma: f.forma ?? m.forma });
+      out.push(aplicarDatosCimavet(f, m));
     }
     return { filas: out, errores, avisos, omitidas };
-  }
-
-  private async datosCn(cn: string) {
-    const pres = await this.med.presentacion(cn);
-    const m = pres ? await this.med.info(pres.nregistro) : null;
-    if (!pres || !m) return null;
-    const marca = normalizeText(pres.nombre).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)[0] ?? '';
-    return { nombre: pres.nombre, marca: marca.length >= 3 ? marca : null, pa: this.med.textoPrincipiosActivos(m), forma: await this.med.nombreMaestra(MAESTRA.FORMAS, m.formaId) };
-  }
-
-  private async datosNombre(nombre: string) {
-    const c = (await this.d.cimavet.buscar(nombre, { limite: 3 })).find((x) => x.puntuacion >= 0.5 && marcaPresente(nombre, x));
-    if (!c) return null;
-    const m = await this.med.info(c.nregistro);
-    return { nombre: c.nombre, pa: m ? this.med.textoPrincipiosActivos(m) : null, forma: m ? await this.med.nombreMaestra(MAESTRA.FORMAS, m.formaId) : null };
   }
 
   private async hoja(fichero: { nombre: string; bytes: Uint8Array }) {

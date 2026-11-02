@@ -184,15 +184,16 @@ describe('worker', () => {
 
   it('importaciones-corregir: sin --aplicar solo informa; con --aplicar crea la corregida con CIMAVet y anula la original', async () => {
     await JOBS['nomenclator-import']!(ctx, { muestra: '' });
-    const [imp] = await h.db.insert(importacion).values({ tipo: 'salidas', fichero: 'antiguo.csv', sha256: 'x-corregir', filas: 2, creadaPor: 'dev-veterinaria' }).returning();
+    const [imp] = await h.db.insert(importacion).values({ tipo: 'salidas', fichero: 'antiguo.csv', sha256: 'x-corregir', filas: 3, creadaPor: 'dev-veterinaria' }).returning();
     const enc = ctx.cipher.encrypt('Titular de prueba');
     await h.db.insert(salidaImportada).values([
       { importacionId: imp!.id, fila: 2, fecha: '2025-02-05', plantilla: 'A', nombreFarmaco: 'clavubay 400', principioActivo: 'amoxicilina', forma: 'comp', cn: '570016', lote: 'L1', unidades: 1, clinica: 'Clínica de prueba', propietarioNombreEnc: enc },
       { importacionId: imp!.id, fila: 3, fecha: '2025-02-06', plantilla: 'B', nombreFarmaco: 'Sin código', cn: null, lote: 'L2', unidades: 1 },
+      { importacionId: imp!.id, fila: 4, fecha: '2025-02-07', plantilla: 'B', nombreFarmaco: 'Clavubay 400 mg comprimidos', principioActivo: 'amoxi', forma: 'comp', cn: null, lote: 'L3', unidades: 1 },
     ]);
-    const prueba = (await JOBS['importaciones-corregir']!(ctx, { importacion: imp!.id })) as { aplicado: boolean; importaciones: { cambios: Record<string, number>; sinCn: number; corregida: string | null }[] };
+    const prueba = (await JOBS['importaciones-corregir']!(ctx, { importacion: imp!.id })) as { aplicado: boolean; importaciones: { cambios: Record<string, number>; sinCn: number; sinIdentificar: number; corregida: string | null }[] };
     expect(prueba.aplicado).toBe(false);
-    expect(prueba.importaciones[0]).toMatchObject({ cambios: { nombre: 1, principioActivo: 1, forma: 1 }, sinCn: 1, corregida: null });
+    expect(prueba.importaciones[0]).toMatchObject({ cambios: { nombre: 2, principioActivo: 2, forma: 2 }, sinCn: 2, sinIdentificar: 1, corregida: null });
     expect((await h.db.select().from(importacion).where(eq(importacion.id, imp!.id)))[0]!.anuladaAt).toBeNull();
 
     const r = (await JOBS['importaciones-corregir']!(ctx, { importacion: imp!.id, aplicar: '' })) as typeof prueba;
@@ -205,7 +206,12 @@ describe('worker', () => {
     expect(f2.principioActivo).toMatch(/amoxicilina trihidrato/);
     expect(ctx.cipher.decrypt(f2.propietarioNombreEnc)).toBe('Titular de prueba');
     expect(filas.find((f) => f.fila === 3)).toMatchObject({ nombreFarmaco: 'Sin código', cn: null });
+    // Sin código nacional, pero CIMAVet lo reconoce por el nombre: también se corrige (sin inventar el CN).
+    const f4 = filas.find((f) => f.fila === 4)!;
+    expect(f4).toMatchObject({ cn: null, forma: 'COMPRIMIDO', lote: 'L3' });
+    expect(f4.nombreFarmaco).toMatch(/^CLAVUBAY/);
+    expect(f4.principioActivo).toMatch(/amoxicilina trihidrato/);
     // La original sigue guardada (no se borra ni se modifica).
-    expect(await h.db.select().from(salidaImportada).where(eq(salidaImportada.importacionId, imp!.id))).toHaveLength(2);
+    expect(await h.db.select().from(salidaImportada).where(eq(salidaImportada.importacionId, imp!.id))).toHaveLength(3);
   });
 });

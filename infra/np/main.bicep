@@ -52,6 +52,11 @@ param asistenteEndpoint string = ''
 param asistenteDespliegue string = ''
 param asistenteLimiteTokens int = 3000000
 
+// Job azu-caj-import-fix-np (worker `importaciones-corregir`, ADR-14): sin esto solo informa de qué cambiaría; con
+// true crea las importaciones corregidas con CIMAVet y anula las originales. Los argumentos no se pueden cambiar al
+// lanzarlo (`az containerapp job start --args` sustituye el contenedor y se pierden las variables de entorno).
+param importFixApply bool = false
+
 var tags = { proyecto: 'presvetcheck', entorno: 'np' }
 var dias = 1826
 
@@ -303,20 +308,22 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (crearAp
 // Jobs (cron en UTC; equivalencias con la hora de Madrid en infra/README.md). db-migrate usa la identidad de
 // migraciones; el resto, la de la app.
 var jobs = [
-  { nombre: 'cimavet-delta', cron: '30 4 * * *', manual: false, args: [], migr: false }
-  { nombre: 'cimavet-full', cron: '0 1 * * 0', manual: false, args: [], migr: false }
-  { nombre: 'outbox-dispatcher', cron: '*/5 8-19 * * 1-6', manual: false, args: [], migr: false }
-  { nombre: 'sales-reconciliation', cron: '0 19 * * *', manual: false, args: [], migr: false }
-  { nombre: 'weekly-reports', cron: '0 5 * * 1', manual: false, args: [], migr: false }
-  { nombre: 'retention-sweep', cron: '0 2 1 * *', manual: false, args: [], migr: false }
-  { nombre: 'nomenclator-import', cron: '', manual: true, args: ['--descargar'], migr: false }
-  { nombre: 'procedimiento-cargar', cron: '', manual: true, args: [], migr: false }
-  { nombre: 'db-migrate', cron: '', manual: true, args: [], migr: true }
+  { nombre: 'cimavet-delta', recurso: 'cimavet-delta', cron: '30 4 * * *', manual: false, args: [], migr: false }
+  { nombre: 'cimavet-full', recurso: 'cimavet-full', cron: '0 1 * * 0', manual: false, args: [], migr: false }
+  { nombre: 'outbox-dispatcher', recurso: 'outbox-dispatcher', cron: '*/5 8-19 * * 1-6', manual: false, args: [], migr: false }
+  { nombre: 'sales-reconciliation', recurso: 'sales-reconciliation', cron: '0 19 * * *', manual: false, args: [], migr: false }
+  { nombre: 'weekly-reports', recurso: 'weekly-reports', cron: '0 5 * * 1', manual: false, args: [], migr: false }
+  { nombre: 'retention-sweep', recurso: 'retention-sweep', cron: '0 2 1 * *', manual: false, args: [], migr: false }
+  { nombre: 'nomenclator-import', recurso: 'nomenclator-import', cron: '', manual: true, args: ['--descargar'], migr: false }
+  { nombre: 'procedimiento-cargar', recurso: 'procedimiento-cargar', cron: '', manual: true, args: [], migr: false }
+  { nombre: 'db-migrate', recurso: 'db-migrate', cron: '', manual: true, args: [], migr: true }
+  // `recurso` da el nombre del job en Azure (32 caracteres como máximo: «azu-caj-importaciones-corregir-np» no cabe).
+  { nombre: 'importaciones-corregir', recurso: 'import-fix', cron: '', manual: true, args: importFixApply ? ['--aplicar'] : [], migr: false }
 ]
 
 resource job 'Microsoft.App/jobs@2024-03-01' = [
   for j in jobs: if (crearApps) {
-    name: 'azu-caj-${j.nombre}-np'
+    name: 'azu-caj-${j.recurso}-np'
     location: location
     tags: tags
     identity: { type: 'UserAssigned', userAssignedIdentities: { '${j.migr ? idMigr.id : idApp.id}': {} } }

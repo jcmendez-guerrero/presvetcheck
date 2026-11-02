@@ -1,27 +1,16 @@
 import { createHash } from 'node:crypto';
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { MAESTRA, appendAudit, entradaImportada, importacion, salidaImportada } from '@mmx/db';
+import { aplicarDatosCimavet, datosCimavetImportacion } from '@mmx/cimavet';
+import { appendAudit, entradaImportada, importacion, salidaImportada } from '@mmx/db';
 import { normalizeText } from '@mmx/shared';
 import type { Contexto } from '../contexto';
 
 const ACTOR = 'importaciones-corregir';
 const igual = (a: string | null, b: string | null) => normalizeText(a ?? '').replace(/\s+/g, ' ').trim() === normalizeText(b ?? '').replace(/\s+/g, ' ').trim();
 
-/** Datos de CIMAVet de una presentación: nombre, principio(s) activo(s) con su cantidad y forma farmacéutica. */
-async function datosCimavet(ctx: Contexto, cn: string) {
-  const pres = await ctx.cimavet.repo.presentacion(cn);
-  const m = pres ? await ctx.cimavet.repo.medicamento(pres.nregistro) : null;
-  if (!pres || !m) return null;
-  const formas = m.formaId !== null ? await ctx.cimavet.repo.nombresMaestra(MAESTRA.FORMAS, [m.formaId]) : new Map<number, string>();
-  return {
-    nombre: pres.nombre,
-    principioActivo: m.composicion.pas.map((p) => [p.nombre.toLowerCase(), p.cantidad, p.unidad].filter(Boolean).join(' ')).join('; ') || null,
-    forma: m.formaId !== null ? (formas.get(m.formaId) ?? null) : null,
-  };
-}
-
 /**
- * Pone de acuerdo con CIMAVet las filas importadas (nombre, principio activo y forma según su código nacional).
+ * Pone de acuerdo con CIMAVet las filas importadas: nombre, principio activo y forma según su código nacional o,
+ * sin él, según el nombre si CIMAVet lo reconoce sin dudas (lo mismo que hace ya la importación).
  *
  * Las filas importadas son de solo inserción (trigger `mmx_importado_solo_insercion`): no se modifican. Por cada
  * importación con diferencias se crea una importación CORREGIDA (mismas filas, con los datos de CIMAVet; los datos
@@ -37,11 +26,7 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
     .from(importacion)
     .where(and(isNull(importacion.anuladaAt), ...(args.importacion ? [eq(importacion.id, args.importacion)] : [])))
     .orderBy(asc(importacion.createdAt));
-  const cache = new Map<string, Awaited<ReturnType<typeof datosCimavet>>>();
-  const cimavet = async (cn: string) => {
-    if (!cache.has(cn)) cache.set(cn, await datosCimavet(ctx, cn));
-    return cache.get(cn) ?? null;
-  };
+  const cimavet = datosCimavetImportacion(ctx.cimavet.repo);
   const informe = [];
   for (const imp of todas) {
     const tabla = imp.tipo === 'entradas' ? entradaImportada : salidaImportada;
@@ -49,17 +34,19 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
     const cambios = { nombre: 0, principioActivo: 0, forma: 0 };
     const sinCn: number[] = [];
     const cnDesconocido: number[] = [];
+    const sinIdentificar: number[] = [];
     const ejemplos: { fila: number; antes: string; despues: string }[] = [];
     const corregidas: (typeof filas)[number][] = [];
     for (const f of filas) {
-      const c = f.cn ? await cimavet(f.cn.replace(/\D/g, '').slice(0, 6)) : null;
+      const c = f.cn ? await cimavet.cn(f.cn) : await cimavet.nombre(f.nombreFarmaco);
       if (!f.cn) sinCn.push(f.fila);
-      else if (!c) cnDesconocido.push(f.fila);
+      if (f.cn && !c) cnDesconocido.push(f.fila);
+      if (!f.cn && !c) sinIdentificar.push(f.fila);
       if (!c) {
         corregidas.push(f);
         continue;
       }
-      const nueva = { ...f, nombreFarmaco: c.nombre, principioActivo: c.principioActivo ?? f.principioActivo, forma: c.forma ?? f.forma };
+      const nueva = aplicarDatosCimavet(f, c);
       if (!igual(f.nombreFarmaco, nueva.nombreFarmaco)) cambios.nombre++;
       if (!igual(f.principioActivo, nueva.principioActivo)) cambios.principioActivo++;
       if (!igual(f.forma, nueva.forma)) cambios.forma++;
@@ -94,7 +81,7 @@ export async function corregirImportaciones(ctx: Contexto, args: Record<string, 
         return n!.id;
       });
     }
-    informe.push({ importacion: imp.id, tipo: imp.tipo, filas: filas.length, cambios, sinCn: sinCn.length, cnDesconocido: cnDesconocido.length, ejemplos, corregida });
+    informe.push({ importacion: imp.id, tipo: imp.tipo, filas: filas.length, cambios, sinCn: sinCn.length, cnDesconocido: cnDesconocido.length, sinIdentificar: sinIdentificar.length, ejemplos, corregida });
   }
   const r = { aplicado: aplicar, importaciones: informe };
   ctx.log('importaciones-corregir', r);

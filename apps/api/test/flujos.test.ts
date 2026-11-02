@@ -750,6 +750,18 @@ describe('importación de entradas y salidas anteriores a la app', () => {
     expect(ok.json.muestra[0].forma).toBe('COMPRIMIDO');
   });
 
+  it('guarda los datos de CIMAVet en lugar de los escritos a mano (nombre, principio activo y forma)', async () => {
+    const cab = 'FECHA;TIPO DE SALIDA;NOMBRE DEL FÁRMACO;PRINCIPIO ACTIVO;FORMA FARMACÉUTICA;CÓDIGO NACIONAL;LOTE;UNIDADES DISPENSADAS\r\n';
+    const csv = cab + '05/02/2025;Con receta;clavubay 400;amoxi;comp;570016;OLD-1;1\r\n' + '06/02/2025;Sin receta presencial;Clavubay 400 mg comprimidos;amoxi;comp;;OLD-2;1\r\n';
+    const v = (await subir('/api/importaciones/vista-previa', { tipo: 'salidas' }, 'manual.csv', csv)).json;
+    expect(v).toMatchObject({ validas: 2, totalErrores: 0 });
+    const [conCn, sinCn] = v.muestra;
+    expect(conCn).toMatchObject({ cn: '570016', forma: 'COMPRIMIDO', nombreFarmaco: expect.stringMatching(/^CLAVUBAY 400/) });
+    expect(conCn.principioActivo).toMatch(/^amoxicilina trihidrato/);
+    expect(sinCn).toMatchObject({ cn: null, forma: 'COMPRIMIDO', nombreFarmaco: expect.stringMatching(/^CLAVUBAY/) });
+    expect(sinCn.principioActivo).toMatch(/^amoxicilina trihidrato/);
+  });
+
   it('valida contra CIMAVet: CN inexistente → error; sin CN y medicamento → aviso; no medicamento → se omite', async () => {
     const csv =
       entradasCsv +
@@ -773,9 +785,9 @@ describe('importación de entradas y salidas anteriores a la app', () => {
 
     const q = 'desde=2025-01-01&hasta=2025-12-31';
     const ent = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/entradas?${q}`)).json.tablas[0];
-    expect(ent.filas).toEqual([expect.arrayContaining(['CLAVUBAY 400 MG/100 MG', '03/02/2025', 'OLD-1', 'Distribuidor Antiguo', 'importado'])]);
+    expect(ent.filas).toEqual([expect.arrayContaining([expect.stringMatching(/^CLAVUBAY 400/), '03/02/2025', 'OLD-1', 'Distribuidor Antiguo', 'importado'])]);
     const sal = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/salidas?${q}&plantilla=A`)).json.tablas[0];
-    expect(sal.filas).toEqual([expect.arrayContaining(['CLAVUBAY 400 MG/100 MG', '05/02/2025', '1 caja 30 comprimidos', 'R-OLD', 'Vet Antiguo'])]);
+    expect(sal.filas).toEqual([expect.arrayContaining([expect.stringMatching(/^CLAVUBAY 400/), '05/02/2025', '1 caja 30 comprimidos', 'R-OLD', 'Vet Antiguo'])]);
     const todas = (await api(E.app, 'dev-empleado', 'GET', `/api/registros/todas-salidas?${q}`)).json.tablas[0];
     expect(todas.filas[0].at(-1)).toBe('no aplica');
 
