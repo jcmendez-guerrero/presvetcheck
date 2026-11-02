@@ -178,4 +178,39 @@ describe('ChatOrchestrator', () => {
     ]).responder({ ...entrada('hola'), conocidos: ['María López'] });
     expect(r.salida.texto).not.toMatch(/María|López/);
   });
+
+  it('da al modelo la fecha de hoy cuando se la pasan', async () => {
+    let sistema = '';
+    const modelo: AssistantModel = {
+      nombre: 't',
+      async chat(p: PeticionModelo): Promise<RespuestaModelo> {
+        sistema = p.mensajes
+          .filter((m) => m.role === 'system')
+          .map((m) => m.content)
+          .join('|');
+        return {
+          tipo: 'final',
+          contenido: JSON.stringify(salida({ tipo: 'sin_informacion', fuentes: [] })),
+          uso: { entrada: 1, salida: 1 },
+        };
+      },
+    };
+    await new ChatOrchestrator({ modelo, herramientas: registro(), instrucciones: 'x' }).responder({
+      ...entrada('x'),
+      hoy: '2026-11-02',
+    });
+    expect(sistema).toContain('02/11/2026');
+  });
+
+  it('muestra la simulación calculada en el turno aunque el modelo no la liste', async () => {
+    const r = await orq([
+      {
+        cuando: /octubre/i,
+        rondas: [[{ nombre: 'simular_validez', args: { fecha: '2026-10-03' } }]],
+        final: () => salida({ fuentes: [], simulaciones: [] }),
+      },
+    ]).responder(entrada('Receta del 3 de octubre'));
+    expect(r.simulaciones.map((x) => x.simulacionId)).toEqual(['sim1']);
+    expect(r.salida.simulaciones).toEqual(['sim1']);
+  });
 });

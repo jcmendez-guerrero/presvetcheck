@@ -271,7 +271,8 @@ export const CasoEvaluacion = z.object({
   validado: z.boolean().default(true),
   esperado: z.object({
     tipo: TipoRespuesta,
-    contiene: z.array(z.string()).default([]),
+    /** Cada elemento es un texto, o una lista de formulaciones alternativas de las que basta una. */
+    contiene: z.array(z.union([z.string(), z.array(z.string()).min(1)])).default([]),
     fuentes: z.array(z.string()).default([]),
     simulacion: z.boolean().default(false),
     piiEliminada: z.boolean().default(false),

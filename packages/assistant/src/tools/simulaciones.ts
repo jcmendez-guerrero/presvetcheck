@@ -68,7 +68,7 @@ export function herramientaSimularValidez(d: DepsHerramientas): Herramienta<Args
   return {
     nombre: 'simular_validez',
     descripcion:
-      'Calcula con el motor hasta cuándo es válida una receta hipotética (fecha de emisión, tipo de tratamiento, antimicrobiano…). No guarda nada. Si faltan datos obligatorios devuelve FALTAN_DATOS: pídeselos a la persona.',
+      'Úsala siempre que la pregunta pida hasta cuándo vale una receta o cuántos días le quedan, con una fecha concreta: es la única forma de obtener fechas límite y no debes calcularlas tú. Indica fechaEmision (AAAA-MM-DD) y, si el medicamento es antimicrobiano, lineas con antimicrobiano en true. No guarda nada. Si faltan datos obligatorios devuelve FALTAN_DATOS: pídeselos a la persona.',
     args: ArgsSimularValidez,
     async ejecutar(args) {
       const lineas: LineaSimuladaValidez[] = [];
@@ -113,7 +113,7 @@ export function herramientaSimularSustituibilidad(d: DepsHerramientas): Herramie
   return {
     nombre: 'simular_sustituibilidad',
     descripcion:
-      'Comprueba con el motor si un medicamento se puede sustituir. Indica su nregistro, o bien inmunologico/biologico si la pregunta es sobre una categoría (por ejemplo, vacunas). Sin clasePrescripcion se asume que no consta y la sustitución queda bloqueada.',
+      'Úsala siempre que pregunten si se puede sustituir un medicamento o una categoría de medicamentos, aunque creas saber la respuesta: contesta con lo que devuelva. Comprueba con el motor si se puede sustituir. Indica su nregistro, o bien inmunologico/biologico si la pregunta es sobre una categoría (por ejemplo, vacunas). Sin clasePrescripcion se asume que no consta y la sustitución queda bloqueada.',
     args: ArgsSimularSustituibilidad,
     async ejecutar(args) {
       let prescrito;

@@ -5,6 +5,8 @@ export interface LlamadaHerramienta {
   nombre: string;
   /** JSON tal como lo envía el modelo (puede no ser válido: lo valida el orquestador). */
   argumentos: string;
+  /** Datos del proveedor que hay que devolverle tal cual con la llamada (p. ej. la firma de pensamiento de Gemini). */
+  extra?: unknown;
 }
 
 export type MensajeModelo =

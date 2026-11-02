@@ -36,6 +36,9 @@ export type ConfigAsistente = Pick<
   | 'ASSISTANT_TIMEOUT_MS'
 >;
 
+/** API de Gemini con el formato de chat de OpenAI (herramientas y salida estructurada incluidas). */
+export const ENDPOINT_GEMINI = 'https://generativelanguage.googleapis.com/v1beta/openai';
+
 /**
  * `off` → null (sin asistente); `fake` → modelo con guiones; `azure` → despliegue de chat de Azure OpenAI o
  * Foundry. Si falta configuración fuera de producción, el modelo queda desactivado sin impedir el arranque.
@@ -46,6 +49,19 @@ export async function crearModeloAsistente(
 ): Promise<AssistantModel | null> {
   if (config.ASSISTANT === 'off') return null;
   if (config.ASSISTANT === 'fake') return new FakeAssistantModel(deps.guiones ?? guionesDemo());
+  if (config.ASSISTANT === 'gemini') {
+    if (!config.ASSISTANT_DEPLOYMENT)
+      return new DisabledAssistantModel('Falta configuración del asistente: ASSISTANT_DEPLOYMENT');
+    if (!deps.getToken) return new DisabledAssistantModel('Falta la clave de la API del asistente');
+    return new AzureChatClient({
+      endpoint: config.ASSISTANT_ENDPOINT || ENDPOINT_GEMINI,
+      deployment: config.ASSISTANT_DEPLOYMENT,
+      protocolo: 'compatible',
+      timeoutMs: config.ASSISTANT_TIMEOUT_MS,
+      getToken: deps.getToken,
+      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+    });
+  }
   const faltan = (['ASSISTANT_ENDPOINT', 'ASSISTANT_DEPLOYMENT'] as const).filter((k) => !config[k]);
   if (faltan.length)
     return new DisabledAssistantModel(`Falta configuración del asistente: ${faltan.join(', ')}`);

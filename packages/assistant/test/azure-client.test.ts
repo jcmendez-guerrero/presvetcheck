@@ -217,3 +217,68 @@ describe('crearModeloAsistente', () => {
     expect(m?.nombre).toBe('chat-eu');
   });
 });
+
+describe('AzureChatClient con protocolo compatible (Gemini)', () => {
+  const URL_GEMINI = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+  it('usa la ruta compatible, envía el modelo y devuelve la firma del proveedor con la llamada', async () => {
+    const cuerpos: Record<string, unknown>[] = [];
+    server.use(
+      http.post(URL_GEMINI, async ({ request }) => {
+        cuerpos.push((await request.json()) as Record<string, unknown>);
+        if (cuerpos.length === 1)
+          return HttpResponse.json({
+            choices: [
+              {
+                finish_reason: 'tool_calls',
+                message: {
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: { name: 'buscar_regla', arguments: '{"consulta":"x"}' },
+                      extra_content: { google: { thought_signature: 'firma' } },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 2 },
+          });
+        return HttpResponse.json({
+          choices: [{ finish_reason: 'stop', message: { content: '{"texto":"ok"}' } }],
+          usage: { prompt_tokens: 20, completion_tokens: 3 },
+        });
+      }),
+    );
+    const c = cliente({
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      deployment: 'gemini-3.1-flash-lite',
+      protocolo: 'compatible',
+    });
+    const r1 = await c.chat(peticion);
+    expect(r1.tipo).toBe('herramientas');
+    if (r1.tipo !== 'herramientas') return;
+    expect(r1.llamadas[0]?.extra).toEqual({ google: { thought_signature: 'firma' } });
+    expect(cuerpos[0]?.model).toBe('gemini-3.1-flash-lite');
+
+    await c.chat({
+      ...peticion,
+      mensajes: [...peticion.mensajes, { role: 'assistant', content: null, llamadas: r1.llamadas }],
+    });
+    const enviado = JSON.stringify(cuerpos[1]);
+    expect(enviado).toContain('"thought_signature":"firma"');
+  });
+
+  it('el modelo de Gemini se crea con la clave recibida y sin ella queda desactivado', async () => {
+    const config = {
+      ASSISTANT: 'gemini' as const,
+      ASSISTANT_ENDPOINT: undefined,
+      ASSISTANT_DEPLOYMENT: 'gemini-3.1-flash-lite',
+      ASSISTANT_API_VERSION: '2024-10-21',
+      ASSISTANT_TIMEOUT_MS: 20000,
+    };
+    expect(await crearModeloAsistente(config, { getToken: async () => 'k' })).toBeInstanceOf(AzureChatClient);
+    expect(await crearModeloAsistente(config)).toBeInstanceOf(DisabledAssistantModel);
+  });
+});

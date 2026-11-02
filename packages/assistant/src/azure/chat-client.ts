@@ -15,7 +15,10 @@ import type {
 export interface ChatClientOptions {
   endpoint: string;
   deployment: string;
+  /** Token de Entra (Azure) o clave de la API (Gemini): se envía como `Bearer`. */
   getToken: () => Promise<string>;
+  /** `azure` (por defecto): `/openai/deployments/{despliegue}/…`; `compatible`: `{endpoint}/chat/completions` con `model`. */
+  protocolo?: 'azure' | 'compatible';
   apiVersion?: string;
   timeoutMs?: number;
   /** Máxima espera (ms) de `retry-after` para reintentar una vez ante 429/5xx. */
@@ -29,7 +32,12 @@ interface RespuestaApi {
     finish_reason?: string;
     message?: {
       content?: string | null;
-      tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
+      tool_calls?: {
+        id?: string;
+        type?: string;
+        function?: { name?: string; arguments?: string };
+        extra_content?: unknown;
+      }[];
     };
   }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number };
@@ -56,6 +64,7 @@ export class AzureChatClient implements AssistantModel {
 
   private url() {
     const base = this.o.endpoint.replace(/\/+$/, '');
+    if (this.o.protocolo === 'compatible') return `${base}/chat/completions`;
     const v = encodeURIComponent(this.o.apiVersion ?? '2024-10-21');
     return `${base}/openai/deployments/${encodeURIComponent(this.o.deployment)}/chat/completions?api-version=${v}`;
   }
@@ -73,6 +82,7 @@ export class AzureChatClient implements AssistantModel {
                   id: l.id,
                   type: 'function',
                   function: { name: l.nombre, arguments: l.argumentos },
+                  ...(l.extra !== undefined ? { extra_content: l.extra } : {}),
                 })),
               }
             : {}),
@@ -81,6 +91,7 @@ export class AzureChatClient implements AssistantModel {
       return { role: m.role, content: m.content };
     });
     return {
+      ...(this.o.protocolo === 'compatible' ? { model: this.o.deployment } : {}),
       messages: mensajes,
       temperature: 0,
       ...(p.permitirHerramientas && p.herramientas.length
@@ -157,7 +168,14 @@ export class AzureChatClient implements AssistantModel {
       return { tipo: 'final', contenido: SALIDA_FILTRADA, uso };
     const llamadas: LlamadaHerramienta[] = (eleccion.message?.tool_calls ?? []).flatMap((c) =>
       c.id && c.function?.name
-        ? [{ id: c.id, nombre: c.function.name, argumentos: c.function.arguments ?? '{}' }]
+        ? [
+            {
+              id: c.id,
+              nombre: c.function.name,
+              argumentos: c.function.arguments ?? '{}',
+              ...(c.extra_content !== undefined ? { extra: c.extra_content } : {}),
+            },
+          ]
         : [],
     );
     if (llamadas.length) return { tipo: 'herramientas', llamadas, uso };

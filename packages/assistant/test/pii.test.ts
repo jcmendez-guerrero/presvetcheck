@@ -48,3 +48,12 @@ describe('limpiarDatosPersonales', () => {
     expect(r.eliminada).toBe(false);
   });
 });
+
+describe('palabras comunes dentro de valores conocidos', () => {
+  it('no borra «veterinario» pero sí el apellido que lo acompaña', () => {
+    const r = limpiarDatosPersonales('El veterinario prescriptor es Ruiz Palomo.', ['Veterinario Ruiz Palomo']);
+    expect(r.texto).toContain('El veterinario prescriptor');
+    expect(r.texto).not.toContain('Ruiz');
+    expect(r.texto).not.toContain('Palomo');
+  });
+});

@@ -134,7 +134,14 @@ async function crearAsistente(
   d: DepsContexto & { clock: Clock; log: (m: string) => void },
   mailer: Mailer | null,
 ): Promise<AppDeps['asistente']> {
-  const modelo = await crearModeloAsistente(config);
+  const clave =
+    config.ASSISTANT === 'gemini'
+      ? (config.ASSISTANT_API_KEY ??
+        (config.KEY_VAULT_URL
+          ? await secretoKeyVault(config.KEY_VAULT_URL, config.KV_SECRETO_ASISTENTE).catch(() => undefined)
+          : undefined))
+      : undefined;
+  const modelo = await crearModeloAsistente(config, clave ? { getToken: async () => clave } : {});
   if (!modelo) return { modelo: null, herramientas: new ToolRegistry(), fuentes: null, mailer: null };
   const ruta = findUp('docs/ref/guia-receta-veterinaria.md', process.cwd());
   if (!ruta) d.log('Asistente: no se encuentra docs/ref/guia-receta-veterinaria.md; solo responderá con la Ayuda y las reglas');

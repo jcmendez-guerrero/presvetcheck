@@ -72,7 +72,10 @@ describe('banco de evaluación v1 con el modelo falso', () => {
     expect(r.status).toBe(200);
     const i = r.json.intercambio;
     expect(i.tipo).toBe(caso.esperado.tipo);
-    for (const t of caso.esperado.contiene) expect(i.texto.toLowerCase()).toContain(t.toLowerCase());
+    for (const t of caso.esperado.contiene) {
+      const alternativas = Array.isArray(t) ? t : [t];
+      expect(alternativas.some((a) => i.texto.toLowerCase().includes(a.toLowerCase()))).toBe(true);
+    }
     for (const prefijo of caso.esperado.fuentes)
       expect(i.fuentes.some((f: { fuenteId: string }) => f.fuenteId.startsWith(prefijo))).toBe(true);
     if (caso.esperado.tipo === 'respondida') expect(i.fuentes.length).toBeGreaterThan(0);
@@ -81,7 +84,8 @@ describe('banco de evaluación v1 con el modelo falso', () => {
     expect(JSON.stringify(i)).not.toMatch(/12345678|612345678|Titular de demostración|600 000 000/);
     if (caso.contexto === 'linea') expect(i.resultadoMotor).not.toBeNull();
     // Con varios candidatos la respuesta los lleva para que la persona elija (FR-017).
-    if (caso.esperado.tipo === 'aclaracion') expect(i.candidatos.length).toBeGreaterThan(1);
+    // (solo cuando la aclaración es por una búsqueda de medicamento; una pregunta ambigua no lleva candidatos)
+    if (caso.esperado.fuentes.includes('cimavet:busqueda')) expect(i.candidatos.length).toBeGreaterThan(1);
     else expect(i.candidatos).toBeUndefined();
   });
 });

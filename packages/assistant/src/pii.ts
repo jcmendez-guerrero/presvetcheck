@@ -59,6 +59,31 @@ export interface ResultadoSaneado {
 /**
  * @param conocidos valores exactos (nombres, teléfonos…) del titular y del veterinario de la receta en contexto.
  */
+/**
+ * Palabras corrientes que forman parte de valores como «Veterinario de demostración» o «Clínica Veterinaria X»:
+ * sueltas no identifican a nadie y borrarlas estropea la respuesta («el [dato eliminado] prescriptor»).
+ */
+const PALABRAS_COMUNES = new Set(
+  [
+    'veterinario',
+    'veterinaria',
+    'veterinarios',
+    'clinica',
+    'hospital',
+    'centro',
+    'titular',
+    'propietario',
+    'propietaria',
+    'demostracion',
+    'doctor',
+    'doctora',
+    'calle',
+    'avenida',
+    'plaza',
+  ].map((w) => w.normalize('NFD').replace(/\p{M}/gu, '')),
+);
+const esComun = (p: string) => PALABRAS_COMUNES.has(p.toLowerCase().normalize('NFD').replace(/\p{M}/gu, ''));
+
 export function limpiarDatosPersonales(texto: string, conocidos: readonly string[] = []): ResultadoSaneado {
   let out = texto;
   let eliminada = false;
@@ -79,7 +104,7 @@ export function limpiarDatosPersonales(texto: string, conocidos: readonly string
       continue;
     }
     // Valor completo y, por separado, cada palabra de 4 letras o más (nombre o apellido sueltos).
-    const partes = new Set<string>([v, ...v.split(/\s+/).filter((p) => p.length >= 4)]);
+    const partes = new Set<string>([v, ...v.split(/\s+/).filter((p) => p.length >= 4 && !esComun(p))]);
     for (const p of [...partes].sort((a, b) => b.length - a.length)) {
       sustituir(new RegExp(`(?<![\\p{L}\\d])${patronTolerante(p)}(?![\\p{L}\\d])`, 'giu'));
     }
