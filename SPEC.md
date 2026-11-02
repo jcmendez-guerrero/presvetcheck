@@ -29,14 +29,15 @@
 - **Fuera de alcance v1:** emisión o dispensación en plataformas de receta electrónica (solo se registra plataforma e identificador), estupefacientes (bloqueo; los psicótropos sí entran, con reglas propias en 4.1.5), facturación/TPV (sigue en Siweb360).
 
 ### 0.3 Qué se pide en esta primera entrega (Fase 0)
-Repositorio funcional en local con: estructura monorepo, base de datos y migraciones, motor de reglas con tests exhaustivos, clientes de CIMAVet y Siweb360 contra mocks, importador del Nomenclátor (esqueleto guiado por el XML real), pipeline de extracción con proveedor falso + implementación Azure, UI navegable de los flujos principales, IaC Bicep y CI. Criterios de aceptación en la sección 12.
+Repositorio funcional en local con: estructura monorepo, base de datos y migraciones, motor de reglas con tests exhaustivos, clientes de CIMAVet y Siweb360 contra mocks, importador del Nomenclátor (esqueleto guiado por el XML real), pipeline de extracción con proveedor falso + implementación Azure,
+UI navegable de los flujos principales, IaC Bicep y CI. Criterios de aceptación en la sección 12.
 
 ---
 
 ## 1. Decisiones de arquitectura (ADR resumidas)
 
 | # | Decisión | Motivo | Alternativa descartada |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | ADR-01 | **Azure Container Apps (plan Consumo, entorno *workload profiles*)** para API+SPA y **Container Apps Jobs** para tareas programadas | Volumen muy bajo (decenas de recetas/día, horario comercial). Escala a cero; la suscripción tiene una cuota gratuita mensual de 180.000 vCPU‑s, 360.000 GiB‑s y 2 M de peticiones. Coste esperado de cómputo ≈ 0–5 €/mes | **AKS Free tier**: el plano de control es gratis, pero se pagan los nodos (al menos un *system node pool* siempre encendido), disco, balanceador e IP; Microsoft no lo recomienda para producción y añade operación (upgrades, ingress, certificados). Sin sentido para esta carga. Mantenemos portabilidad: imágenes OCI estándar y configuración 12‑factor, de modo que migrar a AKS sea añadir manifiestos |
 | ADR-02 | **Azure Database for PostgreSQL Flexible Server, Burstable B1ms**, PostgreSQL 16, con `pg_trgm` y `unaccent` | Relacional, búsqueda difusa de nombres de medicamento, JSONB para crudos de CIMAVet. B1ms entra en la oferta de cuenta gratuita (12 meses) y después es el SKU más barato | SQLite (no apto para retención legal de 5 años con varios procesos), Cosmos (sin necesidad) |
 | ADR-03 | **Azure Blob Storage** para imágenes de recetas y reportes, con **política de inmutabilidad por tiempo** y ciclo de vida Hot→Cool→Cold | Custodia 5 años con integridad demostrable | — |
@@ -51,27 +52,29 @@ Repositorio funcional en local con: estructura monorepo, base de datos y migraci
 
 ### 1.1 Diagrama lógico
 
+<!-- editorconfig-checker-disable -->
+```text
+  Tablet/Móvil (PWA)                       Escáner de impresora (PDF)
+         │  cámara + lector USB 2D                 │ subida manual (v1)
+         ▼                                         ▼
+  ┌──────────────────── Azure Container Apps (Consumo) ─────────────────────┐
+  │  app "mmx-api"  (Fastify + SPA estática)                                │
+  │   ├─ /api/recetas  ─► Extracción ─► Document Intelligence + Azure OpenAI │
+  │   ├─ /api/decision ─► Motor de reglas (packages/domain, puro)            │
+  │   ├─ /api/dispensaciones, /api/entradas, /api/reportes                   │
+  │   └─ outbox ─► Siweb360 API (stock)                                      │
+  │  jobs: cimavet-delta (diario) · cimavet-full (semanal) ·                  │
+  │        outbox-dispatcher (entradas) · sales-reconciliation (diario) ·     │
+  │        weekly-reports (lunes)                                            │
+  └───────┬───────────────────────┬──────────────────────┬───────────────────┘
+          ▼                       ▼                      ▼
+   PostgreSQL Flexible     Blob Storage (inmutable)   Key Vault
+   (caché CIMAVet,         recetas/ reportes/         secretos
+    recetas, registros)
+          ▲
+          └── CIMAVet REST API (cimavet.aemps.es) — lectura
 ```
- Tablet/Móvil (PWA)                       Escáner de impresora (PDF)
-        │  cámara + lector USB 2D                 │ subida manual (v1)
-        ▼                                         ▼
- ┌──────────────────── Azure Container Apps (Consumo) ─────────────────────┐
- │  app "mmx-api"  (Fastify + SPA estática)                                │
- │   ├─ /api/recetas  ─► Extracción ─► Document Intelligence + Azure OpenAI │
- │   ├─ /api/decision ─► Motor de reglas (packages/domain, puro)            │
- │   ├─ /api/dispensaciones, /api/entradas, /api/reportes                   │
- │   └─ outbox ─► Siweb360 API (stock)                                      │
- │  jobs: cimavet-delta (diario) · cimavet-full (semanal) ·                  │
- │        outbox-dispatcher (entradas) · sales-reconciliation (diario) ·     │
- │        weekly-reports (lunes)                                            │
- └───────┬───────────────────────┬──────────────────────┬───────────────────┘
-         ▼                       ▼                      ▼
-  PostgreSQL Flexible     Blob Storage (inmutable)   Key Vault
-  (caché CIMAVet,         recetas/ reportes/         secretos
-   recetas, registros)
-         ▲
-         └── CIMAVet REST API (cimavet.aemps.es) — lectura
-```
+<!-- editorconfig-checker-enable -->
 
 ---
 
@@ -91,13 +94,14 @@ Repositorio funcional en local con: estructura monorepo, base de datos y migraci
 - **CI:** GitHub Actions (lint, typecheck, test, build de imagen, publicación a GHCR en `main`).
 
 ### 2.1 Identidad visual (UI)
-Paleta de marca: primario `#016581`, secundario `#2F8198`, acento claro `#60ABB8`, fondo `#F2F8F9`, texto/oscuro `#002028`, acento dorado `#E3A857`. Tipografías: Bricolage Grotesque (títulos), Inter (cuerpo). Colores semánticos de estado (no de marca): **SUSTITUIR = ámbar** (`#B45309` sobre `#FEF3C7`), **NO_CONFORME = rojo** (`#B91C1C` sobre `#FEE2E2`), **DISPENSAR = verde** (`#047857` sobre `#D1FAE5`), **PEDIR = azul marca** (`#016581` sobre `#E0F2F7`). El estado nunca se comunica solo por color: siempre icono + texto.
+Paleta de marca: primario `#016581`, secundario `#2F8198`, acento claro `#60ABB8`, fondo `#F2F8F9`, texto/oscuro `#002028`, acento dorado `#E3A857`. Tipografías: Bricolage Grotesque (títulos), Inter (cuerpo). Colores semánticos de estado (no de marca): **SUSTITUIR = ámbar** (`#B45309` sobre
+`#FEF3C7`), **NO_CONFORME = rojo** (`#B91C1C` sobre `#FEE2E2`), **DISPENSAR = verde** (`#047857` sobre `#D1FAE5`), **PEDIR = azul marca** (`#016581` sobre `#E0F2F7`). El estado nunca se comunica solo por color: siempre icono + texto.
 
 ---
 
 ## 3. Estructura del repositorio
 
-```
+```text
 /
 ├─ AGENTS.md
 ├─ SPEC.md
@@ -149,7 +153,8 @@ Paleta de marca: primario `#016581`, secundario `#2F8198`, acento claro `#60ABB8
 #### 4.1.1 Flujo
 1. **Captura.** Foto (cámara de la PWA, varias páginas permitidas) o subida de PDF/JPEG/PNG/HEIC. Se normaliza a PNG por página, se corrige orientación, se calcula SHA‑256 y un *hash* perceptual (pHash) para detectar resubidas.
 2. **Extracción** (sección 5.3). Devuelve cada campo con `valor`, `confianza (0–1)`, `evidencia` (texto OCR y región) y `fuente` (`ocr`, `llm`, `manual`).
-3. **Revisión humana obligatoria.** Pantalla dividida: imagen ampliable a la izquierda, campos a la derecha. Los campos con confianza < umbral (`EXTRACTION_CONFIDENCE_THRESHOLD`, por defecto 0,85) o ausentes se marcan y requieren confirmación individual. El empleado debe marcar "He comprobado los datos con el original" antes de continuar. Se guardan el valor extraído y el confirmado.
+3. **Revisión humana obligatoria.** Pantalla dividida: imagen ampliable a la izquierda, campos a la derecha. Los campos con confianza < umbral (`EXTRACTION_CONFIDENCE_THRESHOLD`, por defecto 0,85) o ausentes se marcan y requieren confirmación individual. El empleado debe marcar "He comprobado los
+  datos con el original" antes de continuar. Se guardan el valor extraído y el confirmado.
 4. **Evaluación de reglas** (motor determinista) → lista de incidencias con severidad `BLOQUEANTE` o `AVISO`.
 5. **Resultado por línea** (sección 4.3).
 
@@ -157,7 +162,7 @@ Paleta de marca: primario `#016581`, secundario `#2F8198`, acento claro `#60ABB8
 Las severidades viven en `config/rules/receta-campos.v1.yaml` y las aprueba el farmacéutico garante. En esta tabla, `BLOQUEANTE` = `BLOQUEANTE_FORMA` (forzable, ver 4.1.6) salvo que 4.1.6 lo declare `BLOQUEANTE_DURO`. Contexto: `especie_produccion` (animal productor de alimentos) o `especie_compania`. Valores por defecto propuestos:
 
 | Campo (RD 666/2023, Anexo A) | Compañía | Producción | Notas |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Nº identificativo de receta | BLOQUEANTE | BLOQUEANTE | Clave de duplicados junto con nº colegiado |
 | Tipo de dispensación | BLOQUEANTE | BLOQUEANTE | Solo se dispensa si es **"de dispensación"**. "De botiquín" o "de no dispensación" → `NO_CONFORME` |
 | Titular: nombre completo | BLOQUEANTE | BLOQUEANTE | |
@@ -185,14 +190,15 @@ Las severidades viven en `config/rules/receta-campos.v1.yaml` y las aprueba el f
 Configurable en `config/rules/validez.v1.yaml`. Valores por defecto según el Anexo A:
 
 | Caso | Plazo máximo desde la fecha de emisión |
-|---|---|
+| --- | --- |
 | General | 1 mes |
 | Línea con antimicrobiano | 5 días (dentro de los cuales debe iniciarse el tratamiento) |
 | Tratamiento periódico o crónico en especie no productora, **sin** antimicrobianos, estupefacientes, psicótropos, gases medicinales, autovacunas, fórmulas magistrales ni preparados oficinales | 3 meses |
 | Tratamiento preventivo en especie no productora | 6 meses |
 | Receta de estupefacientes | 10 días (en v1, además, bloqueo y derivación) |
 
-Regla: `validez_efectiva = min(plazo_declarado_en_receta ?? máximo_legal_del_caso, máximo_legal_del_caso)`. Si el plazo declarado supera el máximo legal → AVISO "plazo declarado superior al máximo legal; se aplica X". Fecha de dispensación > validez efectiva → `NO_CONFORME` (receta caducada). "Mes" = mes natural (`emisión + 1 mes`, ajustando a fin de mes). Toda la aritmética de fechas en zona `Europe/Madrid`.
+Regla: `validez_efectiva = min(plazo_declarado_en_receta ?? máximo_legal_del_caso, máximo_legal_del_caso)`. Si el plazo declarado supera el máximo legal → AVISO "plazo declarado superior al máximo legal; se aplica X". Fecha de dispensación > validez efectiva → `NO_CONFORME` (receta caducada). "Mes"
+= mes natural (`emisión + 1 mes`, ajustando a fin de mes). Toda la aritmética de fechas en zona `Europe/Madrid`.
 
 Los casos crónico/preventivo no se deducen automáticamente: el empleado (o la extracción) indica `tipo_tratamiento ∈ {agudo, cronico, preventivo}` y, si no consta en la receta, se usa `agudo`.
 
@@ -206,7 +212,8 @@ El texto normativo (Anexo A) exige **nombre del medicamento y principio activo**
 #### 4.1.5 Otras comprobaciones
 - **Duplicados:** si ya existe una dispensación completada para `(nº receta, nº colegiado)` en receta en papel → `NO_CONFORME` (`RECETA_YA_DISPENSADA`). Mismo pHash que una receta anterior → AVISO con enlace a la anterior.
 - **Tipo de receta:** `papel | electronica`. Si es electrónica se registra la plataforma y su identificador/CSV. Plataforma fuera de la lista → AVISO.
-  - **Semilla de `plataforma_receta_electronica` (D-14):** `GeneraRecetas`, `recetas.vet`, `Prescrivet` (verificar grafía exacta), `Recevet`, con `reconocida_mapa = null` (sin verificar) hasta que alguien con rol garante o admin lo contraste con el listado del MAPA y lo marque `true`/`false`. Plataforma con `reconocida_mapa=false` → AVISO destacado; `null` → AVISO "plataforma pendiente de verificar".
+  - **Semilla de `plataforma_receta_electronica` (D-14):** `GeneraRecetas`, `recetas.vet`, `Prescrivet` (verificar grafía exacta), `Recevet`, con `reconocida_mapa = null` (sin verificar) hasta que alguien con rol garante o admin lo contraste con el listado del MAPA y lo marque `true`/`false`.
+    Plataforma con `reconocida_mapa=false` → AVISO destacado; `null` → AVISO "plataforma pendiente de verificar".
   - La extracción intenta detectar la plataforma por logotipo, cabecera, dominio o formato del CSV/QR; el empleado la confirma.
   - Validación del CSV/QR contra la plataforma: fuera de alcance en v1 (no hay API pública conocida); si la plataforma ofrece una URL de verificación, se guarda en la tabla (`url_verificacion`) y la app ofrece un botón para abrirla.
 - **Estupefacientes** (`estupefaciente=true` en CIMAVet) → `NO_CONFORME` no forzable, motivo `ESTUPEFACIENTE_NO_DISPENSABLE` (D-06: el establecimiento no los dispensa).
@@ -222,12 +229,14 @@ El texto normativo (Anexo A) exige **nombre del medicamento y principio activo**
 #### 4.1.6 Defectos, corrección manual y forzado (D-05, resuelta)
 Principio de JC: **ante cualquier incumplimiento, la app dice "No se puede dispensar" y explica exactamente qué defecto ha encontrado**; el empleado puede corregir los datos o, si asume la responsabilidad, forzar.
 
-**1. Mensaje de defecto.** Cada incidencia bloqueante se muestra como una tarjeta roja con: qué falla ("Falta el número de colegiado del veterinario"), dónde mirar en la receta (resaltado sobre la imagen si hay evidencia OCR) y qué hacer ("Pide al veterinario que lo complete" / "Corrige el dato si la app lo ha leído mal"). Los textos viven en un catálogo `packages/shared/i18n/defectos.es.json` indexado por `code`.
+**1. Mensaje de defecto.** Cada incidencia bloqueante se muestra como una tarjeta roja con: qué falla ("Falta el número de colegiado del veterinario"), dónde mirar en la receta (resaltado sobre la imagen si hay evidencia OCR) y qué hacer ("Pide al veterinario que lo complete" / "Corrige el dato si
+la app lo ha leído mal"). Los textos viven en un catálogo `packages/shared/i18n/defectos.es.json` indexado por `code`.
 
 **2. Corrección manual (fallo de lectura del sistema).** Si el defecto se debe a que la extracción leyó mal o no leyó un dato que **sí está** en la receta, el empleado edita el campo en la pantalla de revisión y se reevalúa al instante. Se guarda valor extraído, valor corregido, quién y cuándo. Esto no es un forzado: es una corrección de datos.
 
 **3. Forzado (bypass).** Si el defecto es real y aun así se decide dispensar:
-- Botón secundario "Dispensar igualmente" → **ventana modal** que lista los defectos y exige: marcar la casilla **"Entiendo los riesgos de dispensar una receta que no cumple los requisitos y asumo la responsabilidad"**, escribir un **motivo** (mínimo 15 caracteres) y confirmar con su usuario. Por defecto el botón de confirmar no es el principal y hay que pulsarlo de forma deliberada.
+- Botón secundario "Dispensar igualmente" → **ventana modal** que lista los defectos y exige: marcar la casilla **"Entiendo los riesgos de dispensar una receta que no cumple los requisitos y asumo la responsabilidad"**, escribir un **motivo** (mínimo 15 caracteres) y confirmar con su usuario. Por
+  defecto el botón de confirmar no es el principal y hay que pulsarlo de forma deliberada.
 - La dispensación se registra con `forzado=true`, los códigos de defecto forzados, el motivo y el empleado; aparece en la **bandeja del garante** para revisión y en el reporte semanal "Dispensaciones forzadas". En la exportación de salidas: columna interna `FORZADO (S/N)` y `DEFECTOS FORZADOS`.
 - La receta en papel se aparta igual que una sustitución (etiqueta "Receta con defecto forzado — revisión del garante").
 
@@ -240,7 +249,8 @@ Grupo **"producto no válido"** — **forzable de forma temporal** (decisión de
 - Medicamento **suspendido o revocado** en CIMAVet.
 - Envase **caducado**.
 - **CN escaneado distinto** al seleccionado.
-Se controla con `PRODUCT_VALIDITY_HARD_BLOCK` (por defecto `false` → `BLOQUEANTE_FORMA`; pasar a `true` → `BLOQUEANTE_DURO`). Mientras esté en `false`, la ventana de forzado de estos casos muestra el defecto en rojo con texto específico ("El envase escaneado está CADUCADO desde el dd/mm/aaaa") y el reporte semanal los lista aparte para poder decidir cuándo endurecerlo. **TODO(decision D-05c)**.
+Se controla con `PRODUCT_VALIDITY_HARD_BLOCK` (por defecto `false` → `BLOQUEANTE_FORMA`; pasar a `true` → `BLOQUEANTE_DURO`). Mientras esté en `false`, la ventana de forzado de estos casos muestra el defecto en rojo con texto específico ("El envase escaneado está CADUCADO desde el dd/mm/aaaa") y el
+reporte semanal los lista aparte para poder decidir cuándo endurecerlo. **TODO(decision D-05c)**.
 
 El resto de incidencias bloqueantes son `BLOQUEANTE_FORMA` (forzables).
 
@@ -257,20 +267,22 @@ Severidades resultantes: `AVISO` (informativo) · `BLOQUEANTE_FORMA` (no se pued
 
 Salida: `DISPENSAR | DISPENSAR_CON_AVISO | SUSTITUIR | PEDIR | NO_CONFORME`, con motivos y datos de soporte. Orden de evaluación:
 
+<!-- editorconfig-checker-disable -->
+```text
+ 1. ¿Hay incidencias BLOQUEANTE_DURO?                           → NO_CONFORME (no forzable)
+    ¿Hay incidencias BLOQUEANTE_FORMA?                          → NO_CONFORME (forzable, 4.1.6);
+        si se fuerza, se continúa en el paso 2 con forzado=true
+ 2. ¿Stock disponible de la presentación prescrita (mismo CN)?  → DISPENSAR (lote FEFO)
+ 3. ¿Stock de otra presentación que cumpla la REGLA DE FORMATO Y CONCENTRACIÓN (4.3.1)?
+                                                                 → DISPENSAR_CON_AVISO
+        (cambio de formato o de concentración; requiere confirmación del empleado
+         y queda marcado para revisión del garante. Desactivable con ALLOW_PACK_SIZE_CHANGE=false)
+ 4. ¿Sustitución permitida? (4.4.1) Si NO                        → PEDIR (prescrito)
+ 5. Equivalentes según CIMAVet (4.4.2) con stock disponible      → SUSTITUIR (propuesta ordenada)
+ 6. Equivalentes sin stock                                        → PEDIR (prescrito + lista de equivalentes)
+ 7. Sin equivalentes                                              → PEDIR (prescrito)
 ```
-1. ¿Hay incidencias BLOQUEANTE_DURO?                           → NO_CONFORME (no forzable)
-   ¿Hay incidencias BLOQUEANTE_FORMA?                          → NO_CONFORME (forzable, 4.1.6);
-       si se fuerza, se continúa en el paso 2 con forzado=true
-2. ¿Stock disponible de la presentación prescrita (mismo CN)?  → DISPENSAR (lote FEFO)
-3. ¿Stock de otra presentación que cumpla la REGLA DE FORMATO Y CONCENTRACIÓN (4.3.1)?
-                                                                → DISPENSAR_CON_AVISO
-       (cambio de formato o de concentración; requiere confirmación del empleado
-        y queda marcado para revisión del garante. Desactivable con ALLOW_PACK_SIZE_CHANGE=false)
-4. ¿Sustitución permitida? (4.4.1) Si NO                        → PEDIR (prescrito)
-5. Equivalentes según CIMAVet (4.4.2) con stock disponible      → SUSTITUIR (propuesta ordenada)
-6. Equivalentes sin stock                                        → PEDIR (prescrito + lista de equivalentes)
-7. Sin equivalentes                                              → PEDIR (prescrito)
-```
+<!-- editorconfig-checker-enable -->
 
 #### 4.3.1 Regla de formato y concentración (D-09, resuelta)
 Criterio de JC: se puede dispensar otra presentación **siempre que la concentración por unidad sea igual o menor y la cantidad total de principio activo nunca sea mayor** que la prescrita. Ejemplo: prescrito amoxicilina 500 mg × 10 comprimidos (5.000 mg) → válido 2 cajas de 250 mg × 10 (5.000 mg) o 1 caja de 250 mg × 10 (2.500 mg); **no** válido 1 caja de 1.000 mg.
@@ -285,7 +297,8 @@ Condiciones (todas, calculadas en `packages/domain` con los datos normalizados d
 
 Tipos resultantes:
 - **Cambio de formato** (mismo `nregistro`, misma concentración, otro tamaño de envase): aviso y revisión del garante.
-- **Cambio de concentración** (otro `nregistro` o presentación de menor concentración): además de lo anterior, la app genera una **nota de administración para el tutor**, obligatoria de imprimir o entregar ("Este envase es de 250 mg: administre **2 comprimidos** por cada toma de 500 mg indicada por su veterinario"), registra que se ha explicado al tutor y deja preparado el texto de aviso al veterinario. Si el medicamento de menor concentración es de **otro laboratorio**, se trata además con las condiciones y el flujo de sustitución (4.4).
+- **Cambio de concentración** (otro `nregistro` o presentación de menor concentración): además de lo anterior, la app genera una **nota de administración para el tutor**, obligatoria de imprimir o entregar ("Este envase es de 250 mg: administre **2 comprimidos** por cada toma de 500 mg indicada por
+  su veterinario"), registra que se ha explicado al tutor y deja preparado el texto de aviso al veterinario. Si el medicamento de menor concentración es de **otro laboratorio**, se trata además con las condiciones y el flujo de sustitución (4.4).
 
 `PEDIR` muestra: medicamento prescrito y equivalentes con su CN, laboratorio titular y si constan problemas de suministro, más un botón "Añadir a lista de pedido" (tabla `pedido_pendiente`; la compra se hace fuera del sistema en v1).
 
@@ -306,7 +319,8 @@ La receta en conjunto se resume como el peor estado de sus líneas, pero **cada 
 
 #### 4.4.2 Equivalencia (todas obligatorias)
 Calculada en `packages/domain` sobre los datos normalizados de la caché:
-1. **Misma composición cualitativa y cuantitativa** en principios activos: mismo conjunto de `principio_activo_id` y misma cantidad por unidad tras normalizar unidades (`mg`, `g`, `µg`, `UI`, `%`, `mg/ml`…). Las cantidades de CIMAVet llegan como texto: el normalizador produce `{valor: Decimal, unidad_canonica}` o `NO_NORMALIZABLE`. Si alguna cantidad no es normalizable → el candidato no se propone automáticamente (se lista como "revisar manualmente").
+1. **Misma composición cualitativa y cuantitativa** en principios activos: mismo conjunto de `principio_activo_id` y misma cantidad por unidad tras normalizar unidades (`mg`, `g`, `µg`, `UI`, `%`, `mg/ml`…). Las cantidades de CIMAVet llegan como texto: el normalizador produce `{valor: Decimal,
+  unidad_canonica}` o `NO_NORMALIZABLE`. Si alguna cantidad no es normalizable → el candidato no se propone automáticamente (se lista como "revisar manualmente").
 2. **Misma forma farmacéutica** (`forma.id`).
 3. **Misma vía de administración** (la vía prescrita debe estar entre las autorizadas del candidato).
 4. **Misma dosificación** (consecuencia de 1 por unidad de forma; se comprueba explícitamente la concentración).
@@ -320,7 +334,7 @@ Orden de propuesta: con stock disponible primero; después caducidad FEFO más l
 #### 4.4.3 Flujo de sustitución (estado de la línea)
 **Instrucción del farmacéutico garante (D-01, resuelta):** el personal puede realizar la sustitución **solo cuando el medicamento prescrito no está disponible en la farmacia** (ni el mismo CN ni, si está permitido, otro formato del mismo medicamento), apartando la receta para que el garante la **firme después**. Modo por defecto: `POST`.
 
-```
+```text
 PROPUESTA                     (solo si el motor llegó a SUSTITUIR: prescrito sin stock)
   → CONSENTIMIENTO_TUTOR      (sí/no, medio, fecha-hora, empleado)          obligatorio
   → AVISO_VETERINARIO         (medio, fecha-hora, resultado) | URGENCIA (justificación)   obligatorio
@@ -362,8 +376,10 @@ Algoritmo (`packages/domain/fefo.ts`):
   - Acepta el prefijo de simbología `]d2`, `]C1`, `]Q3`.
   - **Separador GS:** muchos lectores HID no transmiten el ASCII 29. Configuración `SCANNER_GS_SUBSTITUTE` (p. ej. `~` o `|`) que el lector debe programarse para emitir; documentar en `docs/scanner.md`.
   - Si solo hay EAN-13 lineal (sin lote ni caducidad), esos campos se piden a mano.
-- **Sin lector físico al arranque (D-13):** la cámara de la tablet/móvil con `zxing-wasm` es la vía principal hasta que se compre el lector. La pantalla de escaneo abre la cámara trasera con un recuadro guía, enfoque continuo, linterna conmutable y lectura de DataMatrix, QR, EAN-13 y Code 128; tras 8 s sin lectura ofrece la entrada manual. El modo lector HID se activa solo con poner el foco en el campo y recibir una ráfaga de teclas (< 50 ms entre caracteres), sin configuración adicional.
-- `docs/scanner.md` incluye los **requisitos de compra del lector**: imager 2D (lee DataMatrix GS1 y QR en pantalla y papel), conexión USB-HID o Bluetooth-HID compatible con la tablet, distribución de teclado española, posibilidad de programar la sustitución del carácter GS (ASCII 29) y el prefijo de simbología, y peana de manos libres opcional. Y la guía de configuración: cómo programar `SCANNER_GS_SUBSTITUTE` y verificarlo en la pantalla "Probar lector" de Administración, que muestra los bytes recibidos y el resultado del parseo GS1.
+- **Sin lector físico al arranque (D-13):** la cámara de la tablet/móvil con `zxing-wasm` es la vía principal hasta que se compre el lector. La pantalla de escaneo abre la cámara trasera con un recuadro guía, enfoque continuo, linterna conmutable y lectura de DataMatrix, QR, EAN-13 y Code 128; tras
+  8 s sin lectura ofrece la entrada manual. El modo lector HID se activa solo con poner el foco en el campo y recibir una ráfaga de teclas (< 50 ms entre caracteres), sin configuración adicional.
+- `docs/scanner.md` incluye los **requisitos de compra del lector**: imager 2D (lee DataMatrix GS1 y QR en pantalla y papel), conexión USB-HID o Bluetooth-HID compatible con la tablet, distribución de teclado española, posibilidad de programar la sustitución del carácter GS (ASCII 29) y el prefijo
+  de simbología, y peana de manos libres opcional. Y la guía de configuración: cómo programar `SCANNER_GS_SUBSTITUTE` y verificarlo en la pantalla "Probar lector" de Administración, que muestra los bytes recibidos y el resultado del parseo GS1.
 - **CN desde GTIN:** heurística para GTIN-13 españoles con prefijo `847000` → CN = 6 dígitos siguientes. Marcar como heurística: se valida contra la caché de CIMAVet y se mantiene una tabla aprendida `gtin_cn` con cada asociación confirmada por un humano. Si no hay correspondencia, el empleado elige el medicamento.
 - Validaciones al escanear: el CN coincide con la presentación seleccionada (si no → bloqueo), el envase no está caducado (bloqueo), el lote coincide con el recomendado (si no → AVISO "no es el lote FEFO" con motivo obligatorio), la suma de unidades no supera lo prescrito (bloqueo), el número de serie no se ha dispensado antes (AVISO).
 - Entrada manual completa disponible como respaldo (lector averiado o código ilegible), registrando `metodo_captura = manual`.
@@ -371,7 +387,8 @@ Algoritmo (`packages/domain/fefo.ts`):
 
 ### 4.7 Venta sin receta y pedidos online
 - **Presencial sin receta:** escaneo → resolución CN → comprobación en CIMAVet de que **no** está sujeto a prescripción (`receta=false`; si es `true` → bloqueo y redirección al flujo de receta) → lote FEFO → registro de salida con las columnas de la sección 4.8 (bloque sin receta).
-- **Online:** solo medicamentos no sujetos a prescripción. Además de las columnas sin receta, **datos del propietario obligatorios**: nombre, móvil, dirección de entrega. **DNI/NIE obligatorio** (D-07, resuelta), validado con letra de control (DNI y NIE) y almacenado cifrado; en pantalla y exportaciones internas se muestra enmascarado (`****1234X`) salvo para el rol garante. Campo `referencia_pedido` del canal (web).
+- **Online:** solo medicamentos no sujetos a prescripción. Además de las columnas sin receta, **datos del propietario obligatorios**: nombre, móvil, dirección de entrega. **DNI/NIE obligatorio** (D-07, resuelta), validado con letra de control (DNI y NIE) y almacenado cifrado; en pantalla y
+  exportaciones internas se muestra enmascarado (`****1234X`) salvo para el rol garante. Campo `referencia_pedido` del canal (web).
 - **Presencial con receta:** datos del propietario opcionales (nombre, móvil, DNI, dirección).
 
 ### 4.8 Columnas del registro de salidas (exportación exacta)
@@ -402,7 +419,8 @@ Flujo de captura (los dos caminos acaban en la misma validación):
 - Escanear varias veces el mismo lote suma unidades (deduplicando por nº de serie si existe). Caducidad < hoy + `ENTRY_MIN_SHELF_LIFE_DAYS` (por defecto 90) → AVISO.
 - Se aceptan productos no medicamento (material de farmacia) con `tipo = producto`, sin validación CIMAVet.
 
-**Finalización:** al pulsar "Finalizar recepción" se valida la completitud, se bloquea la edición y se encolan en el outbox los ajustes de stock en Siweb360 (si la política lo permite): `POST /inventory/stock/adjustments` con `mode=delta`, `quantity=+unidades`, `reason=purchase_receipt`, `batch_number`, `expiry_date`, `warehouse_id` = almacén "Farmacia", `notes="MMX-REC-{id}-L{n}"`.
+**Finalización:** al pulsar "Finalizar recepción" se valida la completitud, se bloquea la edición y se encolan en el outbox los ajustes de stock en Siweb360 (si la política lo permite): `POST /inventory/stock/adjustments` con `mode=delta`, `quantity=+unidades`, `reason=purchase_receipt`,
+`batch_number`, `expiry_date`, `warehouse_id` = almacén "Farmacia", `notes="MMX-REC-{id}-L{n}"`.
 
 **Requisito previo:** el producto/variante debe existir en Siweb360 (la API no permite darlo de alta). Si un CN no tiene variante mapeada → la línea queda en `PENDIENTE_ALTA_SIWEB` y aparece en una lista de tareas "Dar de alta en Siweb360 y mapear", sin bloquear el resto de la recepción.
 
@@ -411,7 +429,8 @@ Flujo de captura (los dos caminos acaban en la misma validación):
 - Dato opcional en cada línea de entrada: **precio neto de compra unitario** (sin IVA, después de descuentos del albarán).
 - `precio_coste = precio_neto_compra × (1 + RE%)`, con el RE según el tipo de IVA del producto, configurado en `config/rules/precios.v1.yaml`: IVA 10 % → RE 1,4 % (medicamentos veterinarios: `× 1,014`); IVA 21 % → 5,2 %; IVA 4 % → 0,5 % (editable). Por defecto IVA 10 % para medicamentos.
 - Decimal exacto (`decimal.js`), redondeo a 4 decimales en almacenamiento y a 2 en pantalla.
-- **La API de inventario de Siweb360 no documenta actualización de precios.** v1 genera el informe **"Precios de coste de la semana"** (producto, SKU, CN, lote, precio neto, RE, precio de coste, y precio de coste anterior si existía) para actualizarlo a mano en Siweb360. Si Siweb360 confirma un endpoint de precios, se añade como operación de outbox detrás del flag `SIWEB_PRICE_WRITE`.
+- **La API de inventario de Siweb360 no documenta actualización de precios.** v1 genera el informe **"Precios de coste de la semana"** (producto, SKU, CN, lote, precio neto, RE, precio de coste, y precio de coste anterior si existía) para actualizarlo a mano en Siweb360. Si Siweb360 confirma un
+  endpoint de precios, se añade como operación de outbox detrás del flag `SIWEB_PRICE_WRITE`.
 
 ### 4.11 Reportes
 Job semanal (lunes 07:00 `Europe/Madrid`) y bajo demanda, en XLSX y CSV, guardados en Blob y enviados por correo al garante y a JC:
@@ -434,7 +453,7 @@ Job semanal (lunes 07:00 `Europe/Madrid`) y bajo demanda, en XLSX y CSV, guardad
 Base `https://cimavet.aemps.es/cimavet/rest/`. Respuestas JSON. Endpoints usados (de la especificación v1.4 aportada):
 
 | Uso | Endpoint | Parámetros clave |
-|---|---|---|
+| --- | --- | --- |
 | Búsqueda | `GET medicamentos` | `nombre`, `practiv1`, `idpractiv1`, `cn`, `nregistro`, `especie`/`idEspecie`, `comerc`, `sitadm`, `IdForma`, `idVia`, `tipoMed`, `dispensacion`, `pagina` |
 | Detalle | `GET medicamento` | `cn` o `nregistro` |
 | Presentaciones | `GET presentaciones` | `nregistro`, `cn`, `comerc` |
@@ -443,10 +462,12 @@ Base `https://cimavet.aemps.es/cimavet/rest/`. Respuestas JSON. Endpoints usados
 | Maestras | `GET maestras` | `maestra` (1 principios activos, 2 formas, 3 vías, 4 laboratorios, 5 ATC, 6 excipientes, 7 especies, 8 medicamentos, 9 interacciones, 10 contraindicaciones, 11 indicaciones, 12 reacciones adversas) |
 | Delta | `GET/POST registroCambios` | `fecha` (dd/mm/yyyy), `nregistro` repetible; `tipoCambio` 1 alta, 2 baja, 3 modificado; `cambios` ⊂ {estado, comerc, prosp, ft, otros} |
 
-Requisitos del cliente: *rate limit* propio (máx. 3 peticiones/s, configurable), reintentos con *backoff* exponencial y *jitter* en 5xx y timeouts, timeout 10 s, `User-Agent` identificable, paginación transparente con `pagina`, validación con zod tolerante a campos nuevos (`passthrough`) y guardado del JSON crudo. Los nombres de campos de la doc tienen mayúsculas inconsistentes (`Comerc`/`comerc`, `Id`/`id`, `IdForma`): normalizar en el adaptador y cubrirlo con tests.
+Requisitos del cliente: *rate limit* propio (máx. 3 peticiones/s, configurable), reintentos con *backoff* exponencial y *jitter* en 5xx y timeouts, timeout 10 s, `User-Agent` identificable, paginación transparente con `pagina`, validación con zod tolerante a campos nuevos (`passthrough`) y guardado
+del JSON crudo. Los nombres de campos de la doc tienen mayúsculas inconsistentes (`Comerc`/`comerc`, `Id`/`id`, `IdForma`): normalizar en el adaptador y cubrirlo con tests.
 
 #### 5.1.2 Caché local
-- **Carga inicial:** importador del **Nomenclátor Veterinario** (fichero `PrescripcionVET.xml` y anexos que aporte JC). La estructura cambió en julio de 2024 (los tiempos de espera incluyen `forma_via_admin` y `no_aplica_tejido`). **No inferir el esquema:** generar el parser a partir de la muestra real en `fixtures/nomenclator/` (y su XSD si existe), en *streaming* (SAX, p. ej. `saxes`), idempotente (upsert por `nregistro`/`cn`) y con informe de carga (registros nuevos/actualizados/descartados).
+- **Carga inicial:** importador del **Nomenclátor Veterinario** (fichero `PrescripcionVET.xml` y anexos que aporte JC). La estructura cambió en julio de 2024 (los tiempos de espera incluyen `forma_via_admin` y `no_aplica_tejido`). **No inferir el esquema:** generar el parser a partir de la muestra
+  real en `fixtures/nomenclator/` (y su XSD si existe), en *streaming* (SAX, p. ej. `saxes`), idempotente (upsert por `nregistro`/`cn`) y con informe de carga (registros nuevos/actualizados/descartados).
 - **Sincronización incremental diaria** (job `cimavet-delta`, 06:30): `registroCambios?fecha=<última sincronización − 1 día>` → para cada `nregistro` cambiado, `GET medicamento?nregistro=` y `GET presentaciones?nregistro=` → upsert. Bajas (tipo 2) → marcar `estado` y no borrar.
 - **Refresco completo semanal** (job `cimavet-full`, domingo 03:00): la "invalidación semanal" pedida. Recorre los `nregistro` en caché con antigüedad > 7 días y los refresca; reimporta maestras. Si se dispone de un Nomenclátor nuevo, puede usarse en su lugar.
 - **Lectura con verificación en vivo** en el momento de dispensar (4.2.4).
@@ -458,7 +479,7 @@ Requisitos del cliente: *rate limit* propio (máx. 3 peticiones/s, configurable)
 Base `https://app.siweb360.com/api/public/`, `Authorization: Bearer <token>` (Key Vault). Endpoints:
 
 | Uso | Endpoint |
-|---|---|
+| --- | --- |
 | Productos | `GET inventory/products` (`search`, `brand`, `product_type`, `category_id`, `page`, `limit≤200`), `GET inventory/products/:id` |
 | Variantes con stock | `GET inventory/variants` (`search` sobre SKU/nombre, `product_id`, `warehouse_id`, `with_stock`, `out_of_stock`, `low_stock`, `page`, `limit`) |
 | Variante con desglose por almacén/ubicación/lote | `GET inventory/variants/:id` |
@@ -471,7 +492,8 @@ Base `https://app.siweb360.com/api/public/`, `Authorization: Bearer <token>` (Ke
 
 `is_infinite_stock=true` → la variante no participa en FEFO ni recibe ajustes (AVISO de configuración).
 
-**Almacén (D-12, resuelta):** hay un único almacén de medicamentos en Siweb360, llamado **"Farmacia"**, que se usa para entradas y ventas. Al arrancar, la app llama a `GET inventory/warehouses`, localiza el almacén cuyo nombre coincide con `SIWEB_WAREHOUSE_NAME` (por defecto `Farmacia`) y guarda su id; si no lo encuentra, o encuentra más de uno, no arranca en prod. `SIWEB_WAREHOUSE_ID` permite fijarlo a mano. Se ignoran las ubicaciones (`location_id`) salvo que la API las devuelva, en cuyo caso se muestran como información en la propuesta FEFO.
+**Almacén (D-12, resuelta):** hay un único almacén de medicamentos en Siweb360, llamado **"Farmacia"**, que se usa para entradas y ventas. Al arrancar, la app llama a `GET inventory/warehouses`, localiza el almacén cuyo nombre coincide con `SIWEB_WAREHOUSE_NAME` (por defecto `Farmacia`) y guarda su
+id; si no lo encuentra, o encuentra más de uno, no arranca en prod. `SIWEB_WAREHOUSE_ID` permite fijarlo a mano. Se ignoran las ubicaciones (`location_id`) salvo que la API las devuelva, en cuyo caso se muestran como información en la propuesta FEFO.
 
 #### 5.2.2 Mapeo CN ↔ variante
 La API no expone un campo CN. Tabla `siweb_variant_map (cn, variant_id, product_id, sku, metodo auto_sku|auto_nombre|manual, verificado_por, verificado_at)`.
@@ -483,10 +505,10 @@ La API no expone un campo CN. Tabla `siweb_variant_map (cn, variant_id, product_
 1. Tabla `siweb_variant_map` ya verificada → usar.
 2. `GET inventory/variants?search=CN{cn}` → filtrar resultados cuyo SKU **o** nombre cumplan el patrón con ese CN exacto. Uno → mapeo automático (`auto_sku`) que se guarda sin confirmación. Varios → el empleado elige.
 3. Si no hay coincidencia por CN: búsqueda por nombre del medicamento (CIMAVet) y laboratorio → hasta 5 candidatos ordenados por similitud. La UI dice claramente **"No se ha encontrado este medicamento por código nacional en Siweb360"** y ofrece:
-   a) **Elegir uno de los candidatos**,
-   b) **Introducir el SKU** del producto en Siweb360 (se valida que exista con `search`), o
-   c) **Marcar "Hay que crearlo en Siweb360"**.
-   En a) y b) se guarda el mapeo (`manual`) y, si el SKU o el nombre no siguen la convención, se pregunta: "¿Actualizar el SKU y el nombre en Siweb360?" mostrando la propuesta.
+    a) **Elegir uno de los candidatos**,
+    b) **Introducir el SKU** del producto en Siweb360 (se valida que exista con `search`), o
+    c) **Marcar "Hay que crearlo en Siweb360"**.
+    En a) y b) se guarda el mapeo (`manual`) y, si el SKU o el nombre no siguen la convención, se pregunta: "¿Actualizar el SKU y el nombre en Siweb360?" mostrando la propuesta.
 4. Un CN puede tener varias variantes (p. ej. duplicados): se admiten y se agregan para stock.
 
 **Alta y edición de productos — limitación de la API:** la documentación de Inventario indica que *el alta y edición de productos, variantes y almacenes se hace desde la aplicación*; la API pública no lo permite. Por tanto:
@@ -507,8 +529,10 @@ Lectura en vivo al evaluar una línea (no se cachea stock más de 60 s). Si Siwe
 #### 5.2.4 Política de escritura de stock (D-02 y D-03 resueltas)
 - **Salidas (D-02, resuelta):** el TPV de Siweb360 descuenta el stock al confirmar el ticket y el empleado selecciona **manualmente el lote** que dispensa. Por tanto **este sistema nunca escribe salidas en Siweb360**: no hay ajustes `sale_shipment` desde aquí. El registro de salidas de esta app es el registro regulatorio; el movimiento de stock lo hace el ticket.
   - Consecuencia en el flujo: tras confirmar la dispensación, la UI muestra un recordatorio fijo "Cobrar en el TPV seleccionando el lote **{lote}**" con el lote, CN y unidades, y un botón para copiar el lote.
-  - **Conciliación ticket ↔ dispensación (job `sales-reconciliation`, diario 21:00):** compara las dispensaciones del día con los movimientos de salida de Siweb360 por variante + lote + unidades. Detecta: dispensación sin ticket, ticket de medicamento sin dispensación registrada (venta fuera de la app), y **lote distinto** entre ticket y dispensación. Las discrepancias van a la bandeja del garante y al reporte semanal.
-  - **Bloqueado por documentación:** la API de movimientos/tickets de Siweb360 no está en la documentación aportada (solo Inventario). Codex implementa el puerto `SalesMovementsSource`, el algoritmo de conciliación en `domain` con tests, y un adaptador `NotConfiguredSalesMovementsSource` que deja el job inactivo con un aviso. Cuando JC aporte la doc en `docs/ref/`, se implementa el adaptador real. **TODO(decision D-02b)**.
+  - **Conciliación ticket ↔ dispensación (job `sales-reconciliation`, diario 21:00):** compara las dispensaciones del día con los movimientos de salida de Siweb360 por variante + lote + unidades. Detecta: dispensación sin ticket, ticket de medicamento sin dispensación registrada (venta fuera de la
+    app), y **lote distinto** entre ticket y dispensación. Las discrepancias van a la bandeja del garante y al reporte semanal.
+  - **Bloqueado por documentación:** la API de movimientos/tickets de Siweb360 no está en la documentación aportada (solo Inventario). Codex implementa el puerto `SalesMovementsSource`, el algoritmo de conciliación en `domain` con tests, y un adaptador `NotConfiguredSalesMovementsSource` que deja el
+    job inactivo con un aviso. Cuando JC aporte la doc en `docs/ref/`, se implementa el adaptador real. **TODO(decision D-02b)**.
 - **Entradas (D-03, resuelta):** hoy el stock entra **a mano** en Inventario de Siweb360, añadiendo lote y caducidad al producto; no se usa el módulo de Compras. Por tanto **esta app pasa a ser la única vía de entrada de stock de medicamentos**: al finalizar una recepción, el outbox crea un ajuste `purchase_receipt` por línea con `batch_number` y `expiry_date`.
   - **Corte operativo:** desde la fecha de puesta en marcha, el personal deja de dar entradas manuales de medicamentos en Siweb360 (si no, se duplican). La app muestra la fecha de corte en la pantalla de recepción y el reporte semanal incluye un control: movimientos de entrada en Siweb360 que no llevan la marca `MMX-REC-` en `notes` (requiere la API de movimientos, D-02b).
   - Productos que no son medicamento (accesorios, alimentación) siguen entrando como hasta ahora en Siweb360, salvo que se registren en la app como `tipo = producto`.
@@ -531,10 +555,11 @@ interface RecipeExtractor {
 Implementaciones:
 1. `FakeRecipeExtractor`: devuelve el JSON esperado de `fixtures/recetas/*.expected.json` (tests y desarrollo sin coste).
 2. `AzureRecipeExtractor`:
-   - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
-   - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en *Data Zone* UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod). Instrucciones: no inventar valores; `null` si no consta; devolver la cita literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
-   - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
-   - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
+    - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
+    - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en *Data Zone* UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod). Instrucciones: no inventar valores; `null` si no consta; devolver la cita
+      literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
+    - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
+    - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
 3. **Banco de evaluación:** `pnpm eval:extraction` recorre `fixtures/recetas/` y calcula exactitud por campo (exacta y normalizada), tasa de campos bajo umbral y coste estimado. JC aporta 15–20 recetas reales anonimizadas de formatos distintos (manuscritas, impresas, talonario colegial, electrónicas impresas).
 
 ---
@@ -570,10 +595,12 @@ Convenciones: `snake_case`, PK `uuid` (v7), `created_at/updated_at timestamptz`,
 **Recetas y dispensación**
 - `veterinario` (id, nombre, num_colegiado, colegio, telefono, email, clinica, direccion) — único (num_colegiado, colegio)
 - `propietario` (id, nombre, movil, dni, direccion) — columnas personales **cifradas a nivel de aplicación** (AES-256-GCM, clave en Key Vault) + `dni_hash` para búsqueda
-- `receta` (id, tipo papel|electronica, plataforma_id, id_plataforma, numero, fecha_emision, tipo_dispensacion, clase_prescripcion, tipo_tratamiento, veterinario_id, especie_id, especie_produccion bool, animal_identificacion, num_animales, rega, indicacion, decl_antimicrobianos jsonb, plazo_validez_declarado, validez_efectiva date, propietario_id null, firma_confirmada bool, talonario_colegial bool, estado, sha256, phash, extraccion jsonb, confirmacion jsonb, evaluacion jsonb, regla_version_id, creada_por)
+- `receta` (id, tipo papel|electronica, plataforma_id, id_plataforma, numero, fecha_emision, tipo_dispensacion, clase_prescripcion, tipo_tratamiento, veterinario_id, especie_id, especie_produccion bool, animal_identificacion, num_animales, rega, indicacion, decl_antimicrobianos jsonb,
+  plazo_validez_declarado, validez_efectiva date, propietario_id null, firma_confirmada bool, talonario_colegial bool, estado, sha256, phash, extraccion jsonb, confirmacion jsonb, evaluacion jsonb, regla_version_id, creada_por)
 - `receta_imagen` (receta_id, pagina, blob_path, mime, sha256)
 - `receta_linea` (id, receta_id, orden, texto_medicamento, texto_principio_activo, forma_texto, concentracion_texto, cantidad_envases, formato_texto, unidades_max, posologia jsonb, duracion_dias, tiempo_espera_texto, nregistro null, cn_prescrito null, decision, motivos jsonb, estado)
-- `dispensacion` (id, receta_linea_id null, canal presencial|online, con_receta bool, cn, nregistro, nombre_farmaco, principio_activo_txt, forma_txt, especie_txt, lote, caducidad, unidades, gtin, serial, metodo_captura scanner|camara|manual, lote_fefo_recomendado, motivo_lote_distinto, es_sustitucion bool, cn_prescrito, sustitucion_id null, cambio_formato bool, forzado bool, defectos_forzados text[], motivo_forzado, revisado_garante jsonb null, propietario_id null, referencia_pedido null, empleado, fecha_venta timestamptz, anulada_por null) — **append-only**
+- `dispensacion` (id, receta_linea_id null, canal presencial|online, con_receta bool, cn, nregistro, nombre_farmaco, principio_activo_txt, forma_txt, especie_txt, lote, caducidad, unidades, gtin, serial, metodo_captura scanner|camara|manual, lote_fefo_recomendado, motivo_lote_distinto,
+  es_sustitucion bool, cn_prescrito, sustitucion_id null, cambio_formato bool, forzado bool, defectos_forzados text[], motivo_forzado, revisado_garante jsonb null, propietario_id null, referencia_pedido null, empleado, fecha_venta timestamptz, anulada_por null) — **append-only**
 - `sustitucion` (id, receta_linea_id, cn_propuesto, equivalencia jsonb, consentimiento_tutor jsonb, aviso_veterinario jsonb, urgencia jsonb null, autorizacion jsonb, anotacion jsonb, estado, modo PRE|POST)
 - `pedido_pendiente` (id, cn, nregistro, unidades, motivo, receta_linea_id null, contacto_tutor cifrado null, estado pendiente|recibido|entregado|cancelado)
 
@@ -593,7 +620,7 @@ Convenciones: `snake_case`, PK `uuid` (v7), `created_at/updated_at timestamptz`,
 Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9.1).
 
 | Método y ruta | Rol mínimo | Descripción |
-|---|---|---|
+| --- | --- | --- |
 | `POST /recetas` (multipart) | empleado | Crea receta y sube imágenes; lanza extracción |
 | `GET /recetas/:id` | empleado | Receta, extracción, confirmación, evaluación |
 | `PUT /recetas/:id/confirmacion` | empleado | Guarda los campos confirmados por la persona |
@@ -607,7 +634,7 @@ Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9
 | `POST /dispensaciones/:id/anular` | garante | Anulación con motivo (crea contramovimiento) |
 | `POST /sustituciones/:id/{consentimiento,aviso-veterinario,autorizar,rechazar,anotacion,validar}` | empleado / garante según paso | Transiciones de estado |
 | `POST /recepciones`, `POST /recepciones/:id/lineas`, `POST /recepciones/:id/finalizar` | empleado | Entradas |
-| `GET /registros/salidas?desde=&hasta=&plantilla=A|B|C&formato=xlsx|csv` | garante | Exportación |
+| `GET /registros/salidas?desde=&hasta=&plantilla=A \| B \| C&formato=xlsx \| csv` | garante | Exportación |
 | `GET /registros/entradas?...` | garante | Exportación |
 | `GET /reportes`, `POST /reportes/:tipo/generar` | garante | Reportes |
 | `GET/PUT /admin/mapeo-siweb`, `/admin/distribuidores`, `/admin/reglas`, `/admin/outbox` | admin / garante | Administración |
@@ -628,7 +655,8 @@ Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9
 9. **Bandeja del garante:** pendientes por tipo, con aprobación/rechazo y comentario; MFA obligatorio.
 10. **Registros y reportes:** filtros por fechas, plantilla, exportación.
 11. **Administración:** mapeo CN↔Siweb360, distribuidores, reglas (solo lectura del YAML activo y su aprobación), exclusiones de sustitución, outbox y reconciliación, estado de sincronización CIMAVet y consumo mensual del asistente.
-12. **Asistente de consultas:** botón «Preguntar» y panel lateral en cualquier pantalla (y «Preguntar sobre esta línea» en Resultado y Dispensación, sin quitar el foco del campo de escaneo al cerrarse); respuestas con fuentes citadas y su versión, tarjetas «Simulación» y «Resultado de la aplicación» pintadas desde el motor, valoración útil/incorrecta y página «Consultas al asistente» (cada persona ve las suyas; veterinaria responsable y administración, las de todos).
+12. **Asistente de consultas:** botón «Preguntar» y panel lateral en cualquier pantalla (y «Preguntar sobre esta línea» en Resultado y Dispensación, sin quitar el foco del campo de escaneo al cerrarse); respuestas con fuentes citadas y su versión, tarjetas «Simulación» y «Resultado de la aplicación»
+  pintadas desde el motor, valoración útil/incorrecta y página «Consultas al asistente» (cada persona ve las suyas; veterinaria responsable y administración, las de todos).
 
 Requisitos transversales: textos en español y comprensibles para personal no técnico; objetivos táctiles ≥ 44 px; foco de teclado en el campo de escaneo; sonido distinto para escaneo correcto/incorrecto; sin pérdida de datos si se recarga (borrador en servidor); accesibilidad AA.
 
@@ -653,7 +681,8 @@ MFA obligatorio para `farmaceutico_garante` y `admin` (acceso condicional o, si 
 
 ### 9.3 Uso de IA
 - La IA extrae datos de las recetas y, en el asistente de consultas, **explica** las reglas y el resultado que ya ha calculado el motor; las decisiones legales son siempre del motor determinista y de la persona. Se registra modelo, versión de prompt y resultado de cada extracción, y modelo, versión de instrucciones, fuentes y versión de reglas de cada respuesta del asistente.
-- **Asistente de consultas** (ADR-17, `specs/002-prescription-chat-assistant/`): las reglas no están en el prompt (las lee de `config/rules`, la guía y la Ayuda mediante herramientas de solo lectura); los cálculos los hace `packages/domain`; al modelo no llega ningún dato del titular ni la identidad del veterinario (la pregunta se sanea antes de enviarla y de guardarla); las conversaciones se conservan **1 año** y se eliminan con `retention-sweep`; hay un límite mensual de tokens (aviso al 80 %, pausa al 100 %). Actualizar el RAT con esta finalidad.
+- **Asistente de consultas** (ADR-17, `specs/002-prescription-chat-assistant/`): las reglas no están en el prompt (las lee de `config/rules`, la guía y la Ayuda mediante herramientas de solo lectura); los cálculos los hace `packages/domain`; al modelo no llega ningún dato del titular ni la identidad
+  del veterinario (la pregunta se sanea antes de enviarla y de guardarla); las conversaciones se conservan **1 año** y se eliminan con `retention-sweep`; hay un límite mensual de tokens (aviso al 80 %, pausa al 100 %). Actualizar el RAT con esta finalidad.
 - El personal ya dispone de la formación interna sobre uso de IA; añadir a la política interna un apartado para este sistema (fuera del código).
 
 ### 9.4 Auditoría
@@ -680,8 +709,9 @@ Todo cambio de estado relevante genera `audit_event` (quién, cuándo, antes/des
 - **Presupuesto y alertas de coste** en la suscripción (aviso al 50/80/100 % de un tope mensual configurable, p. ej. 40 €).
 
 ### 10.2 Coste orientativo (validar con la calculadora de Azure antes de desplegar)
+
 | Recurso | €/mes aprox. |
-|---|---|
+| --- | --- |
 | Container Apps (app + jobs) | 0–5 (dentro de la cuota gratuita en uso normal) |
 | PostgreSQL B1ms + 32 GB | 0 los 12 primeros meses con cuenta gratuita elegible; después ≈ 15–20 |
 | Blob Storage | < 1 |
@@ -750,14 +780,16 @@ Comparativa: AKS Free tier no cobra el plano de control, pero el *system node po
 - Precio de coste: 10,00 € neto, IVA 10 % → RE 1,4 % → **10,14 €**; 10,00 € neto, IVA 21 % → **10,52 €**.
 
 ### 12.3 *Spike* previo a escribir stock en real (no lo ejecuta Codex; deja el script)
-Script `apps/worker/src/spikes/siweb-write-check.ts`. Como solo existe el almacén "Farmacia" (D-12), se ejecuta sobre una **variante de prueba** creada a mano en Siweb360 (p. ej. SKU `TEST-0000-CN000000`, sin publicar en TPV ni web): lee el stock por lote, aplica un ajuste `+1` con lote `TEST-AAAAMMDD` y caducidad, vuelve a leer, revierte con `-1` y muestra los resultados y el `movement` devuelto. Pide confirmación interactiva antes de escribir y se niega a ejecutarse si el SKU no empieza por `TEST-`. Valida que la escritura de entradas por lote funciona antes de pasar a `entries_only`.
+Script `apps/worker/src/spikes/siweb-write-check.ts`. Como solo existe el almacén "Farmacia" (D-12), se ejecuta sobre una **variante de prueba** creada a mano en Siweb360 (p. ej. SKU `TEST-0000-CN000000`, sin publicar en TPV ni web): lee el stock por lote, aplica un ajuste `+1` con lote
+`TEST-AAAAMMDD` y caducidad, vuelve a leer, revierte con `-1` y muestra los resultados y el `movement` devuelto. Pide confirmación interactiva antes de escribir y se niega a ejecutarse si el SKU no empieza por `TEST-`. Valida que la escritura de entradas por lote funciona antes de pasar a
+`entries_only`.
 
 ---
 
 ## 13. Decisiones (resueltas y pendientes)
 
 | ID | Pregunta | Por defecto en el código | Quién decide |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | D-01 | ~~PRE o POST~~ **RESUELTA:** instrucción del garante → `POST` (solo sin alternativa en farmacia; receta apartada y firmada después). Guardar la instrucción firmada como evidencia | — | Farmacéutico garante |
 | D-02 | ~~¿El TPV de Siweb360 descuenta stock al vender? ¿Por lote?~~ **RESUELTA:** sí, al confirmar el ticket, con lote seleccionado a mano por el empleado → la app no escribe salidas; concilia | — | JC |
 | D-02b | Documentación de la API de movimientos/tickets de Siweb360 para la conciliación | Job de conciliación inactivo | JC (aportar doc) |
@@ -792,4 +824,5 @@ Fuente: guía práctica de medicamentos veterinarios (texto aportado por JC), ba
 - Cantidad: la mínima necesaria según el veterinario; sin máximo de envases salvo psicótropos (un envase por receta).
 - Validez: tabla 4.1.3. La receta en papel permite **una única dispensación**; se retiene y custodia.
 - Conservación de recetas (papel o archivo electrónico): **5 años**.
-- Sustitución: solo por el farmacéutico, con conocimiento y conformidad del interesado y, salvo urgencia, del veterinario; condiciones de equivalencia de 4.4.2; prohibida en prescripción excepcional, por medicamento de uso humano, en inmunológicos/biológicos y en los de estrecho margen terapéutico determinados por la AEMPS con el MAPA; anotación al dorso (papel) o en el campo habilitado (electrónica).
+- Sustitución: solo por el farmacéutico, con conocimiento y conformidad del interesado y, salvo urgencia, del veterinario; condiciones de equivalencia de 4.4.2; prohibida en prescripción excepcional, por medicamento de uso humano, en inmunológicos/biológicos y en los de estrecho margen terapéutico
+  determinados por la AEMPS con el MAPA; anotación al dorso (papel) o en el campo habilitado (electrónica).

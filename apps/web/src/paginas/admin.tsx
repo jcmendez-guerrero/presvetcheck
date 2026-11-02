@@ -7,7 +7,17 @@ import { Pagina } from '../componentes/layout';
 import type { ConsumoMesDto } from '@mmx/shared';
 import { Boton, Campo, Mensaje, Tarjeta } from '../componentes/ui';
 
-const PESTANAS = ['Probar lector', 'Distribuidores', 'Reglas', 'Plataformas', 'Exclusiones', 'Siweb360', 'Outbox', 'CIMAVet', 'Asistente'] as const;
+const PESTANAS = [
+  'Probar lector',
+  'Distribuidores',
+  'Reglas',
+  'Plataformas',
+  'Exclusiones',
+  'Siweb360',
+  'Outbox',
+  'CIMAVet',
+  'Asistente',
+] as const;
 
 /** Administración (SPEC §8.11). */
 export function Admin() {
@@ -16,7 +26,13 @@ export function Admin() {
     <Pagina titulo="Administración">
       <div className="flex flex-wrap gap-2" role="tablist">
         {PESTANAS.map((x) => (
-          <Boton key={x} role="tab" aria-selected={p === x} variante={p === x ? 'principal' : 'secundario'} onClick={() => setP(x)}>
+          <Boton
+            key={x}
+            role="tab"
+            aria-selected={p === x}
+            variante={p === x ? 'principal' : 'secundario'}
+            onClick={() => setP(x)}
+          >
             {x}
           </Boton>
         ))}
@@ -56,7 +72,10 @@ function ProbarLector() {
   const { config } = useAuth();
   return (
     <Tarjeta titulo="Probar lector">
-      <p>Sustituto de GS configurado: {config?.scannerGsSubstitute ?? '(ninguno)'}. Escanea un DataMatrix GS1 con el foco en el campo.</p>
+      <p>
+        Sustituto de GS configurado: {config?.scannerGsSubstitute ?? '(ninguno)'}. Escanea un DataMatrix GS1
+        con el foco en el campo.
+      </p>
       <input
         aria-label="Lectura del lector"
         className="mt-2 min-h-14 w-full rounded-xl border-2 border-marca px-3 font-mono"
@@ -66,13 +85,21 @@ function ProbarLector() {
           if (e.key === 'Enter') void post('/api/scan/parse', { raw }).then(setR);
         }}
       />
-      {r !== null && <pre className="mt-3 overflow-auto rounded-xl bg-fondo p-3 text-sm">{JSON.stringify(r, null, 2)}</pre>}
+      {r !== null && (
+        <pre className="mt-3 overflow-auto rounded-xl bg-fondo p-3 text-sm">{JSON.stringify(r, null, 2)}</pre>
+      )}
     </Tarjeta>
   );
 }
 
 function Distribuidores() {
-  const q = useQuery({ queryKey: ['dist'], queryFn: () => get<Array<{ id: string; nombre: string; cif: string | null; activo: boolean }>>('/api/admin/distribuidores') });
+  const q = useQuery({
+    queryKey: ['dist'],
+    queryFn: () =>
+      get<Array<{ id: string; nombre: string; cif: string | null; activo: boolean }>>(
+        '/api/admin/distribuidores',
+      ),
+  });
   const [n, setN] = useState({ nombre: '', cif: '' });
   const { run, aviso } = useAccion();
   return (
@@ -81,7 +108,18 @@ function Distribuidores() {
         {q.data?.map((d) => (
           <li key={d.id} className="flex items-center justify-between py-2">
             {d.nombre} {d.cif && `· ${d.cif}`} {!d.activo && '(inactivo)'}
-            <Boton variante="texto" onClick={() => void run(() => put(`/api/admin/distribuidores/${d.id}`, { nombre: d.nombre, cif: d.cif, activo: !d.activo }))}>
+            <Boton
+              variante="texto"
+              onClick={() =>
+                void run(() =>
+                  put(`/api/admin/distribuidores/${d.id}`, {
+                    nombre: d.nombre,
+                    cif: d.cif,
+                    activo: !d.activo,
+                  }),
+                )
+              }
+            >
               {d.activo ? 'Desactivar' : 'Activar'}
             </Boton>
           </li>
@@ -90,7 +128,12 @@ function Distribuidores() {
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <Campo etiqueta="Nombre" value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
         <Campo etiqueta="CIF" value={n.cif} onChange={(e) => setN({ ...n, cif: e.target.value })} />
-        <Boton className="self-end" onClick={() => void run(() => post('/api/admin/distribuidores', { nombre: n.nombre, cif: n.cif || null }))}>
+        <Boton
+          className="self-end"
+          onClick={() =>
+            void run(() => post('/api/admin/distribuidores', { nombre: n.nombre, cif: n.cif || null }))
+          }
+        >
           Añadir
         </Boton>
       </div>
@@ -101,7 +144,20 @@ function Distribuidores() {
 
 function Reglas() {
   const { tiene } = useAuth();
-  const q = useQuery({ queryKey: ['reglas'], queryFn: () => get<{ version: string; ficheros: Array<{ id: string; nombreFichero: string; hash: string; aprobadaPor: string | null; aprobadaAt: string | null }> }>('/api/admin/reglas') });
+  const q = useQuery({
+    queryKey: ['reglas'],
+    queryFn: () =>
+      get<{
+        version: string;
+        ficheros: Array<{
+          id: string;
+          nombreFichero: string;
+          hash: string;
+          aprobadaPor: string | null;
+          aprobadaAt: string | null;
+        }>;
+      }>('/api/admin/reglas'),
+  });
   const { run, aviso } = useAccion();
   return (
     <Tarjeta titulo="Reglas activas (solo lectura)">
@@ -110,9 +166,18 @@ function Reglas() {
         {q.data?.ficheros.map((f) => (
           <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <span>
-              {f.nombreFichero} · {f.hash.slice(0, 8)} · {f.aprobadaPor ? `aprobada por ${f.aprobadaPor} el ${fecha(f.aprobadaAt)}` : <strong className="text-sustituir">pendiente de aprobación del garante</strong>}
+              {f.nombreFichero} · {f.hash.slice(0, 8)} ·{' '}
+              {f.aprobadaPor ? (
+                `aprobada por ${f.aprobadaPor} el ${fecha(f.aprobadaAt)}`
+              ) : (
+                <strong className="text-sustituir">pendiente de aprobación del garante</strong>
+              )}
             </span>
-            {tiene('admin') && !f.aprobadaPor && <Boton onClick={() => void run(() => post(`/api/admin/reglas/${f.id}/aprobar`))}>Registrar aprobación (MFA)</Boton>}
+            {tiene('admin') && !f.aprobadaPor && (
+              <Boton onClick={() => void run(() => post(`/api/admin/reglas/${f.id}/aprobar`))}>
+                Registrar aprobación (MFA)
+              </Boton>
+            )}
           </li>
         ))}
       </ul>
@@ -122,7 +187,13 @@ function Reglas() {
 }
 
 function Plataformas() {
-  const q = useQuery({ queryKey: ['plataformas'], queryFn: () => get<Array<{ id: string; nombre: string; reconocidaMapa: boolean | null; urlVerificacion: string | null }>>('/api/admin/plataformas') });
+  const q = useQuery({
+    queryKey: ['plataformas'],
+    queryFn: () =>
+      get<
+        Array<{ id: string; nombre: string; reconocidaMapa: boolean | null; urlVerificacion: string | null }>
+      >('/api/admin/plataformas'),
+  });
   const { run, aviso } = useAccion();
   return (
     <Tarjeta titulo="Plataformas de receta electrónica (contrastar con el listado del MAPA)">
@@ -130,13 +201,38 @@ function Plataformas() {
         {q.data?.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
             <span>
-              {p.nombre} · {p.reconocidaMapa === null ? 'pendiente de verificar' : p.reconocidaMapa ? 'reconocida' : 'NO reconocida'}
+              {p.nombre} ·{' '}
+              {p.reconocidaMapa === null
+                ? 'pendiente de verificar'
+                : p.reconocidaMapa
+                  ? 'reconocida'
+                  : 'NO reconocida'}
             </span>
             <span className="flex gap-2">
-              <Boton variante="secundario" onClick={() => void run(() => put(`/api/admin/plataformas/${p.id}`, { reconocidaMapa: true, urlVerificacion: p.urlVerificacion }))}>
+              <Boton
+                variante="secundario"
+                onClick={() =>
+                  void run(() =>
+                    put(`/api/admin/plataformas/${p.id}`, {
+                      reconocidaMapa: true,
+                      urlVerificacion: p.urlVerificacion,
+                    }),
+                  )
+                }
+              >
                 Reconocida
               </Boton>
-              <Boton variante="peligro" onClick={() => void run(() => put(`/api/admin/plataformas/${p.id}`, { reconocidaMapa: false, urlVerificacion: p.urlVerificacion }))}>
+              <Boton
+                variante="peligro"
+                onClick={() =>
+                  void run(() =>
+                    put(`/api/admin/plataformas/${p.id}`, {
+                      reconocidaMapa: false,
+                      urlVerificacion: p.urlVerificacion,
+                    }),
+                  )
+                }
+              >
                 No reconocida
               </Boton>
             </span>
@@ -149,7 +245,13 @@ function Plataformas() {
 }
 
 function Exclusiones() {
-  const q = useQuery({ queryKey: ['excl'], queryFn: () => get<Array<{ id: string; nregistro: string | null; paId: number | null; motivo: string; fuente: string }>>('/api/admin/exclusiones') });
+  const q = useQuery({
+    queryKey: ['excl'],
+    queryFn: () =>
+      get<
+        Array<{ id: string; nregistro: string | null; paId: number | null; motivo: string; fuente: string }>
+      >('/api/admin/exclusiones'),
+  });
   const [n, setN] = useState({ nregistro: '', motivo: '', fuente: '' });
   const { run, aviso } = useAccion();
   return (
@@ -162,10 +264,21 @@ function Exclusiones() {
         ))}
       </ul>
       <div className="mt-3 grid gap-3 sm:grid-cols-4">
-        <Campo etiqueta="Nº de registro" value={n.nregistro} onChange={(e) => setN({ ...n, nregistro: e.target.value })} />
+        <Campo
+          etiqueta="Nº de registro"
+          value={n.nregistro}
+          onChange={(e) => setN({ ...n, nregistro: e.target.value })}
+        />
         <Campo etiqueta="Motivo" value={n.motivo} onChange={(e) => setN({ ...n, motivo: e.target.value })} />
         <Campo etiqueta="Fuente" value={n.fuente} onChange={(e) => setN({ ...n, fuente: e.target.value })} />
-        <Boton className="self-end" onClick={() => void run(() => post('/api/admin/exclusiones', { nregistro: n.nregistro, motivo: n.motivo, fuente: n.fuente }))}>
+        <Boton
+          className="self-end"
+          onClick={() =>
+            void run(() =>
+              post('/api/admin/exclusiones', { nregistro: n.nregistro, motivo: n.motivo, fuente: n.fuente }),
+            )
+          }
+        >
           Añadir
         </Boton>
       </div>
@@ -175,7 +288,13 @@ function Exclusiones() {
 }
 
 function Siweb() {
-  const q = useQuery({ queryKey: ['tareas'], queryFn: () => get<Array<{ id: string; tipo: string; cn: string; propuesta: Record<string, string> }>>('/api/admin/tareas-siweb') });
+  const q = useQuery({
+    queryKey: ['tareas'],
+    queryFn: () =>
+      get<Array<{ id: string; tipo: string; cn: string; propuesta: Record<string, string> }>>(
+        '/api/admin/tareas-siweb',
+      ),
+  });
   const [cn, setCn] = useState('');
   const [sku, setSku] = useState('');
   const [res, setRes] = useState<unknown>(null);
@@ -185,18 +304,37 @@ function Siweb() {
       <Tarjeta titulo="Mapeo código nacional ↔ Siweb360">
         <div className="grid gap-3 sm:grid-cols-4">
           <Campo etiqueta="Código nacional" value={cn} onChange={(e) => setCn(e.target.value)} />
-          <Boton className="self-end" variante="secundario" onClick={() => void run(async () => setRes(await post('/api/admin/mapeo-siweb/resolver', { cn })))}>
+          <Boton
+            className="self-end"
+            variante="secundario"
+            onClick={() =>
+              void run(async () => setRes(await post('/api/admin/mapeo-siweb/resolver', { cn })))
+            }
+          >
             Buscar en Siweb360
           </Boton>
           <Campo etiqueta="SKU en Siweb360" value={sku} onChange={(e) => setSku(e.target.value)} />
-          <Boton className="self-end" onClick={() => void run(async () => setRes(await put('/api/admin/mapeo-siweb', { cn, sku })))}>
+          <Boton
+            className="self-end"
+            onClick={() => void run(async () => setRes(await put('/api/admin/mapeo-siweb', { cn, sku })))}
+          >
             Mapear por SKU
           </Boton>
         </div>
-        <Boton className="mt-3" variante="secundario" onClick={() => void run(async () => setRes(await post('/api/admin/mapeo-siweb/tareas', { tipo: 'crear', cn })))}>
+        <Boton
+          className="mt-3"
+          variante="secundario"
+          onClick={() =>
+            void run(async () => setRes(await post('/api/admin/mapeo-siweb/tareas', { tipo: 'crear', cn })))
+          }
+        >
           Hay que crearlo en Siweb360
         </Boton>
-        {res !== null && <pre className="mt-3 overflow-auto rounded-xl bg-fondo p-3 text-xs">{JSON.stringify(res, null, 2)}</pre>}
+        {res !== null && (
+          <pre className="mt-3 overflow-auto rounded-xl bg-fondo p-3 text-xs">
+            {JSON.stringify(res, null, 2)}
+          </pre>
+        )}
         {aviso}
       </Tarjeta>
       <Tarjeta titulo="Pendiente en Siweb360">
@@ -204,13 +342,22 @@ function Siweb() {
           {q.data?.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span>
-                {t.tipo === 'crear' ? 'Crear' : 'Renombrar'} · CN {t.cn} · SKU <strong>{t.propuesta.sku ?? t.propuesta.skuNuevo}</strong> · {t.propuesta.nombre ?? t.propuesta.nombreNuevo}
+                {t.tipo === 'crear' ? 'Crear' : 'Renombrar'} · CN {t.cn} · SKU{' '}
+                <strong>{t.propuesta.sku ?? t.propuesta.skuNuevo}</strong> ·{' '}
+                {t.propuesta.nombre ?? t.propuesta.nombreNuevo}
               </span>
               <span className="flex gap-2">
-                <Boton variante="secundario" onClick={() => void navigator.clipboard?.writeText(t.propuesta.sku ?? t.propuesta.skuNuevo ?? '')}>
+                <Boton
+                  variante="secundario"
+                  onClick={() =>
+                    void navigator.clipboard?.writeText(t.propuesta.sku ?? t.propuesta.skuNuevo ?? '')
+                  }
+                >
                   Copiar SKU
                 </Boton>
-                <Boton onClick={() => void run(() => post(`/api/admin/mapeo-siweb/tareas/${t.id}/hecha`))}>Hecho</Boton>
+                <Boton onClick={() => void run(() => post(`/api/admin/mapeo-siweb/tareas/${t.id}/hecha`))}>
+                  Hecho
+                </Boton>
               </span>
             </li>
           ))}
@@ -221,7 +368,20 @@ function Siweb() {
 }
 
 function Outbox() {
-  const q = useQuery({ queryKey: ['outbox'], queryFn: () => get<Array<{ id: string; idempotencyKey: string; status: string; lastError: string | null; stockActual: unknown }>>('/api/admin/outbox'), retry: false });
+  const q = useQuery({
+    queryKey: ['outbox'],
+    queryFn: () =>
+      get<
+        Array<{
+          id: string;
+          idempotencyKey: string;
+          status: string;
+          lastError: string | null;
+          stockActual: unknown;
+        }>
+      >('/api/admin/outbox'),
+    retry: false,
+  });
   const { run, aviso } = useAccion();
   if (q.error) return <Mensaje tipo="info">{(q.error as Error).message}</Mensaje>;
   return (
@@ -236,11 +396,42 @@ function Outbox() {
               <>
                 <pre className="text-xs">Stock actual: {JSON.stringify(o.stockActual)}</pre>
                 <div className="flex flex-wrap gap-2">
-                  <Boton onClick={() => void run(() => post(`/api/admin/outbox/${o.id}/resolver`, { accion: 'confirmar_aplicada', nota: 'Comprobado en Siweb360' }))}>Sí se aplicó</Boton>
-                  <Boton variante="secundario" onClick={() => void run(() => post(`/api/admin/outbox/${o.id}/resolver`, { accion: 'reenviar', nota: 'Comprobado: no se aplicó' }))}>
+                  <Boton
+                    onClick={() =>
+                      void run(() =>
+                        post(`/api/admin/outbox/${o.id}/resolver`, {
+                          accion: 'confirmar_aplicada',
+                          nota: 'Comprobado en Siweb360',
+                        }),
+                      )
+                    }
+                  >
+                    Sí se aplicó
+                  </Boton>
+                  <Boton
+                    variante="secundario"
+                    onClick={() =>
+                      void run(() =>
+                        post(`/api/admin/outbox/${o.id}/resolver`, {
+                          accion: 'reenviar',
+                          nota: 'Comprobado: no se aplicó',
+                        }),
+                      )
+                    }
+                  >
                     No se aplicó: reenviar
                   </Boton>
-                  <Boton variante="peligro" onClick={() => void run(() => post(`/api/admin/outbox/${o.id}/resolver`, { accion: 'descartar', nota: 'Descartado' }))}>
+                  <Boton
+                    variante="peligro"
+                    onClick={() =>
+                      void run(() =>
+                        post(`/api/admin/outbox/${o.id}/resolver`, {
+                          accion: 'descartar',
+                          nota: 'Descartado',
+                        }),
+                      )
+                    }
+                  >
                     Descartar
                   </Boton>
                 </div>
@@ -255,13 +446,28 @@ function Outbox() {
 }
 
 function Cimavet() {
-  const q = useQuery({ queryKey: ['cimavet'], queryFn: () => get<{ ultimas: Array<{ id: string; tipo: string; inicio: string; fin: string | null; error: string | null; contadores: unknown }> }>('/api/admin/cimavet') });
+  const q = useQuery({
+    queryKey: ['cimavet'],
+    queryFn: () =>
+      get<{
+        ultimas: Array<{
+          id: string;
+          tipo: string;
+          inicio: string;
+          fin: string | null;
+          error: string | null;
+          contadores: unknown;
+        }>;
+      }>('/api/admin/cimavet'),
+  });
   return (
     <Tarjeta titulo="Sincronización con CIMAVet">
       <ul className="divide-y text-sm">
         {q.data?.ultimas.map((s) => (
           <li key={s.id} className="py-2">
-            {s.tipo} · {fecha(s.inicio)} · {s.error ? <strong className="text-noconforme">{s.error}</strong> : 'correcta'} · {JSON.stringify(s.contadores)}
+            {s.tipo} · {fecha(s.inicio)} ·{' '}
+            {s.error ? <strong className="text-noconforme">{s.error}</strong> : 'correcta'} ·{' '}
+            {JSON.stringify(s.contadores)}
           </li>
         ))}
       </ul>
@@ -278,26 +484,48 @@ const num = (n: number) => n.toLocaleString('es-ES');
 
 /** Consumo del asistente de consultas por mes y ampliación del límite (FR-027a, FR-027b). */
 function ConsumoAsistente() {
-  const q = useQuery({ queryKey: ['asistente-consumo'], queryFn: () => get<{ actual: ConsumoMesDto; historico: ConsumoMesDto[] }>('/api/admin/asistente/consumo') });
+  const q = useQuery({
+    queryKey: ['asistente-consumo'],
+    queryFn: () => get<{ actual: ConsumoMesDto; historico: ConsumoMesDto[] }>('/api/admin/asistente/consumo'),
+  });
   const { run, aviso } = useAccion();
   const [limite, setLimite] = useState('');
   if (q.isLoading) return <Mensaje tipo="info">Cargando…</Mensaje>;
-  if (!q.data) return <Mensaje tipo="error">{(q.error as Error | null)?.message ?? 'No se ha podido cargar el consumo.'}</Mensaje>;
+  if (!q.data)
+    return (
+      <Mensaje tipo="error">
+        {(q.error as Error | null)?.message ?? 'No se ha podido cargar el consumo.'}
+      </Mensaje>
+    );
   const a = q.data.actual;
   const est = ESTADO_CONSUMO[a.estado];
   return (
     <div className="flex flex-col gap-4">
       <Tarjeta titulo={`Asistente de consultas · ${a.mes}`}>
-        <p className={`inline-block rounded-full px-3 py-1 font-semibold ${est.clase}`} data-testid="consumo-estado">
+        <p
+          className={`inline-block rounded-full px-3 py-1 font-semibold ${est.clase}`}
+          data-testid="consumo-estado"
+        >
           {est.texto}
         </p>
-        <div className="mt-3" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, a.porcentaje)} aria-label="Consumo del mes">
+        <div
+          className="mt-3"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.min(100, a.porcentaje)}
+          aria-label="Consumo del mes"
+        >
           <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
-            <div className={`h-4 ${a.estado === 'normal' ? 'bg-marca' : a.estado === 'aviso' ? 'bg-sustituir' : 'bg-noconforme'}`} style={{ width: `${Math.min(100, a.porcentaje)}%` }} />
+            <div
+              className={`h-4 ${a.estado === 'normal' ? 'bg-marca' : a.estado === 'aviso' ? 'bg-sustituir' : 'bg-noconforme'}`}
+              style={{ width: `${Math.min(100, a.porcentaje)}%` }}
+            />
           </div>
         </div>
         <p className="mt-2">
-          {num(a.tokensEntrada + a.tokensSalida)} de {num(a.limiteEfectivo)} tokens ({a.porcentaje} %) · {num(a.preguntas)} pregunta(s)
+          {num(a.tokensEntrada + a.tokensSalida)} de {num(a.limiteEfectivo)} tokens ({a.porcentaje} %) ·{' '}
+          {num(a.preguntas)} pregunta(s)
           {a.costeEstimadoEur !== null && <> · coste estimado {a.costeEstimadoEur} €</>}
         </p>
         {a.ampliadoPor && (
@@ -310,10 +538,20 @@ function ConsumoAsistente() {
           className="mt-4 flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            void run(() => put('/api/admin/asistente/consumo/limite', { limiteTokens: Number(limite) }), 'Límite ampliado');
+            void run(
+              () => put('/api/admin/asistente/consumo/limite', { limiteTokens: Number(limite) }),
+              'Límite ampliado',
+            );
           }}
         >
-          <Campo etiqueta="Nuevo límite de este mes (tokens)" type="number" min={a.tokensEntrada + a.tokensSalida + 1} value={limite} onChange={(e) => setLimite(e.target.value)} info="Tiene que ser mayor que lo ya consumido. Exige haber iniciado sesión con MFA." />
+          <Campo
+            etiqueta="Nuevo límite de este mes (tokens)"
+            type="number"
+            min={a.tokensEntrada + a.tokensSalida + 1}
+            value={limite}
+            onChange={(e) => setLimite(e.target.value)}
+            info="Tiene que ser mayor que lo ya consumido. Exige haber iniciado sesión con MFA."
+          />
           <Boton type="submit" disabled={!limite}>
             Ampliar el límite
           </Boton>

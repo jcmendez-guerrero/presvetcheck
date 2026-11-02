@@ -90,20 +90,20 @@ fuera_de_ambito | aclaracion | rechazo_reglas`. La API valida:
 
 - **Decisión**: hay tres capas.
   1. **Lista blanca de lo que sale hacia el modelo**: `contexto_linea` construye un DTO zod `.strict()` solo con
-     los campos permitidos por la aclaración Q1. Los datos del titular y del veterinario no se cargan en la
-     consulta.
+      los campos permitidos por la aclaración Q1. Los datos del titular y del veterinario no se cargan en la
+      consulta.
   2. **`PiiScrubber` sobre lo que escribe el empleado**, antes de enviar y de guardar:
-     - DNI/NIE con letra de control (reutiliza `packages/domain/src/dni.ts`);
-     - teléfonos españoles (`[6789]\d{8}` con o sin prefijo y separadores);
-     - correos;
-     - direcciones (vía + número, con heurística);
-     - y, si hay receta en contexto, coincidencia sin acentos ni mayúsculas con el nombre y el teléfono del
-       titular y del veterinario, que se descifran **solo en memoria** para comparar.
+      - DNI/NIE con letra de control (reutiliza `packages/domain/src/dni.ts`);
+      - teléfonos españoles (`[6789]\d{8}` con o sin prefijo y separadores);
+      - correos;
+      - direcciones (vía + número, con heurística);
+      - y, si hay receta en contexto, coincidencia sin acentos ni mayúsculas con el nombre y el teléfono del
+        titular y del veterinario, que se descifran **solo en memoria** para comparar.
 
-     Lo detectado se sustituye por `[dato eliminado]`, se marca `piiEliminada=true` y la interfaz avisa.
+      Lo detectado se sustituye por `[dato eliminado]`, se marca `piiEliminada=true` y la interfaz avisa.
 
   3. **Logger**: se añaden `*.pregunta`, `*.respuesta` y `*.texto` a `REDACCION` y nunca se registra el cuerpo de
-     las llamadas al modelo.
+      las llamadas al modelo.
 - **Limitación conocida**: un nombre propio sin receta en contexto no se puede detectar de forma fiable. La
   interfaz muestra de forma permanente «No escribas datos del cliente». SC-005 se mide con el banco y con la
   muestra mensual; si aparecen casos, se amplían los patrones.

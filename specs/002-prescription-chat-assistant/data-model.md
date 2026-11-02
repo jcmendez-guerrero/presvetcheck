@@ -107,7 +107,7 @@ Consumo acumulado por mes natural (FR-027a, FR-027b).
 
 **Estado derivado** (función pura `estadoConsumo` en `@mmx/assistant`, con `it.each`):
 
-```
+```text
 efectivo = limite_ampliado ?? limite_tokens
 usados   = tokens_entrada + tokens_salida
 usados <  0,8·efectivo → normal
@@ -132,7 +132,7 @@ usados ≥  efectivo     → en_pausa   (no se llama al modelo; ASISTENTE_LIMITE
 
 ## Relaciones
 
-```
+```text
 usuario 1─* asistente_conversacion 1─* asistente_intercambio 1─* asistente_valoracion
 receta_linea 0..1─* asistente_conversacion           (solo referencia; sin datos personales)
 asistente_consumo_mes                                  (independiente, por mes)

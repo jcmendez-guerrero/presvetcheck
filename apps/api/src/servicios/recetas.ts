@@ -33,7 +33,7 @@ import {
 } from '@mmx/domain';
 import { borradorDesdeExtraccion } from '@mmx/extraction';
 import { identificarMedicamentos } from './identificacion';
-import type { ExtractionResult} from '@mmx/shared';
+import type { ExtractionResult } from '@mmx/shared';
 import { DomainError, RecetaConfirmada, enParalelo, type RecetaConfirmadaInput } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
 import { sha256 } from '@mmx/reports';
@@ -46,8 +46,25 @@ export interface ContextoPeticion {
   userAgent: string | null;
 }
 
-const audit = (tx: DbOrTx, c: ContextoPeticion, accion: string, entidad: string, entidadId: string, antes?: unknown, despues?: unknown) =>
-  appendAudit(tx, { actor: c.usuario.id, accion, entidad, entidadId, antes, despues, ip: c.ip, userAgent: c.userAgent });
+const audit = (
+  tx: DbOrTx,
+  c: ContextoPeticion,
+  accion: string,
+  entidad: string,
+  entidadId: string,
+  antes?: unknown,
+  despues?: unknown,
+) =>
+  appendAudit(tx, {
+    actor: c.usuario.id,
+    accion,
+    entidad,
+    entidadId,
+    antes,
+    despues,
+    ip: c.ip,
+    userAgent: c.userAgent,
+  });
 
 /** Aplana un objeto para comparar valor extraído y corregido campo a campo. */
 function aplanar(o: unknown, prefijo = ''): Record<string, unknown> {
@@ -65,7 +82,12 @@ export interface LineaEvaluada {
   forzado: ForzadoAceptado | null;
   opcionesSoloPA: Awaited<ReturnType<MedicamentosService['opcionesSoloPA']>> | null;
   /** Presentación prescrita autorizada para dispensación fraccionada (guía §5.9), si lo está. */
-  fraccion: { texto: string; unidades: number | null; unidad: string | null; prescritas: number | null } | null;
+  fraccion: {
+    texto: string;
+    unidades: number | null;
+    unidad: string | null;
+    prescritas: number | null;
+  } | null;
 }
 
 export interface EvaluacionReceta {
@@ -95,7 +117,13 @@ export class RecetasService {
     const hashTotal = sha256(Buffer.concat(paginas.map((p) => Buffer.from(p.bytes))));
     const [r] = await this.d.db
       .insert(receta)
-      .values({ tipo: 'papel', estado: 'BORRADOR', sha256: hashTotal, phash: paginas[0]?.phash ?? null, creadaPor: c.usuario.id })
+      .values({
+        tipo: 'papel',
+        estado: 'BORRADOR',
+        sha256: hashTotal,
+        phash: paginas[0]?.phash ?? null,
+        creadaPor: c.usuario.id,
+      })
       .returning();
     const id = r!.id;
     for (let i = 0; i < paginas.length; i++) {
@@ -103,25 +131,44 @@ export class RecetasService {
       const ext = p.mime === 'application/pdf' ? 'pdf' : p.mime === 'image/jpeg' ? 'jpg' : 'png';
       const path = `${id}/pagina-${i + 1}.${ext}`;
       await this.d.blob.put('recetas', path, p.bytes, p.mime);
-      await this.d.db.insert(recetaImagen).values({ recetaId: id, pagina: i + 1, blobPath: path, mime: p.mime, sha256: sha256(p.bytes) });
+      await this.d.db
+        .insert(recetaImagen)
+        .values({ recetaId: id, pagina: i + 1, blobPath: path, mime: p.mime, sha256: sha256(p.bytes) });
     }
     let aviso: string | null = null;
     try {
-      const ext = await this.d.extractor.extract({ pages: paginas.map((p) => p.bytes), mime: paginas[0]!.mime, hints });
+      const ext = await this.d.extractor.extract({
+        pages: paginas.map((p) => p.bytes),
+        mime: paginas[0]!.mime,
+        hints,
+      });
       const b = borradorDesdeExtraccion(ext, this.d.config.EXTRACTION_CONFIDENCE_THRESHOLD);
       // Medicamento: por código nacional si lo trae la receta; si no, por nombre o en el texto (propuesta).
       const especieId = b.receta.especie?.especieId ?? null;
-      const ident = await identificarMedicamentos(b.receta, ext.ocrTexto, (q) => this.d.cimavet.buscar(q, { limite: 5, especieId }));
+      const ident = await identificarMedicamentos(b.receta, ext.ocrTexto, (q) =>
+        this.d.cimavet.buscar(q, { limite: 5, especieId }),
+      );
       const completa = await this.completarDesdeCimavet(ident.receta);
       const dudosos = [...new Set([...b.dudosos, ...ident.dudosos, ...completa.dudosos])];
       await this.guardarBorrador(id, completa.receta, { extraccion: ext, dudosos }, c, 'EXTRAIDA');
     } catch (e) {
       aviso = e instanceof DomainError ? e.code : 'EXTRACCION_FALLIDA';
       // Motivo técnico para diagnosticar (sin datos personales: mensajes del servicio, p. ej. tiempo agotado).
-      console.warn(JSON.stringify({ msg: 'extraccion_fallida', receta: id, aviso, error: (e as Error).message.slice(0, 200) }));
-      await this.d.db.transaction((tx) => audit(tx, c, 'receta_extraccion_fallida', 'receta', id, null, { aviso }));
+      console.warn(
+        JSON.stringify({
+          msg: 'extraccion_fallida',
+          receta: id,
+          aviso,
+          error: (e as Error).message.slice(0, 200),
+        }),
+      );
+      await this.d.db.transaction((tx) =>
+        audit(tx, c, 'receta_extraccion_fallida', 'receta', id, null, { aviso }),
+      );
     }
-    await this.d.db.transaction((tx) => audit(tx, c, 'receta_crear', 'receta', id, null, { paginas: paginas.length, sha256: hashTotal }));
+    await this.d.db.transaction((tx) =>
+      audit(tx, c, 'receta_crear', 'receta', id, null, { paginas: paginas.length, sha256: hashTotal }),
+    );
     return { id, aviso };
   }
 
@@ -130,7 +177,10 @@ export class RecetasService {
    * mismas reglas del dominio que la evaluación; la fecha de referencia es la de la 1.ª dispensación si la hay.
    */
   async validez(id: string, borrador: RecetaConfirmadaInput) {
-    const [r] = await this.d.db.select({ primera: receta.primeraDispensacionAt }).from(receta).where(eq(receta.id, id));
+    const [r] = await this.d.db
+      .select({ primera: receta.primeraDispensacionAt })
+      .from(receta)
+      .where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     const conf = RecetaConfirmada.parse(borrador);
     if (!conf.fechaEmision) return null;
@@ -156,9 +206,17 @@ export class RecetasService {
       rules: reglas.validez,
       lineas,
     });
-    const primera = r.primera ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(r.primera) : null;
+    const primera = r.primera
+      ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(r.primera)
+      : null;
     const referencia = fechaReferenciaValidez(primera, hoyDe(this.d));
-    return { validaHasta: v.efectiva, caso: v.caso, plazoMaximo: textoPlazo(v.plazoMaximo), caducada: recetaCaducada(v.efectiva, referencia), fechaReferencia: referencia };
+    return {
+      validaHasta: v.efectiva,
+      caso: v.caso,
+      plazoMaximo: textoPlazo(v.plazoMaximo),
+      caducada: recetaCaducada(v.efectiva, referencia),
+      fechaReferencia: referencia,
+    };
   }
 
   /**
@@ -166,7 +224,9 @@ export class RecetasService {
    * (no de lo leído). Si no está autorizado para la especie de la receta, es uso en cascada: se propone
    * prescripción excepcional (la persona lo confirma).
    */
-  private async completarDesdeCimavet(receta: RecetaConfirmadaInput): Promise<{ receta: RecetaConfirmadaInput; dudosos: string[] }> {
+  private async completarDesdeCimavet(
+    receta: RecetaConfirmadaInput,
+  ): Promise<{ receta: RecetaConfirmadaInput; dudosos: string[] }> {
     const especieId = receta.especie?.especieId ?? null;
     const dudosos: string[] = [];
     let cascada = false;
@@ -188,7 +248,10 @@ export class RecetasService {
     }
     const excepcional = cascada && !receta.clasePrescripcion;
     if (excepcional) dudosos.push('receta.clasePrescripcion');
-    return { receta: { ...receta, lineas, ...(excepcional ? { clasePrescripcion: 'excepcional' as const } : {}) }, dudosos };
+    return {
+      receta: { ...receta, lineas, ...(excepcional ? { clasePrescripcion: 'excepcional' as const } : {}) },
+      dudosos,
+    };
   }
 
   private async guardarBorrador(
@@ -214,20 +277,28 @@ export class RecetasService {
 
   /** Datos del titular cifrados dentro del borrador (SPEC §9.2). */
   private cifrarConfirmacion(conf: RecetaConfirmada) {
-    const titular = Object.fromEntries(Object.entries(conf.titular).map(([k, v]) => [k, this.d.cipher.encrypt(v)]));
+    const titular = Object.fromEntries(
+      Object.entries(conf.titular).map(([k, v]) => [k, this.d.cipher.encrypt(v)]),
+    );
     return { ...conf, titular, _cifrado: true };
   }
 
   private descifrarConfirmacion(raw: unknown): RecetaConfirmada | null {
     if (!raw || typeof raw !== 'object') return null;
     const r = raw as RecetaConfirmada & { _cifrado?: boolean };
-    const titular = r._cifrado ? Object.fromEntries(Object.entries(r.titular ?? {}).map(([k, v]) => [k, this.d.cipher.decrypt(v as string | null)])) : r.titular;
+    const titular = r._cifrado
+      ? Object.fromEntries(
+          Object.entries(r.titular ?? {}).map(([k, v]) => [k, this.d.cipher.decrypt(v as string | null)]),
+        )
+      : r.titular;
     const { _cifrado, ...resto } = r as RecetaConfirmada & { _cifrado?: boolean };
     void _cifrado;
     return RecetaConfirmada.parse({ ...resto, titular });
   }
 
-  extraccion(raw: unknown): { extraccion: ExtractionResult; dudosos: string[]; borrador: RecetaConfirmada } | null {
+  extraccion(
+    raw: unknown,
+  ): { extraccion: ExtractionResult; dudosos: string[]; borrador: RecetaConfirmada } | null {
     const c = (raw as { cifrado?: string } | null)?.cifrado;
     if (!c) return null;
     return JSON.parse(this.d.cipher.decrypt(c) as string);
@@ -269,8 +340,16 @@ export class RecetasService {
   async obtener(id: string) {
     const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
-    const imagenes = await this.d.db.select().from(recetaImagen).where(eq(recetaImagen.recetaId, id)).orderBy(asc(recetaImagen.pagina));
-    const lineas = await this.d.db.select().from(recetaLinea).where(eq(recetaLinea.recetaId, id)).orderBy(asc(recetaLinea.orden));
+    const imagenes = await this.d.db
+      .select()
+      .from(recetaImagen)
+      .where(eq(recetaImagen.recetaId, id))
+      .orderBy(asc(recetaImagen.pagina));
+    const lineas = await this.d.db
+      .select()
+      .from(recetaLinea)
+      .where(eq(recetaLinea.recetaId, id))
+      .orderBy(asc(recetaLinea.orden));
     const ext = this.extraccion(r.extraccion);
     return {
       id: r.id,
@@ -282,7 +361,11 @@ export class RecetasService {
       registroCompletadoAt: r.registroCompletadoAt,
       validezEfectiva: r.validezEfectiva,
       reglaVersion: r.reglaVersion,
-      imagenes: imagenes.map((i) => ({ pagina: i.pagina, mime: i.mime, url: `/api/recetas/${id}/imagenes/${i.pagina}` })),
+      imagenes: imagenes.map((i) => ({
+        pagina: i.pagina,
+        mime: i.mime,
+        url: `/api/recetas/${id}/imagenes/${i.pagina}`,
+      })),
       extraccion: ext?.extraccion ?? null,
       dudosos: ext?.dudosos ?? [],
       extraido: ext?.borrador ?? null,
@@ -294,7 +377,10 @@ export class RecetasService {
   }
 
   async imagen(id: string, pagina: number) {
-    const [img] = await this.d.db.select().from(recetaImagen).where(and(eq(recetaImagen.recetaId, id), eq(recetaImagen.pagina, pagina)));
+    const [img] = await this.d.db
+      .select()
+      .from(recetaImagen)
+      .where(and(eq(recetaImagen.recetaId, id), eq(recetaImagen.pagina, pagina)));
     if (!img) throw new DomainError('NO_ENCONTRADO');
     const b = await this.d.blob.get('recetas', img.blobPath);
     if (!b) throw new DomainError('NO_ENCONTRADO');
@@ -351,7 +437,12 @@ export class RecetasService {
           firmaConfirmada: input.firmaConfirmada,
           talonarioColegial: input.talonarioColegial,
           plazoValidezDeclarado: input.plazoValidezDeclarado as never,
-          estado: r.estado === 'DISPENSADA_PARCIAL' ? r.estado : input.comprobadoConOriginal ? 'CONFIRMADA' : 'EXTRAIDA',
+          estado:
+            r.estado === 'DISPENSADA_PARCIAL'
+              ? r.estado
+              : input.comprobadoConOriginal
+                ? 'CONFIRMADA'
+                : 'EXTRAIDA',
         })
         .where(eq(receta.id, id));
       await this.sincronizarLineas(tx, id, input);
@@ -365,15 +456,40 @@ export class RecetasService {
     const v = input.veterinario;
     if (!v.nombre) return null;
     const [existente] = v.numColegiado
-      ? await tx.select().from(veterinario).where(and(eq(veterinario.numColegiado, v.numColegiado), v.colegio ? eq(veterinario.colegio, v.colegio) : isNull(veterinario.colegio)))
+      ? await tx
+          .select()
+          .from(veterinario)
+          .where(
+            and(
+              eq(veterinario.numColegiado, v.numColegiado),
+              v.colegio ? eq(veterinario.colegio, v.colegio) : isNull(veterinario.colegio),
+            ),
+          )
       : [];
     if (existente) {
-      await tx.update(veterinario).set({ nombre: v.nombre ?? existente.nombre, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion }).where(eq(veterinario.id, existente.id));
+      await tx
+        .update(veterinario)
+        .set({
+          nombre: v.nombre ?? existente.nombre,
+          telefono: v.telefono,
+          email: v.email,
+          clinica: v.clinica,
+          direccion: v.direccion,
+        })
+        .where(eq(veterinario.id, existente.id));
       return existente.id;
     }
     const [nv] = await tx
       .insert(veterinario)
-      .values({ nombre: v.nombre, numColegiado: v.numColegiado, colegio: v.colegio, telefono: v.telefono, email: v.email, clinica: v.clinica, direccion: v.direccion })
+      .values({
+        nombre: v.nombre,
+        numColegiado: v.numColegiado,
+        colegio: v.colegio,
+        telefono: v.telefono,
+        email: v.email,
+        clinica: v.clinica,
+        direccion: v.direccion,
+      })
       .returning();
     return nv!.id;
   }
@@ -391,7 +507,15 @@ export class RecetasService {
     const lineas = anterior.lineas.map((l) => {
       const n = input.lineas.find((x) => x.orden === l.orden);
       return n
-        ? { ...l, principioActivoTexto: n.principioActivoTexto, formaTexto: n.formaTexto, concentracionTexto: n.concentracionTexto, formatoTexto: n.formatoTexto, posologia: n.posologia, tiempoEsperaTexto: n.tiempoEsperaTexto }
+        ? {
+            ...l,
+            principioActivoTexto: n.principioActivoTexto,
+            formaTexto: n.formaTexto,
+            concentracionTexto: n.concentracionTexto,
+            formatoTexto: n.formatoTexto,
+            posologia: n.posologia,
+            tiempoEsperaTexto: n.tiempoEsperaTexto,
+          }
         : l;
     });
     const nuevo: RecetaConfirmada = {
@@ -405,7 +529,9 @@ export class RecetasService {
     };
     const antes = aplanar(anterior);
     const despues = aplanar(nuevo);
-    const cambios = Object.keys(despues).filter((k) => JSON.stringify(despues[k]) !== JSON.stringify(antes[k]));
+    const cambios = Object.keys(despues).filter(
+      (k) => JSON.stringify(despues[k]) !== JSON.stringify(antes[k]),
+    );
     await this.d.db.transaction(async (tx) => {
       const vetId = (await this.guardarVeterinario(tx, nuevo)) ?? r.veterinarioId;
       await tx
@@ -479,11 +605,20 @@ export class RecetasService {
           ).length > 0
         : false;
     const [similar] = r.phash
-      ? await this.d.db.select({ id: receta.id }).from(receta).where(and(eq(receta.phash, r.phash), ne(receta.id, id))).limit(1)
+      ? await this.d.db
+          .select({ id: receta.id })
+          .from(receta)
+          .where(and(eq(receta.phash, r.phash), ne(receta.id, id)))
+          .limit(1)
       : [];
     let plataforma: { nombre: string; reconocidaMapa: boolean | null } | 'desconocida' | null = null;
     if (conf.tipo === 'electronica') {
-      const [p] = conf.plataformaId ? await this.d.db.select().from(plataformaRecetaElectronica).where(eq(plataformaRecetaElectronica.id, conf.plataformaId)) : [];
+      const [p] = conf.plataformaId
+        ? await this.d.db
+            .select()
+            .from(plataformaRecetaElectronica)
+            .where(eq(plataformaRecetaElectronica.id, conf.plataformaId))
+        : [];
       plataforma = p ? { nombre: p.nombre, reconocidaMapa: p.reconocidaMapa } : 'desconocida';
     }
     const primera = r.primeraDispensacionAt
@@ -510,11 +645,23 @@ export class RecetasService {
     return { incidencias: ev.incidencias.filter((i) => i.severidad !== 'AVISO') };
   }
 
-  async evaluar(id: string, c: ContextoPeticion, forzados: Record<number, SolicitudForzado> = {}, persistir = true): Promise<EvaluacionReceta> {
+  async evaluar(
+    id: string,
+    c: ContextoPeticion,
+    forzados: Record<number, SolicitudForzado> = {},
+    persistir = true,
+  ): Promise<EvaluacionReceta> {
     const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(id);
 
     const resultado: LineaEvaluada[] = [];
-    const idsLinea = new Map((await this.d.db.select({ id: recetaLinea.id, orden: recetaLinea.orden }).from(recetaLinea).where(eq(recetaLinea.recetaId, id))).map((x) => [x.orden, x.id]));
+    const idsLinea = new Map(
+      (
+        await this.d.db
+          .select({ id: recetaLinea.id, orden: recetaLinea.orden })
+          .from(recetaLinea)
+          .where(eq(recetaLinea.recetaId, id))
+      ).map((x) => [x.orden, x.id]),
+    );
     for (const l of conf.lineas) {
       const ctxL = lineas.find((x) => x.orden === l.orden)!;
       const incs = ev.porLinea[l.orden] ?? [];
@@ -522,17 +669,26 @@ export class RecetasService {
       const sol = forzados[l.orden];
       if (sol) {
         forzado = validarForzado(incs, sol);
-        if (forzado.codigos.includes('PRESCRIPCION_SOLO_PA') && ctxL.medicamento) await this.validarSoloPA(l, ctxL.medicamento, receta2);
+        if (forzado.codigos.includes('PRESCRIPCION_SOLO_PA') && ctxL.medicamento)
+          await this.validarSoloPA(l, ctxL.medicamento, receta2);
       }
       let res: ResultadoDecision;
       if (ctxL.medicamento && ctxL.presentacion) {
         const candidatos = await this.med.candidatos(ctxL.medicamento.nregistro, ctxL.presentacion.cn);
-        const stock = await this.leerStock(ctxL.presentacion.cn, ctxL.medicamento, candidatos.map((x) => x.presentacion.cn));
+        const stock = await this.leerStock(
+          ctxL.presentacion.cn,
+          ctxL.medicamento,
+          candidatos.map((x) => x.presentacion.cn),
+        );
         res = decidirLinea({
           linea: l.orden,
           incidencias: incs,
           forzado,
-          prescrito: { medicamento: ctxL.medicamento, presentacion: ctxL.presentacion, envases: l.cantidadEnvases ?? 1 },
+          prescrito: {
+            medicamento: ctxL.medicamento,
+            presentacion: ctxL.presentacion,
+            envases: l.cantidadEnvases ?? 1,
+          },
           candidatos,
           stock: stock.stock,
           avisosStock: stock.avisos,
@@ -547,7 +703,10 @@ export class RecetasService {
           exclusiones: this.d.rules.bundle.exclusiones.exclusiones,
           politica: pol,
           equivalencia: this.d.rules.bundle.equivalencia,
-          config: { allowPackSizeChange: this.d.config.ALLOW_PACK_SIZE_CHANGE, modoSustitucion: this.d.config.SUBSTITUTION_APPROVAL_MODE },
+          config: {
+            allowPackSizeChange: this.d.config.ALLOW_PACK_SIZE_CHANGE,
+            modoSustitucion: this.d.config.SUBSTITUTION_APPROVAL_MODE,
+          },
           hoy: hoyDe(this.d),
           reglaVersion: ev.reglaVersion,
         });
@@ -559,7 +718,14 @@ export class RecetasService {
           prescrito: null,
           candidatos: [],
           stock: {},
-          ctx: { especieId, especieProduccion: conf.especieProduccion, clase: conf.clasePrescripcion, indicacion: conf.indicacion, viaPrescritaId: null, duracionDias: null },
+          ctx: {
+            especieId,
+            especieProduccion: conf.especieProduccion,
+            clase: conf.clasePrescripcion,
+            indicacion: conf.indicacion,
+            viaPrescritaId: null,
+            duracionDias: null,
+          },
           exclusiones: [],
           politica: pol,
           equivalencia: this.d.rules.bundle.equivalencia,
@@ -590,7 +756,9 @@ export class RecetasService {
     const evaluacion: EvaluacionReceta = {
       recetaId: id,
       resumen: resumenReceta(resultado.map((x) => x.resultado.decision)),
-      validez: ev.validez ? { efectiva: ev.validez.efectiva, caso: ev.validez.caso, maximoLegal: ev.validez.maximoLegal } : null,
+      validez: ev.validez
+        ? { efectiva: ev.validez.efectiva, caso: ev.validez.caso, maximoLegal: ev.validez.maximoLegal }
+        : null,
       incidenciasReceta: ev.incidencias.filter((i) => i.ambito === 'receta'),
       lineas: resultado,
       reglaVersion: ev.reglaVersion,
@@ -600,13 +768,24 @@ export class RecetasService {
     return evaluacion;
   }
 
-  private async validarSoloPA(l: RecetaConfirmada['lineas'][number], elegido: NonNullable<Awaited<ReturnType<MedicamentosService['info']>>>, rec: RecetaConfirmada) {
+  private async validarSoloPA(
+    l: RecetaConfirmada['lineas'][number],
+    elegido: NonNullable<Awaited<ReturnType<MedicamentosService['info']>>>,
+    rec: RecetaConfirmada,
+  ) {
     const paIds = await this.med.idsPorTexto(MAESTRA.PRINCIPIOS_ACTIVOS, l.principioActivoTexto, 1);
     const formaIds = await this.med.idsPorTexto(MAESTRA.FORMAS, l.formaTexto, 1);
     const viaIds = await this.med.idsPorTexto(MAESTRA.VIAS, l.posologia?.via ?? null, 1);
-    const conc = /(\d+(?:[.,]\d+)?)\s*([a-zµ%]+)(?:\s*\/\s*(\d+(?:[.,]\d+)?)?\s*([a-z]+))?/i.exec(l.concentracionTexto ?? '');
+    const conc = /(\d+(?:[.,]\d+)?)\s*([a-zµ%]+)(?:\s*\/\s*(\d+(?:[.,]\d+)?)?\s*([a-z]+))?/i.exec(
+      l.concentracionTexto ?? '',
+    );
     const virtual = prescripcionVirtual({
-      pas: paIds.map((paId) => ({ paId, nombre: l.principioActivoTexto ?? '', cantidad: conc?.[1] ?? null, unidad: conc?.[2] ?? null })),
+      pas: paIds.map((paId) => ({
+        paId,
+        nombre: l.principioActivoTexto ?? '',
+        cantidad: conc?.[1] ?? null,
+        unidad: conc?.[2] ?? null,
+      })),
       porCantidad: conc?.[4] ? (conc[3] ?? '1') : '1',
       porUnidad: conc?.[4] ?? (l.formaTexto && /comprim|c[aá]psul/i.test(l.formaTexto) ? 'Comprimido' : null),
       formaId: formaIds[0] ?? null,
@@ -616,15 +795,27 @@ export class RecetasService {
     validarEleccionSoloPA(
       virtual,
       elegido,
-      { especieId: rec.especie.especieId, especieProduccion: rec.especieProduccion, clase: rec.clasePrescripcion, indicacion: rec.indicacion, viaPrescritaId: viaIds[0] ?? null, duracionDias: null },
+      {
+        especieId: rec.especie.especieId,
+        especieProduccion: rec.especieProduccion,
+        clase: rec.clasePrescripcion,
+        indicacion: rec.indicacion,
+        viaPrescritaId: viaIds[0] ?? null,
+        duracionDias: null,
+      },
       this.d.rules.bundle.equivalencia,
     );
   }
 
   /** Stock del prescrito y candidatos. El prescrito sin stock confirmable → NO_DISPONIBLE (PENDIENTE_STOCK). */
-  async leerStock(cn: string, m: { nombre: string; labtitular: string | null }, otros: string[]): Promise<{ stock: StockPorCn; avisos: Incidencia[]; sinMapeo: boolean }> {
+  async leerStock(
+    cn: string,
+    m: { nombre: string; labtitular: string | null },
+    otros: string[],
+  ): Promise<{ stock: StockPorCn; avisos: Incidencia[]; sinMapeo: boolean }> {
     const p = await this.d.stock.lotes(cn, m);
-    if (p.estado !== 'OK') return { stock: 'NO_DISPONIBLE', avisos: p.avisos, sinMapeo: p.estado === 'SIN_MAPEO' };
+    if (p.estado !== 'OK')
+      return { stock: 'NO_DISPONIBLE', avisos: p.avisos, sinMapeo: p.estado === 'SIN_MAPEO' };
     const stock: Record<string, typeof p.lotes> = { [cn]: p.lotes };
     const avisos = [...p.avisos];
     // Los equivalentes pueden ser decenas: se leen a la vez (máx. 4) para no tardar minutos.
@@ -637,10 +828,20 @@ export class RecetasService {
     return { stock, avisos, sinMapeo: false };
   }
 
-  private async persistirEvaluacion(id: string, estadoActual: string, e: EvaluacionReceta, c: ContextoPeticion) {
+  private async persistirEvaluacion(
+    id: string,
+    estadoActual: string,
+    e: EvaluacionReceta,
+    c: ContextoPeticion,
+  ) {
     await this.d.db.transaction(async (tx) => {
-      const activas = await tx.select({ id: reglaVersion.id }).from(reglaVersion).where(and(eq(reglaVersion.activa, true), eq(reglaVersion.nombreFichero, 'receta-campos.v1.yaml')));
-      const todasNoConformes = e.lineas.length > 0 && e.lineas.every((l) => l.resultado.decision === 'NO_CONFORME' && !l.resultado.evidencias.forzable);
+      const activas = await tx
+        .select({ id: reglaVersion.id })
+        .from(reglaVersion)
+        .where(and(eq(reglaVersion.activa, true), eq(reglaVersion.nombreFichero, 'receta-campos.v1.yaml')));
+      const todasNoConformes =
+        e.lineas.length > 0 &&
+        e.lineas.every((l) => l.resultado.decision === 'NO_CONFORME' && !l.resultado.evidencias.forzable);
       await tx
         .update(receta)
         .set({
@@ -648,19 +849,38 @@ export class RecetasService {
           validezEfectiva: e.validez?.efectiva ?? null,
           reglaVersion: e.reglaVersion,
           reglaVersionId: activas[0]?.id ?? null,
-          estado: estadoActual.startsWith('DISPENSADA') ? estadoActual : todasNoConformes ? 'NO_CONFORME' : 'EVALUADA',
+          estado: estadoActual.startsWith('DISPENSADA')
+            ? estadoActual
+            : todasNoConformes
+              ? 'NO_CONFORME'
+              : 'EVALUADA',
         })
         .where(eq(receta.id, id));
       for (const l of e.lineas) {
         await tx
           .update(recetaLinea)
-          .set({ decision: l.resultado.decision, motivos: l.resultado.motivos as never, evidencias: l.resultado.evidencias as never })
-          .where(and(eq(recetaLinea.recetaId, id), eq(recetaLinea.orden, l.orden), ne(recetaLinea.estado, 'DISPENSADA')));
+          .set({
+            decision: l.resultado.decision,
+            motivos: l.resultado.motivos as never,
+            evidencias: l.resultado.evidencias as never,
+          })
+          .where(
+            and(
+              eq(recetaLinea.recetaId, id),
+              eq(recetaLinea.orden, l.orden),
+              ne(recetaLinea.estado, 'DISPENSADA'),
+            ),
+          );
       }
       await audit(tx, c, 'receta_evaluar', 'receta', id, null, {
         resumen: e.resumen,
         reglaVersion: e.reglaVersion,
-        lineas: e.lineas.map((l) => ({ orden: l.orden, decision: l.resultado.decision, motivos: l.resultado.motivos.map((m) => m.code), forzado: l.forzado?.codigos ?? null })),
+        lineas: e.lineas.map((l) => ({
+          orden: l.orden,
+          decision: l.resultado.decision,
+          motivos: l.resultado.motivos.map((m) => m.code),
+          forzado: l.forzado?.codigos ?? null,
+        })),
       });
     });
   }

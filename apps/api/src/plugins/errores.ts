@@ -50,9 +50,17 @@ export function registrarErrores(app: FastifyInstance) {
     }
     const fe = err as FastifyError;
     if (fe.statusCode && fe.statusCode < 500) {
-      return reply.status(fe.statusCode).send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
+      return reply
+        .status(fe.statusCode)
+        .send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
     }
     req.log.error({ err: { name: err.name, message: err.message, stack: err.stack } }, 'error no controlado');
-    return reply.status(500).send({ error: { code: 'ERROR_INTERNO', mensaje: 'Se ha producido un error. Inténtalo de nuevo.', detalles: null } });
+    return reply.status(500).send({
+      error: {
+        code: 'ERROR_INTERNO',
+        mensaje: 'Se ha producido un error. Inténtalo de nuevo.',
+        detalles: null,
+      },
+    });
   });
 }

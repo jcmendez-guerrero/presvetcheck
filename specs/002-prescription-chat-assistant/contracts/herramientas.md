@@ -77,17 +77,19 @@ humano se revisan con el garante (US3-AS3); ese texto sale de la Ayuda o de la g
 Solo está disponible si la conversación es de tipo `linea`; lleva implícito el `recetaLineaId` de la
 conversación.
 
+<!-- editorconfig-checker-disable -->
 ```ts
-args {}
-→ { fuenteId: `motor:linea/${id}`; version: string /* reglaVersion de la evaluación */;
-    resultado: { decision; motivos: { code; severidad; mensaje }[]; forzable: boolean;
-                 equivalentes: { nregistro; cn; nombre; laboratorio; stock: boolean }[];
-                 alternativaFormato?: { tipo; envases; notaAdministracion? };
-                 validez?: { efectiva; caso; maximoLegal } };
-    receta: { especie; numeroAnimales; fechaEmision; tipoReceta; clasePrescripcion;
-              tipoTratamiento; indicacion; posologia; forma; concentracion; cantidad };
-    medicamento: { nregistro; nombre; cn? } }
+ args {}
+ → { fuenteId: `motor:linea/${id}`; version: string /* reglaVersion de la evaluación */;
+     resultado: { decision; motivos: { code; severidad; mensaje }[]; forzable: boolean;
+                  equivalentes: { nregistro; cn; nombre; laboratorio; stock: boolean }[];
+                  alternativaFormato?: { tipo; envases; notaAdministracion? };
+                  validez?: { efectiva; caso; maximoLegal } };
+     receta: { especie; numeroAnimales; fechaEmision; tipoReceta; clasePrescripcion;
+               tipoTratamiento; indicacion; posologia; forma; concentracion; cantidad };
+     medicamento: { nregistro; nombre; cn? } }
 ```
+<!-- editorconfig-checker-enable -->
 
 - El DTO es `.strict()`. **No contiene** datos del titular (nombre, teléfono, DNI, dirección) ni del veterinario
   (nombre, nº de colegiado, teléfono, correo), ni la imagen (FR-014, FR-018, FR-021a). Un test comprueba que el

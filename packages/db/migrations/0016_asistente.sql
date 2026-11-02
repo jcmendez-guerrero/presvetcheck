@@ -1,59 +1,59 @@
 CREATE TABLE "asistente_consumo_mes" (
-	"mes" text PRIMARY KEY NOT NULL,
-	"tokens_entrada" bigint DEFAULT 0 NOT NULL,
-	"tokens_salida" bigint DEFAULT 0 NOT NULL,
-	"preguntas" integer DEFAULT 0 NOT NULL,
-	"limite_tokens" bigint NOT NULL,
-	"limite_ampliado" bigint,
-	"ampliado_por" text,
-	"ampliado_at" timestamp with time zone,
-	"aviso_enviado_at" timestamp with time zone,
-	"pausado_at" timestamp with time zone
+  "mes" text PRIMARY KEY NOT NULL,
+  "tokens_entrada" bigint DEFAULT 0 NOT NULL,
+  "tokens_salida" bigint DEFAULT 0 NOT NULL,
+  "preguntas" integer DEFAULT 0 NOT NULL,
+  "limite_tokens" bigint NOT NULL,
+  "limite_ampliado" bigint,
+  "ampliado_por" text,
+  "ampliado_at" timestamp with time zone,
+  "aviso_enviado_at" timestamp with time zone,
+  "pausado_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "asistente_conversacion" (
-	"id" uuid PRIMARY KEY NOT NULL,
-	"usuario_oid" text NOT NULL,
-	"usuario_nombre" text NOT NULL,
-	"contexto_tipo" text NOT NULL,
-	"receta_linea_id" uuid,
-	"nregistro" text,
-	"estado" text DEFAULT 'abierta' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"cerrada_at" timestamp with time zone
+  "id" uuid PRIMARY KEY NOT NULL,
+  "usuario_oid" text NOT NULL,
+  "usuario_nombre" text NOT NULL,
+  "contexto_tipo" text NOT NULL,
+  "receta_linea_id" uuid,
+  "nregistro" text,
+  "estado" text DEFAULT 'abierta' NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "cerrada_at" timestamp with time zone
 );
 --> statement-breakpoint
 CREATE TABLE "asistente_intercambio" (
-	"id" uuid PRIMARY KEY NOT NULL,
-	"conversacion_id" uuid NOT NULL,
-	"orden" integer NOT NULL,
-	"pregunta" text NOT NULL,
-	"pii_eliminada" boolean DEFAULT false NOT NULL,
-	"estado" text NOT NULL,
-	"tipo_respuesta" text,
-	"respuesta" text,
-	"fuentes" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"simulaciones" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"contexto_motor" jsonb,
-	"regla_version" text NOT NULL,
-	"fuentes_version" text NOT NULL,
-	"modelo" text NOT NULL,
-	"instrucciones_version" text NOT NULL,
-	"tokens_entrada" integer DEFAULT 0 NOT NULL,
-	"tokens_salida" integer DEFAULT 0 NOT NULL,
-	"rondas_herramientas" integer DEFAULT 0 NOT NULL,
-	"duracion_ms" integer DEFAULT 0 NOT NULL,
-	"error_code" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+  "id" uuid PRIMARY KEY NOT NULL,
+  "conversacion_id" uuid NOT NULL,
+  "orden" integer NOT NULL,
+  "pregunta" text NOT NULL,
+  "pii_eliminada" boolean DEFAULT false NOT NULL,
+  "estado" text NOT NULL,
+  "tipo_respuesta" text,
+  "respuesta" text,
+  "fuentes" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "simulaciones" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "contexto_motor" jsonb,
+  "regla_version" text NOT NULL,
+  "fuentes_version" text NOT NULL,
+  "modelo" text NOT NULL,
+  "instrucciones_version" text NOT NULL,
+  "tokens_entrada" integer DEFAULT 0 NOT NULL,
+  "tokens_salida" integer DEFAULT 0 NOT NULL,
+  "rondas_herramientas" integer DEFAULT 0 NOT NULL,
+  "duracion_ms" integer DEFAULT 0 NOT NULL,
+  "error_code" text,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "asistente_valoracion" (
-	"id" uuid PRIMARY KEY NOT NULL,
-	"intercambio_id" uuid NOT NULL,
-	"usuario_oid" text NOT NULL,
-	"valor" text NOT NULL,
-	"comentario" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+  "id" uuid PRIMARY KEY NOT NULL,
+  "intercambio_id" uuid NOT NULL,
+  "usuario_oid" text NOT NULL,
+  "valor" text NOT NULL,
+  "comentario" text,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 ALTER TABLE "asistente_conversacion" ADD CONSTRAINT "asistente_conversacion_receta_linea_id_receta_linea_id_fk" FOREIGN KEY ("receta_linea_id") REFERENCES "public"."receta_linea"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -72,7 +72,7 @@ BEGIN
     RAISE EXCEPTION 'La tabla % es de solo inserción', TG_TABLE_NAME USING ERRCODE = 'restrict_violation';
   END IF;
   IF TG_OP = 'DELETE' AND coalesce(current_setting('mmx.purga_retencion', true), '') = 'on'
-     AND OLD.created_at < now() - interval '1 year' THEN
+      AND OLD.created_at < now() - interval '1 year' THEN
     RETURN OLD;
   END IF;
   RAISE EXCEPTION 'La tabla % es de solo inserción', TG_TABLE_NAME USING ERRCODE = 'restrict_violation';

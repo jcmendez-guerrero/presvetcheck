@@ -4,7 +4,13 @@ import type { Clock, PoliticaSeveridad, RecipeExtractor } from '@mmx/domain';
 import { hoy } from '@mmx/domain';
 import type { AppConfig, ContextoLineaDto, RulesBundle } from '@mmx/shared';
 import type { LoadedRuleFile } from '@mmx/shared/node';
-import type { BandejaSiweb, OutboxService, SalesMovementsSource, SiwebCatalogWriter, VariantResolver } from '@mmx/siweb';
+import type {
+  BandejaSiweb,
+  OutboxService,
+  SalesMovementsSource,
+  SiwebCatalogWriter,
+  VariantResolver,
+} from '@mmx/siweb';
 import type { BlobStore } from '@mmx/reports';
 import type { StockPort } from './puertos/stock';
 import type { LectorDocumentosProveedor } from '@mmx/extraction';
