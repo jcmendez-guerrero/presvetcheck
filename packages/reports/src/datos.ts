@@ -18,8 +18,15 @@ import {
   veterinario,
 } from '@mmx/db';
 import type { ColumnCipher, Db } from '@mmx/db';
-import type { Entrada, MovimientoPsicotropo } from './entradas';
+import { fechaEntrada, type Entrada, type MovimientoPsicotropo } from './entradas';
 import { rangoMadrid } from '@mmx/shared';
+
+/**
+ * Fecha con la que cuenta una entrada en los registros: la de recepción (cuando llega el producto), no la de
+ * compra del albarán o la factura. Si no se registró la recepción, se usa la de compra.
+ */
+export const fechaEntradaRecepcion = sql<string>`coalesce(${recepcion.fechaRecepcion}, ${recepcion.fechaCompra})`;
+const fechaEntradaImportada = sql<string>`coalesce(${entradaImportada.fechaRecepcion}, ${entradaImportada.fecha})`;
 import type { Salida } from './salidas';
 
 // Se mantiene la exportación desde @mmx/reports (la usan el worker y la API).
@@ -228,13 +235,13 @@ export class RegistrosService {
       // Solo medicamentos: el registro de entradas es obligatorio para ellos; los demás productos no van (SPEC §4.9).
       .where(
         and(
-          gte(recepcion.fechaCompra, desde),
-          sql`${recepcion.fechaCompra} <= ${hasta}`,
+          sql`${fechaEntradaRecepcion} >= ${desde}`,
+          sql`${fechaEntradaRecepcion} <= ${hasta}`,
           inArray(recepcion.estado, ['FINALIZADA', 'SINCRONIZADA', 'ERROR_SINCRONIZACION']),
           eq(recepcionLinea.tipo, 'medicamento'),
         ),
       )
-      .orderBy(asc(recepcion.fechaCompra), asc(recepcionLinea.numero));
+      .orderBy(asc(fechaEntradaRecepcion), asc(recepcionLinea.numero));
     const propias: Entrada[] = filas.map(({ l, r, dist }) => ({
       recepcionId: r.id,
       distribuidor: dist.nombre,
@@ -264,12 +271,12 @@ export class RegistrosService {
       .innerJoin(importacion, eq(importacion.id, entradaImportada.importacionId))
       .where(
         and(
-          gte(entradaImportada.fecha, desde),
-          sql`${entradaImportada.fecha} <= ${hasta}`,
+          sql`${fechaEntradaImportada} >= ${desde}`,
+          sql`${fechaEntradaImportada} <= ${hasta}`,
           sql`${importacion.anuladaAt} is null`,
         ),
       )
-      .orderBy(asc(entradaImportada.fecha), asc(entradaImportada.fila));
+      .orderBy(asc(fechaEntradaImportada), asc(entradaImportada.fila));
     const otras: Entrada[] = importadas.map(({ e, i }) => ({
       recepcionId: i.id,
       distribuidor: e.distribuidor,
@@ -291,7 +298,7 @@ export class RegistrosService {
       origenDatos: 'importado',
       empleado: i.creadaPor,
     }));
-    return [...propias, ...otras].sort((a, b) => a.fechaCompra.localeCompare(b.fechaCompra));
+    return [...propias, ...otras].sort((a, b) => fechaEntrada(a).localeCompare(fechaEntrada(b)));
   }
 
   /** Movimientos de psicótropos (entradas, salidas, anulaciones) para el registro del garante. TODO(decision D-06b) */
@@ -321,14 +328,14 @@ export class RegistrosService {
       .where(
         and(
           inArray(recepcionLinea.nregistro, psico),
-          gte(recepcion.fechaCompra, desde),
-          sql`${recepcion.fechaCompra} <= ${hasta}`,
+          sql`${fechaEntradaRecepcion} >= ${desde}`,
+          sql`${fechaEntradaRecepcion} <= ${hasta}`,
           sql`${recepcion.estado} <> 'ABIERTA'`,
         ),
       );
     return [
       ...entradas.map(({ l, r }) => ({
-        fecha: r.fechaCompra,
+        fecha: r.fechaRecepcion ?? r.fechaCompra,
         tipo: 'ENTRADA' as const,
         cn: l.cn ?? '',
         nombre: l.nombreFarmaco,

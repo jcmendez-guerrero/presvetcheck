@@ -10,7 +10,7 @@ import {
   type ColumnCipher,
   type Db,
 } from '@mmx/db';
-import { RegistrosService, rangoMadrid } from './datos';
+import { RegistrosService, fechaEntradaRecepcion, rangoMadrid } from './datos';
 import { aCsv, aXlsx, fechaEs, type Tabla } from './formato';
 import { tablaEntradas, tablaPsicotropos } from './entradas';
 import { tablasSalidas } from './salidas';
@@ -256,11 +256,11 @@ export async function generarReporteSemanal(
         and(
           eq(recepcionLinea.cn, e.cn ?? ''),
           eq(recepcionLinea.actualizarPrecio, true),
-          lt(recepcion.fechaCompra, periodo.desde),
+          sql`${fechaEntradaRecepcion} < ${periodo.desde}`,
           sql`${recepcionLinea.precioCoste} is not null`,
         ),
       )
-      .orderBy(desc(recepcion.fechaCompra))
+      .orderBy(desc(fechaEntradaRecepcion))
       .limit(1);
     const variacion =
       ant?.coste && Number(ant.coste) !== 0

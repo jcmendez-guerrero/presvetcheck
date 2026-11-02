@@ -1,4 +1,4 @@
-import { type Entrada } from './entradas';
+import { fechaEntrada, type Entrada } from './entradas';
 import { fechaEs, type Tabla } from './formato';
 import { COLUMNAS_PROPIETARIO, plantillaDe, type Salida } from './salidas';
 
@@ -100,10 +100,10 @@ export function tablaMovimientos(entradas: Entrada[], salidas: Salida[]): Tabla 
   type Fila = { fecha: Date | string; orden: number; fila: Array<string | number | null> };
   const filas: Fila[] = [
     ...entradas.map((e) => ({
-      fecha: e.fechaCompra,
+      fecha: fechaEntrada(e),
       orden: 0,
       fila: [
-        fechaEs(e.fechaCompra),
+        fechaEs(fechaEntrada(e)),
         'Entrada',
         e.nombreFarmaco,
         e.principioActivo ?? '',
