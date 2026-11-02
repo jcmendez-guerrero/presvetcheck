@@ -38,10 +38,11 @@ param nombreSecretoCifrado string = 'mmx-column-encryption-key'
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
 param nombreSecretoEntra string = 'mmx-entra-client-secret'
 
-// Asistente de consultas (specs/002-prescription-chat-assistant, ADR-17): usa un despliegue de chat de Azure OpenAI /
-// Foundry YA existente en la UE al que la identidad de la app tiene acceso; no se crean recursos ni claves.
-// TODO(decision DUDA-29): despliegue concreto y límite mensual. Desactivado por defecto.
-@allowed(['off', 'azure'])
+// Asistente de consultas (specs/002-prescription-chat-assistant, ADR-17): 'azure' usa un despliegue de chat de Azure
+// OpenAI / Foundry YA existente en la UE; 'gemini' usa la API de Gemini con la clave del secreto de Key Vault
+// (KV_SECRETO_ASISTENTE, por defecto gcp-gemini-api-key), que la identidad de la app ya puede leer. No se crean recursos.
+// TODO(decision DUDA-29): modelo de producción y límite mensual.
+@allowed(['off', 'azure', 'gemini'])
 param asistente string = 'off'
 param asistenteEndpoint string = ''
 param asistenteDespliegue string = ''
