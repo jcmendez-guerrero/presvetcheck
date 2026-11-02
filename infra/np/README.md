@@ -4,7 +4,7 @@ Entorno actual (también producción hasta que haga falta escalar). Todo lo nuev
 región **North Europe** (la de la VNet). Se reutilizan:
 
 | Recurso | Grupo | Uso |
-|---|---|---|
+| --- | --- | --- |
 | VNet `<vnet>` + subred nueva `<subred-container-apps>` (<x.x.x.x/27>, delegada) | `<grupo-red>` | Entorno de Container Apps |
 | PostgreSQL `<servidor-postgres>` (endpoint privado, autenticación Entra) | `<grupo>` | Base `mmx` |
 | Key Vault `<key-vault>` | `<grupo-recursos-compartidos>` | `<secreto-token-siweb>`, `mmx-column-encryption-key`, `mmx-entra-client-secret` |
@@ -35,8 +35,16 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 ## Primera puesta en marcha
 1. `azu-caj-db-migrate-np` (migraciones).
 2. `azu-caj-procedimiento-cargar-np` con `--version`, `--aprobado-por` y `--texto-b64` (directrices de sustitución):
-   en modo POST la app no arranca sin procedimiento vigente.
+    en modo POST la app no arranca sin procedimiento vigente.
 3. `azu-caj-nomenclator-import-np` (Nomenclátor de CIMAVet).
 4. Asignar a cada usuario su rol en la aplicación empresarial `mmx-recetas-np`.
 
 Correo: `MAILER=console` (los reportes se descargan desde la app); SMTP en una segunda fase.
+
+## Asistente de consultas (opcional)
+`ASSISTANT=off` por defecto. No crea recursos ni claves: usa un despliegue de chat de Azure OpenAI o Foundry **ya
+existente en la UE** al que la identidad `<identidad-app>` tiene acceso. Para activarlo, en la fase 2:
+`ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>` (el límite
+mensual de tokens es `asistenteLimiteTokens`, 3.000.000 por defecto). Antes de activarlo: ADR-17 aprobado y el RAT de
+Facilita actualizado (DUDA-29). El aviso del 80 % usa `REPORT_RECIPIENTS`.
+

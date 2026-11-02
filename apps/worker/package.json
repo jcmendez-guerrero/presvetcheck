@@ -11,13 +11,14 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@mmx/shared": "workspace:*",
-    "@mmx/siweb": "workspace:*",
     "@js-temporal/polyfill": "^0.5.1",
+    "@mmx/assistant": "workspace:*",
     "@mmx/cimavet": "workspace:*",
     "@mmx/db": "workspace:*",
     "@mmx/domain": "workspace:*",
     "@mmx/reports": "workspace:*",
+    "@mmx/shared": "workspace:*",
+    "@mmx/siweb": "workspace:*",
     "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {

@@ -47,6 +47,7 @@ export const envSchema = z
     KV_SECRETO_SIWEB_TOKEN: z.string().default('siweb-token'),
     KV_SECRETO_CIFRADO: z.string().default('column-encryption-key'),
     KV_SECRETO_SMTP: z.string().default('smtp-password'),
+    KV_SECRETO_ASISTENTE: z.string().default('gcp-gemini-api-key'),
 
     CIMAVET_BASE_URL: z.string().url().default('https://cimavet.aemps.es/cimavet/rest/'),
     CIMAVET_RPS: num(3),
@@ -72,6 +73,35 @@ export const envSchema = z
     DOCINTEL_MODEL_ID: optStr,
     DOCINTEL_API_VERSION: z.string().default('2024-11-30'),
     EXTRACTION_CONFIDENCE_THRESHOLD: num(0.85).pipe(z.number().min(0).max(1)),
+
+    /**
+     * Asistente de consultas (specs/002-prescription-chat-assistant). `off`: sin asistente; `fake`: modelo con
+     * guiones (demo y tests); `azure`: despliegue de chat de Azure OpenAI / Foundry en la UE; `gemini`: API de
+     * Gemini (compatible con OpenAI); `ASSISTANT_DEPLOYMENT` es el nombre del modelo.
+     */
+    // TODO(decision DUDA-29): despliegue de chat concreto, precios y límite mensual por defecto.
+    ASSISTANT: z.enum(['off', 'fake', 'azure', 'gemini']).default('off'),
+    ASSISTANT_ENDPOINT: optStr,
+    ASSISTANT_DEPLOYMENT: optStr,
+    /** Clave de la API de Gemini (solo local); en Azure se lee de Key Vault (`KV_SECRETO_ASISTENTE`). */
+    ASSISTANT_API_KEY: optStr,
+    ASSISTANT_API_VERSION: z.string().default('2024-10-21'),
+    ASSISTANT_TIMEOUT_MS: num(20000).pipe(z.number().int().min(1000)),
+    /** Límite mensual global de tokens (entrada + salida). Al 80 % avisa; al 100 % pausa el asistente. */
+    ASSISTANT_MONTHLY_TOKEN_LIMIT: num(3_000_000).pipe(z.number().int().min(1)),
+    /** Precio por 1.000 tokens en euros (solo para la estimación de coste). */
+    ASSISTANT_PRICE_IN_PER_1K_EUR: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .optional(),
+    ),
+    ASSISTANT_PRICE_OUT_PER_1K_EUR: optStr.pipe(
+      z
+        .string()
+        .regex(/^\d+(\.\d+)?$/)
+        .optional(),
+    ),
 
     SUBSTITUTION_APPROVAL_MODE: z.enum(['POST', 'PRE']).default('POST'),
     SUBSTITUTION_SIGN_MAX_DAYS: num(7),
@@ -141,6 +171,20 @@ export const envSchema = z
     if (env.EXTRACTOR === 'azure' && env.NODE_ENV === 'production') {
       req('DOCINTEL_ENDPOINT', 'con EXTRACTOR=azure');
       req('DOCINTEL_MODEL_ID', 'con EXTRACTOR=azure');
+    }
+    if (env.ASSISTANT === 'azure' && env.NODE_ENV === 'production') {
+      req('ASSISTANT_ENDPOINT', 'con ASSISTANT=azure');
+      req('ASSISTANT_DEPLOYMENT', 'con ASSISTANT=azure');
+    }
+    if (env.ASSISTANT === 'gemini' && env.NODE_ENV === 'production') {
+      req('ASSISTANT_DEPLOYMENT', 'con ASSISTANT=gemini');
+    }
+    if (env.ASSISTANT === 'fake' && env.NODE_ENV === 'production') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ASSISTANT'],
+        message: 'ASSISTANT=fake no se admite en producción',
+      });
     }
     if (env.MAILER === 'acs') {
       req('ACS_ENDPOINT', 'con MAILER=acs');

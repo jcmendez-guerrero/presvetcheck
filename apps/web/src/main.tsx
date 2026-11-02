@@ -19,6 +19,7 @@ import { Registros } from './paginas/registros';
 import { Admin } from './paginas/admin';
 import { PaginaMovil } from './paginas/movil';
 import { Ayuda } from './paginas/ayuda';
+import { AsistenteHistorico } from './paginas/asistente-historico';
 
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
@@ -37,6 +38,11 @@ const r7 = createRoute({ getParentRoute: () => raiz, path: '/pendientes', compon
 const r8 = createRoute({ getParentRoute: () => raiz, path: '/registros', component: Registros });
 const r9 = createRoute({ getParentRoute: () => raiz, path: '/admin', component: Admin });
 const rAyuda = createRoute({ getParentRoute: () => raiz, path: '/ayuda', component: Ayuda });
+const rAsistente = createRoute({
+  getParentRoute: () => raiz,
+  path: '/asistente/historico',
+  component: AsistenteHistorico,
+});
 const rDisp = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/dispensar/$linea',
@@ -57,7 +63,7 @@ const rVenta = createRoute({
     canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const),
   }),
 });
-const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda];
+const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda, rAsistente];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
   interface Register {

@@ -23,7 +23,8 @@
     "eval:extraction": "pnpm --filter @mmx/extraction eval",
     "demo": "pnpm nomenclator:fetch --si-falta && DEV_BOOTSTRAP=1 DEV_NOMENCLATOR=completo DATABASE_URL=pglite://memory BLOB_CONNECTION_STRING=memory AUTH_MODE=dev WEB_HOST=1 turbo run dev --filter=@mmx/api --filter=@mmx/web",
     "nomenclator:fetch": "pnpm --filter @mmx/cimavet exec tsx src/cli/nomenclator.ts",
-    "docintel:campos": "pnpm --filter @mmx/extraction exec tsx src/cli/campos.ts"
+    "docintel:campos": "pnpm --filter @mmx/extraction exec tsx src/cli/campos.ts",
+    "eval:asistente": "pnpm --filter @mmx/api eval:asistente"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

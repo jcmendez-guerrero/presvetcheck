@@ -38,6 +38,15 @@ param nombreSecretoCifrado string = 'mmx-column-encryption-key'
 #disable-next-line secure-secrets-in-params // nombre del secreto, no su valor
 param nombreSecretoEntra string = 'mmx-entra-client-secret'
 
+// Asistente de consultas (specs/002-prescription-chat-assistant, ADR-17): usa un despliegue de chat de Azure OpenAI /
+// Foundry YA existente en la UE al que la identidad de la app tiene acceso; no se crean recursos ni claves.
+// TODO(decision DUDA-29): despliegue concreto y límite mensual. Desactivado por defecto.
+@allowed(['off', 'azure'])
+param asistente string = 'off'
+param asistenteEndpoint string = ''
+param asistenteDespliegue string = ''
+param asistenteLimiteTokens int = 3000000
+
 var tags = { proyecto: 'presvetcheck', entorno: 'np' }
 var dias = 1826
 
@@ -191,6 +200,10 @@ var envBase = [
   { name: 'EXTRACTOR', value: 'azure' }
   { name: 'DOCINTEL_ENDPOINT', value: di.properties.endpoint }
   { name: 'DOCINTEL_MODEL_ID', value: 'prebuilt-layout' }
+  { name: 'ASSISTANT', value: asistente }
+  { name: 'ASSISTANT_ENDPOINT', value: asistenteEndpoint }
+  { name: 'ASSISTANT_DEPLOYMENT', value: asistenteDespliegue }
+  { name: 'ASSISTANT_MONTHLY_TOKEN_LIMIT', value: string(asistenteLimiteTokens) }
   { name: 'SIWEB_STOCK_WRITE_MODE', value: 'off' }
   { name: 'SUBSTITUTION_APPROVAL_MODE', value: 'POST' }
   { name: 'SUBSTITUTION_SIGN_MAX_DAYS', value: '35' } // firma del farmacéutico garante en su visita mensual

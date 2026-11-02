@@ -236,6 +236,32 @@ export class CimavetRepository implements NomenclatorSink {
     };
   }
 
+  /** Id de la maestra de especies a partir de un texto libre («perro» → Perros); null si no hay coincidencia. */
+  async especiePorTexto(texto: string | null): Promise<number | null> {
+    if (!texto) return null;
+    const t = normalizeText(texto);
+    const filas = await this.db
+      .select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre })
+      .from(cimavetMaestra)
+      .where(eq(cimavetMaestra.tipo, MAESTRA.ESPECIES));
+    const exacto = filas.find((f) => normalizeText(f.nombre) === t);
+    if (exacto) return exacto.id;
+    const plural = filas.find(
+      (f) => normalizeText(f.nombre) === `${t}s` || normalizeText(f.nombre) === `${t}es`,
+    );
+    return plural?.id ?? null;
+  }
+
+  /** Nombres legibles de especies, formas farmacéuticas y vías (para fichas de medicamento). */
+  async nombresFicha(o: { especies: number[]; formas: number[]; vias: number[] }) {
+    const [especies, formas, vias] = await Promise.all([
+      this.nombresMaestra(MAESTRA.ESPECIES, o.especies),
+      this.nombresMaestra(MAESTRA.FORMAS, o.formas),
+      this.nombresMaestra(MAESTRA.VIAS, o.vias),
+    ]);
+    return { especies, formas, vias };
+  }
+
   async nombresMaestra(tipo: number, ids: number[]): Promise<Map<number, string>> {
     if (!ids.length) return new Map();
     const rows = await this.db

@@ -224,10 +224,16 @@
                     ],
                     "nullable": true
                   },
+                  "antimicrobianos": {
+                    "default": false,
+                    "type": "boolean"
+                  },
                   "titular": {
                     "default": {
                       "nombre": null,
-                      "telefono": null
+                      "telefono": null,
+                      "direccion": null,
+                      "dni": null
                     },
                     "type": "object",
                     "properties": {
@@ -238,6 +244,18 @@
                         "nullable": true
                       },
                       "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "dni": {
                         "default": null,
                         "type": "string",
                         "minLength": 1,
@@ -535,6 +553,10 @@
                   "comprobadoConOriginal": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "registroDiferido": {
+                    "default": false,
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -545,6 +567,897 @@
             }
           }
         },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/registro": {
+      "put": {
+        "summary": "Completa los datos para el registro (también tras dispensar)",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "papel",
+                      "electronica"
+                    ]
+                  },
+                  "plataformaId": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "idPlataforma": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "numero": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "fechaEmision": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "tipoDispensacion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "dispensacion",
+                      "botiquin",
+                      "no_dispensacion"
+                    ],
+                    "nullable": true
+                  },
+                  "clasePrescripcion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "ordinaria",
+                      "excepcional"
+                    ],
+                    "nullable": true
+                  },
+                  "tipoTratamiento": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "agudo",
+                      "cronico",
+                      "preventivo"
+                    ],
+                    "nullable": true
+                  },
+                  "antimicrobianos": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "titular": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null,
+                      "direccion": null,
+                      "dni": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "dni": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "rega": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "especie": {
+                    "default": {
+                      "texto": null,
+                      "especieId": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "texto": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "especieId": {
+                        "default": null,
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "especieProduccion": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "cronicoPlanSanitario": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "animalIdentificacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "numAnimales": {
+                    "default": null,
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "veterinario": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null,
+                      "email": null,
+                      "numColegiado": null,
+                      "colegio": null,
+                      "clinica": null,
+                      "direccion": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "email": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "numColegiado": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "colegio": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "clinica": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "talonarioColegial": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "firmaConfirmada": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "indicacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "plazoValidezDeclarado": {
+                    "default": null,
+                    "type": "object",
+                    "properties": {
+                      "cantidad": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "unidad": {
+                        "type": "string",
+                        "enum": [
+                          "dias",
+                          "meses"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "cantidad",
+                      "unidad"
+                    ],
+                    "nullable": true
+                  },
+                  "advertencias": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "lineas": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orden": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "medicamentoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "principioActivoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "formaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "concentracionTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "cantidadEnvases": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "unidadesForma": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "formatoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "posologia": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "via": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "dosis": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "duracionDias": {
+                              "default": null,
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "nullable": true
+                            },
+                            "porcentajeEnvase": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "tiempoEsperaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "declaracionAntimicrobiano": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "declarada": {
+                              "type": "boolean"
+                            },
+                            "finalidad": {
+                              "default": null,
+                              "type": "string",
+                              "enum": [
+                                "tratamiento",
+                                "metafilactico",
+                                "profilactico"
+                              ],
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "declarada"
+                          ],
+                          "nullable": true
+                        },
+                        "nregistro": {
+                          "default": null,
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cn": {
+                          "default": null,
+                          "type": "string",
+                          "pattern": "^\\d{6}$",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "orden"
+                      ]
+                    }
+                  },
+                  "comprobadoConOriginal": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "registroDiferido": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "lineas"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/validez": {
+      "post": {
+        "summary": "Validez (y si está caducada) con los datos del formulario, sin guardarlos",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "papel",
+                      "electronica"
+                    ]
+                  },
+                  "plataformaId": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "idPlataforma": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "numero": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "fechaEmision": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "tipoDispensacion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "dispensacion",
+                      "botiquin",
+                      "no_dispensacion"
+                    ],
+                    "nullable": true
+                  },
+                  "clasePrescripcion": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "ordinaria",
+                      "excepcional"
+                    ],
+                    "nullable": true
+                  },
+                  "tipoTratamiento": {
+                    "default": null,
+                    "type": "string",
+                    "enum": [
+                      "agudo",
+                      "cronico",
+                      "preventivo"
+                    ],
+                    "nullable": true
+                  },
+                  "antimicrobianos": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "titular": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null,
+                      "direccion": null,
+                      "dni": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "dni": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "rega": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "especie": {
+                    "default": {
+                      "texto": null,
+                      "especieId": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "texto": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "especieId": {
+                        "default": null,
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "especieProduccion": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "cronicoPlanSanitario": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "animalIdentificacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "numAnimales": {
+                    "default": null,
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "veterinario": {
+                    "default": {
+                      "nombre": null,
+                      "telefono": null,
+                      "email": null,
+                      "numColegiado": null,
+                      "colegio": null,
+                      "clinica": null,
+                      "direccion": null
+                    },
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "telefono": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "email": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "numColegiado": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "colegio": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "clinica": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      },
+                      "direccion": {
+                        "default": null,
+                        "type": "string",
+                        "minLength": 1,
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "talonarioColegial": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "firmaConfirmada": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "indicacion": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "plazoValidezDeclarado": {
+                    "default": null,
+                    "type": "object",
+                    "properties": {
+                      "cantidad": {
+                        "type": "integer",
+                        "exclusiveMinimum": true,
+                        "maximum": 9007199254740991,
+                        "minimum": 0
+                      },
+                      "unidad": {
+                        "type": "string",
+                        "enum": [
+                          "dias",
+                          "meses"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "cantidad",
+                      "unidad"
+                    ],
+                    "nullable": true
+                  },
+                  "advertencias": {
+                    "default": null,
+                    "type": "string",
+                    "minLength": 1,
+                    "nullable": true
+                  },
+                  "lineas": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orden": {
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0
+                        },
+                        "medicamentoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "principioActivoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "formaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "concentracionTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "cantidadEnvases": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "unidadesForma": {
+                          "default": null,
+                          "type": "integer",
+                          "exclusiveMinimum": true,
+                          "maximum": 10000,
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "formatoTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "posologia": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "via": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "dosis": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            },
+                            "duracionDias": {
+                              "default": null,
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "maximum": 9007199254740991,
+                              "minimum": 0,
+                              "nullable": true
+                            },
+                            "porcentajeEnvase": {
+                              "default": null,
+                              "type": "string",
+                              "minLength": 1,
+                              "nullable": true
+                            }
+                          },
+                          "nullable": true
+                        },
+                        "tiempoEsperaTexto": {
+                          "default": null,
+                          "type": "string",
+                          "minLength": 1,
+                          "nullable": true
+                        },
+                        "declaracionAntimicrobiano": {
+                          "default": null,
+                          "type": "object",
+                          "properties": {
+                            "declarada": {
+                              "type": "boolean"
+                            },
+                            "finalidad": {
+                              "default": null,
+                              "type": "string",
+                              "enum": [
+                                "tratamiento",
+                                "metafilactico",
+                                "profilactico"
+                              ],
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "declarada"
+                          ],
+                          "nullable": true
+                        },
+                        "nregistro": {
+                          "default": null,
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cn": {
+                          "default": null,
+                          "type": "string",
+                          "pattern": "^\\d{6}$",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "orden"
+                      ]
+                    }
+                  },
+                  "comprobadoConOriginal": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "registroDiferido": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "lineas"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/comprobar": {
+      "post": {
+        "summary": "Comprobación documental (datos obligatorios, validez…) de lo guardado, sin stock ni decisiones",
+        "tags": [
+          "recetas"
+        ],
         "parameters": [
           {
             "schema": {
@@ -633,6 +1546,7 @@
                               "MEDICAMENTO_REVOCADO",
                               "MEDICAMENTO_NO_COMERCIALIZADO",
                               "PROBLEMA_SUMINISTRO",
+                              "SUMINISTRO_NO_COMPROBADO",
                               "NOTAS_SEGURIDAD",
                               "CIMAVET_NO_DISPONIBLE",
                               "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
@@ -659,7 +1573,8 @@
                               "SUSTITUCION_PROHIBIDA_USO_HUMANO",
                               "SUSTITUCION",
                               "SUSTITUTO_NO_EQUIVALENTE",
-                              "CADUCIDAD_PROXIMA_ENTRADA"
+                              "CADUCIDAD_PROXIMA_ENTRADA",
+                              "REGISTRO_PENDIENTE"
                             ]
                           }
                         },
@@ -738,6 +1653,40 @@
             "in": "query",
             "name": "forma",
             "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/medicamentos/presentaciones/{cn}/resumen": {
+      "get": {
+        "summary": "Nombre, forma, principios activos y concentración de una presentación",
+        "tags": [
+          "medicamentos"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "especie",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{6}$"
+            },
+            "in": "path",
+            "name": "cn",
+            "required": true
           }
         ],
         "responses": {
@@ -1107,6 +2056,7 @@
                                 "MEDICAMENTO_REVOCADO",
                                 "MEDICAMENTO_NO_COMERCIALIZADO",
                                 "PROBLEMA_SUMINISTRO",
+                                "SUMINISTRO_NO_COMPROBADO",
                                 "NOTAS_SEGURIDAD",
                                 "CIMAVET_NO_DISPONIBLE",
                                 "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
@@ -1133,7 +2083,8 @@
                                 "SUSTITUCION_PROHIBIDA_USO_HUMANO",
                                 "SUSTITUCION",
                                 "SUSTITUTO_NO_EQUIVALENTE",
-                                "CADUCIDAD_PROXIMA_ENTRADA"
+                                "CADUCIDAD_PROXIMA_ENTRADA",
+                                "REGISTRO_PENDIENTE"
                               ]
                             }
                           },
@@ -1396,6 +2347,7 @@
                                 "MEDICAMENTO_REVOCADO",
                                 "MEDICAMENTO_NO_COMERCIALIZADO",
                                 "PROBLEMA_SUMINISTRO",
+                                "SUMINISTRO_NO_COMPROBADO",
                                 "NOTAS_SEGURIDAD",
                                 "CIMAVET_NO_DISPONIBLE",
                                 "MEDICAMENTO_ESPECIE_NO_AUTORIZADA",
@@ -1422,7 +2374,8 @@
                                 "SUSTITUCION_PROHIBIDA_USO_HUMANO",
                                 "SUSTITUCION",
                                 "SUSTITUTO_NO_EQUIVALENTE",
-                                "CADUCIDAD_PROXIMA_ENTRADA"
+                                "CADUCIDAD_PROXIMA_ENTRADA",
+                                "REGISTRO_PENDIENTE"
                               ]
                             }
                           },
@@ -1718,6 +2671,11 @@
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   },
+                  "distribuidor": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
                   "albaran": {
                     "default": null,
                     "type": "string",
@@ -1729,11 +2687,23 @@
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                     "nullable": true
+                  },
+                  "fechaRecepcion": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "documentoId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "nullable": true
+                  },
+                  "confirmarDuplicado": {
+                    "type": "boolean"
                   }
-                },
-                "required": [
-                  "distribuidorId"
-                ]
+                }
               }
             }
           }
@@ -1755,11 +2725,192 @@
         }
       }
     },
+    "/api/recepciones/proveedores": {
+      "get": {
+        "summary": "Distribuidores conocidos: los de la app y los proveedores de Siweb360",
+        "tags": [
+          "recepciones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/albaranes": {
+      "post": {
+        "summary": "Lee el albarán o la factura antes de crear la recepción: número, proveedor, fecha, líneas y posibles duplicados",
+        "tags": [
+          "recepciones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/documento": {
+      "get": {
+        "summary": "Foto o PDF del albarán de la recepción",
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Lee el albarán o la factura (Document Intelligence) y propone las líneas",
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/recepciones/{id}": {
       "get": {
         "tags": [
           "recepciones"
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "put": {
+        "summary": "Cambia la cabecera de una recepción abierta",
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "distribuidor": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "albaran": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "nullable": true
+                  },
+                  "fechaCompra": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "fechaRecepcion": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "regimen": {
+                    "type": "string",
+                    "enum": [
+                      "recargo_equivalencia",
+                      "nacional"
+                    ]
+                  },
+                  "confirmarDuplicado": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/descartar": {
+      "post": {
+        "summary": "Descarta una recepción abierta (no se borra)",
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -1849,7 +3000,6 @@
                     "nullable": true
                   },
                   "precioNetoCompra": {
-                    "default": null,
                     "type": "string",
                     "pattern": "^\\d+(\\.\\d{1,4})?$",
                     "nullable": true
@@ -1858,6 +3008,26 @@
                     "default": null,
                     "type": "number",
                     "nullable": true
+                  },
+                  "precioBruto": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,4})?$",
+                    "nullable": true
+                  },
+                  "descuentoPct": {
+                    "default": null,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "actualizarStock": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "actualizarPrecio": {
+                    "default": true,
+                    "type": "boolean"
                   }
                 }
               }
@@ -1884,6 +3054,110 @@
       }
     },
     "/api/recepciones/{id}/lineas/{lineaId}": {
+      "put": {
+        "summary": "Modifica una línea de una recepción abierta",
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$",
+                    "nullable": true
+                  },
+                  "nombre": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "nullable": true
+                  },
+                  "lote": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "nullable": true
+                  },
+                  "caducidad": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "unidades": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 10000,
+                    "minimum": 0
+                  },
+                  "precioNetoCompra": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,4})?$",
+                    "nullable": true
+                  },
+                  "ivaPct": {
+                    "type": "number",
+                    "nullable": true
+                  },
+                  "precioBruto": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,4})?$",
+                    "nullable": true
+                  },
+                  "descuentoPct": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "nullable": true
+                  },
+                  "actualizarStock": {
+                    "type": "boolean"
+                  },
+                  "actualizarPrecio": {
+                    "type": "boolean"
+                  },
+                  "siwebVariantId": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "lineaId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "recepciones"
@@ -2260,6 +3534,208 @@
         }
       }
     },
+    "/api/registros/todas-salidas": {
+      "get": {
+        "summary": "Todas las salidas del periodo en una tabla",
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/registros/movimientos": {
+      "get": {
+        "summary": "Entradas y salidas del periodo por fecha",
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/registros/psicotropos": {
       "get": {
         "summary": "Registro de psicótropos (TODO D-06b: formato oficial)",
@@ -2361,6 +3837,186 @@
         }
       }
     },
+    "/api/importaciones/vista-previa": {
+      "post": {
+        "summary": "Analiza un fichero de entradas o salidas anteriores (sin guardar)",
+        "tags": [
+          "importacion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/importaciones": {
+      "post": {
+        "summary": "Importa entradas o salidas anteriores (solo si el fichero no tiene errores)",
+        "tags": [
+          "importacion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "importacion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/importaciones/{id}/anular": {
+      "post": {
+        "summary": "Anula una importación (deja de contar; no se borra)",
+        "tags": [
+          "importacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion": {
+      "post": {
+        "summary": "Concilia las salidas de un día con los tickets (cierre=true: lo que quede sin pareja pasa a discrepancia)",
+        "tags": [
+          "conciliacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "default": {
+                  "cierre": false
+                },
+                "type": "object",
+                "properties": {
+                  "fecha": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "cierre": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/conciliacion": {
+      "get": {
+        "summary": "Estado de conciliación de las salidas de la receta",
+        "tags": [
+          "conciliacion"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/demo/tpv": {
+      "post": {
+        "summary": "DEMO: simula el cobro en el TPV (ticket sin lote)",
+        "tags": [
+          "conciliacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "unidades": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 99,
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "cn",
+                  "unidades"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/pendientes": {
       "get": {
         "tags": [
@@ -2410,6 +4066,65 @@
             "required": true
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/asistente/consumo": {
+      "get": {
+        "summary": "Consumo del asistente: mes en curso y meses anteriores",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": 6,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 36
+            },
+            "in": "query",
+            "name": "meses",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/asistente/consumo/limite": {
+      "put": {
+        "summary": "Amplía el límite de tokens del mes en curso",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limiteTokens": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "limiteTokens"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Default Response"
@@ -3059,6 +4774,502 @@
             },
             "in": "path",
             "name": "tipo",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/sesiones": {
+      "post": {
+        "summary": "Abre un emparejamiento con un móvil (token para el QR)",
+        "tags": [
+          "movil"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/sesiones/{id}/eventos": {
+      "get": {
+        "summary": "Eventos enviados por el móvil desde `desde`",
+        "tags": [
+          "movil"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": 0,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "desde",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/sesiones/{id}/cerrar": {
+      "post": {
+        "summary": "Desconecta el móvil",
+        "tags": [
+          "movil"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/m/sesion": {
+      "get": {
+        "summary": "Comprueba el emparejamiento (cabecera x-movil-token)",
+        "tags": [
+          "movil"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/m/recetas": {
+      "post": {
+        "summary": "Sube las fotos de una receta; el PC abre su revisión",
+        "tags": [
+          "movil"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/m/codigos": {
+      "post": {
+        "summary": "Envía al PC la lectura de un código del envase",
+        "tags": [
+          "movil"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "raw": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  }
+                },
+                "required": [
+                  "raw"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/estado": {
+      "get": {
+        "summary": "Si el asistente está activo, su estado de consumo y preguntas de ejemplo",
+        "tags": [
+          "asistente"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones": {
+      "post": {
+        "summary": "Abre una conversación",
+        "tags": [
+          "asistente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contexto": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "tipo": {
+                            "type": "string",
+                            "enum": [
+                              "general"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "tipo"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "tipo": {
+                            "type": "string",
+                            "enum": [
+                              "linea"
+                            ]
+                          },
+                          "recetaLineaId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "required": [
+                          "tipo",
+                          "recetaLineaId"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "tipo": {
+                            "type": "string",
+                            "enum": [
+                              "medicamento"
+                            ]
+                          },
+                          "nregistro": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "tipo"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "contexto"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "summary": "Histórico de consultas (el empleado, solo las suyas)",
+        "tags": [
+          "asistente"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "usuario",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "util",
+                "incorrecta",
+                "sin_valorar"
+              ]
+            },
+            "in": "query",
+            "name": "valoracion",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "conReceta",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "pagina",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "tamano",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones/{id}/mensajes": {
+      "post": {
+        "summary": "Hace una pregunta al asistente",
+        "tags": [
+          "asistente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pregunta": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "pregunta"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/fuentes/{fuenteId}": {
+      "get": {
+        "summary": "Abre una fuente citada por el asistente",
+        "tags": [
+          "asistente"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "version",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "fuenteId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/intercambios/{id}/valoracion": {
+      "put": {
+        "summary": "Valora una respuesta (útil o incorrecta)",
+        "tags": [
+          "asistente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "valor": {
+                    "type": "string",
+                    "enum": [
+                      "util",
+                      "incorrecta"
+                    ]
+                  },
+                  "comentario": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "valor"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones/{id}": {
+      "get": {
+        "summary": "Una conversación con sus respuestas, fuentes y valoraciones",
+        "tags": [
+          "asistente"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones/{id}/cerrar": {
+      "post": {
+        "summary": "Cierra la conversación",
+        "tags": [
+          "asistente"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
             "required": true
           }
         ],
