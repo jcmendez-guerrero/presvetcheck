@@ -7,7 +7,9 @@ param imagen = readEnvironmentVariable('IMAGEN', '')
 param entraClientId = readEnvironmentVariable('ENTRA_CLIENT_ID', '<app-id-del-registro-entra>')
 param inicioPresupuesto = '2026-10-01'
 param correosAlertas = ['<buzon-de-alertas>@<dominio>']
-// Asistente de consultas: off por defecto. Para activarlo: ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>.
-param asistente = readEnvironmentVariable('ASISTENTE', 'off')
+// Asistente de consultas en np: Gemini Flash-Lite (modelo más barato que supera la prueba de herramientas). Para usar
+// Azure OpenAI: ASISTENTE=azure ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>.
+// Para apagarlo: ASISTENTE=off. Con 'gemini' el endpoint se deja vacío.
+param asistente = readEnvironmentVariable('ASISTENTE', 'gemini')
 param asistenteEndpoint = readEnvironmentVariable('ASISTENTE_ENDPOINT', '')
-param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', '')
+param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', 'gemini-3.5-flash-lite')
