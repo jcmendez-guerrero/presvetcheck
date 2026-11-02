@@ -1,6 +1,6 @@
 # Modelo de datos (Fase 1): Asistente de consultas
 
-Las tablas nuevas van en la migración `packages/db/migrations/0015_asistente.sql` y en el esquema Drizzle
+Las tablas nuevas van en la migración `packages/db/migrations/0016_asistente.sql` y en el esquema Drizzle
 `packages/db/src/schema/asistente.ts`. Convenciones del repositorio:
 
 - `pk()` es un `uuid`;

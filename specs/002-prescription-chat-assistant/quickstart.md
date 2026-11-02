@@ -22,18 +22,18 @@ pnpm test:int
 
 Debe quedar en verde, incluyendo:
 
-| Suite                                            | Qué demuestra                                                                                                                                                                                |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/domain/test/simulacion.test.ts`        | Las simulaciones coinciden con el motor en los casos de `SPEC.md` §12.2 (validez con antimicrobiano, psicótropo, cambio de formato 500 → 2×250, inmunológico no sustituible, `FALTAN_DATOS`) |
-| `packages/assistant/test/pii.test.ts`            | DNI/NIE, teléfono, correo, dirección y nombre del titular en contexto → `[dato eliminado]` (FR-019)                                                                                          |
-| `packages/assistant/test/citas.test.ts`          | V1–V7 de [salida-modelo.md](./contracts/salida-modelo.md)                                                                                                                                    |
-| `packages/assistant/test/instrucciones.test.ts`  | Las instrucciones no contienen reglas legales (FR-006)                                                                                                                                       |
-| `packages/assistant/test/contexto-linea.test.ts` | El DTO de la línea no lleva datos del titular ni del veterinario (FR-014, FR-018, FR-021a)                                                                                                   |
-| `packages/assistant/test/azure-client.test.ts`   | MSW: respuesta con herramientas, 429, 5xx, _timeout_, `content_filter` y campos desconocidos → errores tipados (FR-026)                                                                      |
-| `packages/assistant/test/banco.test.ts`          | El banco v1 se ejecuta con `FakeAssistantModel`: herramientas, validación y saneado correctos                                                                                                |
-| `packages/assistant/test/consumo.test.ts`        | `estadoConsumo`: 79 % normal, 80 % aviso, 100 % pausa, ampliación y cambio de mes en `Europe/Madrid`                                                                                         |
-| `apps/api/test/asistente.test.ts`                | Rutas, roles (un empleado no ve el histórico de otros), pausa → 429, conversación cerrada → 409                                                                                              |
-| `packages/db` (int)                              | El _trigger_ rechaza `UPDATE` y `DELETE` en `asistente_intercambio`; la purga solo borra lo que tiene más de 1 año                                                                           |
+| Suite                                           | Qué demuestra                                                                                                                                                                                |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/domain/test/simulacion.test.ts`       | Las simulaciones coinciden con el motor en los casos de `SPEC.md` §12.2 (validez con antimicrobiano, psicótropo, cambio de formato 500 → 2×250, inmunológico no sustituible, `FALTAN_DATOS`) |
+| `packages/assistant/test/pii.test.ts`           | DNI/NIE, teléfono, correo, dirección y nombre del titular en contexto → `[dato eliminado]` (FR-019)                                                                                          |
+| `packages/assistant/test/citas.test.ts`         | V1–V7 de [salida-modelo.md](./contracts/salida-modelo.md)                                                                                                                                    |
+| `packages/assistant/test/instrucciones.test.ts` | Las instrucciones no contienen reglas legales (FR-006)                                                                                                                                       |
+| `apps/api/test/asistente-linea.test.ts`         | El DTO de la línea no lleva datos del titular ni del veterinario (FR-014, FR-018, FR-021a)                                                                                                   |
+| `packages/assistant/test/azure-client.test.ts`  | MSW: respuesta con herramientas, 429, 5xx, _timeout_, `content_filter` y campos desconocidos → errores tipados (FR-026)                                                                      |
+| `apps/api/test/asistente-banco.test.ts`         | El banco v1 se ejecuta con `FakeAssistantModel`: herramientas, validación y saneado correctos                                                                                                |
+| `packages/assistant/test/consumo.test.ts`       | `estadoConsumo`: 79 % normal, 80 % aviso, 100 % pausa, ampliación y cambio de mes en `Europe/Madrid`                                                                                         |
+| `apps/api/test/asistente.test.ts`               | Rutas, roles (un empleado no ve el histórico de otros), pausa → 429, conversación cerrada → 409                                                                                              |
+| `packages/db` (int)                             | El _trigger_ rechaza `UPDATE` y `DELETE` en `asistente_intercambio`; la purga solo borra lo que tiene más de 1 año                                                                           |
 
 ## 2. Demo local con el modelo falso
 
