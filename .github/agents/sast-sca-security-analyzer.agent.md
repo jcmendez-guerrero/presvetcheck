@@ -61,7 +61,6 @@ Trace untrusted data flows from entry points (sources) to sensitive execution po
 
 #### Language-Specific Taint Sinks
 
-- **C# / .NET**: `SqlCommand` with concatenated text (CWE-89); `Process.Start` with user input (CWE-78); `BinaryFormatter.Deserialize` (CWE-502); `XmlReader` without `DtdProcessing.Prohibit` (CWE-611); missing `[Authorize]` attributes (CWE-285); cookies missing `HttpOnly` or `Secure` flags (CWE-1004, CWE-614); plaintext in `appsettings.json` (CWE-798); unreleased database connections or file streams (CWE-404).
 - **JavaScript / TypeScript**: Template literals in SQL query functions (CWE-89); `eval()` or `new Function()` with input (CWE-94); `innerHTML` assignments (CWE-79); `res.redirect()` with raw parameters (CWE-601); secrets in `.env` committed to repository (CWE-798); `require(userInput)` (CWE-829); catastrophic regex in route handlers (CWE-1333).
 - **Python**: `cursor.execute(f"SELECT ... {input}")` (CWE-89); `subprocess.call(cmd, shell=True)` (CWE-78); `pickle.loads()` or unsafe `yaml.load()` (CWE-502); `hashlib.md5()` for security tokens (CWE-327); unvalidated prompt templates (CWE-1427); debug mode enabled in production (CWE-215).
 - **Java / Kotlin**: `Statement.executeQuery()` with concatenated strings (CWE-89); `Runtime.getRuntime().exec()` (CWE-78); `ObjectInputStream.readObject()` (CWE-502); missing `@PreAuthorize` on controller methods (CWE-285); XML parser missing `FEATURE_SECURE_PROCESSING` (CWE-611); stack traces exposed in responses (CWE-209).

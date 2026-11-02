@@ -212,5 +212,5 @@ fuera_de_ambito | aclaracion | rechazo_reglas`. La API valida:
 - `SPEC.md` §9.2: Microsoft como encargado, también para el asistente.
 - `docs/glosario.md`: «Asistente», «Simulación», «Fuente de referencia».
 - Nueva DUDA para JC: precio y modelo concreto del despliegue que se usará, y validación del banco v1 de preguntas.
-- Tarea externa (no es código): actualizar el RAT de Facilita con la finalidad del asistente, sin datos del
+- Tarea externa (no es código): actualizar el RAT con la finalidad del asistente, sin datos del
   titular y con retención de 1 año.

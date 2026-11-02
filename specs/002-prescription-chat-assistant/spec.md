@@ -336,7 +336,7 @@ con sus datos completos y que se pueden filtrar por fecha y por valoración.
 - Existe un servicio de IA generativa ya desplegado en el entorno en la nube del proyecto, con procesamiento en la
   UE. La elección concreta del servicio y del modelo se decide en la fase de planificación.
 - Esta funcionalidad reintroduce un servicio de IA generativa que se retiró de la extracción de recetas (DUDA-27).
-  Requiere un ADR nuevo y actualizar el Registro de Actividades de Tratamiento (Facilita) con esta finalidad, aunque
+  Requiere un ADR nuevo y actualizar el Registro de Actividades de Tratamiento (RAT) con esta finalidad, aunque
   no se traten datos personales del titular.
 - Las fuentes de referencia ya existen en el repositorio: reglas versionadas en `config/rules/`, guía de la receta
   en `docs/ref/guia-receta-veterinaria.md`, el apartado de Ayuda de la app y la caché local de CIMAVet. El asistente

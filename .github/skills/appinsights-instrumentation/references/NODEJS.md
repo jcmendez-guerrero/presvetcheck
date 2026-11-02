@@ -17,7 +17,7 @@ A Node.js app typically has an entry file that is listed as the "main" property 
 
 ## Configure App Insights connection string
 
-The App Insights resource has a connection string. Add the connection string as an environment variable of the running app. You can use Azure CLI to query the connection string of the App Insights resource. See [scripts/appinsights.ps1] for what Azure CLI command to execute for querying the connection string.
+The App Insights resource has a connection string. Add the connection string as an environment variable of the running app. In this repository the Bicep templates already pass it to the Container Apps as `APPLICATIONINSIGHTS_CONNECTION_STRING`; to read it manually use `az monitor app-insights component show --app <name> -g <group> --query connectionString -o tsv`.
 
 After getting the connection string, set this environment variable with its value.
 

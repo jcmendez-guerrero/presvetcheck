@@ -102,5 +102,5 @@ ASSISTANT=azure ASSISTANT_ENDPOINT=https://<recurso>.openai.azure.com ASSISTANT_
   `ASSISTANT_DEPLOYMENT`, `ASSISTANT_API_VERSION`, `ASSISTANT_TIMEOUT_MS`, `ASSISTANT_MONTHLY_TOKEN_LIMIT`,
   `ASSISTANT_PRICE_IN_PER_1K_EUR` y `ASSISTANT_PRICE_OUT_PER_1K_EUR`.
 - No se crean recursos de Azure nuevos: se usa el despliegue que ya existe.
-- Antes de activarlo en producción: ADR-17 aprobado, `SPEC.md` §9.2 y §9.3 actualizados, y el RAT de Facilita
+- Antes de activarlo en producción: ADR-17 aprobado, `SPEC.md` §9.2 y §9.3 actualizados, y el RAT
   actualizado (acción externa).
