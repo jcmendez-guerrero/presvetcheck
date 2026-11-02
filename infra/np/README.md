@@ -45,7 +45,7 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 
 1. Job `db-migrate` (migraciones).
 2. Job `procedimiento-cargar` con `--version`, `--aprobado-por` y `--texto-b64` (directrices de sustitución):
-   en modo POST la app no arranca sin procedimiento vigente.
+    en modo POST la app no arranca sin procedimiento vigente.
 3. Job `nomenclator-import` (Nomenclátor de CIMAVet).
 4. Asignar a cada usuario su rol en la aplicación empresarial de Entra.
 
