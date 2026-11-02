@@ -6,3 +6,4 @@ export * from './nomenclator';
 export * from './repo';
 export * from './jobs';
 export * from './descarga';
+export * from './importacion';

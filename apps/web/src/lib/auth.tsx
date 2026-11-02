@@ -44,6 +44,18 @@ const leer = (k: string) => {
     return null;
   }
 };
+const REINTENTO_LOGIN = 'mmx.reintentoLogin';
+
+/** Respuesta de /api/me con forma de usuario (la plataforma puede devolver HTML con estado 200). */
+function esUsuario(u: unknown): u is Usuario {
+  return (
+    typeof u === 'object' &&
+    u !== null &&
+    typeof (u as Usuario).id === 'string' &&
+    Array.isArray((u as Usuario).roles)
+  );
+}
+
 const escribir = (k: string, v: string) => {
   try {
     localStorage.setItem(k, v);
@@ -103,7 +115,18 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
         return s?.id_token ? { Authorization: `Bearer ${s.id_token}` } : {};
       });
     }
-    void get<Usuario>('/api/me').then(setUsuario).catch(() => setUsuario(null));
+    void get<unknown>('/api/me')
+      .then((u) => {
+        if (esUsuario(u)) return setUsuario(u);
+        // No es el usuario (p. ej. la página HTML de la plataforma con la sesión de Entra caducada): se vuelve a
+        // iniciar sesión, como mucho una vez por minuto para no entrar en bucle.
+        setUsuario(null);
+        if (config.authMode === 'entra' && Date.now() - Number(leer(REINTENTO_LOGIN) ?? 0) > 60_000) {
+          escribir(REINTENTO_LOGIN, String(Date.now()));
+          window.location.href = `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(location.pathname)}`;
+        }
+      })
+      .catch(() => setUsuario(null));
   }, [config, devId, mfaDev]);
 
   const value: Ctx = {
@@ -118,7 +141,7 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       escribir('mmx.devMfa', v ? '1' : '0');
       setMfaDev(v);
     },
-    tiene: (...roles) => !!usuario?.roles.some((r) => roles.includes(r)),
+    tiene: (...roles) => !!usuario?.roles?.some((r) => roles.includes(r)),
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

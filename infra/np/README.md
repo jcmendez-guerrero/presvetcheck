@@ -49,6 +49,18 @@ extensión `PG_TRGM` debe estar permitida en `azure.extensions`.
 3. Job `nomenclator-import` (Nomenclátor de CIMAVet).
 4. Asignar a cada usuario su rol en la aplicación empresarial de Entra.
 
+## Corregir importaciones con CIMAVet (`azu-caj-import-fix-np`)
+
+Pone las entradas y salidas importadas con el nombre, el principio activo y la forma de CIMAVet (ADR-14): crea una
+importación corregida y anula la original. Las importaciones sin diferencias no se tocan, así que repetirlo no cambia
+nada. Por defecto solo informa: se lanza, se revisa el informe en los logs y, si es correcto, se vuelve a desplegar con
+`IMPORT_FIX_APPLY=true`, se lanza otra vez y se vuelve a desplegar sin la variable. No uses
+`az containerapp job start --args`: sustituye el contenedor y se pierden las variables de entorno.
+
+```bash
+az containerapp job start -g <grupo> -n azu-caj-import-fix-np
+```
+
 Correo: `MAILER=console` (los reportes se descargan desde la app); SMTP en una segunda fase.
 
 ## Asistente de consultas

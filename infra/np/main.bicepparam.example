@@ -12,6 +12,8 @@ param correosAlertas = ['<buzon-de-alertas>@<dominio>']
 param asistente = readEnvironmentVariable('ASISTENTE', 'off')
 param asistenteEndpoint = readEnvironmentVariable('ASISTENTE_ENDPOINT', '')
 param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', '')
+// Job azu-caj-import-fix-np: 'true' para aplicar la corrección con CIMAVet (por defecto solo informa).
+param importFixApply = bool(readEnvironmentVariable('IMPORT_FIX_APPLY', 'false'))
 
 param sufijo = '<proyecto>-<entorno>'
 param identidadAppNombre = '<identidad-app>'
