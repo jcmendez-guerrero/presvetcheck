@@ -47,6 +47,7 @@ export const envSchema = z
     KV_SECRETO_SIWEB_TOKEN: z.string().default('siweb-token'),
     KV_SECRETO_CIFRADO: z.string().default('column-encryption-key'),
     KV_SECRETO_SMTP: z.string().default('smtp-password'),
+    KV_SECRETO_ASISTENTE: z.string().default('gcp-gemini-api-key'),
 
     CIMAVET_BASE_URL: z.string().url().default('https://cimavet.aemps.es/cimavet/rest/'),
     CIMAVET_RPS: num(3),
@@ -75,12 +76,15 @@ export const envSchema = z
 
     /**
      * Asistente de consultas (specs/002-prescription-chat-assistant). `off`: sin asistente; `fake`: modelo con
-     * guiones (demo y tests); `azure`: despliegue de chat de Azure OpenAI / Foundry en la UE.
+     * guiones (demo y tests); `azure`: despliegue de chat de Azure OpenAI / Foundry en la UE; `gemini`: API de
+     * Gemini (compatible con OpenAI); `ASSISTANT_DEPLOYMENT` es el nombre del modelo.
      */
     // TODO(decision DUDA-29): despliegue de chat concreto, precios y límite mensual por defecto.
-    ASSISTANT: z.enum(['off', 'fake', 'azure']).default('off'),
+    ASSISTANT: z.enum(['off', 'fake', 'azure', 'gemini']).default('off'),
     ASSISTANT_ENDPOINT: optStr,
     ASSISTANT_DEPLOYMENT: optStr,
+    /** Clave de la API de Gemini (solo local); en Azure se lee de Key Vault (`KV_SECRETO_ASISTENTE`). */
+    ASSISTANT_API_KEY: optStr,
     ASSISTANT_API_VERSION: z.string().default('2024-10-21'),
     ASSISTANT_TIMEOUT_MS: num(20000).pipe(z.number().int().min(1000)),
     /** Límite mensual global de tokens (entrada + salida). Al 80 % avisa; al 100 % pausa el asistente. */
@@ -171,6 +175,9 @@ export const envSchema = z
     if (env.ASSISTANT === 'azure' && env.NODE_ENV === 'production') {
       req('ASSISTANT_ENDPOINT', 'con ASSISTANT=azure');
       req('ASSISTANT_DEPLOYMENT', 'con ASSISTANT=azure');
+    }
+    if (env.ASSISTANT === 'gemini' && env.NODE_ENV === 'production') {
+      req('ASSISTANT_DEPLOYMENT', 'con ASSISTANT=gemini');
     }
     if (env.ASSISTANT === 'fake' && env.NODE_ENV === 'production') {
       ctx.addIssue({

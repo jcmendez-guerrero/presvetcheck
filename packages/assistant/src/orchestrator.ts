@@ -29,6 +29,8 @@ export interface EntradaTurno {
   contexto: ContextoConversacion;
   /** Valores del titular y del veterinario que no pueden aparecer en el texto de la respuesta (solo en memoria). */
   conocidos?: readonly string[];
+  /** Fecha de hoy en Madrid (AAAA-MM-DD): el modelo no sabe qué día es y la necesita si la pregunta no indica el año. */
+  hoy?: string;
 }
 
 export interface ResultadoTurno {
@@ -79,6 +81,13 @@ export class ChatOrchestrator {
     let reintentado = false;
 
     const mensajes: MensajeModelo[] = [{ role: 'system', content: this.o.instrucciones }];
+    if (e.hoy) {
+      const [a, m, d] = e.hoy.split('-');
+      mensajes.push({
+        role: 'system',
+        content: `La fecha de hoy es ${d}/${m}/${a}. Úsala si la pregunta menciona una fecha sin indicar el año.`,
+      });
+    }
     if (e.contexto.tipo === 'linea') {
       mensajes.push({
         role: 'system',
@@ -206,10 +215,20 @@ export class ChatOrchestrator {
     duracionMs: number,
     degradada: boolean,
   ): ResultadoTurno {
+    // Una simulación que el motor calculó en este turno se muestra siempre en una respuesta: no depende de que el
+    // modelo se acuerde de listarla. Se añade también su fuente (`motor:`).
+    const simIds = salida.tipo === 'respondida' ? [...turno.simulaciones.keys()] : salida.simulaciones;
+    const simulaciones = [...new Set([...salida.simulaciones, ...simIds])];
+    const fuenteIds = [
+      ...new Set([
+        ...salida.fuentes,
+        ...(salida.tipo === 'respondida' ? simulaciones.map((id) => `motor:${id}`) : []),
+      ]),
+    ];
     return {
-      salida,
-      fuentes: salida.fuentes.flatMap((id) => turno.fuentes.get(id) ?? []),
-      simulaciones: salida.simulaciones.flatMap((id) => turno.simulaciones.get(id) ?? []),
+      salida: { ...salida, simulaciones, fuentes: fuenteIds.filter((id) => turno.fuentes.has(id)) },
+      fuentes: fuenteIds.flatMap((id) => turno.fuentes.get(id) ?? []),
+      simulaciones: simulaciones.flatMap((id) => turno.simulaciones.get(id) ?? []),
       contextoLinea: salida.usaContextoLinea ? contextoLinea : null,
       candidatos: salida.tipo === 'aclaracion' ? candidatos : [],
       uso,

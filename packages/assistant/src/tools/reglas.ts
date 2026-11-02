@@ -29,7 +29,7 @@ export function herramientaConsultarReglas(d: DepsHerramientas): Herramienta<{ t
   return {
     nombre: 'consultar_reglas',
     descripcion:
-      'Devuelve las reglas vigentes de un tema (campos_receta, validez, sustitucion_exclusiones, equivalencia o formato) con su versión. Úsala para cualquier plazo, condición o exclusión: no conoces ninguna regla de memoria.',
+      'Devuelve las reglas vigentes de un tema (campos_receta, validez, sustitucion_exclusiones, equivalencia o formato) con su versión. Úsala para explicar cualquier plazo, condición o exclusión: no conoces ninguna regla de memoria. No calcula fechas ni casos concretos: para eso están las herramientas simular_*.',
     args: ArgsConsultarReglas,
     async ejecutar({ tema }) {
       const bundle = d.rules;

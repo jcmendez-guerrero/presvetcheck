@@ -26,9 +26,9 @@ for (const [k, v] of Object.entries({
 })) {
   process.env[k] ??= v;
 }
-if ((process.env.ASSISTANT ?? 'off') !== 'azure') {
+if (!['azure', 'gemini'].includes(process.env.ASSISTANT ?? 'off')) {
   console.error(
-    'Define ASSISTANT=azure, ASSISTANT_ENDPOINT y ASSISTANT_DEPLOYMENT: este banco se ejecuta contra el servicio real.',
+    'Define ASSISTANT=azure (con ASSISTANT_ENDPOINT y ASSISTANT_DEPLOYMENT) o ASSISTANT=gemini (con ASSISTANT_DEPLOYMENT y la clave): este banco se ejecuta contra el servicio real.',
   );
   process.exit(1);
 }
@@ -114,6 +114,9 @@ interface Resultado {
   ms: number;
   conFuentes: boolean;
   piiEnGuardado: boolean;
+  /** Texto y fuentes de la respuesta, para revisar los fallos (el informe va a .data/, que git ignora). */
+  texto?: string | null;
+  fuentes?: string[];
 }
 
 async function ejecutar(c: CasoEvaluacion): Promise<Resultado> {
@@ -141,8 +144,11 @@ async function ejecutar(c: CasoEvaluacion): Promise<Resultado> {
     };
   const i = r.json.intercambio;
   if (i.tipo !== c.esperado.tipo) fallos.push(`tipo ${i.tipo} (esperado ${c.esperado.tipo})`);
-  for (const t of c.esperado.contiene)
-    if (!String(i.texto).toLowerCase().includes(t.toLowerCase())) fallos.push(`falta «${t}»`);
+  for (const t of c.esperado.contiene) {
+    const alternativas = Array.isArray(t) ? t : [t];
+    if (!alternativas.some((a) => String(i.texto).toLowerCase().includes(a.toLowerCase())))
+      fallos.push(`falta «${alternativas.join('» o «')}»`);
+  }
   for (const f of c.esperado.fuentes)
     if (!i.fuentes.some((x: { fuenteId: string }) => x.fuenteId.startsWith(f)))
       fallos.push(`falta fuente ${f}`);
@@ -162,6 +168,8 @@ async function ejecutar(c: CasoEvaluacion): Promise<Resultado> {
     ms,
     conFuentes: i.fuentes.length > 0,
     piiEnGuardado,
+    texto: i.texto ?? null,
+    fuentes: i.fuentes.map((x: { fuenteId: string }) => x.fuenteId),
   };
 }
 

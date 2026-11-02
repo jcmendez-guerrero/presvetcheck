@@ -31,6 +31,16 @@ const SIN_INFO = (
 export function guionesUs1(anio = new Date().getFullYear()): Guion[] {
   return [
     {
+      cuando: /^¿?\s*se puede cambiar\s*\??$/i,
+      rondas: [],
+      final: () =>
+        salida({
+          tipo: 'aclaracion',
+          texto:
+            '¿Qué quieres cambiar y por qué? Dime el medicamento y si buscas otro formato, otra concentración u otro medicamento.',
+        }),
+    },
+    {
       cuando: /ignora (las )?reglas|autoriza|dime que s[ií] se puede|saltarme|saltarse/i,
       rondas: [],
       final: () =>
@@ -69,7 +79,7 @@ export function guionesUs1(anio = new Date().getFullYear()): Guion[] {
       },
     },
     {
-      cuando: /cu[aá]ntos d[ií]as|cu[aá]nto (tiempo )?(vale|dura)|validez|caduca/i,
+      cuando: /cu[aá]ntos d[ií]as|cu[aá]nto (tiempo )?(vale|dura)|validez|caduca|how many days/i,
       rondas: [[{ nombre: 'consultar_reglas', args: { tema: 'validez' } }]],
       final: (ctx) => {
         const d = datosDe(ctx, 'consultar_reglas');
@@ -120,15 +130,21 @@ export function guionesUs1(anio = new Date().getFullYear()): Guion[] {
     },
     {
       cuando: /principio activo/i,
-      rondas: [[{ nombre: 'buscar_ayuda', args: { consulta: 'principio activo' } }]],
+      rondas: [
+        [
+          { nombre: 'buscar_ayuda', args: { consulta: 'principio activo' } },
+          { nombre: 'consultar_reglas', args: { tema: 'campos_receta' } },
+        ],
+      ],
       final: (ctx) => {
         const f = primeraFuente(datosDe(ctx, 'buscar_ayuda'));
-        if (!f) return SIN_INFO();
+        const regla = primeraFuente(datosDe(ctx, 'consultar_reglas'));
+        if (!f || !regla) return SIN_INFO();
         return salida({
           tipo: 'respondida',
           texto:
             'Si la receta solo indica el principio activo, la aplicación no deja dispensar: hay que pedir al veterinario que la corrija. Los detalles están en la Ayuda.',
-          fuentes: [f],
+          fuentes: [f, regla],
         });
       },
     },

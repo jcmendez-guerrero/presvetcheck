@@ -174,6 +174,7 @@ export class AsistenteService {
         historial,
         contexto,
         conocidos,
+        hoy: ahora.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }),
       });
     } catch (e) {
       // El detalle puede contener texto del empleado: solo se conserva el código.
