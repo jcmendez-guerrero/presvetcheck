@@ -13,8 +13,17 @@ export interface ImagenReceta {
 /**
  * La receta en pantalla (imagen con zoom y texto reconocido para copiar y pegar). Acompaña a todo el proceso:
  * revisión, qué dispensar, dispensación y registro de salidas.
+ * Con soporte de panel dividido contiguo (side-by-side) para no requerir scroll hacia el texto OCR.
  */
-export function VisorReceta({ imagenes, ocrTexto }: { imagenes: ImagenReceta[]; ocrTexto: string | null | undefined }) {
+export function VisorReceta({
+  imagenes,
+  ocrTexto,
+  dividido = true,
+}: {
+  imagenes: ImagenReceta[];
+  ocrTexto: string | null | undefined;
+  dividido?: boolean;
+}) {
   const [zoom, setZoom] = useState(1);
   const [pagina, setPagina] = useState(0);
   const img = imagenes[pagina];
@@ -27,31 +36,37 @@ export function VisorReceta({ imagenes, ocrTexto }: { imagenes: ImagenReceta[]; 
   });
   return (
     <div className="flex flex-col gap-5 lg:sticky lg:top-4 lg:self-start" data-testid="visor-receta">
-      <Tarjeta>
-        <div className="mb-2 flex flex-wrap gap-2">
-          {imagenes.map((im, i) => (
-            <Boton key={im.pagina} variante={i === pagina ? 'principal' : 'secundario'} onClick={() => setPagina(i)}>
-              Página {im.pagina}
+      <div className={ocrTexto && dividido ? 'grid gap-4 xl:grid-cols-2' : 'flex flex-col gap-4'}>
+        <Tarjeta>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {imagenes.map((im, i) => (
+              <Boton key={im.pagina} variante={i === pagina ? 'principal' : 'secundario'} onClick={() => setPagina(i)}>
+                Página {im.pagina}
+              </Boton>
+            ))}
+            <Boton variante="secundario" aria-label="Ampliar" onClick={() => setZoom((z) => Math.min(4, z + 0.5))}>
+              <ZoomIn className="h-5 w-5" />
             </Boton>
-          ))}
-          <Boton variante="secundario" aria-label="Ampliar" onClick={() => setZoom((z) => Math.min(4, z + 0.5))}>
-            <ZoomIn className="h-5 w-5" />
-          </Boton>
-          <Boton variante="secundario" aria-label="Reducir" onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
-            <ZoomOut className="h-5 w-5" />
-          </Boton>
-        </div>
-        <div className="max-h-[70vh] overflow-auto rounded-xl bg-slate-100">
-          {img && img.mime !== 'application/pdf' ? (
-            <img src={imagen.data} alt={`Receta, página ${img.pagina}`} style={{ width: `${zoom * 100}%` }} />
-          ) : img ? (
-            <iframe title="Receta en PDF" src={imagen.data} className="h-[65vh] w-full" />
-          ) : (
-            <p className="p-6">Sin imagen</p>
-          )}
-        </div>
-      </Tarjeta>
-      {ocrTexto && <TextoReconocido texto={ocrTexto} />}
+            <Boton variante="secundario" aria-label="Reducir" onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+              <ZoomOut className="h-5 w-5" />
+            </Boton>
+          </div>
+          <div className="max-h-[75vh] overflow-auto rounded-xl bg-slate-100">
+            {img && img.mime !== 'application/pdf' ? (
+              <img src={imagen.data} alt={`Receta, página ${img.pagina}`} style={{ width: `${zoom * 100}%` }} />
+            ) : img ? (
+              <iframe title="Receta en PDF" src={imagen.data} className="h-[70vh] w-full" />
+            ) : (
+              <p className="p-6">Sin imagen</p>
+            )}
+          </div>
+        </Tarjeta>
+        {ocrTexto && (
+          <div className="flex flex-col">
+            <TextoReconocido texto={ocrTexto} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -60,21 +75,24 @@ export function VisorReceta({ imagenes, ocrTexto }: { imagenes: ImagenReceta[]; 
 export function TextoReconocido({ texto }: { texto: string }) {
   const [copiado, setCopiado] = useState(false);
   return (
-    <Tarjeta titulo="Texto reconocido (puedes copiar y pegar)">
-      <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm select-text">
-        {texto.replaceAll('--- página ---', '— página siguiente —')}
-      </pre>
-      <Boton
-        variante="texto"
-        onClick={() =>
-          void navigator.clipboard?.writeText(texto).then(() => {
-            setCopiado(true);
-            setTimeout(() => setCopiado(false), 1500);
-          })
-        }
-      >
-        <Copy aria-hidden className="h-4 w-4" /> {copiado ? 'Copiado' : 'Copiar todo'}
-      </Boton>
+    <Tarjeta titulo="Texto reconocido (OCR)">
+      <div className="flex flex-col gap-2">
+        <pre className="max-h-[68vh] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-xs select-text">
+          {texto.replaceAll('--- página ---', '— página siguiente —')}
+        </pre>
+        <Boton
+          variante="texto"
+          className="self-start text-xs"
+          onClick={() =>
+            void navigator.clipboard?.writeText(texto).then(() => {
+              setCopiado(true);
+              setTimeout(() => setCopiado(false), 1500);
+            })
+          }
+        >
+          <Copy aria-hidden className="h-4 w-4" /> {copiado ? 'Copiado' : 'Copiar todo'}
+        </Boton>
+      </div>
     </Tarjeta>
   );
 }

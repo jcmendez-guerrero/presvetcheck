@@ -192,7 +192,7 @@ export function Revision() {
           configurado). Introduce los datos a mano.
         </Mensaje>
       )}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
         <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} />
 
         <div className="flex flex-col gap-5">

@@ -1,4 +1,4 @@
-import { DomainError } from '@mmx/shared';
+import { DomainError, AsociarTicketBody, BuscarTicketsQuery } from '@mmx/shared';
 import {
   aCsv,
   aXlsx,
@@ -111,7 +111,10 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     },
     async (req, reply) => {
       const incluirPropietario = req.query.incluirPropietario === '1';
-      const t = tablaTodasSalidas(await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario, dniCompleto: false }), { incluirPropietario });
+      const t = tablaTodasSalidas(
+        await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario, dniCompleto: false }),
+        { incluirPropietario },
+      );
       const base = `todas-las-salidas-${req.query.desde}_${req.query.hasta}`;
       if (req.query.formato === 'csv')
         return enviarFichero(reply, `${base}.csv`, 'text/csv; charset=utf-8', aCsv(t));
@@ -132,7 +135,10 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     async (req, reply) => {
       const entradas = await reg.entradas(req.query.desde, req.query.hasta);
       const incluirPropietario = req.query.incluirPropietario === '1';
-      const salidas = await reg.salidas(req.query.desde, req.query.hasta, { incluirPropietario, dniCompleto: false });
+      const salidas = await reg.salidas(req.query.desde, req.query.hasta, {
+        incluirPropietario,
+        dniCompleto: false,
+      });
       const base = `entradas-y-salidas-${req.query.desde}_${req.query.hasta}`;
       // Un mismo documento con las entradas y las salidas en hojas distintas (no mezcladas).
       if (req.query.formato === 'xlsx')
@@ -191,27 +197,65 @@ export async function rutasRegistros(app: App, d: AppDeps) {
     let plantilla: string | null = null;
     let fichero: { nombre: string; bytes: Uint8Array } | null = null;
     for await (const part of req.parts()) {
-      if (part.type === 'file') fichero = { nombre: part.filename, bytes: new Uint8Array(await part.toBuffer()) };
+      if (part.type === 'file')
+        fichero = { nombre: part.filename, bytes: new Uint8Array(await part.toBuffer()) };
       else if (part.fieldname === 'tipo') tipo = String(part.value);
       else if (part.fieldname === 'plantilla') plantilla = String(part.value) || null;
     }
-    if (tipo !== 'entradas' && tipo !== 'salidas') throw new DomainError('VALIDACION', 'Indica si el fichero es de entradas o de salidas', { campo: 'tipo' });
-    if (plantilla !== null && !['A', 'B', 'C'].includes(plantilla)) throw new DomainError('VALIDACION', 'Plantilla de salidas no válida', { campo: 'plantilla' });
-    if (!fichero) throw new DomainError('VALIDACION', 'Adjunta el fichero (Excel o CSV)', { campo: 'fichero' });
+    if (tipo !== 'entradas' && tipo !== 'salidas')
+      throw new DomainError('VALIDACION', 'Indica si el fichero es de entradas o de salidas', {
+        campo: 'tipo',
+      });
+    if (plantilla !== null && !['A', 'B', 'C'].includes(plantilla))
+      throw new DomainError('VALIDACION', 'Plantilla de salidas no válida', { campo: 'plantilla' });
+    if (!fichero)
+      throw new DomainError('VALIDACION', 'Adjunta el fichero (Excel o CSV)', { campo: 'fichero' });
     return { tipo: tipo as 'entradas' | 'salidas', plantilla: plantilla as 'A' | 'B' | 'C' | null, fichero };
   };
-  app.post('/api/importaciones/vista-previa', { preHandler: importa, schema: { tags: ['importacion'], summary: 'Analiza un fichero de entradas o salidas anteriores (sin guardar)', consumes: ['multipart/form-data'] } }, async (req) => {
-    const f = await leerFichero(req);
-    return imp.vistaPrevia(f.tipo, f.fichero, f.plantilla);
-  });
-  app.post('/api/importaciones', { preHandler: importa, schema: { tags: ['importacion'], summary: 'Importa entradas o salidas anteriores (solo si el fichero no tiene errores)', consumes: ['multipart/form-data'] } }, async (req, reply) => {
-    const f = await leerFichero(req);
-    return reply.status(201).send(await imp.importar(f.tipo, f.fichero, f.plantilla, ctx(req)));
-  });
-  app.get('/api/importaciones', { preHandler: importa, schema: { tags: ['importacion'] } }, async () => imp.listar());
+  app.post(
+    '/api/importaciones/vista-previa',
+    {
+      preHandler: importa,
+      schema: {
+        tags: ['importacion'],
+        summary: 'Analiza un fichero de entradas o salidas anteriores (sin guardar)',
+        consumes: ['multipart/form-data'],
+      },
+    },
+    async (req) => {
+      const f = await leerFichero(req);
+      return imp.vistaPrevia(f.tipo, f.fichero, f.plantilla);
+    },
+  );
+  app.post(
+    '/api/importaciones',
+    {
+      preHandler: importa,
+      schema: {
+        tags: ['importacion'],
+        summary: 'Importa entradas o salidas anteriores (solo si el fichero no tiene errores)',
+        consumes: ['multipart/form-data'],
+      },
+    },
+    async (req, reply) => {
+      const f = await leerFichero(req);
+      return reply.status(201).send(await imp.importar(f.tipo, f.fichero, f.plantilla, ctx(req)));
+    },
+  );
+  app.get('/api/importaciones', { preHandler: importa, schema: { tags: ['importacion'] } }, async () =>
+    imp.listar(),
+  );
   app.post(
     '/api/importaciones/:id/anular',
-    { preHandler: importa, schema: { tags: ['importacion'], summary: 'Anula una importación (deja de contar; no se borra)', params: IdParam, body: z.object({ motivo: z.string().max(500) }) } },
+    {
+      preHandler: importa,
+      schema: {
+        tags: ['importacion'],
+        summary: 'Anula una importación (deja de contar; no se borra)',
+        params: IdParam,
+        body: z.object({ motivo: z.string().max(500) }),
+      },
+    },
     async (req, reply) => {
       await imp.anular(req.params.id, req.body.motivo, ctx(req));
       return reply.status(204).send();
@@ -256,6 +300,30 @@ export async function rutasRegistros(app: App, d: AppDeps) {
       configurado: conc.configurado,
       salidas: await conc.estadoReceta(req.params.id),
     }),
+  );
+  app.get(
+    '/api/conciliacion/tickets',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Busca tickets en el TPV por número u observaciones para conciliación asistida',
+        querystring: BuscarTicketsQuery,
+      },
+    },
+    async (req) => conc.buscarTickets(req.query.search, req.query.estado),
+  );
+  app.post(
+    '/api/conciliacion/asociar',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Asocia manualmente una salida de dispensación a un ticket del TPV',
+        body: AsociarTicketBody,
+      },
+    },
+    async (req) => conc.asociarManual(req.body, ctx(req)),
   );
   app.post(
     '/api/demo/tpv',

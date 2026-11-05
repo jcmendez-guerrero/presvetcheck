@@ -41,3 +41,6 @@ Términos del dominio regulatorio que se mantienen en español en el código y s
 | Asistente (de consultas) | Chat en español que explica las reglas y el resultado de una receta; solo informa, nunca decide ni autoriza (ADR-17) | `@mmx/assistant`, `ChatOrchestrator` |
 | Simulación | Evaluación de un caso hipotético por el motor de reglas (por ejemplo, «receta del 3 de octubre con antibiótico»); no crea ni modifica ninguna receta | `packages/domain/src/simulacion.ts`, `simular_*` |
 | Fuente de referencia | Documento o regla versionada que el asistente cita y se puede abrir: regla del motor (`regla:`), guía de la receta (`guia:`), Ayuda (`ayuda:`), medicamento de CIMAVet (`cimavet:`) o resultado del motor (`motor:`) | `FuenteCitada` |
+| Conciliación TPV | Emparejamiento entre las salidas de dispensación y los tickets de cobro del TPV (automático o asistido) | `conciliarDia`, `buscarTickets` |
+| Asociación manual de ticket | Vinculación explícita y auditada por el personal de un ticket de TPV a una salida cuando falta el CN o difiere la descripción | `asociarManual`, `origen: 'manual'` |
+| Pricing de variantes | Sincronización de coste (`cost_cents`) y precio de venta de variantes con Siweb360 API 1.2.0 | `actualizarPrecios`, `siweb_actualizar_precio` |

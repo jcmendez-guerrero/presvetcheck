@@ -20,6 +20,11 @@ import {
   type Warehouse,
   ContactSchema,
   type Contact,
+  VariantPricingResponseSchema,
+  type VariantPricingRequest,
+  type VariantPricingResponse,
+  StockMovementSchema,
+  type StockMovement,
 } from './schemas';
 
 export class SiwebValidationError extends Error {
@@ -186,12 +191,15 @@ export class SiwebClient {
    * (por defecto 100 en la API). Si se devuelven `limit` tickets puede haber más: el llamante lo trata
    * como lectura incompleta.
    */
-  async tickets(f: {
-    fecha_desde: string;
-    fecha_hasta: string;
-    estado?: 'Pagado' | 'Pendiente' | 'Cancelado';
-    limit?: number;
-  }): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
+  async tickets(
+    f: {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      estado?: 'Pagado' | 'Pendiente' | 'Cancelado';
+      search?: string;
+      limit?: number;
+    } = {},
+  ): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
     const limit = f.limit ?? 1000;
     const tickets = await this.get(TicketSchema.array(), 'tickets', { ...f, limit });
     return { tickets, posiblementeIncompleto: tickets.length >= limit };
@@ -199,6 +207,41 @@ export class SiwebClient {
   /** Ticket con sus líneas (`items[]`: nombre, cantidad…; sin variante ni lote). */
   ticket(id: number): Promise<Ticket> {
     return this.get(TicketSchema, `tickets/${id}`);
+  }
+
+  /** Busca un ticket por su número exacto o busca en observaciones y devuelve el ticket con sus líneas. */
+  async ticketPorNumero(numero: string): Promise<Ticket | null> {
+    const { tickets } = await this.tickets({ search: numero, limit: 20 });
+    const match = tickets.find((t) => t.numero?.toLowerCase() === numero.toLowerCase()) ?? tickets[0];
+    if (!match) return null;
+    return match.items && match.items.length > 0 ? match : this.ticket(match.id);
+  }
+
+  /**
+   * `PUT inventory/variants/{id}/pricing`. Actualiza coste y precio de venta de una variante.
+   */
+  async actualizarPrecios(variantId: number, body: VariantPricingRequest): Promise<VariantPricingResponse> {
+    const { json } = await this.http.request(
+      this.url(`inventory/variants/${variantId}/pricing`),
+      { method: 'PUT', headers: await this.headers(), body: JSON.stringify(body) },
+      false,
+    );
+    return this.parse(VariantPricingResponseSchema, json, `inventory/variants/${variantId}/pricing`);
+  }
+
+  /**
+   * `GET inventory/movements`. Consulta el historial de movimientos de inventario de la empresa.
+   */
+  async movements(
+    f: {
+      variant_id?: number;
+      warehouse_id?: number;
+      reason?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ): Promise<StockMovement[]> {
+    return this.paginado(StockMovementSchema, 'inventory/movements', f);
   }
 
   /**

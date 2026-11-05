@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Siweb360 / Sygna Public API",
-    "version": "1.0.0",
-    "description": "API de integración de Siweb360 (Sygna): accede a los datos de tu empresa desde aplicaciones externas.\n\nDocumento OpenAPI generado a partir de la documentación pública en https://app.siweb360.com/developers y https://app.siweb360.com/developers/auctions (octubre 2026). Los esquemas de respuesta se infieren de los ejemplos publicados.\n\n**Autenticación:** todas las solicitudes requieren `Authorization: Bearer YOUR_API_TOKEN`. Obtén el token en Siweb360 → Configuración → API → selecciona tu empresa → Generar API Key. Excepción: `/api/verifactu-external/quick-ticket` usa el header `x-verifactu-api-key`.\n\n**Límites de uso:** 1.000 requests por hora. Disponibilidad 24/7.\n\n**Formato:** `application/json`. Respuesta estándar `{ \"success\": true, \"data\": ... }`.\n\n**Seguridad:** TLS 1.3, tokens JWT firmados con expiración, rate limiting, auditoría y backups cifrados. Cumplimiento RGPD, LOPD-GDD, LSSI-CE, ISO 27001. Responsable del tratamiento: SIWEB PLANIFICACION INTEGRAL WEB S.L. (B27862648), privacy@sygna.es.",
+    "version": "1.2.0",
+    "description": "API de integración de Siweb360 (misma API que Sygna): accede a los datos de tu empresa desde aplicaciones externas.\n\nDocumento OpenAPI generado a partir de la documentación pública en https://sygna.es/developers y https://sygna.es/developers/auctions (revisado el 3 de noviembre de 2026). Los esquemas de respuesta se infieren de los ejemplos publicados.\n\n**Autenticación:** todas las solicitudes requieren `Authorization: Bearer YOUR_API_TOKEN`. Obtén el token en Sygna → Configuración → API → selecciona tu empresa → Generar API Key. Excepción: `/api/verifactu-external/quick-ticket` usa el header `x-verifactu-api-key`.\n\n**Límites de uso:** 1.000 requests por hora. Disponibilidad 24/7.\n\n**Formato:** `application/json`. Respuesta estándar `{ \"success\": true, \"data\": ... }`.\n\n**Seguridad:** TLS 1.3, tokens JWT firmados con expiración, rate limiting, auditoría y backups cifrados. Cumplimiento RGPD, LOPD-GDD, LSSI-CE, ISO 27001. Responsable del tratamiento: SIWEB PLANIFICACION INTEGRAL WEB S.L. (B27862648), privacy@sygna.es.",
     "contact": {
       "name": "Soporte Siweb360",
       "email": "soporte@sygna.es",
@@ -13,12 +13,18 @@
   "servers": [
     {
       "url": "https://app.siweb360.com",
-      "description": "Producción"
+      "description": "Producción (Siweb360) — endpoint en uso"
+    },
+    {
+      "url": "https://sygna.es",
+      "description": "Misma API bajo el dominio Sygna"
     }
   ],
   "security": [
     {
-      "bearerAuth": []
+      "bearerAuth": [
+
+      ]
     }
   ],
   "tags": [
@@ -569,7 +575,8 @@
                         },
                         "tareas_pendientes": {
                           "type": "array",
-                          "items": {}
+                          "items": {
+                          }
                         }
                       }
                     }
@@ -610,7 +617,9 @@
                         "estado": "pagada"
                       }
                     ],
-                    "tareas_pendientes": []
+                    "tareas_pendientes": [
+
+                    ]
                   }
                 }
               }
@@ -3630,8 +3639,8 @@
                       }
                     ],
                     "items_count": 1,
-                    "share_url": "https://app.sygna.es/invoice/preview/c2de242de396fd6173598609b453ffb8",
-                    "share_token": "c2de242de396fd6173598609b453ffb8",
+                    "share_url": "https://app.sygna.es/invoice/preview/sample_doc_token_preview_01",
+                    "share_token": "sample_doc_token_preview_01",
                     "share_expires_at": "2026-02-12T15:27:51.883Z",
                     "share_max_views": null
                   }
@@ -4879,8 +4888,8 @@
                     "numero_documento": "FAC-2026-0001",
                     "estado": "borrador",
                     "document_state": "draft",
-                    "share_url": "https://app.sygna.es/invoice/preview/c2de242de396fd6173598609b453ffb8",
-                    "share_token": "c2de242de396fd6173598609b453ffb8",
+                    "share_url": "https://app.sygna.es/invoice/preview/sample_doc_token_preview_01",
+                    "share_token": "sample_doc_token_preview_01",
                     "share_expires_at": "2026-09-06T08:41:47.202Z",
                     "share_max_views": null,
                     "created_at": "2026-08-07T08:41:47.202Z"
@@ -7836,6 +7845,964 @@
         }
       }
     },
+    "/api/public/inventory/variants/{id}/pricing": {
+      "put": {
+        "tags": [
+          "Inventario"
+        ],
+        "summary": "Actualizar precio y coste de variante",
+        "description": "Actualiza el precio de venta (price_cents) y/o el coste (cost_cents) de una variante. Importes en céntimos, con hasta 2 decimales de céntimo (4 de euro). Los campos omitidos no se modifican. Si el producto tiene una sola variante, el coste se guarda también en el producto padre.",
+        "operationId": "putInventoryVariantsByIdPricing",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del recurso (path parameter)",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "price_cents": {
+                    "type": "number",
+                    "description": "Precio de venta en céntimos (p. ej. 1995 = 19,95 €)"
+                  },
+                  "cost_cents": {
+                    "type": "number",
+                    "description": "Coste en céntimos"
+                  }
+                }
+              },
+              "example": {
+                "price_cents": 1995,
+                "cost_cents": 712.5
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación correcta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "variant_id": {
+                          "type": "number"
+                        },
+                        "product_id": {
+                          "type": "number"
+                        },
+                        "sku": {
+                          "type": "string"
+                        },
+                        "price_cents": {
+                          "type": "number"
+                        },
+                        "cost_cents": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "variant_id": 8812,
+                    "product_id": 3120,
+                    "sku": "CAM-AZ-M",
+                    "price_cents": 1995,
+                    "cost_cents": 712.5
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/inventory/products/{id}/suppliers": {
+      "get": {
+        "tags": [
+          "Inventario"
+        ],
+        "summary": "Proveedores del producto",
+        "description": "Proveedores vinculados a un producto con su referencia y coste de compra. El proveedor se vincula al producto (común a todas sus variantes); usa el product_id de la variante.",
+        "operationId": "getInventoryProductsByIdSuppliers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del recurso (path parameter)",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación correcta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number"
+                          },
+                          "product_id": {
+                            "type": "number"
+                          },
+                          "contact_id": {
+                            "type": "number"
+                          },
+                          "supplier_name": {
+                            "type": "string"
+                          },
+                          "supplier_cif": {
+                            "type": "string"
+                          },
+                          "supplier_reference": {
+                            "type": "string"
+                          },
+                          "purchase_cost_cents": {
+                            "type": "number"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "lead_time_days": {
+                            "type": "number"
+                          },
+                          "min_order_qty": {
+                            "type": "number"
+                          },
+                          "is_preferred": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 77,
+                      "product_id": 3120,
+                      "contact_id": 905,
+                      "supplier_name": "Textiles del Norte S.L.",
+                      "supplier_cif": "B12345678",
+                      "supplier_reference": "TN-CAM-01",
+                      "purchase_cost_cents": 650.25,
+                      "currency": "EUR",
+                      "lead_time_days": 7,
+                      "min_order_qty": 12,
+                      "is_preferred": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/inventory/products/{id}/suppliers/{contact_id}": {
+      "put": {
+        "tags": [
+          "Inventario"
+        ],
+        "summary": "Actualizar coste de proveedor",
+        "description": "Actualiza el coste de compra (y opcionalmente referencia / preferente) de un proveedor para un producto. contact_id es el ID del contacto proveedor. Si el proveedor aún no estaba vinculado al producto, se vincula. purchase_cost_cents=null borra el coste.",
+        "operationId": "putInventoryProductsByIdSuppliersByContact_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del recurso (path parameter)",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "contact_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del contacto proveedor (path parameter)",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "purchase_cost_cents": {
+                    "type": "number",
+                    "nullable": true,
+                    "description": "Coste de compra en céntimos, o null para borrarlo"
+                  },
+                  "supplier_reference": {
+                    "type": "string",
+                    "description": "Referencia del proveedor para el producto"
+                  },
+                  "is_preferred": {
+                    "type": "boolean",
+                    "description": "Marcar como proveedor preferente"
+                  }
+                }
+              },
+              "example": {
+                "purchase_cost_cents": 650.25,
+                "supplier_reference": "TN-CAM-01",
+                "is_preferred": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación correcta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "product_id": {
+                          "type": "number"
+                        },
+                        "contact_id": {
+                          "type": "number"
+                        },
+                        "supplier_name": {
+                          "type": "string"
+                        },
+                        "supplier_cif": {
+                          "type": "string"
+                        },
+                        "supplier_reference": {
+                          "type": "string"
+                        },
+                        "purchase_cost_cents": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "lead_time_days": {
+                          "type": "number"
+                        },
+                        "min_order_qty": {
+                          "type": "number"
+                        },
+                        "is_preferred": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 77,
+                    "product_id": 3120,
+                    "contact_id": 905,
+                    "supplier_name": "Textiles del Norte S.L.",
+                    "supplier_cif": "B12345678",
+                    "supplier_reference": "TN-CAM-01",
+                    "purchase_cost_cents": 650.25,
+                    "currency": "EUR",
+                    "lead_time_days": 7,
+                    "min_order_qty": 12,
+                    "is_preferred": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de entrada inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/inventory/movements": {
+      "get": {
+        "tags": [
+          "Inventario"
+        ],
+        "summary": "Historial de movimientos de stock",
+        "description": "Historial paginado de todos los movimientos de stock de la empresa, más recientes primero. quantity es positiva en las entradas y negativa en las salidas.",
+        "operationId": "getInventoryMovements",
+        "parameters": [
+          {
+            "name": "variant_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por variante",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "warehouse_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por almacén",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por motivo: purchase_receipt, sale_shipment, adjustment_positive, adjustment_negative, transfer_out, transfer_in, production_consumption, production_output, return_customer, return_supplier, damage, theft, expiry, count_adjustment, initial_stock",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "purchase_receipt",
+                "sale_shipment",
+                "adjustment_positive",
+                "adjustment_negative",
+                "transfer_out",
+                "transfer_in",
+                "production_consumption",
+                "production_output",
+                "return_customer",
+                "return_supplier",
+                "damage",
+                "theft",
+                "expiry",
+                "count_adjustment",
+                "initial_stock"
+              ]
+            }
+          },
+          {
+            "name": "reference_type",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por tipo de documento origen",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reference_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por ID del documento origen",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "description": "Desde fecha (YYYY-MM-DD o ISO 8601)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "description": "Hasta fecha, incluida (YYYY-MM-DD incluye el día completo)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página (por defecto 1)",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Resultados por página (por defecto 50, máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación correcta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "variant_id": {
+                            "type": "number"
+                          },
+                          "sku": {
+                            "type": "string"
+                          },
+                          "variant_name": {
+                            "type": "string"
+                          },
+                          "product_id": {
+                            "type": "number"
+                          },
+                          "product_name": {
+                            "type": "string"
+                          },
+                          "product_code": {
+                            "type": "string"
+                          },
+                          "warehouse_id": {
+                            "type": "number"
+                          },
+                          "warehouse_name": {
+                            "type": "string"
+                          },
+                          "warehouse_code": {
+                            "type": "string"
+                          },
+                          "location_id": {
+                            "nullable": true
+                          },
+                          "location_code": {
+                            "nullable": true
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "movement_type": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "reference_type": {
+                            "type": "string"
+                          },
+                          "reference_id": {
+                            "type": "string"
+                          },
+                          "reference_number": {
+                            "type": "string"
+                          },
+                          "batch_number": {
+                            "type": "string"
+                          },
+                          "expiry_date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "unit_cost_cents": {
+                            "type": "number"
+                          },
+                          "notes": {
+                            "nullable": true
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "pages": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 77120,
+                      "created_at": "2026-10-28T09:41:12.000",
+                      "variant_id": 8812,
+                      "sku": "CAM-AZ-M",
+                      "variant_name": "Azul / M",
+                      "product_id": 3120,
+                      "product_name": "Camiseta básica",
+                      "product_code": "CAM-001",
+                      "warehouse_id": 14,
+                      "warehouse_name": "Almacén central",
+                      "warehouse_code": "CEN",
+                      "location_id": null,
+                      "location_code": null,
+                      "quantity": -2,
+                      "movement_type": "out",
+                      "reason": "sale_shipment",
+                      "reference_type": "budget",
+                      "reference_id": "45120",
+                      "reference_number": "FAC-0231",
+                      "batch_number": "L-2026-09",
+                      "expiry_date": "2027-03-31",
+                      "unit_cost_cents": 712,
+                      "notes": null
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "limit": 50,
+                    "total": 1,
+                    "pages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/inventory/variants/{id}/movements": {
+      "get": {
+        "tags": [
+          "Inventario"
+        ],
+        "summary": "Historial de movimientos de una variante",
+        "description": "Historial paginado de movimientos de stock de una variante, más recientes primero. Mismos filtros que el historial general.",
+        "operationId": "getInventoryVariantsByIdMovements",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del recurso (path parameter)",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "warehouse_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por almacén",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por motivo: purchase_receipt, sale_shipment, adjustment_positive, adjustment_negative, transfer_out, transfer_in, production_consumption, production_output, return_customer, return_supplier, damage, theft, expiry, count_adjustment, initial_stock",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "purchase_receipt",
+                "sale_shipment",
+                "adjustment_positive",
+                "adjustment_negative",
+                "transfer_out",
+                "transfer_in",
+                "production_consumption",
+                "production_output",
+                "return_customer",
+                "return_supplier",
+                "damage",
+                "theft",
+                "expiry",
+                "count_adjustment",
+                "initial_stock"
+              ]
+            }
+          },
+          {
+            "name": "reference_type",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por tipo de documento origen",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reference_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por ID del documento origen",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "description": "Desde fecha (YYYY-MM-DD o ISO 8601)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "description": "Hasta fecha, incluida (YYYY-MM-DD incluye el día completo)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página (por defecto 1)",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Resultados por página (por defecto 50, máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación correcta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "number"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "variant_id": {
+                            "type": "number"
+                          },
+                          "sku": {
+                            "type": "string"
+                          },
+                          "variant_name": {
+                            "type": "string"
+                          },
+                          "product_id": {
+                            "type": "number"
+                          },
+                          "product_name": {
+                            "type": "string"
+                          },
+                          "product_code": {
+                            "type": "string"
+                          },
+                          "warehouse_id": {
+                            "type": "number"
+                          },
+                          "warehouse_name": {
+                            "type": "string"
+                          },
+                          "warehouse_code": {
+                            "type": "string"
+                          },
+                          "location_id": {
+                            "nullable": true
+                          },
+                          "location_code": {
+                            "nullable": true
+                          },
+                          "quantity": {
+                            "type": "number"
+                          },
+                          "movement_type": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "reference_type": {
+                            "type": "string"
+                          },
+                          "reference_id": {
+                            "type": "string"
+                          },
+                          "reference_number": {
+                            "type": "string"
+                          },
+                          "batch_number": {
+                            "type": "string"
+                          },
+                          "expiry_date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "unit_cost_cents": {
+                            "type": "number"
+                          },
+                          "notes": {
+                            "nullable": true
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "limit": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "pages": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 77120,
+                      "created_at": "2026-10-28T09:41:12.000",
+                      "variant_id": 8812,
+                      "sku": "CAM-AZ-M",
+                      "variant_name": "Azul / M",
+                      "product_id": 3120,
+                      "product_name": "Camiseta básica",
+                      "product_code": "CAM-001",
+                      "warehouse_id": 14,
+                      "warehouse_name": "Almacén central",
+                      "warehouse_code": "CEN",
+                      "location_id": null,
+                      "location_code": null,
+                      "quantity": -2,
+                      "movement_type": "out",
+                      "reason": "sale_shipment",
+                      "reference_type": "budget",
+                      "reference_id": "45120",
+                      "reference_number": "FAC-0231",
+                      "batch_number": "L-2026-09",
+                      "expiry_date": "2027-03-31",
+                      "unit_cost_cents": 712,
+                      "notes": null
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "limit": 50,
+                    "total": 1,
+                    "pages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido o ausente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/public/accounting/entries": {
       "get": {
         "tags": [
@@ -8600,7 +9567,7 @@
           "Tickets"
         ],
         "summary": "Crear ticket",
-        "description": "Crea un ticket registrado en Siweb360 sin enviarlo a VeriFactu. Soporta dos modos: modo simple (importe único con IVA global) o modo detallado (array de items con IVA individual por línea).",
+        "description": "Crea un ticket registrado en Sygna sin enviarlo a VeriFactu. Soporta dos modos: modo simple (importe único con IVA global) o modo detallado (array de items con IVA individual por línea).",
         "operationId": "postTickets",
         "requestBody": {
           "required": false,
@@ -9285,7 +10252,7 @@
           "Tickets"
         ],
         "summary": "Crear Quick Ticket (VeriFactu)",
-        "description": "Crea un ticket y lo envía automáticamente a VeriFactu, devolviendo el código QR. Soporta dos modos: modo simple (importe único con IVA global) o modo detallado (array de items con IVA individual por línea).\n\n**Autenticación propia:** este endpoint usa el header `x-verifactu-api-key` en lugar del Bearer token estándar. Esta NO es el API Token de Siweb360: obtén la API Key de VeriFactu desde Configuración → VeriFactu (solicita activar VeriFactu al equipo de Siweb360).",
+        "description": "Crea un ticket y lo envía automáticamente a VeriFactu, devolviendo el código QR. Soporta dos modos: modo simple (importe único con IVA global) o modo detallado (array de items con IVA individual por línea).\n\n**Autenticación propia:** este endpoint usa el header `x-verifactu-api-key` en lugar del Bearer token estándar. Esta NO es el API Token de Sygna: obtén la API Key de VeriFactu desde Configuración → VeriFactu (solicita activar VeriFactu al equipo de Sygna).",
         "operationId": "postVerifactuExternalQuickTicket",
         "requestBody": {
           "required": false,
@@ -9526,7 +10493,9 @@
         },
         "security": [
           {
-            "verifactuApiKey": []
+            "verifactuApiKey": [
+
+            ]
           }
         ]
       }
@@ -10432,7 +11401,7 @@
                         "id": 90211,
                         "fecha": "2026-09-04",
                         "hora_entrada": "2026-09-04T07:02:00.000Z",
-                        "hora_entrada_local": "09:02",
+                        "hora_entrada_local": 32520,
                         "es_manual": false
                       },
                       "hoy": {
@@ -10442,7 +11411,7 @@
                         "horas_comida": 0,
                         "fichajes": 1,
                         "primera_entrada": "2026-09-04T07:02:00.000Z",
-                        "primera_entrada_local": "09:02",
+                        "primera_entrada_local": 32520,
                         "ultima_salida": null,
                         "ultima_salida_local": null
                       },
@@ -10670,7 +11639,7 @@
                       "empleado": "Lucía Ferrer Blanco",
                       "fecha": "2026-09-03",
                       "hora_entrada": "2026-09-03T07:01:00.000Z",
-                      "hora_entrada_local": "09:01",
+                      "hora_entrada_local": 32460,
                       "hora_salida": "2026-09-03T16:04:00.000Z",
                       "hora_salida_local": "18:04",
                       "total_horas": 8.05,
@@ -10827,7 +11796,7 @@
                     "empleado": "Lucía Ferrer Blanco",
                     "fecha": "2026-09-03",
                     "hora_entrada": "2026-09-03T07:01:00.000Z",
-                    "hora_entrada_local": "09:01",
+                    "hora_entrada_local": 32460,
                     "hora_salida": "2026-09-03T16:04:00.000Z",
                     "hora_salida_local": "18:04",
                     "total_horas": 8.05,
@@ -12765,7 +13734,8 @@
                     },
                     "errors": {
                       "type": "array",
-                      "items": {}
+                      "items": {
+                      }
                     }
                   }
                 },
@@ -12778,7 +13748,9 @@
                   "participants_created": 2,
                   "participants_updated": 0,
                   "contacts_failed": 0,
-                  "errors": []
+                  "errors": [
+
+                  ]
                 }
               }
             }
@@ -14227,7 +15199,8 @@
                     },
                     "skipped_details": {
                       "type": "array",
-                      "items": {}
+                      "items": {
+                      }
                     }
                   }
                 },
@@ -14259,7 +15232,9 @@
                       "estado": "borrador"
                     }
                   ],
-                  "skipped_details": []
+                  "skipped_details": [
+
+                  ]
                 }
               }
             }
@@ -15078,7 +16053,8 @@
                         },
                         "lots_skipped": {
                           "type": "array",
-                          "items": {}
+                          "items": {
+                          }
                         }
                       }
                     }
@@ -15117,7 +16093,9 @@
                       882,
                       883
                     ],
-                    "lots_skipped": []
+                    "lots_skipped": [
+
+                    ]
                   }
                 }
               }
@@ -15886,14 +16864,16 @@
                               },
                               "avisos": {
                                 "type": "array",
-                                "items": {}
+                                "items": {
+                                }
                               }
                             }
                           }
                         },
                         "errores": {
                           "type": "array",
-                          "items": {}
+                          "items": {
+                          }
                         }
                       }
                     }
@@ -15912,10 +16892,14 @@
                         "total_suplidos": 1000,
                         "ingreso_fiscal": 220,
                         "total_verifactu": 266.2,
-                        "avisos": []
+                        "avisos": [
+
+                        ]
                       }
                     ],
-                    "errores": []
+                    "errores": [
+
+                    ]
                   }
                 }
               }
@@ -18912,13 +19896,13 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "API Token de Siweb360/Sygna. Genéralo en Configuración → API → (selecciona empresa) → Generar API Key. Header: `Authorization: Bearer YOUR_API_TOKEN`."
+        "description": "API Token de Sygna. Genéralo en Configuración → API → (selecciona empresa) → Generar API Key. Header: `Authorization: Bearer YOUR_API_TOKEN`."
       },
       "verifactuApiKey": {
         "type": "apiKey",
         "in": "header",
         "name": "x-verifactu-api-key",
-        "description": "API Key de VeriFactu (Configuración → VeriFactu). Solo para /api/verifactu-external/*. No es el API Token de Siweb360."
+        "description": "API Key de VeriFactu (Configuración → VeriFactu). Solo para /api/verifactu-external/*. No es el API Token de Sygna."
       }
     },
     "schemas": {

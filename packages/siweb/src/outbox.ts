@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import Decimal from 'decimal.js';
 import { appendAudit, outbox, recepcion, recepcionLinea, type Db, type DbOrTx } from '@mmx/db';
 import { DomainError } from '@mmx/shared';
 import { HttpError } from '@mmx/shared/node';
@@ -8,7 +9,8 @@ import type { AdjustmentRequest } from './schemas';
 
 /**
  * Outbox de escrituras en Siweb360 (ADR-08, SPEC §5.2.4–5.2.5).
- * - Solo ENTRADAS (`purchase_receipt`, cantidad positiva, modo delta). Nunca salidas: las descuenta el TPV.
+ * - Solo ENTRADAS (`purchase_receipt`, cantidad positiva, modo delta) y ACTUALIZACIÓN DE PRECIOS/COSTES.
+ *   Nunca salidas: las descuenta el TPV.
  * - Respeta `SIWEB_STOCK_WRITE_MODE` (por defecto `off`: no se encola ni se envía nada).
  * - La clave de idempotencia `MMX-REC-{id}-L{n}` viaja en `notes`. Ante timeout o respuesta ambigua la
  *   operación pasa a `needs_reconciliation` y NO se reintenta sola; un 4xx determinista → `failed`.
@@ -16,9 +18,14 @@ import type { AdjustmentRequest } from './schemas';
 
 export type ModoEscritura = 'off' | 'entries_only';
 export const OPERACION_ENTRADA = 'stock_adjustment_entry';
+export const OPERACION_ACTUALIZAR_PRECIO = 'siweb_actualizar_precio';
 
 export function claveEntrada(recepcionId: string, numeroLinea: number): string {
   return `MMX-REC-${recepcionId}-L${numeroLinea}`;
+}
+
+export function clavePrecio(recepcionId: string, numeroLinea: number): string {
+  return `MMX-PRC-${recepcionId}-L${numeroLinea}`;
 }
 
 /** Garantía: el outbox solo admite entradas de stock. */
@@ -73,6 +80,9 @@ export class OutboxService {
     let encoladas = 0;
     let pendientesAlta = 0;
     for (const l of meds) {
+      if (l.siwebVariantId !== null && l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
+        await this.encolarActualizarPrecio(tx, l);
+      }
       // La persona puede decidir no dar entrada de stock de una línea («Actualizar stock» desmarcado).
       if (!l.actualizarStock) {
         await tx
@@ -127,6 +137,27 @@ export class OutboxService {
     await tx.update(recepcionLinea).set({ estado: 'ENCOLADA' }).where(eq(recepcionLinea.id, l.id));
   }
 
+  private async encolarActualizarPrecio(tx: DbOrTx, l: typeof recepcionLinea.$inferSelect) {
+    const key = clavePrecio(l.recepcionId, l.numero);
+    const precioBase = l.precioCoste ?? l.precioNetoCompra;
+    if (!precioBase || l.siwebVariantId === null) return;
+    const costCents = new Decimal(precioBase).times(100).toNumber();
+    const payload = {
+      variant_id: l.siwebVariantId,
+      cost_cents: costCents,
+    };
+    await tx
+      .insert(outbox)
+      .values({
+        operation: OPERACION_ACTUALIZAR_PRECIO,
+        payload: payload as never,
+        idempotencyKey: key,
+        entidad: 'recepcion_linea',
+        entidadId: l.id,
+      })
+      .onConflictDoNothing({ target: outbox.idempotencyKey });
+  }
+
   /**
    * Cuando se completa el alta en Siweb360 de un CN, se mapean sus líneas PENDIENTE_ALTA_SIWEB y se
    * encola el ajuste pendiente (SPEC §5.2.2).
@@ -142,6 +173,9 @@ export class OutboxService {
       for (const l of lineas) {
         await tx.update(recepcionLinea).set({ siwebVariantId: variantId }).where(eq(recepcionLinea.id, l.id));
         await this.encolarLinea(tx, { ...l, siwebVariantId: variantId }, almacen);
+        if (l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
+          await this.encolarActualizarPrecio(tx, { ...l, siwebVariantId: variantId });
+        }
       }
       return lineas.length;
     });
@@ -185,13 +219,23 @@ export class OutboxService {
     let error: string | null = null;
     let response: unknown = null;
     try {
-      if (f.operation !== OPERACION_ENTRADA)
+      if (f.operation === OPERACION_ENTRADA) {
+        const payload = f.payload as AdjustmentRequest;
+        exigirEntrada(payload);
+        const r = await this.client.ajustarStock(payload);
+        status = 'sent';
+        response = r.raw;
+      } else if (f.operation === OPERACION_ACTUALIZAR_PRECIO) {
+        const payload = f.payload as { variant_id: number; cost_cents?: number; price_cents?: number };
+        const r = await this.client.actualizarPrecios(payload.variant_id, {
+          ...(payload.cost_cents !== undefined ? { cost_cents: payload.cost_cents } : {}),
+          ...(payload.price_cents !== undefined ? { price_cents: payload.price_cents } : {}),
+        });
+        status = 'sent';
+        response = r;
+      } else {
         throw new DomainError('SIWEB_SALIDAS_PROHIBIDAS', `Operación no admitida: ${f.operation}`);
-      const payload = f.payload as AdjustmentRequest;
-      exigirEntrada(payload);
-      const r = await this.client.ajustarStock(payload);
-      status = 'sent';
-      response = r.raw;
+      }
     } catch (e) {
       if (
         e instanceof HttpError &&
@@ -225,7 +269,7 @@ export class OutboxService {
           sentAt: status === 'sent' ? this.now() : null,
         })
         .where(eq(outbox.id, f.id));
-      if (f.entidad === 'recepcion_linea' && f.entidadId)
+      if (f.entidad === 'recepcion_linea' && f.entidadId && f.operation === OPERACION_ENTRADA)
         await this.actualizarRecepcion(tx, f.entidadId, status);
       await appendAudit(tx, {
         actor: 'outbox-dispatcher',

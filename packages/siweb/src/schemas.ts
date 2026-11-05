@@ -157,6 +157,34 @@ export type Level = z.infer<typeof LevelSchema>;
 export type AdjustmentResult = z.infer<typeof AdjustmentResultSchema>;
 export type Ticket = z.infer<typeof TicketSchema>;
 
+export const VariantPricingRequestSchema = z.object({
+  price_cents: z.number().nonnegative().optional(),
+  cost_cents: z.number().nonnegative().optional(),
+});
+export type VariantPricingRequest = z.infer<typeof VariantPricingRequestSchema>;
+
+export const VariantPricingResponseSchema = z.looseObject({
+  variant_id: num,
+  sku: z.string().nullish(),
+  price_cents: z.number().nullish(),
+  cost_cents: z.number().nullish(),
+});
+export type VariantPricingResponse = z.infer<typeof VariantPricingResponseSchema>;
+
+export const StockMovementSchema = z.looseObject({
+  id: num,
+  variant_id: num,
+  sku: z.string().nullish(),
+  warehouse_id: numN,
+  quantity: z.number(),
+  reason: z.string(),
+  reference_type: z.string().nullish(),
+  reference_id: z.number().nullish(),
+  notes: z.string().nullish(),
+  created_at: z.string().nullish(),
+});
+export type StockMovement = z.infer<typeof StockMovementSchema>;
+
 /** Motivos admitidos por `POST inventory/stock/adjustments` (doc). */
 export const ADJUSTMENT_REASONS = [
   'purchase_receipt',

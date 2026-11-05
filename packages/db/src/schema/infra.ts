@@ -134,7 +134,7 @@ export const conciliacion = pgTable(
     ticket: text(),
     /** false si el ticket no trae lote (Siweb360): conciliada por código nacional y unidades. */
     loteVerificado: boolean().notNull(),
-    /** registro (al completar el registro) | bajo-demanda | sales-reconciliation (job diario). */
+    /** registro (al completar el registro) | bajo-demanda | sales-reconciliation (job diario) | manual. */
     origen: text().notNull(),
     at: timestamp({ withTimezone: true }).notNull(),
   },
