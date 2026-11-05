@@ -4044,6 +4044,102 @@
         }
       }
     },
+    "/api/conciliacion/tickets": {
+      "get": {
+        "summary": "Busca tickets en el TPV por número u observaciones para conciliación asistida",
+        "tags": [
+          "conciliacion"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 3
+            },
+            "in": "query",
+            "name": "search",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Pagado",
+                "Pendiente",
+                "Cancelado"
+              ]
+            },
+            "in": "query",
+            "name": "estado",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion/asociar": {
+      "post": {
+        "summary": "Asocia manualmente una salida de dispensación a un ticket del TPV",
+        "tags": [
+          "conciliacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dispensacionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "ticketId": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  },
+                  "ticketNumero": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lineaId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "nota": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "dispensacionId",
+                  "ticketId",
+                  "ticketNumero"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/demo/tpv": {
       "post": {
         "summary": "DEMO: simula el cobro en el TPV (ticket sin lote)",

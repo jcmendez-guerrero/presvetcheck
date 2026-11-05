@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "data": {
+    "id": 70458,
+    "numero": "XXX-2026-000458",
+    "fecha": "2026-11-05",
+    "hora": "13:45",
+    "estado": "Pagado",
+    "metodo_pago": "Tarjeta",
+    "subtotal": 29.55,
+    "impuestos": 2.95,
+    "total": 32.5,
+    "observaciones": "",
+    "company_nombre": "Mundo Mascotix",
+    "company_cif": "B00000000",
+    "serie_nombre": "Serie XXX",
+    "serie_prefijo": "XXX",
+    "qr_code_data": null,
+    "items": [
+      {
+        "id": 1,
+        "nombre": "BONQAT 50 mg/ml SOLUCION ORAL PARA GATOS, Caja con 1 Frasco de 2 ml y una jeringa - EU/2/21/273/001",
+        "tipo": "producto",
+        "cantidad": 1,
+        "precio_unitario": 32.5,
+        "subtotal": 32.5,
+        "impuesto": "10%",
+        "porcentaje_impuesto": 10,
+        "descuento_porcentaje": 0,
+        "descuento_valor": 0
+      }
+    ],
+    "items_count": 1,
+    "verifactu": null,
+    "descuento_global_porcentaje": 0,
+    "descuento_global_valor": 0,
+    "created_at": "2026-11-05T12:45:00.000Z",
+    "updated_at": "2026-11-05T12:45:00.000Z"
+  }
+}

@@ -1,4 +1,4 @@
-import { DomainError } from '@mmx/shared';
+import { DomainError, AsociarTicketBody, BuscarTicketsQuery } from '@mmx/shared';
 import {
   aCsv,
   aXlsx,
@@ -256,6 +256,30 @@ export async function rutasRegistros(app: App, d: AppDeps) {
       configurado: conc.configurado,
       salidas: await conc.estadoReceta(req.params.id),
     }),
+  );
+  app.get(
+    '/api/conciliacion/tickets',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Busca tickets en el TPV por número u observaciones para conciliación asistida',
+        querystring: BuscarTicketsQuery,
+      },
+    },
+    async (req) => conc.buscarTickets(req.query.search, req.query.estado),
+  );
+  app.post(
+    '/api/conciliacion/asociar',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Asocia manualmente una salida de dispensación a un ticket del TPV',
+        body: AsociarTicketBody,
+      },
+    },
+    async (req) => conc.asociarManual(req.body, ctx(req)),
   );
   app.post(
     '/api/demo/tpv',

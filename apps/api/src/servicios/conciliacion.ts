@@ -1,8 +1,8 @@
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
-import { appendAudit, dispensacion } from '@mmx/db';
+import { appendAudit, conciliacion, dispensacion } from '@mmx/db';
 import { hoy } from '@mmx/domain';
 import { DemoSalesMovementsSource, conciliarDia, estadoConciliacion } from '@mmx/siweb';
-import { DomainError } from '@mmx/shared';
+import { DomainError, type AsociarTicketBody } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
 import type { ContextoPeticion } from './recetas';
 
@@ -84,5 +84,72 @@ export class ConciliacionService {
 
   hoy() {
     return hoy(this.d.clock);
+  }
+
+  /** Busca tickets del TPV (en Siweb360 o tickets simulados de demo). */
+  async buscarTickets(search: string, estado?: 'Pagado' | 'Pendiente' | 'Cancelado') {
+    if (this.d.ventas.buscarTickets) {
+      const tickets = await this.d.ventas.buscarTickets(search);
+      const filtrados = estado ? tickets.filter((t) => t.estado === estado) : tickets;
+      return { tickets: filtrados };
+    }
+    return { tickets: [] };
+  }
+
+  /** Asocia manualmente una dispensación pendiente a una línea de un ticket del TPV. */
+  async asociarManual(body: AsociarTicketBody, c: ContextoPeticion) {
+    const [disp] = await this.d.db
+      .select()
+      .from(dispensacion)
+      .where(eq(dispensacion.id, body.dispensacionId))
+      .limit(1);
+    if (!disp) throw new DomainError('NO_ENCONTRADO');
+    if (disp.anulaDispensacionId) throw new DomainError('TRANSICION_NO_PERMITIDA');
+
+    const [ya] = await this.d.db
+      .select({ id: conciliacion.id })
+      .from(conciliacion)
+      .where(eq(conciliacion.dispensacionId, body.dispensacionId))
+      .limit(1);
+    if (ya) throw new DomainError('CONFLICTO');
+
+    const ahora = ahoraDe(this.d);
+    const movimientoId = `ticket:${body.ticketId}:${body.lineaId ?? 0}`;
+    await this.d.db.insert(conciliacion).values({
+      dispensacionId: body.dispensacionId,
+      movimientoId,
+      ticket: body.ticketNumero,
+      loteVerificado: false,
+      origen: 'manual',
+      at: ahora,
+    });
+
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'conciliar',
+      entidad: 'conciliacion',
+      entidadId: body.dispensacionId,
+      despues: {
+        dispensacionId: body.dispensacionId,
+        ticketId: body.ticketId,
+        ticketNumero: body.ticketNumero,
+        lineaId: body.lineaId,
+        origen: 'manual',
+        nota: body.nota ?? null,
+      },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
+
+    return {
+      ok: true as const,
+      conciliacion: {
+        dispensacionId: body.dispensacionId,
+        ticket: body.ticketNumero,
+        movimientoId,
+        loteVerificado: false,
+        origen: 'manual' as const,
+      },
+    };
   }
 }

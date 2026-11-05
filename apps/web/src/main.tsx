@@ -24,7 +24,12 @@ import { AsistenteHistorico } from './paginas/asistente-historico';
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
 const r1 = createRoute({ getParentRoute: () => raiz, path: '/recetas/nueva', component: NuevaReceta });
-const r2 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/revision', component: Revision });
+const r2 = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recetas/$id/revision',
+  component: Revision,
+  staticData: { anchoCompleto: true },
+});
 const rRegistro = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/registro',

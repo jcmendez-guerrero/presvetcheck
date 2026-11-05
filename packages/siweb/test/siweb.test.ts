@@ -96,6 +96,62 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
     ]);
   });
 
+  it('actualizarPrecios (API 1.2.0) envía PUT /inventory/variants/:id/pricing con cost_cents y price_cents', async () => {
+    let capturedBody: unknown = null;
+    server.use(
+      http.put(`${BASE}inventory/variants/:id/pricing`, async ({ request, params }) => {
+        expect(params.id).toBe('9001');
+        capturedBody = await request.json();
+        return HttpResponse.json(fx('doc-variant-pricing.json'));
+      }),
+    );
+    const c = client();
+    const res = await c.actualizarPrecios(9001, { cost_cents: 1850.5, price_cents: 3250 });
+    expect(capturedBody).toEqual({ cost_cents: 1850.5, price_cents: 3250 });
+    expect(res).toMatchObject({
+      variant_id: 9001,
+      sku: 'BONQAT-0001-CN590948',
+      price_cents: 3250,
+      cost_cents: 1850.5,
+    });
+  });
+
+  it('movements (API 1.2.0) consulta historial de movimientos de inventario', async () => {
+    server.use(
+      http.get(`${BASE}inventory/movements`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('variant_id')).toBe('9001');
+        return HttpResponse.json({
+          success: true,
+          data: [
+            {
+              id: 101,
+              variant_id: 9001,
+              sku: 'BONQAT-0001-CN590948',
+              product_name: 'BONQAT',
+              warehouse_id: 1,
+              warehouse_name: 'Farmacia',
+              type: 'IN',
+              quantity: 10,
+              reason: 'Recepción albarán 2026/01',
+              reference: 'ALB-2026-01',
+              created_at: '2026-11-05T10:00:00Z',
+            },
+          ],
+        });
+      }),
+    );
+    const c = client();
+    const movs = await c.movements({ variant_id: 9001 });
+    expect(movs).toHaveLength(1);
+    expect(movs[0]).toMatchObject({
+      id: 101,
+      variant_id: 9001,
+      quantity: 10,
+      type: 'IN',
+    });
+  });
+
   it('pagina según pagination.pages (documentado)', async () => {
     const paginas: string[] = [];
     server.use(

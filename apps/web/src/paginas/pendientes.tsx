@@ -57,7 +57,68 @@ export function PaginaPendientes() {
   const [notas, setNotas] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  // Estado para asociación manual con ticket TPV
+  const [salidaAAsociar, setSalidaAAsociar] = useState<Pendientes['sinConciliar']['salidas'][number] | null>(null);
+  const [ticketSearch, setTicketSearch] = useState('');
+  const [buscandoTickets, setBuscandoTickets] = useState(false);
+  const [asociandoId, setAsociandoId] = useState<number | null>(null);
+  const [asociarError, setAsociarError] = useState<string | null>(null);
+  const [ticketsResult, setTicketsResult] = useState<
+    Array<{
+      id: number;
+      numero: string;
+      fecha: string;
+      hora?: string | null;
+      estado: string;
+      total: number;
+      items?: Array<{ id: number; nombre: string; cantidad: number; precioUnitario: number; subtotal: number }>;
+    }>
+  >([]);
+
   if (!q.data) return <Cargando />;
+
+  const buscarTickets = async () => {
+    if (ticketSearch.trim().length < 3) return;
+    setBuscandoTickets(true);
+    setAsociarError(null);
+    try {
+      const res = await get<{ tickets: typeof ticketsResult }>(
+        `/api/conciliacion/tickets?search=${encodeURIComponent(ticketSearch.trim())}`,
+      );
+      setTicketsResult(res.tickets);
+      if (res.tickets.length === 0) {
+        setAsociarError('No se encontraron tickets con ese número.');
+      }
+    } catch (e) {
+      setAsociarError(e instanceof ApiError ? e.message : 'Error al buscar tickets');
+    } finally {
+      setBuscandoTickets(false);
+    }
+  };
+
+  const asociarTicket = async (ticket: (typeof ticketsResult)[number]) => {
+    if (!salidaAAsociar) return;
+    setAsociandoId(ticket.id);
+    setAsociarError(null);
+    try {
+      await post('/api/conciliacion/asociar', {
+        dispensacionId: salidaAAsociar.id,
+        ticketId: ticket.id,
+        ticketNumero: ticket.numero,
+        nota: `Asociación manual desde pantalla de pendientes (${ticket.numero})`,
+      });
+      setOk(`Salida asociada correctamente al ticket ${ticket.numero}`);
+      setSalidaAAsociar(null);
+      setTicketsResult([]);
+      setTicketSearch('');
+      await qc.invalidateQueries({ queryKey: ['pendientes'] });
+    } catch (e) {
+      setAsociarError(e instanceof ApiError ? e.message : 'Error al asociar ticket');
+    } finally {
+      setAsociandoId(null);
+    }
+  };
   const resolver = async (id: string) => {
     setMsg(null);
     try {
@@ -117,12 +178,107 @@ export function PaginaPendientes() {
         )}
         <ul className="divide-y">
           {p.sinConciliar.salidas.map((s) => (
-            <li key={s.id} className="py-2 text-sm">
-              {fecha(s.fecha.slice(0, 10))} · {s.nombre} · {CN} {s.cn} · lote {s.lote} ·{' '}
-              {s.fraccion ? 'fracción: compruébala a mano con el ticket' : `${s.unidades} envase(s)`}
+            <li key={s.id} className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {fecha(s.fecha.slice(0, 10))} · {s.nombre} · {CN} {s.cn} · lote {s.lote} ·{' '}
+                {s.fraccion ? 'fracción: compruébala a mano con el ticket' : `${s.unidades} envase(s)`}
+              </div>
+              <Boton
+                variante="secundario"
+                className="!px-3 !py-1 text-xs self-start sm:self-auto"
+                onClick={() => {
+                  setSalidaAAsociar(s);
+                  setTicketSearch('');
+                  setTicketsResult([]);
+                  setAsociarError(null);
+                }}
+              >
+                Indicar ticket
+              </Boton>
             </li>
           ))}
         </ul>
+
+        {salidaAAsociar && (
+          <div className="mt-4 rounded-xl border-2 border-marca/30 bg-slate-50 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-marca">
+                Asociar ticket del TPV para: {salidaAAsociar.nombre} ({CN} {salidaAAsociar.cn})
+              </h3>
+              <button
+                type="button"
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                onClick={() => setSalidaAAsociar(null)}
+              >
+                ✕ Cancelar
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-600">
+              Salida del {fecha(salidaAAsociar.fecha.slice(0, 10))} · Lote {salidaAAsociar.lote} · {salidaAAsociar.unidades} envase(s)
+            </p>
+
+            {asociarError && <div className="mt-2 text-xs font-semibold text-noconforme">{asociarError}</div>}
+
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                placeholder="Buscar por nº de ticket (ej. XXX-2026-000458)"
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void buscarTickets();
+                  }
+                }}
+                className="min-h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+              />
+              <Boton
+                disabled={buscandoTickets || ticketSearch.trim().length < 3}
+                onClick={() => void buscarTickets()}
+              >
+                {buscandoTickets ? 'Buscando…' : 'Buscar ticket'}
+              </Boton>
+            </div>
+
+            {ticketsResult.length > 0 && (
+              <div className="mt-3 max-h-60 space-y-2 overflow-y-auto">
+                {ticketsResult.map((t) => (
+                  <div key={t.id} className="flex flex-col gap-2 rounded-lg border bg-white p-3 text-sm">
+                    <div className="flex items-center justify-between font-medium">
+                      <span>
+                        Ticket {t.numero} · {t.fecha} {t.hora ?? ''} ({t.estado})
+                      </span>
+                      <span>{t.total.toFixed(2)} €</span>
+                    </div>
+                    {t.items && t.items.length > 0 && (
+                      <ul className="divide-y border-t pt-1 text-xs text-slate-600">
+                        {t.items.map((it) => (
+                          <li key={it.id} className="flex justify-between py-1">
+                            <span>
+                              {it.cantidad}x {it.nombre}
+                            </span>
+                            <span>{it.subtotal.toFixed(2)} €</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex justify-end pt-1">
+                      <Boton
+                        variante="principal"
+                        className="!px-3 !py-1 text-xs"
+                        disabled={asociandoId === t.id}
+                        onClick={() => void asociarTicket(t)}
+                      >
+                        {asociandoId === t.id ? 'Asociando…' : 'Asociar a este ticket'}
+                      </Boton>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {p.sinConciliar.configurado && (
           <div className="mt-3 flex flex-wrap gap-3">
             <Boton onClick={() => void conciliar(false)}>Conciliar ahora</Boton>

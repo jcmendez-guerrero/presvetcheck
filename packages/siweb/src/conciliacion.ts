@@ -40,10 +40,17 @@ export async function conciliarDia(
       ),
     );
   const mapa = new Map((await db.select().from(siwebVariantMap)).map((m) => [m.variantId, m.cn]));
+  const mapaVariantes = new Map<string, string>();
+  for (const d of disp) {
+    if (d.nombreFarmaco && d.cn) mapaVariantes.set(d.nombreFarmaco, d.cn);
+  }
+  for (const m of await db.select().from(siwebVariantMap)) {
+    if (m.sku) mapaVariantes.set(m.sku, m.cn);
+  }
   const usados = new Set(
     (await db.select({ m: conciliacion.movimientoId }).from(conciliacion)).map((x) => x.m),
   );
-  const movs: MovimientoVenta[] = (await ventas.movimientos(dia, dia))
+  const movs: MovimientoVenta[] = (await ventas.movimientos(dia, dia, mapaVariantes))
     .filter((m) => !usados.has(m.id))
     .map((m) => ({ ...m, cn: m.cn ?? (m.variantId !== null ? mapa.get(m.variantId) : undefined) ?? null }));
   // Las fracciones no se venden como envase en el TPV: no se concilian automáticamente (se informan).
@@ -161,5 +168,50 @@ export class DemoSalesMovementsSource implements SalesMovementsSource {
     const numero = `DEMO-${ahora.getTime().toString(36).toUpperCase()}`;
     await this.db.insert(ticketDemo).values({ numero, cn, unidades, fecha: ahora, creadoPor: usuario });
     return { numero };
+  }
+
+  async buscarTickets(search: string) {
+    const filas = await this.db
+      .select()
+      .from(ticketDemo)
+      .where(sql`${ticketDemo.numero} ilike ${`%${search}%`}`)
+      .limit(20);
+    return filas.map((t, idx) => ({
+      id: Number.parseInt(t.id.replace(/\D/g, '').slice(0, 8), 10) || idx + 1,
+      numero: t.numero,
+      fecha: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(t.fecha),
+      hora: '12:00',
+      estado: 'Pagado',
+      metodo_pago: 'Tarjeta',
+      subtotal: 10,
+      impuestos: 1,
+      total: 11,
+      observaciones: '',
+      company_nombre: 'Mundo Mascotix',
+      company_cif: 'B00000000',
+      serie_nombre: null,
+      serie_prefijo: null,
+      qr_code_data: null,
+      items: [
+        {
+          id: 1,
+          nombre: `Medicamento CN${t.cn}`,
+          tipo: 'producto',
+          cantidad: t.unidades,
+          precio_unitario: 10,
+          subtotal: 10,
+          impuesto: '10%',
+          porcentaje_impuesto: 10,
+          descuento_porcentaje: 0,
+          descuento_valor: 0,
+        },
+      ],
+      items_count: 1,
+      verifactu: null,
+      descuento_global_porcentaje: 0,
+      descuento_global_valor: 0,
+      created_at: t.fecha.toISOString(),
+      updated_at: t.fecha.toISOString(),
+    }));
   }
 }

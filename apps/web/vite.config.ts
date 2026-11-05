@@ -39,5 +39,5 @@ export default defineConfig({
   server: { port: 5173, host: process.env.WEB_HOST === '1' ? true : 'localhost', proxy: { '/api': API, '/.auth': API } },
   preview: { port: 4173, proxy: { '/api': API } },
   optimizeDeps: { exclude: ['zxing-wasm'] },
-  test: { include: ['src/**/*.test.ts'] },
+  test: { include: ['src/**/*.test.{ts,tsx}'] },
 } as never);
