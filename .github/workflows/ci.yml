@@ -90,7 +90,7 @@ jobs:
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_TRIVY: false
           FIX_TERRAFORM_FMT: true
-          FILTER_REGEX_EXCLUDE: (.*github/linters.*|.*CHANGELOG.md.*|.*specify/.*|.*apps/api/openapi\.json)
+          FILTER_REGEX_EXCLUDE: (.*github/linters.*|.*CHANGELOG.md.*|.*specify/.*|.*specs/.*|.*apps/api/openapi\.json|.*docs/ref/.*)
           JAVASCRIPT_ES_CONFIG_FILE: eslint.config.js
           TYPESCRIPT_ES_CONFIG_FILE: eslint.config.js
           VALIDATE_SPELL_CODESPELL: false

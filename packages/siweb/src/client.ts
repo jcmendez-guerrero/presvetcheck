@@ -191,13 +191,15 @@ export class SiwebClient {
    * (por defecto 100 en la API). Si se devuelven `limit` tickets puede haber más: el llamante lo trata
    * como lectura incompleta.
    */
-  async tickets(f: {
-    fecha_desde?: string;
-    fecha_hasta?: string;
-    estado?: 'Pagado' | 'Pendiente' | 'Cancelado';
-    search?: string;
-    limit?: number;
-  } = {}): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
+  async tickets(
+    f: {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      estado?: 'Pagado' | 'Pendiente' | 'Cancelado';
+      search?: string;
+      limit?: number;
+    } = {},
+  ): Promise<{ tickets: Ticket[]; posiblementeIncompleto: boolean }> {
     const limit = f.limit ?? 1000;
     const tickets = await this.get(TicketSchema.array(), 'tickets', { ...f, limit });
     return { tickets, posiblementeIncompleto: tickets.length >= limit };

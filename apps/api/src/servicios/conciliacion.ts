@@ -23,19 +23,41 @@ export class ConciliacionService {
   async conciliarDias(dias: string[], c: ContextoPeticion, o: { origen: string; cierre?: boolean }) {
     if (!this.d.ventas.configurado) return { configurado: false as const };
     const ahora = ahoraDe(this.d);
-    const total = { conciliadas: 0, loteSinVerificar: 0, discrepancias: 0, pendientes: 0, fraccionadasSinConciliar: 0 };
+    const total = {
+      conciliadas: 0,
+      loteSinVerificar: 0,
+      discrepancias: 0,
+      pendientes: 0,
+      fraccionadasSinConciliar: 0,
+    };
     for (const x of [...new Set(dias)]) {
-      const r = await conciliarDia(this.d.db, this.d.ventas, x, { ahora, origen: o.origen, cierre: o.cierre ?? false });
+      const r = await conciliarDia(this.d.db, this.d.ventas, x, {
+        ahora,
+        origen: o.origen,
+        cierre: o.cierre ?? false,
+      });
       for (const k of Object.keys(total) as (keyof typeof total)[]) total[k] += r[k];
     }
-    await appendAudit(this.d.db, { actor: c.usuario.id, accion: 'conciliar', entidad: 'conciliacion', entidadId: null, despues: { dias, origen: o.origen, ...total }, ip: c.ip, userAgent: c.userAgent });
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'conciliar',
+      entidad: 'conciliacion',
+      entidadId: null,
+      despues: { dias, origen: o.origen, ...total },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
     return { configurado: true as const, ...total };
   }
 
   /** Concilia los días en que se dispensó la receta y devuelve el estado de cada salida. */
   async conciliarReceta(recetaId: string, c: ContextoPeticion) {
     const salidas = await this.salidasDeReceta(recetaId);
-    const r = await this.conciliarDias(salidas.map((s) => dia(s.fechaVenta)), c, { origen: 'registro' });
+    const r = await this.conciliarDias(
+      salidas.map((s) => dia(s.fechaVenta)),
+      c,
+      { origen: 'registro' },
+    );
     return { ...r, salidas: await this.estado(salidas.map((s) => s.id)) };
   }
 
@@ -59,7 +81,16 @@ export class ConciliacionService {
   async pendientes() {
     const desde = new Date(ahoraDe(this.d).getTime() - 30 * 86_400_000);
     const filas = await this.d.db
-      .select({ id: dispensacion.id, cn: dispensacion.cn, nombre: dispensacion.nombreFarmaco, lote: dispensacion.lote, unidades: dispensacion.unidades, unidadesForma: dispensacion.unidadesForma, fecha: dispensacion.fechaVenta, recetaId: dispensacion.recetaId })
+      .select({
+        id: dispensacion.id,
+        cn: dispensacion.cn,
+        nombre: dispensacion.nombreFarmaco,
+        lote: dispensacion.lote,
+        unidades: dispensacion.unidades,
+        unidadesForma: dispensacion.unidadesForma,
+        fecha: dispensacion.fechaVenta,
+        recetaId: dispensacion.recetaId,
+      })
       .from(dispensacion)
       .where(
         and(
@@ -71,14 +102,27 @@ export class ConciliacionService {
       )
       .orderBy(desc(dispensacion.fechaVenta))
       .limit(200);
-    const est = await estadoConciliacion(this.d.db, filas.map((f) => f.id));
-    return { configurado: this.d.ventas.configurado, salidas: filas.filter((f) => est.get(f.id) === 'pendiente').map(({ unidadesForma, ...f }) => ({ ...f, fecha: f.fecha.toISOString(), fraccion: unidadesForma !== null })) };
+    const est = await estadoConciliacion(
+      this.d.db,
+      filas.map((f) => f.id),
+    );
+    return {
+      configurado: this.d.ventas.configurado,
+      salidas: filas
+        .filter((f) => est.get(f.id) === 'pendiente')
+        .map(({ unidadesForma, ...f }) => ({
+          ...f,
+          fecha: f.fecha.toISOString(),
+          fraccion: unidadesForma !== null,
+        })),
+    };
   }
 
   /** Demo: registra un cobro simulado en el TPV (ticket sin lote, como los de Siweb360). */
   async cobrarDemo(cn: string, unidades: number, c: ContextoPeticion) {
     const v = this.d.ventas;
-    if (!(v instanceof DemoSalesMovementsSource) || this.d.config.NODE_ENV === 'production') throw new DomainError('NO_ENCONTRADO');
+    if (!(v instanceof DemoSalesMovementsSource) || this.d.config.NODE_ENV === 'production')
+      throw new DomainError('NO_ENCONTRADO');
     return v.cobrar(cn, unidades, ahoraDe(this.d), c.usuario.id);
   }
 

@@ -23,6 +23,8 @@ docs/ref/*Arbol_Medicamentos_VET*.xlsx
 .claude/worktrees/
 # Parámetros reales del despliegue np (nombres internos, appId, correos): plantilla en main.bicepparam.example.
 infra/np/main.bicepparam
+# Copilot / Antigravity agents locales
+.agents/
 # Imágenes de recetas reales (datos personales). Las anonimizadas se añaden con `git add -f` tras revisarlas.
 fixtures/recetas/*.jpg
 fixtures/recetas/*.jpeg

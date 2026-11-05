@@ -80,7 +80,11 @@ export class TicketsSalesMovementsSource implements SalesMovementsSource {
     return out;
   }
 
-  async movimientos(desde: string, hasta: string, variantes?: Map<string, string>): Promise<MovimientoVenta[]> {
+  async movimientos(
+    desde: string,
+    hasta: string,
+    variantes?: Map<string, string>,
+  ): Promise<MovimientoVenta[]> {
     const { tickets, posiblementeIncompleto } = await this.client.tickets({
       fecha_desde: desde,
       fecha_hasta: hasta,

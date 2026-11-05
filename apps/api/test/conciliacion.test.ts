@@ -16,7 +16,12 @@ describe('Conciliación asistida y búsqueda de tickets', () => {
     const numeroTicket = (cobro.json as { numero: string }).numero;
 
     // 2. Buscar tickets por número
-    const busqueda = await api(app, 'dev-empleado', 'GET', `/api/conciliacion/tickets?search=${numeroTicket.slice(0, 8)}`);
+    const busqueda = await api(
+      app,
+      'dev-empleado',
+      'GET',
+      `/api/conciliacion/tickets?search=${numeroTicket.slice(0, 8)}`,
+    );
     expect(busqueda.status).toBe(200);
     const tickets = (busqueda.json as { tickets: Array<{ numero: string }> }).tickets;
     expect(tickets.length).toBeGreaterThan(0);
@@ -67,10 +72,7 @@ describe('Conciliación asistida y búsqueda de tickets', () => {
     expect(c?.origen).toBe('manual');
 
     // 6. Verificar traza en audit_event
-    const [audit] = await h.db
-      .select()
-      .from(auditEvent)
-      .where(eq(auditEvent.entidadId, dispId));
+    const [audit] = await h.db.select().from(auditEvent).where(eq(auditEvent.entidadId, dispId));
     expect(audit).toBeDefined();
     expect(audit?.accion).toBe('conciliar');
 

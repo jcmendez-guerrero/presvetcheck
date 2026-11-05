@@ -56,20 +56,14 @@ describe('Encolado de actualización de precios en el outbox tras finalizar rece
     const lineaId = (l.json as { linea: { id: string } }).linea.id;
 
     // Asignar siwebVariantId a la línea
-    await h.db
-      .update(recepcionLinea)
-      .set({ siwebVariantId: 9001 })
-      .where(eq(recepcionLinea.id, lineaId));
+    await h.db.update(recepcionLinea).set({ siwebVariantId: 9001 }).where(eq(recepcionLinea.id, lineaId));
 
     // 3. Finalizar la recepción
     const fin = await api(app, 'dev-empleado', 'POST', `/api/recepciones/${recepcionId}/finalizar`);
     expect(fin.status).toBe(200);
 
     // 4. Verificar filas en el outbox
-    const filasOutbox = await h.db
-      .select()
-      .from(outbox)
-      .where(eq(outbox.entidadId, lineaId));
+    const filasOutbox = await h.db.select().from(outbox).where(eq(outbox.entidadId, lineaId));
 
     expect(filasOutbox.length).toBe(2);
 

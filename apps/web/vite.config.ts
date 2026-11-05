@@ -36,7 +36,11 @@ export default defineConfig({
     }),
   ],
   // WEB_HOST=1: accesible desde la red local (móvil emparejado por QR en `pnpm demo`).
-  server: { port: 5173, host: process.env.WEB_HOST === '1' ? true : 'localhost', proxy: { '/api': API, '/.auth': API } },
+  server: {
+    port: 5173,
+    host: process.env.WEB_HOST === '1' ? true : 'localhost',
+    proxy: { '/api': API, '/.auth': API },
+  },
   preview: { port: 4173, proxy: { '/api': API } },
   optimizeDeps: { exclude: ['zxing-wasm'] },
   test: { include: ['src/**/*.test.{ts,tsx}'] },

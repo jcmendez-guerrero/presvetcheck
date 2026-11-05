@@ -3639,8 +3639,8 @@
                       }
                     ],
                     "items_count": 1,
-                    "share_url": "https://app.sygna.es/invoice/preview/c2de242de396fd6173598609b453ffb8",
-                    "share_token": "c2de242de396fd6173598609b453ffb8",
+                    "share_url": "https://app.sygna.es/invoice/preview/sample_doc_token_preview_01",
+                    "share_token": "sample_doc_token_preview_01",
                     "share_expires_at": "2026-02-12T15:27:51.883Z",
                     "share_max_views": null
                   }
@@ -4888,8 +4888,8 @@
                     "numero_documento": "FAC-2026-0001",
                     "estado": "borrador",
                     "document_state": "draft",
-                    "share_url": "https://app.sygna.es/invoice/preview/c2de242de396fd6173598609b453ffb8",
-                    "share_token": "c2de242de396fd6173598609b453ffb8",
+                    "share_url": "https://app.sygna.es/invoice/preview/sample_doc_token_preview_01",
+                    "share_token": "sample_doc_token_preview_01",
                     "share_expires_at": "2026-09-06T08:41:47.202Z",
                     "share_max_views": null,
                     "created_at": "2026-08-07T08:41:47.202Z"
