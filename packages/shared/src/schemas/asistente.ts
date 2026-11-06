@@ -185,6 +185,19 @@ export const ArgsSimularEquivalencia = z.object({
   especieProduccion: z.boolean().optional(),
 });
 
+export const ArgsBuscarSustitutos = z.object({
+  nombre: z.string().min(2).max(120).optional(),
+  nregistro: z.string().min(1).max(30).optional(),
+  especie: z.string().min(1).max(60),
+  indicacion: z.string().max(300).optional(),
+});
+export type ArgsBuscarSustitutos = z.infer<typeof ArgsBuscarSustitutos>;
+
+export const ArgsConsultarStock = z.object({
+  cns: z.array(z.string().regex(/^\d{6}$/)).min(1).max(50),
+});
+export type ArgsConsultarStock = z.infer<typeof ArgsConsultarStock>;
+
 // ── API HTTP (contracts/api.md) ─────────────────────────────────────────────
 
 export const MAX_PREGUNTA = 2000;

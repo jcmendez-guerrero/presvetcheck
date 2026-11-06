@@ -37,7 +37,39 @@ const herramientaSim: Herramienta<{ fecha: string }> = {
     return { datos: sim, simulacion: sim };
   },
 };
-const registro = () => new ToolRegistry([herramientaReglas as never, herramientaSim as never]);
+const herramientaBuscarSustitutosMock: Herramienta<{ nombre?: string | undefined; especie: string }> = {
+  nombre: 'buscar_sustitutos',
+  descripcion: 'Buscar sustitutos',
+  args: z.object({ nombre: z.string().optional(), especie: z.string() }),
+  async ejecutar() {
+    const f = {
+      fuenteId: 'cimavet:sustitucion:3313ESP',
+      tipo: 'cimavet' as const,
+      titulo: 'Equivalencias Prednicortone',
+      version: '2026-10-14T10:00:00Z',
+    };
+    return {
+      datos: {
+        fuenteId: f.fuenteId,
+        version: f.version,
+        prescrito: { nombre: 'Prednicortone 5 mg', nregistro: '3313 ESP', tieneStock: false },
+        sustitucionPermitida: true,
+        candidatosConStock: [
+          { cn: '570002', nombre: 'Prednisolona Vet 5 mg', stockDisponible: 4, tieneStock: true },
+        ],
+        candidatosSinStock: [],
+        obligacionesDispensador: ['Conformidad tutor', 'Aviso prescriptor', 'Bandeja garante'],
+      },
+      fuentes: [f],
+    };
+  },
+};
+const registro = () =>
+  new ToolRegistry([
+    herramientaReglas as never,
+    herramientaSim as never,
+    herramientaBuscarSustitutosMock as never,
+  ]);
 const salida = (o: Record<string, unknown> = {}) => ({
   tipo: 'respondida',
   texto: 'Cinco días.',
@@ -212,5 +244,39 @@ describe('ChatOrchestrator', () => {
     ]).responder(entrada('Receta del 3 de octubre'));
     expect(r.simulaciones.map((x) => x.simulacionId)).toEqual(['sim1']);
     expect(r.salida.simulaciones).toEqual(['sim1']);
+  });
+
+  it('US1 & US2: consulta de sustitución por falta de stock invoca buscar_sustitutos y devuelve alternativas con existencias', async () => {
+    const r = await orq([
+      {
+        cuando: /prednicortone/i,
+        rondas: [
+          [
+            {
+              nombre: 'buscar_sustitutos',
+              args: { nombre: 'prednicortone 5mg', especie: 'perro' },
+            },
+          ],
+        ],
+        final: () =>
+          salida({
+            tipo: 'respondida',
+            texto:
+              'No hay existencias de Prednicortone 5 mg en la farmacia. Puedes sustituirlo reglamentariamente por Prednisolona Vet 5 mg (Código nacional 570002), del cual disponemos de 4 unidades en el almacén. Recuerda obtener la conformidad del tutor, notificar al veterinario y apartar la receta para la firma del garante.',
+            fuentes: ['cimavet:sustitucion:3313ESP'],
+          }),
+      },
+    ]).responder(
+      entrada(
+        'Tengo una receta de prednicortone de 5mg 30comprimidos para un perro pero no tengo, ¿por qué otro podría sustituirlo?',
+      ),
+    );
+
+    expect(r.degradada).toBe(false);
+    expect(r.salida.tipo).toBe('respondida');
+    expect(r.fuentes.map((f) => f.fuenteId)).toEqual(['cimavet:sustitucion:3313ESP']);
+    expect(r.salida.texto).toContain('Prednisolona Vet 5 mg');
+    expect(r.salida.texto).toContain('4 unidades');
+    expect(r.salida.texto).not.toContain('consulte con su veterinario');
   });
 });
