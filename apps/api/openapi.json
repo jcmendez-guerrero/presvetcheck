@@ -557,6 +557,20 @@
                   "registroDiferido": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "modo": {
+                    "default": "en_vivo",
+                    "type": "string",
+                    "enum": [
+                      "en_vivo",
+                      "retrospectivo"
+                    ]
+                  },
+                  "fechaOriginal": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -990,6 +1004,20 @@
                   "registroDiferido": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "modo": {
+                    "default": "en_vivo",
+                    "type": "string",
+                    "enum": [
+                      "en_vivo",
+                      "retrospectivo"
+                    ]
+                  },
+                  "fechaOriginal": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -1423,6 +1451,20 @@
                   "registroDiferido": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "modo": {
+                    "default": "en_vivo",
+                    "type": "string",
+                    "enum": [
+                      "en_vivo",
+                      "retrospectivo"
+                    ]
+                  },
+                  "fechaOriginal": {
+                    "default": null,
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -1574,7 +1616,9 @@
                               "SUSTITUCION",
                               "SUSTITUTO_NO_EQUIVALENTE",
                               "CADUCIDAD_PROXIMA_ENTRADA",
-                              "REGISTRO_PENDIENTE"
+                              "REGISTRO_PENDIENTE",
+                              "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
+                              "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
                             ]
                           }
                         },
@@ -2084,7 +2128,9 @@
                                 "SUSTITUCION",
                                 "SUSTITUTO_NO_EQUIVALENTE",
                                 "CADUCIDAD_PROXIMA_ENTRADA",
-                                "REGISTRO_PENDIENTE"
+                                "REGISTRO_PENDIENTE",
+                                "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
+                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
                               ]
                             }
                           },
@@ -2198,6 +2244,19 @@
                         "required": [
                           "lineas"
                         ],
+                        "nullable": true
+                      },
+                      "modo": {
+                        "default": "en_vivo",
+                        "type": "string",
+                        "enum": [
+                          "en_vivo",
+                          "retrospectivo"
+                        ]
+                      },
+                      "fechaOriginal": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                         "nullable": true
                       }
                     },
@@ -2375,7 +2434,9 @@
                                 "SUSTITUCION",
                                 "SUSTITUTO_NO_EQUIVALENTE",
                                 "CADUCIDAD_PROXIMA_ENTRADA",
-                                "REGISTRO_PENDIENTE"
+                                "REGISTRO_PENDIENTE",
+                                "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
+                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
                               ]
                             }
                           },
@@ -2436,6 +2497,19 @@
                         "type": "string",
                         "maxLength": 100,
                         "nullable": true
+                      },
+                      "modo": {
+                        "default": "en_vivo",
+                        "type": "string",
+                        "enum": [
+                          "en_vivo",
+                          "retrospectivo"
+                        ]
+                      },
+                      "fechaOriginal": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "nullable": true
                       }
                     },
                     "required": [
@@ -2495,6 +2569,50 @@
             "required": true
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/inventario/movimientos/retrospectivo": {
+      "post": {
+        "summary": "Consulta movimientos históricos de stock en Siweb360 para formación (D-14)",
+        "tags": [
+          "inventario"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6,7}$"
+                  },
+                  "fechaOriginal": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "unidadesRequeridas": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991,
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "cn",
+                  "fechaOriginal",
+                  "unidadesRequeridas"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Default Response"
@@ -4133,6 +4251,147 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion/tickets/vincular": {
+      "post": {
+        "summary": "Asocia un ticket del TPV a una receta (soporta multi-receta)",
+        "tags": [
+          "conciliacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ticketId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "ticketNumero": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "recetaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "ticketId",
+                  "ticketNumero",
+                  "recetaId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion/tickets/desvincular": {
+      "post": {
+        "summary": "Desvincula una receta de un ticket del TPV pendiente",
+        "tags": [
+          "conciliacion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ticketId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "recetaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "ticketId",
+                  "recetaId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion/tickets/{ticketId}": {
+      "get": {
+        "summary": "Obtiene el detalle y estado de conciliación consolidado de un ticket multi-receta",
+        "tags": [
+          "conciliacion"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "ticketId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/conciliacion/tickets/{ticketId}/confirmar": {
+      "post": {
+        "summary": "Confirma la conciliación del ticket multi-receta comprobando que no haya exceso dispensado",
+        "tags": [
+          "conciliacion"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "ticketId",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"

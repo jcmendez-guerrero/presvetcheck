@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { and, desc, eq } from 'drizzle-orm';
 import { appendAudit, pedidoPendiente } from '@mmx/db';
-import { DomainError } from '@mmx/shared';
+import { DomainError, ConsultaStockRetrospectivoBody } from '@mmx/shared';
 import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import {
@@ -60,6 +60,18 @@ export async function rutasOperativa(app: App, d: AppDeps) {
       },
     },
     async (req) => disp.anular(req.params.id, req.body.motivo, ctx(req)),
+  );
+  app.post(
+    '/api/inventario/movimientos/retrospectivo',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['inventario'],
+        summary: 'Consulta movimientos históricos de stock en Siweb360 para formación (D-14)',
+        body: ConsultaStockRetrospectivoBody,
+      },
+    },
+    async (req) => disp.consultarMovimientosRetrospectivos(req.body, ctx(req)),
   );
 
   // ── Sustituciones ──────────────────────────────────────────────────────────────

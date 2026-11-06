@@ -165,7 +165,8 @@ export class DemoSalesMovementsSource implements SalesMovementsSource {
   }
 
   async cobrar(cn: string, unidades: number, ahora: Date, usuario: string): Promise<{ numero: string }> {
-    const numero = `DEMO-${ahora.getTime().toString(36).toUpperCase()}`;
+    const randomSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const numero = `DEMO-${ahora.getTime().toString(36).toUpperCase()}-${randomSuffix}`;
     await this.db.insert(ticketDemo).values({ numero, cn, unidades, fecha: ahora, creadoPor: usuario });
     return { numero };
   }
@@ -177,7 +178,7 @@ export class DemoSalesMovementsSource implements SalesMovementsSource {
       .where(sql`${ticketDemo.numero} ilike ${`%${search}%`}`)
       .limit(20);
     return filas.map((t, idx) => ({
-      id: Number.parseInt(t.id.replace(/\D/g, '').slice(0, 8), 10) || idx + 1,
+      id: Number.parseInt(t.id.replace(/\D/g, '').slice(-7), 10) || idx + 1,
       numero: t.numero,
       fecha: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(t.fecha),
       hora: '12:00',

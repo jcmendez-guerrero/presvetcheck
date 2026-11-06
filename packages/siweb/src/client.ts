@@ -237,6 +237,8 @@ export class SiwebClient {
       variant_id?: number;
       warehouse_id?: number;
       reason?: string;
+      date_from?: string;
+      date_to?: string;
       page?: number;
       limit?: number;
     } = {},

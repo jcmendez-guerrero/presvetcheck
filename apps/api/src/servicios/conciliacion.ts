@@ -1,8 +1,22 @@
-import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
-import { appendAudit, conciliacion, dispensacion } from '@mmx/db';
-import { hoy } from '@mmx/domain';
+import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { appendAudit, conciliacion, dispensacion, receta, ticketReceta } from '@mmx/db';
+import {
+  conciliarTicketMultiReceta,
+  hoy,
+  validarDesvinculacionTicket,
+  validarVinculacionTicket,
+  type DispensacionMultiRx,
+  type LineaTicketItem,
+} from '@mmx/domain';
 import { DemoSalesMovementsSource, conciliarDia, estadoConciliacion } from '@mmx/siweb';
-import { DomainError, type AsociarTicketBody } from '@mmx/shared';
+import {
+  DomainError,
+  type AsociarTicketBody,
+  type ConfirmarTicketResponse,
+  type DesvincularTicketBody,
+  type DetalleTicketMultiReceta,
+  type VincularTicketBody,
+} from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
 import type { ContextoPeticion } from './recetas';
 
@@ -194,6 +208,318 @@ export class ConciliacionService {
         loteVerificado: false,
         origen: 'manual' as const,
       },
+    };
+  }
+
+  /** Asocia una receta a un ticket (specs/004-multi-rx-ticket-training-mode, D-11). */
+  async vincularTicketReceta(body: VincularTicketBody, c: ContextoPeticion) {
+    const existentes = await this.d.db
+      .select({
+        ticketId: ticketReceta.ticketId,
+        ticketNumero: ticketReceta.ticketNumero,
+        recetaId: ticketReceta.recetaId,
+        estado: ticketReceta.estado,
+      })
+      .from(ticketReceta);
+
+    const val = validarVinculacionTicket({
+      ticketId: body.ticketId,
+      recetaId: body.recetaId,
+      existentes: existentes as {
+        ticketId: string;
+        ticketNumero: string;
+        recetaId: string;
+        estado: 'vinculado' | 'confirmado';
+      }[],
+    });
+
+    if (!val.valido) {
+      throw new DomainError(val.error!);
+    }
+
+    const ahora = ahoraDe(this.d);
+    await this.d.db.insert(ticketReceta).values({
+      ticketId: body.ticketId,
+      ticketNumero: body.ticketNumero,
+      recetaId: body.recetaId,
+      fechaVinculacion: ahora,
+      usuarioId: c.usuario.id,
+      estado: 'vinculado',
+    });
+
+    const vinculadas = await this.d.db
+      .select({ recetaId: ticketReceta.recetaId })
+      .from(ticketReceta)
+      .where(eq(ticketReceta.ticketId, body.ticketId));
+
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'ticket_vincular_receta',
+      entidad: 'ticket_receta',
+      entidadId: body.recetaId,
+      despues: {
+        ticketId: body.ticketId,
+        ticketNumero: body.ticketNumero,
+        recetaId: body.recetaId,
+      },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
+
+    return {
+      ok: true as const,
+      ticketId: body.ticketId,
+      ticketNumero: body.ticketNumero,
+      recetasVinculadas: vinculadas.map((x) => x.recetaId),
+    };
+  }
+
+  /** Desvincula una receta de un ticket pendiente de confirmación. */
+  async desvincularTicketReceta(body: DesvincularTicketBody, c: ContextoPeticion) {
+    const existentes = await this.d.db
+      .select({
+        ticketId: ticketReceta.ticketId,
+        ticketNumero: ticketReceta.ticketNumero,
+        recetaId: ticketReceta.recetaId,
+        estado: ticketReceta.estado,
+      })
+      .from(ticketReceta);
+
+    const val = validarDesvinculacionTicket({
+      ticketId: body.ticketId,
+      recetaId: body.recetaId,
+      existentes: existentes as {
+        ticketId: string;
+        ticketNumero: string;
+        recetaId: string;
+        estado: 'vinculado' | 'confirmado';
+      }[],
+    });
+
+    if (!val.valido) {
+      throw new DomainError(val.error!);
+    }
+
+    await this.d.db
+      .delete(ticketReceta)
+      .where(and(eq(ticketReceta.ticketId, body.ticketId), eq(ticketReceta.recetaId, body.recetaId)));
+
+    await appendAudit(this.d.db, {
+      actor: c.usuario.id,
+      accion: 'ticket_desvincular_receta',
+      entidad: 'ticket_receta',
+      entidadId: body.recetaId,
+      despues: {
+        ticketId: body.ticketId,
+        recetaId: body.recetaId,
+      },
+      ip: c.ip,
+      userAgent: c.userAgent,
+    });
+
+    return { ok: true as const };
+  }
+
+  /**
+   * Obtiene el estado consolidado de conciliación de un ticket frente a todas sus recetas asociadas (D-11, US3).
+   */
+  async obtenerDetalleTicketMultiReceta(
+    ticketId: string,
+    _c: ContextoPeticion,
+  ): Promise<DetalleTicketMultiReceta> {
+    const vinculos = await this.d.db
+      .select({
+        ticketId: ticketReceta.ticketId,
+        ticketNumero: ticketReceta.ticketNumero,
+        recetaId: ticketReceta.recetaId,
+        estado: ticketReceta.estado,
+      })
+      .from(ticketReceta)
+      .where(eq(ticketReceta.ticketId, ticketId));
+
+    if (vinculos.length === 0) {
+      throw new DomainError('NO_ENCONTRADO', 'Ticket no vinculado a ninguna receta');
+    }
+
+    const ticketNumero = vinculos[0]!.ticketNumero;
+    const estado = vinculos[0]!.estado as 'vinculado' | 'confirmado';
+    const recetaIds = vinculos.map((v) => v.recetaId);
+
+    const recRows = await this.d.db
+      .select({
+        id: receta.id,
+        confirmacion: receta.confirmacion,
+        fechaEmision: receta.fechaEmision,
+        createdAt: receta.createdAt,
+      })
+      .from(receta)
+      .where(inArray(receta.id, recetaIds));
+
+    const dispRows = await this.d.db
+      .select({
+        id: dispensacion.id,
+        recetaId: dispensacion.recetaId,
+        cn: dispensacion.cn,
+        nombreFarmaco: dispensacion.nombreFarmaco,
+        unidades: dispensacion.unidades,
+      })
+      .from(dispensacion)
+      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+
+    // Obtener líneas del ticket desde Siweb360 o Demo
+    const ticketItems: LineaTicketItem[] = [];
+    if (this.d.ventas.buscarTickets) {
+      try {
+        const foundTickets = await this.d.ventas.buscarTickets(ticketNumero);
+        const match = foundTickets.find((t) => String(t.id) === ticketId || t.numero === ticketNumero);
+        if (match?.items) {
+          for (const it of match.items) {
+            const nombre = it.nombre ?? '';
+            const m = /CN\s*(\d{6,7})/i.exec(nombre) || /\b(\d{6,7})\b/.exec(nombre);
+            const cn = m ? m[1]! : '';
+            if (cn) {
+              ticketItems.push({
+                ...(it.id !== null && it.id !== undefined ? { lineaId: it.id } : {}),
+                cn,
+                nombre,
+                unidades: it.cantidad ?? 1,
+              });
+            }
+          }
+        }
+      } catch {
+        // En caso de error consultando el ticket, continúa con lo que haya
+      }
+    }
+
+    if (ticketItems.length === 0 && this.d.siweb?.client) {
+      const numId = Number.parseInt(ticketId, 10);
+      if (!Number.isNaN(numId)) {
+        try {
+          const t = await this.d.siweb.client.ticket(numId);
+          if (t?.items) {
+            for (const it of t.items) {
+              const nombre = it.nombre ?? '';
+              const m = /CN\s*(\d{6,7})/i.exec(nombre) || /\b(\d{6,7})\b/.exec(nombre);
+              const cn = m ? m[1]! : '';
+              if (cn) {
+                ticketItems.push({
+                  ...(it.id !== null && it.id !== undefined ? { lineaId: it.id } : {}),
+                  cn,
+                  nombre,
+                  unidades: it.cantidad ?? 1,
+                });
+              }
+            }
+          }
+        } catch {
+          // Siweb client error
+        }
+      }
+    }
+
+    const dispensacionesMulti: DispensacionMultiRx[] = dispRows.map((d) => ({
+      id: d.id,
+      recetaId: d.recetaId ?? '',
+      cn: d.cn,
+      nombreFarmaco: d.nombreFarmaco,
+      unidades: d.unidades,
+    }));
+
+    const conciliacion = conciliarTicketMultiReceta({
+      ticketItems,
+      dispensaciones: dispensacionesMulti,
+    });
+
+    return {
+      ticketId,
+      ticketNumero,
+      estado,
+      recetas: recRows.map((r) => ({
+        recetaId: r.id,
+        numeroReceta: (r.confirmacion as { numero?: string | null })?.numero ?? null,
+        fecha: r.fechaEmision ?? dia(r.createdAt),
+      })),
+      conciliacionLineas: conciliacion.lineas,
+      puedeConfirmar: conciliacion.puedeConfirmar && estado === 'vinculado',
+      bloqueos: conciliacion.bloqueos,
+    };
+  }
+
+  /**
+   * Confirma la conciliación del ticket multi-receta comprobando que no haya exceso dispensado.
+   */
+  async confirmarTicketMultiReceta(ticketId: string, c: ContextoPeticion): Promise<ConfirmarTicketResponse> {
+    const detalle = await this.obtenerDetalleTicketMultiReceta(ticketId, c);
+
+    if (detalle.estado === 'confirmado') {
+      throw new DomainError('TICKET_YA_FINALIZADO');
+    }
+
+    if (!detalle.puedeConfirmar) {
+      throw new DomainError(
+        'TICKET_CANTIDAD_INSUFICIENTE',
+        detalle.bloqueos.join('; ') || 'La conciliación del ticket presenta discrepancias bloqueantes',
+      );
+    }
+
+    const ahora = ahoraDe(this.d);
+    const recetaIds = detalle.recetas.map((r) => r.recetaId);
+
+    const dispRows = await this.d.db
+      .select({
+        id: dispensacion.id,
+        cn: dispensacion.cn,
+      })
+      .from(dispensacion)
+      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+
+    await this.d.db.transaction(async (tx) => {
+      // 1. Marcar ticket_receta como confirmado
+      await tx.update(ticketReceta).set({ estado: 'confirmado' }).where(eq(ticketReceta.ticketId, ticketId));
+
+      // 2. Insertar registros de conciliación para cada dispensación vinculada
+      for (const d of dispRows) {
+        const [ya] = await tx
+          .select({ id: conciliacion.id })
+          .from(conciliacion)
+          .where(eq(conciliacion.dispensacionId, d.id))
+          .limit(1);
+
+        if (!ya) {
+          await tx.insert(conciliacion).values({
+            dispensacionId: d.id,
+            movimientoId: `ticket:${ticketId}:${d.cn}`,
+            ticket: detalle.ticketNumero,
+            loteVerificado: false,
+            origen: 'manual',
+            at: ahora,
+          });
+        }
+      }
+
+      // 3. Auditoría
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'ticket_confirmado_multi_receta',
+        entidad: 'ticket_receta',
+        entidadId: ticketId,
+        despues: {
+          ticketId,
+          ticketNumero: detalle.ticketNumero,
+          recetas: recetaIds,
+          salidasConciliadas: dispRows.length,
+        },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
+    });
+
+    return {
+      ok: true,
+      ticketId,
+      ticketNumero: detalle.ticketNumero,
+      salidasConciliadas: dispRows.length,
     };
   }
 }

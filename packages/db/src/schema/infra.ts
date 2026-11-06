@@ -1,6 +1,7 @@
 import {
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -150,3 +151,44 @@ export const ticketDemo = pgTable('ticket_demo', {
   fecha: timestamp({ withTimezone: true }).notNull(),
   creadoPor: text().notNull(),
 });
+
+/**
+ * Asociación entre ticket del TPV y receta (specs/004-multi-rx-ticket-training-mode, D-11).
+ * Un ticket puede asociarse a múltiples recetas; cada receta se asocia a lo sumo a un ticket.
+ */
+export const ticketReceta = pgTable(
+  'ticket_receta',
+  {
+    id: pk(),
+    ticketId: text().notNull(),
+    ticketNumero: text().notNull(),
+    recetaId: uuid().notNull().unique(),
+    fechaVinculacion: timestamp({ withTimezone: true }).notNull(),
+    usuarioId: text().notNull(),
+    estado: text().notNull().default('vinculado'), // vinculado | confirmado
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.ticketId), index().on(t.ticketNumero), uniqueIndex().on(t.recetaId)],
+);
+
+/**
+ * Evidencia de consulta de movimientos de stock para dispensaciones retrospectivas (D-14).
+ */
+export const evidenciaStockRetrospectiva = pgTable(
+  'evidencia_stock_retrospectiva',
+  {
+    id: pk(),
+    dispensacionId: uuid().notNull().unique(),
+    cn: text().notNull(),
+    variantId: integer(),
+    fechaOriginal: date().notNull(),
+    movimientosConsultados: jsonb().notNull(),
+    unidadesRequeridas: integer().notNull(),
+    unidadesEncontradas: integer().notNull(),
+    resultado: text().notNull(), // OK | MOVIMIENTO_PARCIAL | SIN_MOVIMIENTO
+    forzado: boolean().notNull().default(false),
+    motivoForzado: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.dispensacionId), index().on(t.cn, t.fechaOriginal)],
+);

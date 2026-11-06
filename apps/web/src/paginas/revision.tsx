@@ -201,6 +201,41 @@ export function Revision() {
               Lo imprescindible para saber si se puede dispensar y cruzarlo con el envase que vas a entregar.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2 rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={r.modo === 'retrospectivo'}
+                    onChange={(e) =>
+                      set((x) => ({
+                        ...x,
+                        modo: e.target.checked ? 'retrospectivo' : 'en_vivo',
+                        fechaOriginal: e.target.checked
+                          ? x.fechaOriginal || new Date().toISOString().slice(0, 10)
+                          : null,
+                      }))
+                    }
+                  />
+                  <span className="text-sm font-medium">
+                    Modo formación (retrospectivo)
+                    <span className="block text-xs font-normal text-slate-500">
+                      Permite revisar y practicar con transacciones históricas donde los medicamentos ya
+                      fueron entregados.
+                    </span>
+                  </span>
+                </label>
+                {r.modo === 'retrospectivo' && (
+                  <div className="mt-2 max-w-xs">
+                    <Campo
+                      etiqueta="Fecha original de dispensación"
+                      type="date"
+                      value={r.fechaOriginal ?? ''}
+                      onChange={(e) => set((x) => ({ ...x, fechaOriginal: e.target.value || null }))}
+                    />
+                  </div>
+                )}
+              </div>
               <label className="flex flex-col gap-1 text-sm">
                 <Etiqueta texto="Tipo de receta" info={AYUDA.tipo} />
                 <select

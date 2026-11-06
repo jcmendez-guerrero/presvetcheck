@@ -34,9 +34,20 @@ const rRegistro = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/registro',
   component: Registro,
+  staticData: { anchoCompleto: true },
 });
-const r3 = createRoute({ getParentRoute: () => raiz, path: '/recetas/$id/resultado', component: Resultado });
-const r4 = createRoute({ getParentRoute: () => raiz, path: '/sustituciones/$id', component: Sustitucion });
+const r3 = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recetas/$id/resultado',
+  component: Resultado,
+  staticData: { anchoCompleto: true },
+});
+const r4 = createRoute({
+  getParentRoute: () => raiz,
+  path: '/sustituciones/$id',
+  component: Sustitucion,
+  staticData: { anchoCompleto: true },
+});
 const r5 = createRoute({ getParentRoute: () => raiz, path: '/recepciones', component: Recepciones });
 // Documento al lado de los datos: ocupa todo el ancho de la ventana para poder leerlo.
 const r6 = createRoute({
@@ -58,6 +69,7 @@ const rDisp = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/dispensar/$linea',
   component: Dispensacion,
+  staticData: { anchoCompleto: true },
   validateSearch: (
     s: Record<string, unknown>,
   ): { pendientes?: string; forzado?: string; sustitucion?: string } => ({

@@ -368,5 +368,15 @@
     "titulo": "Menor concentración de otro medicamento",
     "donde": "Presentación",
     "accion": "Descartada: la menor concentración solo se admite del mismo medicamento; para cambiar de medicamento debe tener la misma composición y concentración"
+  },
+  "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO": {
+    "titulo": "No se han encontrado movimientos de salida (venta) en Siweb360 para la fecha indicada",
+    "donde": "Modo retrospectivo",
+    "accion": "Comprueba la fecha original de la dispensación o indica un motivo de forzado si estás en formación"
+  },
+  "AVISO_FECHA_RETROSPECTIVA_ANTIGUA": {
+    "titulo": "La fecha original de la dispensación tiene más de {dias} días de antigüedad",
+    "donde": "Modo retrospectivo",
+    "accion": "Comprueba que la fecha sea correcta. Los movimientos antiguos pueden no estar disponibles en el historial"
   }
 }

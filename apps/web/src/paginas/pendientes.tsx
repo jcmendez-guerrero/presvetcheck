@@ -5,6 +5,7 @@ import { ApiError, get, post } from '../lib/api';
 import { CN, fecha } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
 import { Boton, Cargando, Campo, Mensaje, Tarjeta } from '../componentes/ui';
+import { TicketMultiRxModal } from '../componentes/ticket-multi-rx';
 
 interface Pendientes {
   registros: Array<{ id: string; numero: string | null; fecha: string | null; estado: string }>;
@@ -59,11 +60,14 @@ export function PaginaPendientes() {
   const [ok, setOk] = useState<string | null>(null);
 
   // Estado para asociación manual con ticket TPV
-  const [salidaAAsociar, setSalidaAAsociar] = useState<Pendientes['sinConciliar']['salidas'][number] | null>(null);
+  const [salidaAAsociar, setSalidaAAsociar] = useState<Pendientes['sinConciliar']['salidas'][number] | null>(
+    null,
+  );
   const [ticketSearch, setTicketSearch] = useState('');
   const [buscandoTickets, setBuscandoTickets] = useState(false);
   const [asociandoId, setAsociandoId] = useState<number | null>(null);
   const [asociarError, setAsociarError] = useState<string | null>(null);
+  const [verTicketId, setVerTicketId] = useState<string | null>(null);
   const [ticketsResult, setTicketsResult] = useState<
     Array<{
       id: number;
@@ -72,7 +76,13 @@ export function PaginaPendientes() {
       hora?: string | null;
       estado: string;
       total: number;
-      items?: Array<{ id: number; nombre: string; cantidad: number; precioUnitario: number; subtotal: number }>;
+      items?: Array<{
+        id: number;
+        nombre: string;
+        cantidad: number;
+        precioUnitario: number;
+        subtotal: number;
+      }>;
     }>
   >([]);
 
@@ -178,7 +188,10 @@ export function PaginaPendientes() {
         )}
         <ul className="divide-y">
           {p.sinConciliar.salidas.map((s) => (
-            <li key={s.id} className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <li
+              key={s.id}
+              className="flex flex-col gap-2 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+            >
               <div>
                 {fecha(s.fecha.slice(0, 10))} · {s.nombre} · {CN} {s.cn} · lote {s.lote} ·{' '}
                 {s.fraccion ? 'fracción: compruébala a mano con el ticket' : `${s.unidades} envase(s)`}
@@ -214,7 +227,8 @@ export function PaginaPendientes() {
               </button>
             </div>
             <p className="mt-1 text-xs text-slate-600">
-              Salida del {fecha(salidaAAsociar.fecha.slice(0, 10))} · Lote {salidaAAsociar.lote} · {salidaAAsociar.unidades} envase(s)
+              Salida del {fecha(salidaAAsociar.fecha.slice(0, 10))} · Lote {salidaAAsociar.lote} ·{' '}
+              {salidaAAsociar.unidades} envase(s)
             </p>
 
             {asociarError && <div className="mt-2 text-xs font-semibold text-noconforme">{asociarError}</div>}
@@ -263,7 +277,14 @@ export function PaginaPendientes() {
                         ))}
                       </ul>
                     )}
-                    <div className="flex justify-end pt-1">
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Boton
+                        variante="secundario"
+                        className="!px-3 !py-1 text-xs"
+                        onClick={() => setVerTicketId(String(t.id))}
+                      >
+                        Ver conciliación multi-receta
+                      </Boton>
                       <Boton
                         variante="principal"
                         className="!px-3 !py-1 text-xs"
@@ -340,6 +361,13 @@ export function PaginaPendientes() {
           ))}
         </ul>
       </Tarjeta>
+      {verTicketId && (
+        <TicketMultiRxModal
+          ticketId={verTicketId}
+          onCerrar={() => setVerTicketId(null)}
+          onConfirmado={() => void qc.invalidateQueries({ queryKey: ['pendientes'] })}
+        />
+      )}
     </Pagina>
   );
 }

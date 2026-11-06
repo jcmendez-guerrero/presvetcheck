@@ -1,0 +1,300 @@
+openapi: 3.0.3
+info:
+  title: Multi-Prescription Ticket & Retrospective Dispensation API
+  version: 1.0.0
+  description: Endpoints and schemas for multi-prescription ticket linking and retrospective training dispensation.
+
+paths:
+  /api/conciliacion/tickets/vincular:
+    post:
+      summary: Vincular ticket a una o varias recetas
+      description: Asocia un ticket de Siweb360 con una receta. Un ticket puede asociarse a varias recetas.
+      tags:
+        - Conciliacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VincularTicketBody'
+      responses:
+        '200':
+          description: Vinculación completada con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VincularTicketResponse'
+        '400':
+          description: Petición inválida o error de validación
+        '409':
+          description: La receta ya está vinculada a otro ticket
+
+  /api/conciliacion/tickets/desvincular:
+    post:
+      summary: Desvincular receta de un ticket no confirmado
+      description: Elimina la asociación entre una receta y un ticket. Falla con TICKET_YA_FINALIZADO si el ticket ya fue confirmado.
+      tags:
+        - Conciliacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesvincularTicketBody'
+      responses:
+        '200':
+          description: Desvinculación exitosa
+        '400':
+          description: Ticket ya finalizado o receta no encontrada
+
+  /api/conciliacion/tickets/{ticketId}:
+    get:
+      summary: Obtener detalle del ticket y recetas vinculadas
+      description: Devuelve el estado de conciliación consolidado del ticket frente a todas las recetas vinculadas.
+      tags:
+        - Conciliacion
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalle del ticket y reconciliación multi-receta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetalleTicketMultiReceta'
+        '404':
+          description: Ticket no encontrado
+
+  /api/conciliacion/tickets/{ticketId}/confirmar:
+    post:
+      summary: Confirmar ticket multi-receta
+      description: Verifica que la suma de unidades dispensadas por CN no supere las unidades del ticket y marca la conciliación como confirmada.
+      tags:
+        - Conciliacion
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ticket confirmado satisfactoriamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmarTicketResponse'
+        '400':
+          description: Discrepancia bloqueante (unidades dispensadas superan las del ticket)
+
+  /api/inventario/movimientos/retrospectivo:
+    post:
+      summary: Consultar movimientos de stock históricos para modo retrospectivo
+      description: Comprueba si en la fecha indicada existen salidas (sale_shipment) del producto en Siweb360.
+      tags:
+        - Inventario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsultaStockRetrospectivoBody'
+      responses:
+        '200':
+          description: Resultado de la consulta de movimientos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaStockRetrospectivoResponse'
+        '403':
+          description: Modo retrospectivo deshabilitado en configuración
+
+components:
+  schemas:
+    VincularTicketBody:
+      type: object
+      required:
+        - ticketId
+        - ticketNumero
+        - recetaId
+      properties:
+        ticketId:
+          type: string
+          description: Identificador interno del ticket en Siweb360
+        ticketNumero:
+          type: string
+          description: Número oficial o serie del ticket (ej. TKT-2026-000042)
+        recetaId:
+          type: string
+          format: uuid
+          description: ID de la receta a asociar
+
+    VincularTicketResponse:
+      type: object
+      required:
+        - ok
+        - ticketId
+        - ticketNumero
+        - recetasVinculadas
+      properties:
+        ok:
+          type: boolean
+        ticketId:
+          type: string
+        ticketNumero:
+          type: string
+        recetasVinculadas:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    DesvincularTicketBody:
+      type: object
+      required:
+        - ticketId
+        - recetaId
+      properties:
+        ticketId:
+          type: string
+        recetaId:
+          type: string
+          format: uuid
+
+    DetalleTicketMultiReceta:
+      type: object
+      required:
+        - ticketId
+        - ticketNumero
+        - estado
+        - recetas
+        - conciliacionLineas
+        - puedeConfirmar
+      properties:
+        ticketId:
+          type: string
+        ticketNumero:
+          type: string
+        estado:
+          type: string
+          enum: [vinculado, confirmado]
+        recetas:
+          type: array
+          items:
+            type: object
+            required:
+              - recetaId
+              - numeroReceta
+              - fecha
+            properties:
+              recetaId:
+                type: string
+                format: uuid
+              numeroReceta:
+                type: string
+              fecha:
+                type: string
+        conciliacionLineas:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineaConciliacionResumen'
+        puedeConfirmar:
+          type: boolean
+        bloqueos:
+          type: array
+          items:
+            type: string
+
+    LineaConciliacionResumen:
+      type: object
+      required:
+        - cn
+        - nombre
+        - unidadesTicket
+        - unidadesDispensadasTotal
+        - estadoLinea
+      properties:
+        cn:
+          type: string
+        nombre:
+          type: string
+        unidadesTicket:
+          type: integer
+        unidadesDispensadasTotal:
+          type: integer
+        estadoLinea:
+          type: string
+          enum: [COINCIDE, DEFICIT_TICKET, EXCESO_DISPENSADO, SIN_DISPENSACION]
+
+    ConfirmarTicketResponse:
+      type: object
+      required:
+        - ok
+        - ticketId
+        - ticketNumero
+        - salidasConciliadas
+      properties:
+        ok:
+          type: boolean
+        ticketId:
+          type: string
+        ticketNumero:
+          type: string
+        salidasConciliadas:
+          type: integer
+
+    ConsultaStockRetrospectivoBody:
+      type: object
+      required:
+        - cn
+        - fechaOriginal
+        - unidadesRequeridas
+      properties:
+        cn:
+          type: string
+        fechaOriginal:
+          type: string
+          format: date
+        unidadesRequeridas:
+          type: integer
+
+    ConsultaStockRetrospectivoResponse:
+      type: object
+      required:
+        - estado
+        - cn
+        - fechaOriginal
+        - unidadesEncontradas
+        - unidadesRequeridas
+        - movimientos
+      properties:
+        estado:
+          type: string
+          enum: [OK, MOVIMIENTO_PARCIAL, SIN_MOVIMIENTO]
+        cn:
+          type: string
+        fechaOriginal:
+          type: string
+          format: date
+        unidadesEncontradas:
+          type: integer
+        unidadesRequeridas:
+          type: integer
+        movimientos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              quantity:
+                type: number
+              reason:
+                type: string
+              reference_number:
+                type: string
+                nullable: true

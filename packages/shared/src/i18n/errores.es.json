@@ -35,5 +35,9 @@
   "ASISTENTE_LIMITE_MENSUAL": "El asistente ha alcanzado el límite de uso de este mes; consulta la Ayuda.",
   "ASISTENTE_CONVERSACION_AJENA": "Esta conversación es de otra persona.",
   "ASISTENTE_CONVERSACION_CERRADA": "Esta conversación está cerrada. Empieza una nueva.",
-  "RECETA_LINEA_NO_ENCONTRADA": "No se encuentra esa línea de la receta."
+  "RECETA_LINEA_NO_ENCONTRADA": "No se encuentra esa línea de la receta.",
+  "TICKET_YA_FINALIZADO": "El ticket ya está confirmado y no se puede desvincular ni modificar.",
+  "TICKET_CANTIDAD_INSUFICIENTE": "La cantidad dispensada supera las unidades del ticket. No se puede confirmar.",
+  "MODO_RETROSPECTIVO_DESHABILITADO": "El modo retrospectivo no está habilitado en la configuración del sistema.",
+  "RECETA_YA_VINCULADA": "Esta receta ya está vinculada a otro ticket."
 }

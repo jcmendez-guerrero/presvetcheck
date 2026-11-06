@@ -7,41 +7,102 @@
 version: receta-campos.v1
 
 campos:
-  numero_receta:        { codigo: RECETA_NUMERO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Clave de duplicados junto con nº de colegiado" }
-  tipo_dispensacion:    { codigo: TIPO_DISPENSACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Solo se dispensa si es 'de dispensación'" }
-  titular_nombre:       { codigo: TITULAR_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  titular_telefono:     { codigo: TITULAR_TELEFONO_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
-  rega:                 { codigo: REGA_FALTA, compania: NO_APLICA, produccion: BLOQUEANTE_FORMA }
-  especie:              { codigo: ESPECIE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  animal_identificacion: { codigo: ANIMAL_ID_FALTA, compania: AVISO, compania_id_individual: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Individual o lote en producción" }
-  num_animales:         { codigo: NUM_ANIMALES_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
-  fecha_emision:        { codigo: FECHA_EMISION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  veterinario_nombre:   { codigo: VETERINARIO_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  numero_receta:
+    {
+      codigo: RECETA_NUMERO_FALTA,
+      compania: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      nota: 'Clave de duplicados junto con nº de colegiado',
+    }
+  tipo_dispensacion:
+    {
+      codigo: TIPO_DISPENSACION_FALTA,
+      compania: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      nota: "Solo se dispensa si es 'de dispensación'",
+    }
+  titular_nombre: { codigo: TITULAR_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  titular_telefono: { codigo: TITULAR_TELEFONO_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  rega: { codigo: REGA_FALTA, compania: NO_APLICA, produccion: BLOQUEANTE_FORMA }
+  especie: { codigo: ESPECIE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  animal_identificacion:
+    {
+      codigo: ANIMAL_ID_FALTA,
+      compania: AVISO,
+      compania_id_individual: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      nota: 'Individual o lote en producción',
+    }
+  num_animales: { codigo: NUM_ANIMALES_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  fecha_emision: { codigo: FECHA_EMISION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  veterinario_nombre:
+    { codigo: VETERINARIO_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
   veterinario_telefono: { codigo: VETERINARIO_TELEFONO_FALTA, compania: AVISO, produccion: AVISO }
-  veterinario_email:    { codigo: VETERINARIO_EMAIL_FALTA, compania: AVISO, produccion: AVISO }
-  num_colegiado:        { codigo: VETERINARIO_COLEGIADO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Exento si talonario_colegial=true" }
-  firma:                { codigo: FIRMA_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  medicamento_nombre:   { codigo: MEDICAMENTO_NOMBRE_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, nota: "Si hay principio activo sin nombre → PRESCRIPCION_SOLO_PA" }
-  principio_activo:     { codigo: PRINCIPIO_ACTIVO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  clase_prescripcion:   { codigo: CLASE_PRESCRIPCION_FALTA, compania: AVISO, produccion: AVISO, nota: "Si falta se asume ordinaria y se bloquea la sustitución" }
-  indicacion:           { codigo: INDICACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  declaracion_antimicrobiano: { codigo: DECLARACION_ANTIMICROBIANO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA, solo_si_antimicrobiano: true }
-  forma_concentracion:  { codigo: FORMA_CONCENTRACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  cantidad:             { codigo: CANTIDAD_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
-  posologia:            { codigo: POSOLOGIA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
-  tiempo_espera:        { codigo: TIEMPO_ESPERA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
-  plazo_validez:        { codigo: PLAZO_DECLARADO_SUPERIOR, compania: OPCIONAL, produccion: OPCIONAL }
-  advertencias:         { codigo: DATOS_NO_COMPROBADOS, compania: OPCIONAL, produccion: OPCIONAL }
+  veterinario_email: { codigo: VETERINARIO_EMAIL_FALTA, compania: AVISO, produccion: AVISO }
+  num_colegiado:
+    {
+      codigo: VETERINARIO_COLEGIADO_FALTA,
+      compania: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      nota: 'Exento si talonario_colegial=true',
+    }
+  firma: { codigo: FIRMA_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  medicamento_nombre:
+    {
+      codigo: MEDICAMENTO_NOMBRE_FALTA,
+      compania: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      nota: 'Si hay principio activo sin nombre → PRESCRIPCION_SOLO_PA',
+    }
+  principio_activo:
+    { codigo: PRINCIPIO_ACTIVO_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  clase_prescripcion:
+    {
+      codigo: CLASE_PRESCRIPCION_FALTA,
+      compania: AVISO,
+      produccion: AVISO,
+      nota: 'Si falta se asume ordinaria y se bloquea la sustitución',
+    }
+  indicacion: { codigo: INDICACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  declaracion_antimicrobiano:
+    {
+      codigo: DECLARACION_ANTIMICROBIANO_FALTA,
+      compania: BLOQUEANTE_FORMA,
+      produccion: BLOQUEANTE_FORMA,
+      solo_si_antimicrobiano: true,
+    }
+  forma_concentracion:
+    { codigo: FORMA_CONCENTRACION_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  cantidad: { codigo: CANTIDAD_FALTA, compania: BLOQUEANTE_FORMA, produccion: BLOQUEANTE_FORMA }
+  posologia: { codigo: POSOLOGIA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  tiempo_espera: { codigo: TIEMPO_ESPERA_FALTA, compania: AVISO, produccion: BLOQUEANTE_FORMA }
+  plazo_validez: { codigo: PLAZO_DECLARADO_SUPERIOR, compania: OPCIONAL, produccion: OPCIONAL }
+  advertencias: { codigo: DATOS_NO_COMPROBADOS, compania: OPCIONAL, produccion: OPCIONAL }
 
 # Especies (id de la maestra de especies de CIMAVet) con identificación individual
 # obligatoria (microchip): perros, gatos y hurones y sus subcategorías del diccionario.
-especies_id_individual: [14, 15, 119, 55, 56, 57, 79, 80, 243, 244, 246, 247, 248, 249, 323, 324, 326, 327, 328, 329, 330, 331, 332]
+especies_id_individual:
+  [14, 15, 119, 55, 56, 57, 79, 80, 243, 244, 246, 247, 248, 249, 323, 324, 326, 327, 328, 329, 330, 331, 332]
 
 # Antimicrobiano = antibiotico=true en CIMAVet o ATC con alguno de estos prefijos.
 # Dispensación ágil (solo animales de compañía): si la persona confirma que la receta incluye estos datos,
 # su transcripción se hace después de dispensar (registro). Nº de receta, colegiado, fecha, firma, especie,
 # medicamento, cantidad, clase y declaración de antimicrobianos se comprueban siempre antes.
-diferibles_registro: [titular_nombre, titular_telefono, veterinario_nombre, veterinario_telefono, veterinario_email, indicacion, animal_identificacion, num_animales, principio_activo, forma_concentracion, posologia, tiempo_espera]
+diferibles_registro:
+  [
+    titular_nombre,
+    titular_telefono,
+    veterinario_nombre,
+    veterinario_telefono,
+    veterinario_email,
+    indicacion,
+    animal_identificacion,
+    num_animales,
+    principio_activo,
+    forma_concentracion,
+    posologia,
+    tiempo_espera,
+  ]
 
 antimicrobianos_atc_prefijos: [QJ01, QJ02, QJ04, QJ05, QP51]
 
@@ -106,6 +167,8 @@ incidencias:
   SUSTITUTO_NO_EQUIVALENTE: BLOQUEANTE_DURO
   CADUCIDAD_PROXIMA_ENTRADA: AVISO
   REGISTRO_PENDIENTE: AVISO
+  SIN_MOVIMIENTO_STOCK_RETROSPECTIVO: BLOQUEANTE_FORMA
+  AVISO_FECHA_RETROSPECTIVA_ANTIGUA: AVISO
 
 # Grupo "producto no válido" (SPEC §4.1.6): forzable de forma temporal mientras
 # PRODUCT_VALIDITY_HARD_BLOCK=false. TODO(decision D-05c)
