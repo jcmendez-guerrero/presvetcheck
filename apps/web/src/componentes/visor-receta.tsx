@@ -40,20 +40,36 @@ export function VisorReceta({
         <Tarjeta>
           <div className="mb-2 flex flex-wrap gap-2">
             {imagenes.map((im, i) => (
-              <Boton key={im.pagina} variante={i === pagina ? 'principal' : 'secundario'} onClick={() => setPagina(i)}>
+              <Boton
+                key={im.pagina}
+                variante={i === pagina ? 'principal' : 'secundario'}
+                onClick={() => setPagina(i)}
+              >
                 Página {im.pagina}
               </Boton>
             ))}
-            <Boton variante="secundario" aria-label="Ampliar" onClick={() => setZoom((z) => Math.min(4, z + 0.5))}>
+            <Boton
+              variante="secundario"
+              aria-label="Ampliar"
+              onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
+            >
               <ZoomIn className="h-5 w-5" />
             </Boton>
-            <Boton variante="secundario" aria-label="Reducir" onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+            <Boton
+              variante="secundario"
+              aria-label="Reducir"
+              onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
+            >
               <ZoomOut className="h-5 w-5" />
             </Boton>
           </div>
           <div className="max-h-[75vh] overflow-auto rounded-xl bg-slate-100">
             {img && img.mime !== 'application/pdf' ? (
-              <img src={imagen.data} alt={`Receta, página ${img.pagina}`} style={{ width: `${zoom * 100}%` }} />
+              <img
+                src={imagen.data}
+                alt={`Receta, página ${img.pagina}`}
+                style={{ width: `${zoom * 100}%` }}
+              />
             ) : img ? (
               <iframe title="Receta en PDF" src={imagen.data} className="h-[70vh] w-full" />
             ) : (
@@ -101,11 +117,14 @@ export function TextoReconocido({ texto }: { texto: string }) {
 export function ConReceta({ recetaId, children }: { recetaId: string; children: ReactNode }) {
   const q = useQuery({
     queryKey: ['receta-visor', recetaId],
-    queryFn: () => get<{ imagenes: ImagenReceta[]; extraccion: { ocrTexto: string | null } | null }>(`/api/recetas/${recetaId}`),
+    queryFn: () =>
+      get<{ imagenes: ImagenReceta[]; extraccion: { ocrTexto: string | null } | null }>(
+        `/api/recetas/${recetaId}`,
+      ),
     staleTime: 60_000,
   });
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
       {q.data ? <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} /> : <div />}
       <div className="flex min-w-0 flex-col gap-5">{children}</div>
     </div>

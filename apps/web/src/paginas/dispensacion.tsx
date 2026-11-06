@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Printer, Trash2 } from 'lucide-react';
@@ -101,10 +101,11 @@ export function ListaEnvases({
       {envases.map((e, i) => (
         <li
           key={i}
-          className={`grid items-end gap-2 rounded-xl p-3 sm:grid-cols-5 ${recomendado && e.lote && e.lote !== recomendado ? 'bg-sustituir-bg' : 'bg-fondo'}`}
+          className={`grid items-end gap-2 rounded-xl p-3 sm:grid-cols-6 ${recomendado && e.lote && e.lote !== recomendado ? 'bg-sustituir-bg' : 'bg-fondo'}`}
         >
           <Campo
             etiqueta="Lote"
+            placeholder="Lote del envase"
             autoFocus={e.metodoCaptura === 'manual' && !e.lote}
             value={e.lote}
             onChange={(x) => upd(i, { lote: x.target.value })}
@@ -115,14 +116,20 @@ export function ListaEnvases({
             value={e.caducidad ?? ''}
             onChange={(x) => upd(i, { caducidad: x.target.value || null })}
           />
-          {/* A mano se puede escribir el código nacional del envase para cruzarlo con el prescrito. */}
+          {/* Se puede corregir o escribir el código nacional del envase para cruzarlo con el prescrito. */}
           <Campo
             etiqueta={CN}
+            placeholder="Código nacional"
             inputMode="numeric"
             maxLength={7}
             value={e.cnEscaneado ?? ''}
-            readOnly={e.metodoCaptura !== 'manual'}
             onChange={(x) => upd(i, { cnEscaneado: x.target.value.replace(/\D/g, '') || null })}
+          />
+          <Campo
+            etiqueta="Nº serie"
+            placeholder="Opcional"
+            value={e.serie ?? ''}
+            onChange={(x) => upd(i, { serie: x.target.value.trim() || null })}
           />
           <Campo
             etiqueta="Envases"
@@ -200,9 +207,13 @@ export function Dispensacion() {
   const receta = useQuery({
     queryKey: ['receta-disp', id],
     queryFn: () =>
-      get<{ confirmacion: { lineas: { orden: number; cantidadEnvases: number | null }[] } | null }>(
-        `/api/recetas/${id}`,
-      ),
+      get<{
+        confirmacion: {
+          lineas: { orden: number; cantidadEnvases: number | null }[];
+          modo?: 'en_vivo' | 'retrospectivo';
+          fechaOriginal?: string | null;
+        } | null;
+      }>(`/api/recetas/${id}`),
   });
   const pedidos = receta.data?.confirmacion?.lineas.find((x) => x.orden === orden)?.cantidadEnvases ?? null;
   const { envases, setEnvases, leer, error, gs } = useEnvases();
@@ -215,6 +226,17 @@ export function Dispensacion() {
   const [modal, setModal] = useState<CodigoIncidencia[] | null>(null);
   const [modoRetrospectivo, setModoRetrospectivo] = useState(false);
   const [fechaOriginal, setFechaOriginal] = useState('');
+
+  useEffect(() => {
+    if (receta.data?.confirmacion) {
+      if (receta.data.confirmacion.modo === 'retrospectivo') {
+        setModoRetrospectivo(true);
+      }
+      if (receta.data.confirmacion.fechaOriginal) {
+        setFechaOriginal(receta.data.confirmacion.fechaOriginal);
+      }
+    }
+  }, [receta.data?.confirmacion]);
   const [res, setRes] = useState<RespuestaDispensacion | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);

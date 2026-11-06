@@ -17,6 +17,7 @@ export interface ConfigPublica {
   stock: 'siweb' | 'demo';
   ventas?: 'siweb' | 'demo' | 'off';
   escrituraStock: string;
+  modoRetrospectivoHabilitado?: boolean;
   fechaCorteEntradas: string | null;
   telefonoFarmacia: string;
 }

@@ -119,6 +119,7 @@ module apps 'modules/containerapps.bicep' = {
       { name: 'ASSISTANT_ENDPOINT', value: asistenteEndpoint }
       { name: 'ASSISTANT_DEPLOYMENT', value: asistenteDespliegue }
       { name: 'ASSISTANT_MONTHLY_TOKEN_LIMIT', value: string(asistenteLimiteTokens) }
+      { name: 'RETROSPECTIVE_DISPENSATION_MODE', value: 'enabled' }
       { name: 'SIWEB_STOCK_WRITE_MODE', value: escrituraStock }
       { name: 'SUBSTITUTION_APPROVAL_MODE', value: sustitucionModo }
       { name: 'MAILER', value: 'smtp' }

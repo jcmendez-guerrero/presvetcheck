@@ -94,8 +94,6 @@ export function Revision() {
     refetchOnWindowFocus: false,
   });
   const [r, setR] = useState<RecetaConfirmadaInput | null>(null);
-  const [modoRetrospectivo, setModoRetrospectivo] = useState(false);
-  const [fechaOriginal, setFechaOriginal] = useState('');
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const [faltan, setFaltan] = useState<Motivo[] | null>(null);
   const [comprobando, setComprobando] = useState(false);
@@ -208,8 +206,16 @@ export function Revision() {
                   <input
                     type="checkbox"
                     className="h-5 w-5"
-                    checked={modoRetrospectivo}
-                    onChange={(e) => setModoRetrospectivo(e.target.checked)}
+                    checked={r.modo === 'retrospectivo'}
+                    onChange={(e) =>
+                      set((x) => ({
+                        ...x,
+                        modo: e.target.checked ? 'retrospectivo' : 'en_vivo',
+                        fechaOriginal: e.target.checked
+                          ? x.fechaOriginal || new Date().toISOString().slice(0, 10)
+                          : null,
+                      }))
+                    }
                   />
                   <span className="text-sm font-medium">
                     Modo formación (retrospectivo)
@@ -219,13 +225,13 @@ export function Revision() {
                     </span>
                   </span>
                 </label>
-                {modoRetrospectivo && (
+                {r.modo === 'retrospectivo' && (
                   <div className="mt-2 max-w-xs">
                     <Campo
                       etiqueta="Fecha original de dispensación"
                       type="date"
-                      value={fechaOriginal}
-                      onChange={(e) => setFechaOriginal(e.target.value)}
+                      value={r.fechaOriginal ?? ''}
+                      onChange={(e) => set((x) => ({ ...x, fechaOriginal: e.target.value || null }))}
                     />
                   </div>
                 )}

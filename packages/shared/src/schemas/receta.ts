@@ -111,6 +111,9 @@ export const RecetaConfirmada = z.object({
    * veterinario, indicación, posología…) y los transcribe después de dispensar. Solo animales de compañía.
    */
   registroDiferido: z.boolean().default(false),
+  /** Modo formación retrospectivo para prácticas con transacciones pasadas (D-14b). */
+  modo: z.enum(['en_vivo', 'retrospectivo']).default('en_vivo'),
+  fechaOriginal: IsoDate.nullable().default(null),
 });
 export type RecetaConfirmada = z.output<typeof RecetaConfirmada>;
 export type RecetaConfirmadaInput = z.input<typeof RecetaConfirmada>;

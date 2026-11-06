@@ -214,6 +214,7 @@ var envBase = [
   { name: 'ASSISTANT_ENDPOINT', value: asistenteEndpoint }
   { name: 'ASSISTANT_DEPLOYMENT', value: asistenteDespliegue }
   { name: 'ASSISTANT_MONTHLY_TOKEN_LIMIT', value: string(asistenteLimiteTokens) }
+  { name: 'RETROSPECTIVE_DISPENSATION_MODE', value: 'enabled' }
   { name: 'SIWEB_STOCK_WRITE_MODE', value: 'off' }
   { name: 'SUBSTITUTION_APPROVAL_MODE', value: 'POST' }
   { name: 'SUBSTITUTION_SIGN_MAX_DAYS', value: '35' } // firma del farmacéutico garante en su visita mensual
