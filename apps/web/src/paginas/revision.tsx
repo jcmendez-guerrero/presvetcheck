@@ -94,6 +94,8 @@ export function Revision() {
     refetchOnWindowFocus: false,
   });
   const [r, setR] = useState<RecetaConfirmadaInput | null>(null);
+  const [modoRetrospectivo, setModoRetrospectivo] = useState(false);
+  const [fechaOriginal, setFechaOriginal] = useState('');
   const [msg, setMsg] = useState<{ t: 'ok' | 'error'; m: string } | null>(null);
   const [faltan, setFaltan] = useState<Motivo[] | null>(null);
   const [comprobando, setComprobando] = useState(false);
@@ -201,6 +203,33 @@ export function Revision() {
               Lo imprescindible para saber si se puede dispensar y cruzarlo con el envase que vas a entregar.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2 rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={modoRetrospectivo}
+                    onChange={(e) => setModoRetrospectivo(e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">
+                    Modo formación (retrospectivo)
+                    <span className="block text-xs font-normal text-slate-500">
+                      Permite revisar y practicar con transacciones históricas donde los medicamentos ya
+                      fueron entregados.
+                    </span>
+                  </span>
+                </label>
+                {modoRetrospectivo && (
+                  <div className="mt-2 max-w-xs">
+                    <Campo
+                      etiqueta="Fecha original de dispensación"
+                      type="date"
+                      value={fechaOriginal}
+                      onChange={(e) => setFechaOriginal(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
               <label className="flex flex-col gap-1 text-sm">
                 <Etiqueta texto="Tipo de receta" info={AYUDA.tipo} />
                 <select

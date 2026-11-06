@@ -1,4 +1,10 @@
-import { DomainError, AsociarTicketBody, BuscarTicketsQuery } from '@mmx/shared';
+import {
+  DomainError,
+  AsociarTicketBody,
+  BuscarTicketsQuery,
+  DesvincularTicketBody,
+  VincularTicketBody,
+} from '@mmx/shared';
 import {
   aCsv,
   aXlsx,
@@ -324,6 +330,54 @@ export async function rutasRegistros(app: App, d: AppDeps) {
       },
     },
     async (req) => conc.asociarManual(req.body, ctx(req)),
+  );
+  app.post(
+    '/api/conciliacion/tickets/vincular',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Asocia un ticket del TPV a una receta (soporta multi-receta)',
+        body: VincularTicketBody,
+      },
+    },
+    async (req) => conc.vincularTicketReceta(req.body, ctx(req)),
+  );
+  app.post(
+    '/api/conciliacion/tickets/desvincular',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Desvincula una receta de un ticket del TPV pendiente',
+        body: DesvincularTicketBody,
+      },
+    },
+    async (req) => conc.desvincularTicketReceta(req.body, ctx(req)),
+  );
+  app.get(
+    '/api/conciliacion/tickets/:ticketId',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Obtiene el detalle y estado de conciliación consolidado de un ticket multi-receta',
+        params: z.object({ ticketId: z.string().min(1) }),
+      },
+    },
+    async (req) => conc.obtenerDetalleTicketMultiReceta(req.params.ticketId, ctx(req)),
+  );
+  app.post(
+    '/api/conciliacion/tickets/:ticketId/confirmar',
+    {
+      preHandler: operativa,
+      schema: {
+        tags: ['conciliacion'],
+        summary: 'Confirma la conciliación del ticket multi-receta comprobando que no haya exceso dispensado',
+        params: z.object({ ticketId: z.string().min(1) }),
+      },
+    },
+    async (req) => conc.confirmarTicketMultiReceta(req.params.ticketId, ctx(req)),
   );
   app.post(
     '/api/demo/tpv',

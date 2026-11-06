@@ -100,6 +100,7 @@ export async function crearDeps(
     const resolver = new VariantResolver(db, sc, config.SIWEB_SKU_CN_REGEX, indice);
     const reservas = new SkuReservas(db, sc);
     siweb = {
+      client: sc,
       resolver,
       bandeja: new BandejaSiweb(db, sc, resolver),
       catalogo: crearCatalogWriter({ catalogWrite: config.SIWEB_CATALOG_WRITE }, db, reservas),

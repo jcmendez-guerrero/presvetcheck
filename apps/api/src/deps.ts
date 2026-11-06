@@ -9,6 +9,7 @@ import type {
   OutboxService,
   SalesMovementsSource,
   SiwebCatalogWriter,
+  SiwebClient,
   VariantResolver,
 } from '@mmx/siweb';
 import type { BlobStore } from '@mmx/reports';
@@ -29,6 +30,7 @@ export interface AppDeps {
   stock: StockPort;
   /** Integración con Siweb360 (null si no hay token: modo demo). */
   siweb: {
+    client?: SiwebClient;
     resolver: VariantResolver;
     bandeja: BandejaSiweb;
     catalogo: SiwebCatalogWriter;

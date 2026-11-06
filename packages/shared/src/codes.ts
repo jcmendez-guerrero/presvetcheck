@@ -88,6 +88,9 @@ export const CODIGOS_INCIDENCIA = [
   'CADUCIDAD_PROXIMA_ENTRADA',
   // Datos de registro que se transcriben después de dispensar (la receta los incluye).
   'REGISTRO_PENDIENTE',
+  // Modo retrospectivo (specs/004-multi-rx-ticket-training-mode, D-14)
+  'SIN_MOVIMIENTO_STOCK_RETROSPECTIVO',
+  'AVISO_FECHA_RETROSPECTIVA_ANTIGUA',
 ] as const;
 
 export const CodigoIncidencia = z.enum(CODIGOS_INCIDENCIA);

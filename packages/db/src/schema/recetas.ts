@@ -200,6 +200,10 @@ export const dispensacion = pgTable(
     /** Contramovimiento: si no es null, esta fila ANULA la dispensación indicada. */
     anulaDispensacionId: uuid(),
     motivoAnulacion: text(),
+    /** Modo de dispensación: en_vivo (por defecto) | retrospectivo (specs/004-multi-rx-ticket-training-mode, D-14). */
+    modo: text().notNull().default('en_vivo'),
+    /** Fecha original de la dispensación si fue en el pasado (solo modo retrospectivo). */
+    fechaOriginal: date(),
     ...createdOnly,
   },
   (t) => [

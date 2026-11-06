@@ -66,6 +66,8 @@ export const DispensacionConRecetaDto = z.object({
     })
     .nullable()
     .default(null),
+  modo: z.enum(['en_vivo', 'retrospectivo']).default('en_vivo'),
+  fechaOriginal: IsoDate.nullable().optional(),
 });
 
 export const DispensacionSinRecetaDto = z.object({
@@ -78,6 +80,8 @@ export const DispensacionSinRecetaDto = z.object({
   especie: z.string().max(100).nullable().default(null),
   propietario: PropietarioDto.nullable().default(null),
   referenciaPedido: z.string().max(100).nullable().default(null),
+  modo: z.enum(['en_vivo', 'retrospectivo']).default('en_vivo'),
+  fechaOriginal: IsoDate.nullable().optional(),
 });
 
 export const DispensacionDto = z.discriminatedUnion('conReceta', [

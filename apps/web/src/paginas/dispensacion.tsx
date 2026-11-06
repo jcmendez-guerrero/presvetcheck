@@ -213,6 +213,8 @@ export function Dispensacion() {
   const [dejarPendientes, setDejarPendientes] = useState(false);
   const [contacto, setContacto] = useState('');
   const [modal, setModal] = useState<CodigoIncidencia[] | null>(null);
+  const [modoRetrospectivo, setModoRetrospectivo] = useState(false);
+  const [fechaOriginal, setFechaOriginal] = useState('');
   const [res, setRes] = useState<RespuestaDispensacion | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -272,6 +274,8 @@ export function Dispensacion() {
           dejarPendientes && pendientes.length
             ? { lineas: pendientes, contactoTutor: contacto || null }
             : null,
+        modo: modoRetrospectivo ? 'retrospectivo' : 'en_vivo',
+        fechaOriginal: modoRetrospectivo && fechaOriginal ? fechaOriginal : null,
       });
       pitido(true);
       setRes(r);
@@ -532,11 +536,41 @@ export function Dispensacion() {
             </Tarjeta>
           )}
 
+          <Tarjeta titulo="Modo formación (retrospectivo)">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-6 w-6"
+                checked={modoRetrospectivo}
+                onChange={(e) => setModoRetrospectivo(e.target.checked)}
+              />
+              <span>
+                Activar modo formación con transacciones del pasado
+                <span className="block text-xs text-slate-600">
+                  Valida contra los movimientos de stock históricos en lugar del stock actual de la farmacia.
+                </span>
+              </span>
+            </label>
+            {modoRetrospectivo && (
+              <Campo
+                etiqueta="Fecha original de la dispensación (AAAA-MM-DD)"
+                type="date"
+                value={fechaOriginal}
+                onChange={(e) => setFechaOriginal(e.target.value)}
+              />
+            )}
+          </Tarjeta>
+
           {msg && <Mensaje tipo="error">{msg}</Mensaje>}
           <Boton
             data-testid="confirmar-dispensacion"
             className="text-lg"
-            disabled={!envases.length || enviando || (evd.psicotropo && !dniRetira.trim())}
+            disabled={
+              !envases.length ||
+              enviando ||
+              (evd.psicotropo && !dniRetira.trim()) ||
+              (modoRetrospectivo && !fechaOriginal)
+            }
             onClick={() => void enviar(forzado)}
           >
             Confirmar dispensación

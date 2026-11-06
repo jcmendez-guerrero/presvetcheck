@@ -123,6 +123,10 @@ export const envSchema = z
         .optional(),
     ),
 
+    /** Modo retrospectivo de dispensación para formación (specs/004-multi-rx-ticket-training-mode, D-14). */
+    RETROSPECTIVE_DISPENSATION_MODE: z.enum(['enabled', 'disabled']).default('disabled'),
+    RETROSPECTIVE_MAX_AGE_DAYS: num(90),
+
     AUTH_MODE: z.enum(['entra', 'dev']).default('entra'),
     ENTRA_TENANT_ID: optStr,
     ENTRA_CLIENT_ID: optStr,

@@ -7,6 +7,7 @@ import { useAuth } from '../lib/auth';
 import { CN } from '../lib/textos';
 import { DatosRegistro } from '../paginas/revision';
 import { Boton, Campo, Mensaje, Tarjeta } from './ui';
+import { TicketMultiRxModal } from './ticket-multi-rx';
 
 type EstadoSalida = 'conciliada' | 'pendiente' | 'discrepancia';
 interface RecetaRegistro {
@@ -56,6 +57,32 @@ export function TrasDispensar({
   const [r, setR] = useState<RecetaConfirmadaInput | null>(null);
   const [estado, setEstado] = useState<'editando' | 'guardado' | 'pendiente'>('editando');
   const [msg, setMsg] = useState<string | null>(null);
+  const [numTicket, setNumTicket] = useState('');
+  const [vinculando, setVinculando] = useState(false);
+  const [ticketMsg, setTicketMsg] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
+  const [modalTicketId, setModalTicketId] = useState<string | null>(null);
+
+  const vincular = async () => {
+    if (!numTicket.trim()) return;
+    setVinculando(true);
+    setTicketMsg(null);
+    try {
+      await post('/api/conciliacion/tickets/vincular', {
+        ticketId: numTicket.trim(),
+        ticketNumero: numTicket.trim(),
+        recetaId,
+      });
+      setTicketMsg({ tipo: 'ok', texto: 'Ticket vinculado a la receta correctamente.' });
+      await qc.invalidateQueries({ queryKey: ['conciliacion', recetaId] });
+    } catch (e) {
+      setTicketMsg({
+        tipo: 'error',
+        texto: e instanceof ApiError ? e.message : 'Error al vincular el ticket',
+      });
+    } finally {
+      setVinculando(false);
+    }
+  };
   useEffect(() => {
     if (q.data?.confirmacion && q.isFetchedAfterMount && !r) setR(q.data.confirmacion);
   }, [q.data, q.isFetchedAfterMount, r]);
@@ -136,7 +163,46 @@ export function TrasDispensar({
           >
             Comprobar ahora
           </Boton>
+          <div className="mt-4 border-t border-slate-200 pt-3">
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Vincular a ticket de venta (soporta multi-receta):
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <Campo
+                etiqueta="Número o ID de ticket"
+                value={numTicket}
+                placeholder="Ej. TKT-2026-000042"
+                onChange={(e) => setNumTicket(e.target.value)}
+              />
+              <Boton
+                variante="secundario"
+                disabled={vinculando || !numTicket.trim()}
+                onClick={() => void vincular()}
+              >
+                {vinculando ? 'Vinculando…' : 'Vincular ticket'}
+              </Boton>
+            </div>
+            {ticketMsg && (
+              <div className="mt-2 flex flex-col gap-2">
+                <Mensaje tipo={ticketMsg.tipo}>{ticketMsg.texto}</Mensaje>
+                {ticketMsg.tipo === 'ok' && (
+                  <div>
+                    <Boton variante="secundario" onClick={() => setModalTicketId(numTicket.trim())}>
+                      Ver conciliación del ticket
+                    </Boton>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </Tarjeta>
+      )}
+      {modalTicketId && (
+        <TicketMultiRxModal
+          ticketId={modalTicketId}
+          onCerrar={() => setModalTicketId(null)}
+          onConfirmado={() => void qc.invalidateQueries({ queryKey: ['conciliacion', recetaId] })}
+        />
       )}
     </>
   );
