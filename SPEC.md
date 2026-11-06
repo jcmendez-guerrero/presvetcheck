@@ -479,7 +479,7 @@ Job semanal (lunes 07:00 `Europe/Madrid`) y bajo demanda, en XLSX y CSV, guardad
 3. **Sustituciones** (estado, tiempos, autorizador).
 4. **Recetas no conformes** y motivos, y **dispensaciones forzadas** (defecto, motivo, empleado, estado de revisión del garante).
 5. **Caducidades próximas** (≤ 90 días) desde los lotes de Siweb360.
-  - **Registro de psicótropos** (entradas, salidas y saldo por medicamento y lote).
+    - **Registro de psicótropos** (entradas, salidas y saldo por medicamento y lote).
 6. **Discrepancias** de sincronización (outbox con error o en reconciliación).
 7. **Precios de coste de la semana** (si hay precios de compra registrados), con variación respecto al coste anterior.
 
@@ -608,10 +608,11 @@ Implementaciones:
 
 1. `FakeRecipeExtractor`: devuelve el JSON esperado de `fixtures/recetas/*.expected.json` (tests y desarrollo sin coste).
 2. `AzureRecipeExtractor`:
-  - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
-  - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en _Data Zone_ UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod). Instrucciones: no inventar valores; `null` si no consta; devolver la cita literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
-  - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
-  - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
+    - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
+    - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en _Data Zone_ UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod).
+      Instrucciones: no inventar valores; `null` si no consta; devolver la cita literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
+    - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
+    - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
 3. **Banco de evaluación:** `pnpm eval:extraction` recorre `fixtures/recetas/` y calcula exactitud por campo (exacta y normalizada), tasa de campos bajo umbral y coste estimado. JC aporta 15–20 recetas reales anonimizadas de formatos distintos (manuscritas, impresas, talonario colegial, electrónicas impresas).
 
 ---
