@@ -161,8 +161,7 @@ Paleta de marca: primario `#016581`, secundario `#2F8198`, acento claro `#60ABB8
 
 1. **Captura.** Foto (cámara de la PWA, varias páginas permitidas) o subida de PDF/JPEG/PNG/HEIC. Se normaliza a PNG por página, se corrige orientación, se calcula SHA‑256 y un _hash_ perceptual (pHash) para detectar resubidas.
 2. **Extracción** (sección 5.3). Devuelve cada campo con `valor`, `confianza (0–1)`, `evidencia` (texto OCR y región) y `fuente` (`ocr`, `llm`, `manual`).
-3. **Revisión humana obligatoria.** Pantalla dividida: imagen ampliable a la izquierda, campos a la derecha. Los campos con confianza < umbral (`EXTRACTION_CONFIDENCE_THRESHOLD`, por defecto 0,85) o ausentes se marcan y requieren confirmación individual. El empleado debe marcar "He comprobado los
-   datos con el original" antes de continuar. Se guardan el valor extraído y el confirmado.
+3. **Revisión humana obligatoria.** Pantalla dividida: imagen ampliable a la izquierda, campos a la derecha. Los campos con confianza < umbral (`EXTRACTION_CONFIDENCE_THRESHOLD`, por defecto 0,85) o ausentes se marcan y requieren confirmación individual. El empleado debe marcar "He comprobado los datos con el original" antes de continuar. Se guardan el valor extraído y el confirmado.
 4. **Evaluación de reglas** (motor determinista) → lista de incidencias con severidad `BLOQUEANTE` o `AVISO`.
 5. **Resultado por línea** (sección 4.3).
 
@@ -480,7 +479,7 @@ Job semanal (lunes 07:00 `Europe/Madrid`) y bajo demanda, en XLSX y CSV, guardad
 3. **Sustituciones** (estado, tiempos, autorizador).
 4. **Recetas no conformes** y motivos, y **dispensaciones forzadas** (defecto, motivo, empleado, estado de revisión del garante).
 5. **Caducidades próximas** (≤ 90 días) desde los lotes de Siweb360.
-   5b. **Registro de psicótropos** (entradas, salidas y saldo por medicamento y lote).
+  - **Registro de psicótropos** (entradas, salidas y saldo por medicamento y lote).
 6. **Discrepancias** de sincronización (outbox con error o en reconciliación).
 7. **Precios de coste de la semana** (si hay precios de compra registrados), con variación respecto al coste anterior.
 
@@ -552,10 +551,10 @@ La API no expone un campo CN. Tabla `siweb_variant_map (cn, variant_id, product_
 1. Tabla `siweb_variant_map` ya verificada → usar.
 2. `GET inventory/variants?search=CN{cn}` → filtrar resultados cuyo SKU **o** nombre cumplan el patrón con ese CN exacto. Uno → mapeo automático (`auto_sku`) que se guarda sin confirmación. Varios → el empleado elige.
 3. Si no hay coincidencia por CN: búsqueda por nombre del medicamento (CIMAVet) y laboratorio → hasta 5 candidatos ordenados por similitud. La UI dice claramente **"No se ha encontrado este medicamento por código nacional en Siweb360"** y ofrece:
-   a) **Elegir uno de los candidatos**,
-   b) **Introducir el SKU** del producto en Siweb360 (se valida que exista con `search`), o
-   c) **Marcar "Hay que crearlo en Siweb360"**.
-   En a) y b) se guarda el mapeo (`manual`) y, si el SKU o el nombre no siguen la convención, se pregunta: "¿Actualizar el SKU y el nombre en Siweb360?" mostrando la propuesta.
+  a) **Elegir uno de los candidatos**,
+  b) **Introducir el SKU** del producto en Siweb360 (se valida que exista con `search`), o
+  c) **Marcar "Hay que crearlo en Siweb360"**.
+  En a) y b) se guarda el mapeo (`manual`) y, si el SKU o el nombre no siguen la convención, se pregunta: "¿Actualizar el SKU y el nombre en Siweb360?" mostrando la propuesta.
 4. Un CN puede tener varias variantes (p. ej. duplicados): se admiten y se agregan para stock.
 
 **Alta y edición de productos — limitación de la API:** la documentación de Inventario indica que _el alta y edición de productos, variantes y almacenes se hace desde la aplicación_; la API pública no lo permite. Por tanto:
@@ -609,11 +608,10 @@ Implementaciones:
 
 1. `FakeRecipeExtractor`: devuelve el JSON esperado de `fixtures/recetas/*.expected.json` (tests y desarrollo sin coste).
 2. `AzureRecipeExtractor`:
-   - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
-   - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en _Data Zone_ UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod). Instrucciones: no inventar valores; `null` si no consta; devolver la cita
-     literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
-   - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
-   - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
+  - **Etapa 1:** Document Intelligence `prebuilt-layout` (texto impreso y manuscrito en español, palabras con confianza y polígonos, marcas de estilo manuscrito).
+  - **Etapa 2:** Azure OpenAI (modelo multimodal desplegado en _Data Zone_ UE; nombre de despliegue por configuración) con imagen + texto OCR y **structured outputs** contra el esquema JSON de receta (generado desde zod). Instrucciones: no inventar valores; `null` si no consta; devolver la cita literal de evidencia por campo; detectar presencia de firma manuscrita, sello, código QR/CSV de receta electrónica; separar líneas de medicamento.
+  - Confianza final por campo = combinación de la confianza OCR de las palabras de la evidencia y la autoevaluación del modelo; si la evidencia citada no aparece en el OCR → confianza máxima 0,5.
+  - Prompt versionado en `packages/extraction/prompts/receta.v1.md`; el `prompt_version` y el `model_deployment` se guardan con cada extracción.
 3. **Banco de evaluación:** `pnpm eval:extraction` recorre `fixtures/recetas/` y calcula exactitud por campo (exacta y normalizada), tasa de campos bajo umbral y coste estimado. JC aporta 15–20 recetas reales anonimizadas de formatos distintos (manuscritas, impresas, talonario colegial, electrónicas impresas).
 
 ---
