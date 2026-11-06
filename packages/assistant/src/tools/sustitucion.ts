@@ -53,7 +53,8 @@ export function herramientaBuscarSustitutos(d: DepsHerramientas): Herramienta<Ar
         prescrito = await d.cimavet.medicamento(args.nregistro);
       } else if (args.nombre) {
         const candidatos = await d.cimavet.buscar(args.nombre, { especieId, limite: 5 });
-        const elegibles = candidatos.length > 0 ? candidatos : await d.cimavet.buscar(args.nombre, { limite: 5 });
+        const elegibles =
+          candidatos.length > 0 ? candidatos : await d.cimavet.buscar(args.nombre, { limite: 5 });
         if (elegibles.length > 0 && elegibles[0]) {
           prescrito = await d.cimavet.medicamento(elegibles[0].nregistro);
         }
@@ -87,7 +88,7 @@ export function herramientaBuscarSustitutos(d: DepsHerramientas): Herramienta<Ar
         formas: prescrito.formaId !== null ? [prescrito.formaId] : [],
         vias: [],
       });
-      const formaNombre = prescrito.formaId !== null ? nombres.formas.get(prescrito.formaId) ?? null : null;
+      const formaNombre = prescrito.formaId !== null ? (nombres.formas.get(prescrito.formaId) ?? null) : null;
       const concentracionStr = prescrito.composicion.porCantidad
         ? `${prescrito.composicion.porCantidad} ${prescrito.composicion.porUnidad ?? ''}`.trim()
         : prescrito.composicion.pas

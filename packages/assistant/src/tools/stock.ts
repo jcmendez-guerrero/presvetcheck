@@ -31,7 +31,8 @@ export function herramientaConsultarStock(d: DepsHerramientas): Herramienta<Args
               tieneStock: false,
               estado: 'NO_DISPONIBLE' as const,
             })),
-            aviso: 'El servicio de inventario no está disponible. Comprueba las existencias físicas en la balda.',
+            aviso:
+              'El servicio de inventario no está disponible. Comprueba las existencias físicas en la balda.',
           },
           fuentes: [fuente],
         };

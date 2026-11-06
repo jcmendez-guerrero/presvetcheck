@@ -9,7 +9,10 @@ export interface StockResultadoAsistente {
 }
 
 export interface StockPortAsistente {
-  lotes(cn: string, medicamento?: { nombre: string; labtitular: string | null } | null): Promise<StockResultadoAsistente>;
+  lotes(
+    cn: string,
+    medicamento?: { nombre: string; labtitular: string | null } | null,
+  ): Promise<StockResultadoAsistente>;
 }
 
 /** Dependencias de las herramientas del asistente (todas de solo lectura). */

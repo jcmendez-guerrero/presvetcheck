@@ -209,10 +209,24 @@ const createMockCimavet = (): CimavetRepository => {
       return list;
     },
     buscar: async (texto: string) => {
-      const results: Array<{ nregistro: string; cn: string; nombre: string; medicamento: string; labtitular: string | null; puntuacion: number }> = [];
+      const results: Array<{
+        nregistro: string;
+        cn: string;
+        nombre: string;
+        medicamento: string;
+        labtitular: string | null;
+        puntuacion: number;
+      }> = [];
       for (const m of meds.values()) {
         if (m.nombre.toLowerCase().includes(texto.toLowerCase())) {
-          results.push({ nregistro: m.nregistro, cn: '570001', nombre: m.nombre, medicamento: m.nombre, labtitular: m.labtitular, puntuacion: 1 });
+          results.push({
+            nregistro: m.nregistro,
+            cn: '570001',
+            nombre: m.nombre,
+            medicamento: m.nombre,
+            labtitular: m.labtitular,
+            puntuacion: 1,
+          });
         }
       }
       return results as never;
@@ -240,7 +254,16 @@ const createMockStockPort = (stockMap: Record<string, number>): StockPortAsisten
     }
     return {
       estado: 'OK',
-      lotes: [{ lote: 'L01', disponible: unidades, caducidad: '2028-01-01', variantId: 1, creadoAt: null, ubicacion: null }],
+      lotes: [
+        {
+          lote: 'L01',
+          disponible: unidades,
+          caducidad: '2028-01-01',
+          variantId: 1,
+          creadoAt: null,
+          ubicacion: null,
+        },
+      ],
     };
   },
 });

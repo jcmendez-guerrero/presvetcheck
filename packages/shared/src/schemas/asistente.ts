@@ -194,7 +194,10 @@ export const ArgsBuscarSustitutos = z.object({
 export type ArgsBuscarSustitutos = z.infer<typeof ArgsBuscarSustitutos>;
 
 export const ArgsConsultarStock = z.object({
-  cns: z.array(z.string().regex(/^\d{6}$/)).min(1).max(50),
+  cns: z
+    .array(z.string().regex(/^\d{6}$/))
+    .min(1)
+    .max(50),
 });
 export type ArgsConsultarStock = z.infer<typeof ArgsConsultarStock>;
 
