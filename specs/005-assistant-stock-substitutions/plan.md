@@ -13,6 +13,7 @@ Esta funcionalidad corrige el asesoramiento del asistente conversacional ante co
 4. **Normalización canónica de especies y vías en CIMAVet (FR-013, FR-014)**: Filtra exclusivamente identificadores maestros positivos (`id > 0`) para especies en CIMAVet (descartando identificadores sintéticos negativos como `-29` frente a `14` para «Perros») y armoniza los códigos de vía de administración entre el Nomenclátor XML y la API REST para evitar falsos negativos en `evaluarEquivalencia`.
 5. **Aclaración interactiva de indicación clínica (FR-015)**: Cuando una consulta en mostrador no especifica la patología prescrita, el asistente presenta los candidatos coincidentes en composición, forma y especie con existencias y solicita aclaración de la indicación antes de emitir la confirmación definitiva.
 6. **Recordatorio reglamentario**: Estructura las respuestas recordando las 3 obligaciones legales para el dispensador (consentimiento del tutor, notificación al prescriptor y receta física apartada para firma en modo POST del garante).
+7. **Tabla comparativa de criterios de sustitución (FR-016)**: El motor de simulación (`simularEquivalencia` en `@mmx/domain`) genera en `evidencias.comparativa` un desglose estructurado fila a fila de los criterios reglamentarios evaluados (principio activo, concentración, forma, vía, especie, indicación y tiempos de espera) enriquecidos con nombres legibles vía `nombresFicha` de CIMAVet, y la interfaz web (`TarjetaSimulacion` en `apps/web`) renderiza una tabla comparativa visual con distintivos gráficos de cumplimiento (✓ / ✗).
 
 ---
 
@@ -71,7 +72,12 @@ specs/005-assistant-stock-substitutions/
 packages/
 ├── shared/
 │   └── src/schemas/
-│       └── asistente.ts            # Añadir ArgsBuscarSustitutos y ArgsConsultarStock
+│       └── asistente.ts            # Añadir CriterioComparativaSustitucion, ArgsBuscarSustitutos, ArgsConsultarStock
+├── domain/
+│   ├── src/
+│   │   └── simulacion.ts           # Generar comparativa en simularEquivalencia
+│   └── test/
+│       └── simulacion.test.ts      # Tests de evidencias.comparativa
 ├── cimavet/
 │   └── src/
 │       ├── repo.ts                 # Filtrar id > 0 en especiePorTexto y normalizar vías
@@ -83,18 +89,22 @@ packages/
 │   │   │   ├── contexto.ts         # Añadir stock?: StockPort a DepsHerramientas
 │   │   │   ├── sustitucion.ts      # Herramienta buscar_sustitutos con stock y flag aclaración
 │   │   │   ├── stock.ts            # Herramienta consultar_stock
-│   │   │   ├── simulaciones-medicamento.ts # Uso de especiePorTexto canónico (> 0)
+│   │   │   ├── simulaciones-medicamento.ts # Enriquecer nombresFicha en simular_equivalencia
 │   │   │   └── index.ts            # Registrar buscar_sustitutos y consultar_stock
 │   │   └── index.ts                # Exportar nuevas herramientas y tipos
 │   └── test/
 │       ├── tools-sustitucion.test.ts # Tests de buscar_sustitutos, stock y especies duplicadas
 │       └── orchestrator.test.ts    # Caso de consulta de sustitución y aclaración
 apps/
-└── api/
+├── api/
+│   └── src/
+│       ├── crear-deps.ts           # Inyectar d.stock en crearHerramientas(...)
+│       └── servicios/
+│           └── medicamentos.ts     # especiePorTexto filtrando id > 0
+└── web/
     └── src/
-        ├── crear-deps.ts           # Inyectar d.stock en crearHerramientas(...)
-        └── servicios/
-            └── medicamentos.ts     # especiePorTexto filtrando id > 0
+        └── componentes/
+            └── asistente.tsx       # Renderizar tabla comparativa en TarjetaSimulacion
 ```
 
 ---

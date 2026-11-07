@@ -123,6 +123,31 @@
 
 ---
 
+## Phase 8: User Story 5 - Tabla comparativa visual de criterios de sustitución (FR-016)
+
+**Purpose**: Estructurar la comparativa criterio a criterio en el motor de dominio y renderizarla de manera accesible en la tarjeta de simulación de la interfaz web para dar máxima transparencia al profesional sobre el porqué de la equivalencia o discrepancia técnica.
+
+**Independent Test**: Consultar al asistente comparando dos medicamentos (ej. Hedylon 5 mg frente a Prednicortone 5 mg). La simulación de equivalencia debe incluir en `evidencias.comparativa` el desglose de los 7 criterios normativos con nombres legibles y la tarjeta de simulación en la interfaz web debe mostrar la tabla comparativa visual con badges de cumplimiento (✓ / ✗).
+
+### Tests for Phase 8
+
+- [X] T027 [P] [US5] Añadir tipo y esquema Zod `CriterioComparativaSustitucion` en `packages/shared/src/schemas/asistente.ts`
+- [X] T028 [P] [US5] Añadir pruebas unitarias en `packages/domain/test/simulacion.test.ts` para verificar la generación de `evidencias.comparativa` en `simularEquivalencia` (7 criterios, casos de equivalencia y casos con discrepancias)
+- [X] T031 [P] [US5] Añadir test en `packages/assistant/test/tools-sustitucion.test.ts` verificando que `simular_equivalencia` genera la comparativa con nombres legibles para humanos resueltos vía `d.cimavet.nombresFicha`
+- [X] T033 [P] [US5] Añadir test de componente en `apps/web/src/componentes/asistente.test.tsx` verificando el renderizado accesible de la tabla comparativa en `TarjetaSimulacion`
+
+### Implementation for Phase 8
+
+- [X] T029 [US5] Implementar la generación determinista de `comparativa: CriterioComparativaSustitucion[]` en `simularEquivalencia` dentro de `packages/domain/src/simulacion.ts`, admitiendo etiquetas legibles opcionales para formas, vías y especies
+- [X] T030 [US5] Actualizar `herramientaSimularEquivalencia` en `packages/assistant/src/tools/simulaciones-medicamento.ts` para resolver de forma asíncrona los nombres legibles de forma, vías y especies vía `d.cimavet.nombresFicha` y suministrarlos a `simularEquivalencia`
+- [X] T032 [US5] Implementar la tabla comparativa de criterios en `TarjetaSimulacion` de `apps/web/src/componentes/asistente.tsx`, mostrando columnas *Criterio*, *Prescrito*, *Candidato* y *Estado* con badges de coincidencia (✓ verde) y discrepancia (✗ rojo)
+- [X] T034 [US5] Ejecutar la suite completa de calidad: `pnpm lint && pnpm typecheck && pnpm test`
+- [X] T035 Validar de extremo a extremo el Escenario 5 de `specs/005-assistant-stock-substitutions/quickstart.md` (comparativa visual entre Hedylon 5 mg y Prednicortone 5 mg)
+
+**Checkpoint**: Tabla comparativa visible, accesible y completamente integrada desde el motor hasta la interfaz web.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -134,6 +159,7 @@
 - **User Story 4 (Phase 5)**: Depende de Phase 3. Aplica bloqueos deterministas de no sustituibles.
 - **Polish (Phase 6)**: Validación inicial de la base de herramientas.
 - **Normalización y Aclaración (Phase 7)**: Depende de Phase 6. Corrige falsos negativos de CIMAVet (FR-013, FR-014) y añade la solicitud interactiva de indicación prescrita (FR-015).
+- **Tabla Comparativa de Criterios (Phase 8)**: Depende de Phase 7. Incorpora `evidencias.comparativa` en dominio, enriquecimiento en el asistente y tabla visual en la UI web (FR-016).
 
 ### User Story Dependencies
 
@@ -146,6 +172,7 @@ flowchart TD
     US3 --> Polish["Phase 6: Polish & Verificación (T015-T018)"]
     US4 --> Polish
     Polish --> Phase7["Phase 7: Normalización CIMAVet y Aclaración Indicación (T019-T026)"]
+    Phase7 --> Phase8["Phase 8: US5 - Tabla Comparativa Visual (T027-T035)"]
 ```
 
 ### Parallel Opportunities
@@ -154,6 +181,7 @@ flowchart TD
 - `T005`, `T006` y `T007` se pueden escribir en paralelo una vez completada la fase Foundational.
 - `US3` y `US4` pueden implementarse en paralelo tras completar el MVP (`US1 & US2`).
 - En Phase 7, `T019` y `T020` (tests de CIMAVet y de sustitución) se pueden escribir en paralelo antes de la implementación de `T021-T024`.
+- En Phase 8, `T027`, `T028`, `T031` y `T033` (esquema y tests en distintos paquetes) pueden prepararse en paralelo.
 
 ---
 
@@ -168,3 +196,4 @@ flowchart TD
 1. Añadir gestión de desabastecimiento total y no sustituibles (`T011`-`T014`).
 2. Pasar linter, typecheck y suite completa de tests (`T015`-`T018`).
 3. Aplicar normalización estricta de CIMAVet (`id > 0`, vías unificadas) y flujo de aclaración interactiva de indicación clínica (`T019`-`T026`).
+4. Añadir tabla comparativa de criterios de sustitución en motor, orquestador y componente de interfaz web (`T027`-`T035`).

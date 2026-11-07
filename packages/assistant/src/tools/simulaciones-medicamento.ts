@@ -1,4 +1,4 @@
-import { simularCambioFormato, simularEquivalencia } from '@mmx/domain';
+import { simularCambioFormato, simularEquivalencia, type NombresEquivalencia } from '@mmx/domain';
 import { ArgsSimularCambioFormato, ArgsSimularEquivalencia } from '@mmx/shared';
 import type { z } from 'zod';
 import type { DepsHerramientas } from './contexto';
@@ -91,6 +91,41 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
       const especieId = await d.cimavet.especiePorTexto(args.especie ?? null);
       if (especieId === null) faltantes.push('la especie del animal (por ejemplo, perro o gato)');
       if (faltantes.length || !p || !c) return faltan('simular_equivalencia', args, faltantes, v);
+
+      let nombresEtiquetas: NombresEquivalencia | undefined;
+
+      if (typeof d.cimavet?.nombresFicha === 'function') {
+        try {
+          const formasIds = [p.formaId, c.formaId].filter((x): x is number => typeof x === 'number');
+          const viasIds = [...p.viaIds, ...c.viaIds];
+          const especiesIds = [...p.especieIds, ...c.especieIds, ...(especieId ? [especieId] : [])];
+          const mapaNombres = await d.cimavet.nombresFicha({
+            formas: formasIds,
+            vias: viasIds,
+            especies: especiesIds,
+          });
+          nombresEtiquetas = {
+            formaPrescrito: p.formaId !== null ? mapaNombres.formas.get(p.formaId) ?? null : null,
+            formaCandidato: c.formaId !== null ? mapaNombres.formas.get(c.formaId) ?? null : null,
+            viasPrescrito: p.viaIds
+              .map((v) => mapaNombres.vias.get(v))
+              .filter((x): x is string => typeof x === 'string'),
+            viasCandidato: c.viaIds
+              .map((v) => mapaNombres.vias.get(v))
+              .filter((x): x is string => typeof x === 'string'),
+            especiesPrescrito: p.especieIds
+              .map((e) => mapaNombres.especies.get(e))
+              .filter((x): x is string => typeof x === 'string'),
+            especiesCandidato: c.especieIds
+              .map((e) => mapaNombres.especies.get(e))
+              .filter((x): x is string => typeof x === 'string'),
+            especieContexto: especieId !== null ? mapaNombres.especies.get(especieId) ?? null : null,
+          };
+        } catch {
+          // Degradación suave si la consulta de maestras no está disponible
+        }
+      }
+
       const res = resultadoSimulacion(
         'simular_equivalencia',
         args,
@@ -106,6 +141,7 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
             duracionDias: null,
           },
           rules: d.rules,
+          nombres: nombresEtiquetas,
         }),
       );
       if (!args.indicacion?.trim()) {

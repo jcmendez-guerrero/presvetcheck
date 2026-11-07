@@ -104,3 +104,14 @@ En la implementación actual del asistente de consultas (`packages/assistant`):
   3. El asistente presenta los medicamentos alternativos con existencias en el establecimiento e inmediatamente solicita aclaración de la patología/indicación antes de emitir la validación de sustitución definitiva, cumpliendo con la exigencia regulatoria sin bloquear la identificación preliminar de existencias.
 - **Alternativas consideradas**:
   - *Asumir automáticamente la indicación autorizada común*: Rechazado por el usuario en la sesión de clarificación (Opción B elegida). Se debe pedir aclaración al profesional para verificar la patología específica.
+
+---
+
+### Decisión 8: Tabla Comparativa de Criterios de Sustitución en Motor y UI
+
+- **Decisión**: Estructurar la comparativa de sustitución en el motor de dominio (`simularEquivalencia` en `@mmx/domain`) bajo `evidencias.comparativa`:
+  1. La función evalúa los 7 criterios reglamentarios: Principio activo, Concentración, Forma farmacéutica, Vía de administración, Especie de destino, Indicación y Tiempos de espera.
+  2. Cada fila contiene: `{ criterio, prescrito, candidato, coincide, detalle? }`.
+  3. `herramientaSimularEquivalencia` en `packages/assistant` resuelve de forma asíncrona los nombres legibles de formas, vías y especies mediante `d.cimavet.nombresFicha(...)` y los pasa al motor, evitando mostrar IDs numéricos en pantalla.
+  4. En `apps/web/src/componentes/asistente.tsx`, `TarjetaSimulacion` detecta si existen `evidencias.comparativa` y renderiza una tabla visual accesible con badges semánticos (`✓ Coincide` en verde, `✗ Discrepancia` en rojo).
+- **Razón**: Permite al personal de mostrador comprender inmediatamente por qué un fármaco alternativo es o no equivalente, despejando dudas sobre discrepancias en especies autorizadas, vías o indicaciones de manera transparente y profesional.

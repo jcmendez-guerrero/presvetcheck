@@ -291,4 +291,71 @@ describe('simularEquivalencia (SPEC §4.4.2)', () => {
     expect(r.decision).toBe('NO_EQUIVALENTE');
     expect(r.motivos.map((m) => m.code)).toContain('INDICACION_NO_COINCIDE');
   });
+
+  it('genera evidencias.comparativa con los 7 criterios normativos y detalle legible', () => {
+    const r = simularEquivalencia({
+      prescrito: amoxicilina(500),
+      candidato: amoxicilina(500, { nregistro: '9999 TEST', labtitular: 'OTRO LAB' }),
+      contexto,
+      rules: RULES,
+      nombres: {
+        formaPrescrito: 'Comprimido',
+        formaCandidato: 'Comprimido',
+        viasPrescrito: ['Vía oral'],
+        viasCandidato: ['Vía oral'],
+        especiesPrescrito: ['Perros'],
+        especiesCandidato: ['Perros', 'Gatos'],
+        especieContexto: 'Perros',
+      },
+    });
+
+    const comp = r.evidencias['comparativa'] as Array<{
+      criterio: string;
+      prescrito: string;
+      candidato: string;
+      coincide: boolean;
+      detalle?: string;
+    }>;
+    expect(Array.isArray(comp)).toBe(true);
+    expect(comp).toHaveLength(7);
+    expect(comp.map((c) => c.criterio)).toEqual([
+      'Principio activo',
+      'Concentración',
+      'Forma farmacéutica',
+      'Vía de administración',
+      'Especie de destino',
+      'Indicación',
+      'Tiempo de espera',
+    ]);
+    expect(comp.every((c) => c.coincide)).toBe(true);
+    expect(comp.find((c) => c.criterio === 'Forma farmacéutica')?.prescrito).toBe('Comprimido');
+    expect(comp.find((c) => c.criterio === 'Vía de administración')?.candidato).toBe('Vía oral');
+    expect(comp.find((c) => c.criterio === 'Tiempo de espera')?.prescrito).toContain('animal de compañía');
+  });
+
+  it('refleja discrepancias en evidencias.comparativa para cada criterio no cumplido', () => {
+    const r = simularEquivalencia({
+      prescrito: amoxicilina(500),
+      candidato: amoxicilina(250, {
+        nregistro: '9999 TEST',
+        formaId: 99,
+        viaIds: [10],
+        especieIds: [ESPECIE.BOVINO],
+        indicaciones: [{ especieId: null, texto: 'Alivio del dolor' }],
+      }),
+      contexto,
+      rules: RULES,
+    });
+
+    const comp = r.evidencias['comparativa'] as Array<{
+      criterio: string;
+      coincide: boolean;
+      detalle?: string;
+    }>;
+    expect(comp.find((c) => c.criterio === 'Concentración')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Forma farmacéutica')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Vía de administración')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Especie de destino')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Indicación')?.coincide).toBe(false);
+  });
 });

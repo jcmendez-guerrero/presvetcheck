@@ -86,3 +86,24 @@ Permite al asistente consultar de forma puntual el stock en vivo de uno o varios
   }>;
 }
 ```
+
+---
+
+## 3. Extensión de Evidencias en `simular_equivalencia`
+
+Cuando se ejecuta la herramienta `simular_equivalencia` (o se simula equivalencia en el motor), el objeto `evidencias` del resultado de la simulación incluye la comparativa detallada:
+
+```typescript
+{
+  indicacion: 'COINCIDE' | 'PROBABLE' | 'NO_COINCIDE';
+  revisarManual: boolean;
+  requiereAprobacionPrevia: boolean;
+  comparativa: Array<{
+    criterio: 'Principio activo' | 'Concentración' | 'Forma farmacéutica' | 'Vía de administración' | 'Especie de destino' | 'Indicación' | 'Tiempo de espera';
+    prescrito: string;
+    candidato: string;
+    coincide: boolean;
+    detalle?: string;
+  }>;
+}
+```

@@ -25,6 +25,20 @@ Argumentos para la herramienta `consultar_stock`.
 export const ArgsConsultarStock = z.object({
   cns: z.array(z.string().regex(/^\d{6}$/)).describe('Lista de códigos nacionales de 6 dígitos a consultar'),
 });
+
+### `CriterioComparativaSustitucion`
+Estructura de cada fila de la comparativa de sustitución en `ResultadoSimulacion.evidencias.comparativa`.
+
+```typescript
+export const CriterioComparativaSustitucion = z.object({
+  criterio: z.string().describe('Denominación del criterio reglamentario evaluado'),
+  prescrito: z.string().describe('Valor correspondiente al medicamento prescrito'),
+  candidato: z.string().describe('Valor correspondiente al medicamento candidato'),
+  coincide: z.boolean().describe('true si el criterio cumple con los requisitos normativos de equivalencia'),
+  detalle: z.string().optional().describe('Aclaración técnica opcional o motivo de discrepancia'),
+});
+export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;
+```
 ```
 
 ---

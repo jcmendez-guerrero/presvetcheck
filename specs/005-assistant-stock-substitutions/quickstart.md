@@ -65,6 +65,16 @@ Este documento describe los escenarios de prueba y validación para verificar de
 4. El asistente informa de la existencia de Prednicortone 5 mg con stock en la farmacia, pero solicita aclaración de la indicación clínica o patología prescrita para confirmar la coincidencia de indicación antes de formalizar la sustitución.
 5. Recuerda las 3 obligaciones legales del dispensador (consentimiento del tutor, comunicación al prescriptor y firma en modo POST del farmacéutico garante).
 
+### Escenario 5: Comparativa de criterios de sustitución (Hedylon vs Prednicortone)
+
+**Pregunta del usuario en mostrador**:
+> «¿Puedo sustituir Hedylon 5 mg por Prednicortone 5 mg para un perro con proceso inflamatorio?»
+
+**Comportamiento esperado**:
+1. El asistente ejecuta `simular_equivalencia` con prescrito `3738 ESP`, candidato `3313 ESP`, especie «perro» e indicación «proceso inflamatorio».
+2. El motor `@mmx/domain` genera en `evidencias.comparativa` la lista de 7 criterios normativos con nombres legibles (Principio activo, Concentración, Forma, Vía, Especie, Indicación, Tiempos de espera).
+3. En la interfaz web, la tarjeta de simulación renderiza una tabla comparativa clara con columnas *Criterio*, *Prescrito*, *Candidato* y *Estado*, destacando con distintivos gráficos (✓ Coincide / ✗ Discrepancia) el cumplimiento de cada requisito normativo.
+
 ---
 
 ## 3. Comandos de Verificación Automatizada

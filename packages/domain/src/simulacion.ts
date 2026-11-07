@@ -4,6 +4,7 @@ import {
   type ClasePrescripcion,
   type CodigoEquivalencia,
   type CodigoIncidencia,
+  type CriterioComparativaSustitucion,
   type DecisionSimulacion,
   type RulesBundle,
   type TipoTratamiento,
@@ -14,7 +15,7 @@ import { evaluarEquivalencia } from './equivalencia';
 import { evaluarAlternativaFormato, notaAdministracion, validarEnvasesFormato } from './formato';
 import { esAntimicrobiano, excluidoValidezAmpliada } from './medicamento';
 import { sustitucionPermitida } from './sustitucion';
-import type { ContextoPrescripcion, MedicamentoInfo, PresentacionInfo, ResultadoMotor } from './tipos';
+import type { ContextoPrescripcion, MedicamentoInfo, PresentacionInfo, ResultadoEquivalencia, ResultadoMotor } from './tipos';
 import { calcularValidez, recetaCaducada, textoPlazo, type LineaValidez } from './validez';
 
 /**
@@ -283,17 +284,172 @@ export function simularCambioFormato(e: EntradaSimularFormato): ResultadoSimulac
 
 // ── Equivalencia para sustitución ────────────────────────────────────────────
 
+export interface NombresEquivalencia {
+  formaPrescrito?: string | null | undefined;
+  formaCandidato?: string | null | undefined;
+  viasPrescrito?: string[] | null | undefined;
+  viasCandidato?: string[] | null | undefined;
+  especiesPrescrito?: string[] | null | undefined;
+  especiesCandidato?: string[] | null | undefined;
+  especieContexto?: string | null | undefined;
+}
+
 export interface EntradaSimularEquivalencia {
   prescrito: MedicamentoInfo;
   candidato: MedicamentoInfo;
   contexto: ContextoPrescripcion;
   rules: RulesBundle;
+  nombres?: NombresEquivalencia | undefined;
+}
+
+function construirComparativa(
+  prescrito: MedicamentoInfo,
+  candidato: MedicamentoInfo,
+  contexto: ContextoPrescripcion,
+  r: ResultadoEquivalencia,
+  nombres?: NombresEquivalencia,
+): CriterioComparativaSustitucion[] {
+  const pPas = prescrito.composicion.pas.map((pa) => pa.nombre).join(', ') || 'Sin principio activo';
+  const cPas = candidato.composicion.pas.map((pa) => pa.nombre).join(', ') || 'Sin principio activo';
+  const paCoincide = !r.motivos.includes('COMPOSICION_DISTINTA');
+
+  const pConc =
+    prescrito.composicion.pas
+      .map((pa) => `${pa.cantidad ?? ''} ${pa.unidad ?? ''}`.trim())
+      .filter(Boolean)
+      .join(', ') || 'No especificada';
+  const cConc =
+    candidato.composicion.pas
+      .map((pa) => `${pa.cantidad ?? ''} ${pa.unidad ?? ''}`.trim())
+      .filter(Boolean)
+      .join(', ') || 'No especificada';
+  const concCoincide =
+    !r.motivos.includes('CONCENTRACION_DISTINTA') && !r.motivos.includes('CANTIDAD_NO_NORMALIZABLE');
+
+  const pForma =
+    nombres?.formaPrescrito ?? (prescrito.formaId !== null ? `Forma #${prescrito.formaId}` : 'No especificada');
+  const cForma =
+    nombres?.formaCandidato ?? (candidato.formaId !== null ? `Forma #${candidato.formaId}` : 'No especificada');
+  const formaCoincide = !r.motivos.includes('FORMA_DISTINTA');
+
+  const pVias =
+    nombres?.viasPrescrito?.join(', ') ??
+    (prescrito.viaIds.length > 0 ? prescrito.viaIds.map((v) => `Vía #${v}`).join(', ') : 'No especificada');
+  const cVias =
+    nombres?.viasCandidato?.join(', ') ??
+    (candidato.viaIds.length > 0 ? candidato.viaIds.map((v) => `Vía #${v}`).join(', ') : 'No especificada');
+  const viaCoincide = !r.motivos.includes('VIA_NO_AUTORIZADA');
+
+  const pEspecie =
+    nombres?.especieContexto ??
+    (nombres?.especiesPrescrito?.join(', ') ??
+      (contexto.especieId !== null ? `Especie #${contexto.especieId}` : 'No especificada'));
+  const cEspecie =
+    nombres?.especiesCandidato?.join(', ') ??
+    (candidato.especieIds.length > 0
+      ? candidato.especieIds.map((e) => `Especie #${e}`).join(', ')
+      : 'No especificada');
+  const especieCoincide = !r.motivos.includes('ESPECIE_NO_AUTORIZADA');
+
+  const pInd = contexto.indicacion?.trim() || 'Tratamiento prescrito';
+  let cInd = 'No autorizada para la indicación prescrita';
+  if (r.indicacion === 'COINCIDE') {
+    cInd = 'Autorizada para la misma indicación';
+  } else if (r.indicacion === 'PROBABLE') {
+    cInd = 'Indicación probable (requiere validación del garante)';
+  } else if (candidato.indicaciones.length > 0) {
+    cInd = candidato.indicaciones.map((i) => i.texto).slice(0, 2).join('; ');
+  }
+  const indCoincide = !r.motivos.includes('INDICACION_NO_COINCIDE');
+
+  let pTe = 'No aplica (animal de compañía)';
+  let cTe = 'No aplica (animal de compañía)';
+  let teCoincide = true;
+  let teDetalle: string | undefined;
+  if (contexto.especieProduccion) {
+    pTe =
+      prescrito.tiemposEspera.length > 0
+        ? prescrito.tiemposEspera
+            .map((t) => `${t.tejido ?? 'Tejido'}: ${t.dias !== null ? `${t.dias} días` : 'No aplica'}`)
+            .join(', ')
+        : 'Sin datos';
+    cTe =
+      candidato.tiemposEspera.length > 0
+        ? candidato.tiemposEspera
+            .map((t) => `${t.tejido ?? 'Tejido'}: ${t.dias !== null ? `${t.dias} días` : 'No aplica'}`)
+            .join(', ')
+        : 'Sin datos';
+    teCoincide =
+      !r.motivos.includes('TIEMPO_ESPERA_SUPERIOR') && !r.motivos.includes('TIEMPO_ESPERA_DESCONOCIDO');
+    if (!teCoincide) {
+      teDetalle = r.motivos.includes('TIEMPO_ESPERA_SUPERIOR')
+        ? 'El tiempo de espera del candidato supera al del prescrito'
+        : 'Tiempo de espera no comparable o desconocido';
+    }
+  }
+
+  return [
+    {
+      criterio: 'Principio activo',
+      prescrito: pPas,
+      candidato: cPas,
+      coincide: paCoincide,
+      detalle: paCoincide ? undefined : 'Composición cualitativa en principios activos distinta',
+    },
+    {
+      criterio: 'Concentración',
+      prescrito: pConc,
+      candidato: cConc,
+      coincide: concCoincide,
+      detalle: concCoincide ? undefined : 'Concentración o cantidad por unidad distinta',
+    },
+    {
+      criterio: 'Forma farmacéutica',
+      prescrito: pForma,
+      candidato: cForma,
+      coincide: formaCoincide,
+      detalle: formaCoincide ? undefined : 'Forma farmacéutica distinta',
+    },
+    {
+      criterio: 'Vía de administración',
+      prescrito: pVias,
+      candidato: cVias,
+      coincide: viaCoincide,
+      detalle: viaCoincide ? undefined : 'Vía de administración no autorizada en el candidato',
+    },
+    {
+      criterio: 'Especie de destino',
+      prescrito: pEspecie,
+      candidato: cEspecie,
+      coincide: especieCoincide,
+      detalle: especieCoincide ? undefined : 'Candidato no autorizado para la especie de la receta',
+    },
+    {
+      criterio: 'Indicación',
+      prescrito: pInd,
+      candidato: cInd,
+      coincide: indCoincide,
+      detalle: indCoincide
+        ? r.indicacion === 'PROBABLE'
+          ? 'Indicación probable (requiere aprobación previa del garante)'
+          : undefined
+        : 'Indicación clínica no coincidente con las autorizadas',
+    },
+    {
+      criterio: 'Tiempo de espera',
+      prescrito: pTe,
+      candidato: cTe,
+      coincide: teCoincide,
+      detalle: teDetalle,
+    },
+  ];
 }
 
 /** Equivalencia entre el medicamento prescrito y un candidato (SPEC §4.4.2). Todas las condiciones son obligatorias. */
 export function simularEquivalencia(e: EntradaSimularEquivalencia): ResultadoSimulacion {
   const r = evaluarEquivalencia(e.prescrito, e.candidato, e.contexto, e.rules.equivalencia);
   const motivos = r.motivos.map(motivoEq);
+  const comparativa = construirComparativa(e.prescrito, e.candidato, e.contexto, r, e.nombres);
   return {
     decision: r.equivalente ? 'EQUIVALENTE' : 'NO_EQUIVALENTE',
     motivos:
@@ -310,6 +466,7 @@ export function simularEquivalencia(e: EntradaSimularEquivalencia): ResultadoSim
       indicacion: r.indicacion,
       revisarManual: r.revisarManual,
       requiereAprobacionPrevia: r.requiereAprobacionPrevia,
+      comparativa,
     },
     reglaVersion: e.rules.version,
     supuestos: {

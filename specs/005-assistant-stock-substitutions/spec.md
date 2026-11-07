@@ -12,6 +12,7 @@
 
 ### Session 2026-11-07
 - Q: ¿Cómo debe normalizar y resolver el sistema la equivalencia de especie, vía de administración e indicación en CIMAVet para evitar falsos negativos en la búsqueda y simulación de sustitutos? → A: Mapeo canónico estricto para especie (filtrar exclusivamente `id > 0`, descartando IDs negativos/sintéticos devueltos por la API de CIMAVet) y armonización de códigos oficiales de vía de administración. Si la consulta de mostrador no aporta una indicación clínica explícita, el asistente debe solicitar aclaración de la patología/indicación antes de emitir la simulación de equivalencia definitiva, en lugar de asumir la indicación común autorizada.
+- Q: ¿Cómo y dónde debe generarse y representarse la tabla comparativa de criterios de sustitución (A frente a B)? → A: Estructurada en el motor de simulación de equivalencia con criterios legibles para humanos (principio activo, concentración, forma farmacéutica, vía de administración, especie, indicación y tiempos de espera) e indicadores de coincidencia booleana, y renderizada de forma nativa en la tarjeta de simulación del asistente mediante una tabla comparativa visual con distintivos de cumplimiento (✓ / ✗).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -82,6 +83,22 @@ Un empleado consulta por la sustitución de un medicamento que por regulación n
 
 ---
 
+### User Story 5 - Tabla comparativa visual de criterios de sustitución entre medicamentos (Priority: P2)
+
+Cuando el personal de farmacia pregunta por la sustitución de un medicamento prescrito frente a un medicamento candidato concreto (o cuando el simulador evalúa la equivalencia entre ambos), la interfaz del asistente muestra una tabla comparativa desglosando los criterios reglamentarios exigidos para la sustitución (principio activo, concentración, forma farmacéutica, vía de administración, especie de destino, indicación y tiempos de espera). Cada criterio muestra el valor prescrito, el valor candidato y su coincidencia visual (✓ / ✗), permitiendo entender de inmediato la causa de aceptación o denegación.
+
+**Why this priority**: Evita la incertidumbre y frustración del usuario cuando una alternativa rechazada parece idéntica a simple vista, proporcionando transparencia regulatoria inmediata sobre el motivo exacto de la no equivalencia técnica.
+
+**Independent Test**: Consultar al asistente comparando dos medicamentos (por ejemplo, Hedylon frente a Prednicortone). La tarjeta de simulación debe presentar una tabla comparativa clara con el desglose de los campos evaluados y sus respectivos estados de coincidencia o discrepancia.
+
+**Acceptance Scenarios**:
+
+1. **Given** una simulación de equivalencia entre un medicamento prescrito y un candidato, **When** el motor de simulación evalúa la regla, **Then** devuelve en la información estructurada de evidencias una comparativa criterio a criterio con nombres legibles para humanos y estado de coincidencia booleano.
+2. **Given** una respuesta del asistente con simulación de equivalencia o no equivalencia, **When** el usuario visualiza la tarjeta de simulación en la interfaz, **Then** se muestra una tabla comparativa accesible con columnas «Criterio», «Prescrito», «Candidato» y «Estado».
+3. **Given** que uno o más criterios no coinciden (por ejemplo, vía de administración o especie no autorizada), **When** se renderiza la tabla comparativa, **Then** se marcan visualmente con distintivos de discrepancia (✗) frente a los que sí coinciden (✓), facilitando la identificación inmediata de los impedimentos reglamentarios.
+
+---
+
 ### Edge Cases
 
 - **Medicamento prescrito no encontrado en CIMAVet**: Si el nombre no coincide exactamente con ningún registro, el asistente ofrece los nombres más cercanos en el catálogo y solicita confirmación al empleado, sin asumir un medicamento erróneo.
@@ -114,12 +131,14 @@ Un empleado consulta por la sustitución de un medicamento que por regulación n
 - **FR-013**: La resolución de especies y vías de administración en CIMAVet MUST descartar identificadores menores o iguales a cero (`id <= 0`), seleccionando exclusivamente los identificadores canónicos positivos coincidentes con los registros de autorización de las fichas técnicas (`especieIds` y `viaIds`).
 - **FR-014**: El motor de equivalencia MUST reconciliar las vías de administración a través de sus códigos maestros oficiales de administración, asegurando equivalencia coherente tanto si el registro proviene del Nomenclátor XML como de la API REST de CIMAVet.
 - **FR-015**: Si una consulta de sustitución o simulación de equivalencia no contiene la indicación clínica o patología prescrita, el asistente MUST clasificar preliminarmente los candidatos equivalentes en composición, forma y especie con existencias en farmacia, y solicitar aclaración de la indicación clínica para completar la validación reglamentaria de equivalencia.
+- **FR-016**: El motor de simulación de equivalencia MUST incluir en sus evidencias un desglose estructurado fila por fila de los criterios normativos de sustitución evaluados (principio activo, concentración, forma farmacéutica, vía de administración, especie de destino, indicación y tiempos de espera) con los valores legibles para humanos del prescrito y del candidato y su estado booleano de coincidencia, y la interfaz web MUST renderizar dicho desglose como una tabla comparativa visual accesible con distintivos de cumplimiento (✓ / ✗) en la tarjeta de simulación.
 
 ### Key Entities *(include if feature involves data)*
 
 - **CandidatoSustitucion**: Representa un medicamento alternativo autorizado en CIMAVet evaluado para una prescripción. Atributos: `nregistro`, `nombreComercial`, `titular`, `principioActivo`, `formaFarmaceutica`, `concentracion`, `especies`, `presentaciones` (lista de CN y nombres de presentación).
 - **DisponibilidadStockCandidato**: Información de stock asociada a un candidato o presentación. Atributos: `cn`, `nombrePresentacion`, `stockDisponible`, `almacen`, `tieneStock` (booleano).
 - **RecomendacionSustitucion**: Resultado estructurado proporcionado al usuario y al componente de UI. Atributos: `prescrito` (datos del medicamento original y su stock), `esSustituibleLegalmente` (booleano), `motivoExclusion` (opcional), `candidatosConStock` (lista), `candidatosSinStock` (lista), `obligacionesDispensador` (lista de requisitos normativos).
+- **CriterioComparativaSustitucion**: Elemento de la comparativa de sustitución entre dos medicamentos. Atributos: `criterio` (denominación del requisito normativo), `prescrito` (valor en medicamento prescrito), `candidato` (valor en medicamento candidato), `coincide` (booleano de conformidad reglamentaria), `detalle` (aclaración textual opcional).
 
 ## Success Criteria *(mandatory)*
 

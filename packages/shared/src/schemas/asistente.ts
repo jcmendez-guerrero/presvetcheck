@@ -55,6 +55,16 @@ export const SimulacionGuardada = z.object({
 });
 export type SimulacionGuardada = z.infer<typeof SimulacionGuardada>;
 
+/** Elemento de la comparativa de sustitución criterio a criterio entre medicamentos (FR-016). */
+export const CriterioComparativaSustitucion = z.object({
+  criterio: z.string().describe('Denominación del criterio normativo evaluado'),
+  prescrito: z.string().describe('Valor correspondiente al medicamento prescrito'),
+  candidato: z.string().describe('Valor correspondiente al medicamento candidato'),
+  coincide: z.boolean().describe('true si el criterio cumple los requisitos legales de equivalencia'),
+  detalle: z.string().optional().describe('Aclaración técnica opcional o motivo de discrepancia'),
+});
+export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;
+
 /** Salida estructurada obligatoria del modelo (contracts/salida-modelo.md). */
 export const SalidaModelo = z.object({
   tipo: TipoRespuesta,

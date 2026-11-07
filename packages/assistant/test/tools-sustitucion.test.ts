@@ -6,6 +6,7 @@ import type { RulesBundle } from '@mmx/shared';
 import { loadRules } from '@mmx/shared/node';
 import { herramientaConsultarStock } from '../src/tools/stock';
 import { herramientaBuscarSustitutos } from '../src/tools/sustitucion';
+import { herramientaSimularEquivalencia } from '../src/tools/simulaciones-medicamento';
 import type { DepsHerramientas, StockPortAsistente } from '../src/tools/contexto';
 
 const ROOT = resolve(__dirname, '../../..');
@@ -563,5 +564,57 @@ describe('herramientaBuscarSustitutos', () => {
         }),
       ]),
     );
+  });
+
+  it('simular_equivalencia enriquece evidencias.comparativa con nombres legibles resueltos de CIMAVet (US5, FR-016)', async () => {
+    const deps: DepsHerramientas = {
+      rules: RULES,
+      clock: fixedClock('2026-10-14T10:00:00Z'),
+      indice: null,
+      cimavet: createMockCimavet(),
+      stock: null,
+      permitirCambioFormato: true,
+      maxEdadCimavetH: 24,
+    };
+
+    const tool = herramientaSimularEquivalencia(deps);
+    const res = await tool.ejecutar(
+      {
+        prescrito: { nregistro: '3738 ESP' },
+        candidato: { nregistro: '3313 ESP' },
+        especie: 'perro',
+        indicacion: 'Tratamiento de afecciones inflamatorias y alergicas',
+      },
+      { contexto: { tipo: 'general' } },
+    );
+
+    expect(res.simulacion).toBeDefined();
+    expect(res.simulacion?.decision).toBe('EQUIVALENTE');
+    const comp = (res.simulacion?.evidencias as Record<string, unknown>)['comparativa'] as Array<{
+      criterio: string;
+      prescrito: string;
+      candidato: string;
+      coincide: boolean;
+      detalle?: string;
+    }>;
+
+    expect(Array.isArray(comp)).toBe(true);
+    expect(comp).toHaveLength(7);
+    const formaRow = comp.find((c) => c.criterio === 'Forma farmacéutica');
+    expect(formaRow?.prescrito).toBe('Comprimido');
+    expect(formaRow?.candidato).toBe('Comprimido');
+    expect(formaRow?.coincide).toBe(true);
+
+    const viaRow = comp.find((c) => c.criterio === 'Vía de administración');
+    expect(viaRow?.prescrito).toBe('VÍA ORAL');
+    expect(viaRow?.coincide).toBe(true);
+
+    const especieRow = comp.find((c) => c.criterio === 'Especie de destino');
+    expect(especieRow?.prescrito).toBe('Perros');
+    expect(especieRow?.coincide).toBe(true);
+
+    const indRow = comp.find((c) => c.criterio === 'Indicación');
+    expect(indRow?.prescrito).toBe('Tratamiento de afecciones inflamatorias y alergicas');
+    expect(indRow?.coincide).toBe(true);
   });
 });
