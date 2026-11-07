@@ -151,9 +151,15 @@ export function registroDesdeApi(
       fetchedAt,
     })),
     principiosActivos: pas,
-    especies: m.especies ? m.especies.map((e) => idNum(e.id)).filter((x): x is number => x !== null) : null,
+    especies: m.especies
+      ? m.especies
+          .map((e) => idNum(e.id))
+          .filter((x): x is number => x !== null && x > 0)
+      : null,
     vias: m.viasadministracion
-      ? m.viasadministracion.map((e) => idNum(e.id)).filter((x): x is number => x !== null)
+      ? m.viasadministracion
+          .map((e) => (e.codigo ? idNum(e.codigo) : null) ?? idNum(e.id))
+          .filter((x): x is number => x !== null)
       : null,
     atc: m.atcs ? m.atcs.map((a) => a.codigo).filter((x): x is string => !!x) : null,
     indicaciones: m.indicaciones

@@ -91,7 +91,7 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
       const especieId = await d.cimavet.especiePorTexto(args.especie ?? null);
       if (especieId === null) faltantes.push('la especie del animal (por ejemplo, perro o gato)');
       if (faltantes.length || !p || !c) return faltan('simular_equivalencia', args, faltantes, v);
-      return resultadoSimulacion(
+      const res = resultadoSimulacion(
         'simular_equivalencia',
         args,
         simularEquivalencia({
@@ -108,6 +108,10 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
           rules: d.rules,
         }),
       );
+      if (!args.indicacion?.trim()) {
+        (res.datos as Record<string, unknown>).requiereAclaracionIndicacion = true;
+      }
+      return res;
     },
   };
 }

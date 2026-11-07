@@ -41,7 +41,30 @@ const herramientaBuscarSustitutosMock: Herramienta<{ nombre?: string | undefined
   nombre: 'buscar_sustitutos',
   descripcion: 'Buscar sustitutos',
   args: z.object({ nombre: z.string().optional(), especie: z.string() }),
-  async ejecutar() {
+  async ejecutar({ nombre }) {
+    if (nombre?.toLowerCase().includes('hedylon')) {
+      const f = {
+        fuenteId: 'cimavet:sustitucion:3738ESP',
+        tipo: 'cimavet' as const,
+        titulo: 'Equivalencias HEDYLON 5 MG 30 COMP',
+        version: '2026-10-14T10:00:00Z',
+      };
+      return {
+        datos: {
+          fuenteId: f.fuenteId,
+          version: f.version,
+          prescrito: { nombre: 'HEDYLON 5 MG 30 COMP', nregistro: '3738 ESP', tieneStock: false },
+          sustitucionPermitida: true,
+          requiereAclaracionIndicacion: true,
+          candidatosConStock: [
+            { cn: '584958', nombre: 'Prednicortone 5 mg 30 comprimidos', stockDisponible: 7, tieneStock: true },
+          ],
+          candidatosSinStock: [],
+          obligacionesDispensador: ['Conformidad tutor', 'Aviso prescriptor', 'Bandeja garante'],
+        },
+        fuentes: [f],
+      };
+    }
     const f = {
       fuenteId: 'cimavet:sustitucion:3313ESP',
       tipo: 'cimavet' as const,
@@ -277,6 +300,41 @@ describe('ChatOrchestrator', () => {
     expect(r.fuentes.map((f) => f.fuenteId)).toEqual(['cimavet:sustitucion:3313ESP']);
     expect(r.salida.texto).toContain('Prednisolona Vet 5 mg');
     expect(r.salida.texto).toContain('4 unidades');
+    expect(r.salida.texto).not.toContain('consulte con su veterinario');
+  });
+
+  it('Escenario 4: consulta de sustitución de Hedylon 5 mg propone Prednicortone 5 mg y solicita aclaración de indicación (FR-013, FR-014, FR-015)', async () => {
+    const r = await orq([
+      {
+        cuando: /hedylon/i,
+        rondas: [
+          [
+            {
+              nombre: 'buscar_sustitutos',
+              args: { nombre: 'HEDYLON 5 MG 30 COMP', especie: 'perro' },
+            },
+          ],
+        ],
+        final: () =>
+          salida({
+            tipo: 'respondida',
+            texto:
+              'No hay existencias de HEDYLON 5 MG 30 COMP en el almacén. En la farmacia disponemos de 7 unidades de Prednicortone 5 mg 30 comprimidos (Código nacional 584958), que comparte el mismo principio activo, concentración y vía oral autorizada para perros. Al no indicarse la patología prescrita, por favor aclara la indicación clínica que figura en la receta para confirmar la equivalencia reglamentaria antes de formalizar la sustitución. Recuerda obtener la conformidad del tutor, notificar al veterinario y apartar la receta para el garante.',
+            fuentes: ['cimavet:sustitucion:3738ESP'],
+          }),
+      },
+    ]).responder(
+      entrada(
+        'Tengo una receta de HEDYLON 5 MG 30 COMP el cual no tengo para un perro, ¿por cuál puedo sustituirlo si es posible?',
+      ),
+    );
+
+    expect(r.degradada).toBe(false);
+    expect(r.salida.tipo).toBe('respondida');
+    expect(r.fuentes.map((f) => f.fuenteId)).toEqual(['cimavet:sustitucion:3738ESP']);
+    expect(r.salida.texto).toContain('Prednicortone 5 mg');
+    expect(r.salida.texto).toContain('7 unidades');
+    expect(r.salida.texto).toMatch(/aclara la indicación clínica|patología/i);
     expect(r.salida.texto).not.toContain('consulte con su veterinario');
   });
 });

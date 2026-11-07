@@ -295,6 +295,22 @@ describe('normalización a la caché', () => {
     ).toBe('suspendido');
   });
 
+  it('registroDesdeApi reconcilia vías de administración prefiriendo codigo canónico sobre id interno (FR-014)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '3313 ESP',
+        nombre: 'Prednicortone',
+        viasAdministracion: [
+          { id: 48, codigo: '54', nombre: 'VÍA ORAL' },
+          { id: 12, nombre: 'VÍA TÓPICA' },
+        ],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([54, 12]);
+  });
+
   it('tiempos de espera con la forma real (objetos tejido/unidadTiempo/forma/vía)', () => {
     const r = registroDesdeApi(
       lowerKeys({

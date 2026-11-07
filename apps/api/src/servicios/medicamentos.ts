@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { cimavetMaestra, MAESTRA } from '@mmx/db';
 import type { Candidato, MedicamentoInfo, PresentacionInfo } from '@mmx/domain';
 import { enParalelo, normalizeText } from '@mmx/shared';
@@ -40,7 +40,11 @@ export class MedicamentosService {
   async idsPorTexto(tipo: number, texto: string | null, limite = 5): Promise<number[]> {
     if (!texto) return [];
     const t = normalizeText(texto);
-    const filas = await this.d.db.select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre }).from(cimavetMaestra).where(eq(cimavetMaestra.tipo, tipo));
+    const filas = await this.d.db
+      .select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre })
+      .from(cimavetMaestra)
+      .where(and(eq(cimavetMaestra.tipo, tipo), gt(cimavetMaestra.id, 0)))
+      .orderBy(asc(cimavetMaestra.id));
     const exactos = filas.filter((f) => normalizeText(f.nombre) === t);
     const parecidos = filas.filter((f) => normalizeText(f.nombre).startsWith(t) || t.startsWith(normalizeText(f.nombre)));
     return [...new Set([...exactos, ...parecidos].map((f) => f.id as number))].slice(0, limite);
@@ -50,7 +54,11 @@ export class MedicamentosService {
   async especiePorTexto(texto: string | null): Promise<number | null> {
     if (!texto) return null;
     const t = normalizeText(texto);
-    const filas = await this.d.db.select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre }).from(cimavetMaestra).where(eq(cimavetMaestra.tipo, MAESTRA.ESPECIES));
+    const filas = await this.d.db
+      .select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre })
+      .from(cimavetMaestra)
+      .where(and(eq(cimavetMaestra.tipo, MAESTRA.ESPECIES), gt(cimavetMaestra.id, 0)))
+      .orderBy(asc(cimavetMaestra.id));
     const exacto = filas.find((f) => normalizeText(f.nombre) === t);
     if (exacto) return exacto.id;
     // Singular/plural: "perro" → "perros", "gato" → "gatos", "bovino".

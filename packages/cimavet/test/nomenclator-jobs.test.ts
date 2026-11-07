@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { eq } from 'drizzle-orm';
-import { cimavetMedicamento, cimavetSyncRun, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
+import { cimavetMaestra, cimavetMedicamento, cimavetSyncRun, importarMaestras, MAESTRA, type DbHandle } from '@mmx/db';
 import { createTestDb } from '@mmx/db/testing';
 import { CimavetClient } from '../src/client';
 import { jobCimavetDelta, jobCimavetFull, jobNomenclatorImport, verificarEnVivo } from '../src/jobs';
@@ -315,5 +315,26 @@ describe('jobs de sincronización', () => {
       24,
     );
     expect(ok).toEqual({ actualizado: true, cacheDesde: null });
+  });
+
+  it('especiePorTexto descarta IDs sintéticos o negativos (id <= 0) ante duplicados y devuelve el canónico positivo (FR-013)', async () => {
+    await h.db
+      .insert(cimavetMaestra)
+      .values([
+        {
+          tipo: MAESTRA.ESPECIES,
+          clave: '-29',
+          id: -29,
+          codigo: '-29',
+          nombre: 'Perros',
+        },
+      ])
+      .onConflictDoNothing();
+
+    const idSingular = await repo.especiePorTexto('perro');
+    expect(idSingular).toBe(14);
+
+    const idPlural = await repo.especiePorTexto('perros');
+    expect(idPlural).toBe(14);
   });
 });

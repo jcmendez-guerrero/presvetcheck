@@ -21,6 +21,7 @@ interface DatosSustitucion {
   };
   sustitucionPermitida?: boolean;
   motivosBloqueo?: string[];
+  requiereAclaracionIndicacion?: boolean;
   candidatosConStock?: Array<{ cn: string; nregistro: string; stockDisponible: number; tieneStock: boolean }>;
   candidatosSinStock?: Array<{ cn: string; nregistro: string; stockDisponible: number; tieneStock: boolean }>;
   obligacionesDispensador?: string[];
@@ -44,10 +45,13 @@ const createMockCimavet = (): CimavetRepository => {
     biologico: false,
     usoHumano: false,
     formaId: 10,
-    viaIds: [1],
-    especieIds: [1], // Perro
+    viaIds: [54, 1],
+    especieIds: [14, 1], // Perro
     atc: ['QH02AB06'],
-    indicaciones: [{ especieId: 1, texto: 'Tratamiento antiinflamatorio' }],
+    indicaciones: [
+      { especieId: 14, texto: 'Tratamiento de afecciones inflamatorias y alergicas' },
+      { especieId: 1, texto: 'Tratamiento antiinflamatorio' },
+    ],
     tiemposEspera: [],
     estado: 'autorizado',
     comerc: true,
@@ -63,9 +67,67 @@ const createMockCimavet = (): CimavetRepository => {
 
   presentaciones.set('3313 ESP', [
     {
+      cn: '584958',
+      nregistro: '3313 ESP',
+      nombre: 'Prednicortone 5 mg 30 comprimidos',
+      comerc: true,
+      estado: 'autorizado',
+      contenido: '30',
+      unidadContenido: 'comprimidos',
+      fetchedAt: new Date('2026-10-01T00:00:00Z'),
+    },
+    {
       cn: '570001',
       nregistro: '3313 ESP',
       nombre: 'Prednicortone 5 mg 30 comprimidos',
+      comerc: true,
+      estado: 'autorizado',
+      contenido: '30',
+      unidadContenido: 'comprimidos',
+      fetchedAt: new Date('2026-10-01T00:00:00Z'),
+    },
+  ]);
+
+  // Hedylon 5 mg 30 comp (Prescrito)
+  meds.set('3738 ESP', {
+    nregistro: '3738 ESP',
+    nombre: 'HEDYLON 5 MG 30 COMP',
+    labtitular: 'Livisto',
+    receta: true,
+    antibiotico: false,
+    estupefaciente: false,
+    psicotropo: false,
+    inmunologico: false,
+    biologico: false,
+    usoHumano: false,
+    formaId: 10,
+    viaIds: [54],
+    especieIds: [14],
+    atc: ['QH02AB06'],
+    indicaciones: [
+      {
+        especieId: 14,
+        texto: 'Tratamiento coadyuvante en enfermedades inflamatorias e inmunomediadas',
+      },
+    ],
+    tiemposEspera: [],
+    estado: 'autorizado',
+    comerc: true,
+    psum: false,
+    notas: false,
+    composicion: {
+      pas: [{ paId: 101, nombre: 'Prednisolona', cantidad: '5', unidad: 'mg' }],
+      porCantidad: '1',
+      porUnidad: 'Comprimido',
+    },
+    fetchedAt: new Date('2026-10-01T00:00:00Z'),
+  });
+
+  presentaciones.set('3738 ESP', [
+    {
+      cn: '580001',
+      nregistro: '3738 ESP',
+      nombre: 'HEDYLON 5 MG 30 COMP',
       comerc: true,
       estado: 'autorizado',
       contenido: '30',
@@ -87,10 +149,13 @@ const createMockCimavet = (): CimavetRepository => {
     biologico: false,
     usoHumano: false,
     formaId: 10,
-    viaIds: [1],
-    especieIds: [1],
+    viaIds: [54, 1],
+    especieIds: [14, 1],
     atc: ['QH02AB06'],
-    indicaciones: [{ especieId: 1, texto: 'Tratamiento antiinflamatorio' }],
+    indicaciones: [
+      { especieId: 14, texto: 'Tratamiento antiinflamatorio' },
+      { especieId: 1, texto: 'Tratamiento antiinflamatorio' },
+    ],
     tiemposEspera: [],
     estado: 'autorizado',
     comerc: true,
@@ -130,10 +195,13 @@ const createMockCimavet = (): CimavetRepository => {
     biologico: false,
     usoHumano: false,
     formaId: 10,
-    viaIds: [1],
-    especieIds: [1],
+    viaIds: [54, 1],
+    especieIds: [14, 1],
     atc: ['QH02AB06'],
-    indicaciones: [{ especieId: 1, texto: 'Tratamiento antiinflamatorio' }],
+    indicaciones: [
+      { especieId: 14, texto: 'Tratamiento antiinflamatorio' },
+      { especieId: 1, texto: 'Tratamiento antiinflamatorio' },
+    ],
     tiemposEspera: [],
     estado: 'autorizado',
     comerc: true,
@@ -191,7 +259,7 @@ const createMockCimavet = (): CimavetRepository => {
   });
 
   return {
-    especiePorTexto: async (texto: string | null) => (texto?.toLowerCase().includes('perro') ? 1 : null),
+    especiePorTexto: async (texto: string | null) => (texto?.toLowerCase().includes('perro') ? 14 : null),
     medicamento: async (nreg: string) => meds.get(nreg) ?? null,
     medicamentos: async (nregs: string[]) => {
       const map = new Map();
@@ -232,16 +300,22 @@ const createMockCimavet = (): CimavetRepository => {
       return results as never;
     },
     nregistrosMismosPa: async (nreg: string) => {
-      if (['3313 ESP', '4414 ESP', '5515 ESP'].includes(nreg)) {
-        return ['3313 ESP', '4414 ESP', '5515 ESP'];
+      if (['3738 ESP', '3313 ESP', '4414 ESP', '5515 ESP'].includes(nreg)) {
+        return ['3738 ESP', '3313 ESP', '4414 ESP', '5515 ESP'];
       }
       if (nreg === 'VACUNA ESP') return ['VACUNA ESP'];
       return [];
     },
     nombresFicha: async () => ({
-      especies: new Map([[1, 'Perros']]),
+      especies: new Map([
+        [14, 'Perros'],
+        [1, 'Perros'],
+      ]),
       formas: new Map([[10, 'Comprimido']]),
-      vias: new Map([[1, 'Oral']]),
+      vias: new Map([
+        [54, 'VÍA ORAL'],
+        [1, 'Oral'],
+      ]),
     }),
   } as unknown as CimavetRepository;
 };
@@ -450,5 +524,44 @@ describe('herramientaBuscarSustitutos', () => {
     const d = res.datos as DatosSustitucion;
     expect(d.encontrado).toBe(false);
     expect(d.aviso).toContain('No se reconoce la especie');
+  });
+
+  it('propone Prednicortone 5 mg para sustituir a Hedylon 5 mg con stock y activa requiereAclaracionIndicacion (US1, FR-013, FR-014, FR-015)', async () => {
+    // Hedylon 5 mg (580001) tiene 0 stock; Prednicortone (584958) tiene 7 unidades
+    const stockPort = createMockStockPort({ '580001': 0, '584958': 7, '570001': 0, '570002': 0, '570003': 0 });
+    const deps: DepsHerramientas = {
+      rules: RULES,
+      clock: fixedClock('2026-10-14T10:00:00Z'),
+      indice: null,
+      cimavet: createMockCimavet(),
+      stock: stockPort,
+      permitirCambioFormato: true,
+      maxEdadCimavetH: 24,
+    };
+
+    const tool = herramientaBuscarSustitutos(deps);
+    const res = await tool.ejecutar(
+      { nombre: 'HEDYLON 5 MG 30 COMP', especie: 'perro' },
+      { contexto: { tipo: 'general' } },
+    );
+
+    const d = res.datos as DatosSustitucion;
+    expect(d.encontrado).not.toBe(false);
+    expect(d.sustitucionPermitida).toBe(true);
+    expect(d.prescrito?.nregistro).toBe('3738 ESP');
+    expect(d.prescrito?.tieneStock).toBe(false);
+    // Debe marcar que requiere aclaración de indicación clínica al dispensador
+    expect(d.requiereAclaracionIndicacion).toBe(true);
+    // Debe devolver a Prednicortone con 7 unidades de stock sin bloquearlo por vía ni especie
+    expect(d.candidatosConStock).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nregistro: '3313 ESP',
+          cn: '584958',
+          stockDisponible: 7,
+          tieneStock: true,
+        }),
+      ]),
+    );
   });
 });

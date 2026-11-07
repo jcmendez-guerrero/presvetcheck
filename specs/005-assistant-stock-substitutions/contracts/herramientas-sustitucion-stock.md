@@ -36,6 +36,7 @@ Permite al asistente buscar automáticamente los medicamentos veterinarios autor
   };
   sustitucionPermitida: boolean;
   motivosBloqueo?: string[]; // Si sustitucionPermitida es false (ej. "INMUNOLOGICO", "BIOLOGICO")
+  requiereAclaracionIndicacion?: boolean; // true si no se indicó la patología de la receta y debe preguntarse al dispensador
   candidatosConStock: Array<{
     cn: string;
     nregistro: string;

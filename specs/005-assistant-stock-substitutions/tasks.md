@@ -99,6 +99,30 @@
 
 ---
 
+## Phase 7: Normalización Canónica CIMAVet y Aclaración de Indicación (FR-013, FR-014, FR-015)
+
+**Purpose**: Resolver las discrepancias de IDs de CIMAVet (eliminando falsos negativos por IDs negativos como `-29`), armonizar códigos de vía e incorporar la solicitud de aclaración de patología en sustitución de mostrador.
+
+**Independent Test**: Ejecutar una consulta de sustitución para «HEDYLON 5 MG 30 COMP para un perro». El sistema debe resolver la especie canónica «Perros» (`id: 14`), identificar a **Prednicortone 5 mg 30 comprimidos** como sustituto válido con 7 unidades en stock en Siweb360, y solicitar al profesional la aclaración de la indicación prescrita para completar la evaluación de equivalencia reglamentaria (Escenario 4 de `quickstart.md`).
+
+### Tests for Phase 7
+
+- [X] T019 [P] [US1] Añadir pruebas unitarias en `packages/cimavet/test/client.test.ts` y `packages/cimavet/test/nomenclator-jobs.test.ts` para `especiePorTexto` verificando el descarte de IDs sintéticos o negativos (`id <= 0`) ante registros duplicados
+- [X] T020 [P] [US1] Añadir test unitario en `packages/assistant/test/tools-sustitucion.test.ts` que simule la búsqueda de sustitutos de Hedylon 5 mg con Prednicortone 5 mg verificando que no se bloquea por especie ni vía y activa `requiereAclaracionIndicacion`
+
+### Implementation for Phase 7
+
+- [X] T021 [US1] Modificar `especiePorTexto` en `packages/cimavet/src/repo.ts` y en `apps/api/src/servicios/medicamentos.ts` para filtrar estrictamente `cimavetMaestra.id > 0` y ordenar por `id asc` para seleccionar el ID canónico positivo (`14` para «Perros») (FR-013)
+- [X] T022 [US1] Reconciliar y asegurar correspondencia de vías de administración en `packages/cimavet/src/normalizar.ts` y `packages/cimavet/src/repo.ts` entre los códigos de Nomenclátor XML (`cod_via_admin`) y la API REST (`viasAdministracion.codigo` / `id`) (FR-014)
+- [X] T023 [US1] Actualizar `buscar_sustitutos` en `packages/assistant/src/tools/sustitucion.ts` y `simulaciones-medicamento.ts` para emitir `requiereAclaracionIndicacion: true` cuando la consulta no aporte indicación clínica expresa y asegurar que `simular_equivalencia` use la especie canónica resuelta (FR-015)
+- [X] T024 [US1] Actualizar `INSTRUCCIONES` en `packages/assistant/src/instrucciones.ts` para orientar al modelo a solicitar aclaración de la indicación prescrita al dispensador antes de confirmar la sustitución definitiva
+- [X] T025 [P] Ejecutar la suite completa de linters, chequeo de tipos y pruebas automatizadas: `pnpm lint && pnpm typecheck && pnpm test`
+- [X] T026 Validar de extremo a extremo el Escenario 4 de `specs/005-assistant-stock-substitutions/quickstart.md` (Hedylon 5 mg vs Prednicortone 5 mg con stock)
+
+**Checkpoint**: Consulta de Hedylon 5 mg para perro propone Prednicortone 5 mg con stock en mostrador y solicita la aclaración de indicación sin falsos negativos de especie o vía.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -108,7 +132,8 @@
 - **User Story 1 & 2 (Phase 3 - MVP)**: Depende de Phase 2. Entrega el flujo principal de sustitución con stock.
 - **User Story 3 (Phase 4)**: Depende de Phase 3. Maneja casos de desabastecimiento total.
 - **User Story 4 (Phase 5)**: Depende de Phase 3. Aplica bloqueos deterministas de no sustituibles.
-- **Polish (Phase 6)**: Depende de haber completado las fases anteriores.
+- **Polish (Phase 6)**: Validación inicial de la base de herramientas.
+- **Normalización y Aclaración (Phase 7)**: Depende de Phase 6. Corrige falsos negativos de CIMAVet (FR-013, FR-014) y añade la solicitud interactiva de indicación prescrita (FR-015).
 
 ### User Story Dependencies
 
@@ -120,6 +145,7 @@ flowchart TD
     US1_US2 --> US4["Phase 5: US4 - No sustituibles (T013-T014)"]
     US3 --> Polish["Phase 6: Polish & Verificación (T015-T018)"]
     US4 --> Polish
+    Polish --> Phase7["Phase 7: Normalización CIMAVet y Aclaración Indicación (T019-T026)"]
 ```
 
 ### Parallel Opportunities
@@ -127,6 +153,7 @@ flowchart TD
 - `T001` y `T002` se pueden ejecutar en paralelo (archivos independientes).
 - `T005`, `T006` y `T007` se pueden escribir en paralelo una vez completada la fase Foundational.
 - `US3` y `US4` pueden implementarse en paralelo tras completar el MVP (`US1 & US2`).
+- En Phase 7, `T019` y `T020` (tests de CIMAVet y de sustitución) se pueden escribir en paralelo antes de la implementación de `T021-T024`.
 
 ---
 
@@ -137,6 +164,7 @@ flowchart TD
 2. Implementar herramientas `buscar_sustitutos` y `consultar_stock` con tests (`T005`-`T010`).
 3. **Validar MVP**: Probar consulta de Prednicortone 5 mg y verificar respuesta en mostrador.
 
-### Incremental Delivery
+### Incremental Delivery & Robustez Regulatoria
 1. Añadir gestión de desabastecimiento total y no sustituibles (`T011`-`T014`).
 2. Pasar linter, typecheck y suite completa de tests (`T015`-`T018`).
+3. Aplicar normalización estricta de CIMAVet (`id > 0`, vías unificadas) y flujo de aclaración interactiva de indicación clínica (`T019`-`T026`).

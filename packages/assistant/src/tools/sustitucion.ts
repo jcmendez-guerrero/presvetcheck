@@ -168,6 +168,8 @@ export function herramientaBuscarSustitutos(d: DepsHerramientas): Herramienta<Ar
         d.cimavet.presentacionesDe(nregsCandidatos),
       ]);
 
+      const requiereAclaracionIndicacion = !args.indicacion?.trim();
+
       const indicacionEfectiva =
         args.indicacion ??
         prescrito.indicaciones.find((i) => i.especieId === null || i.especieId === especieId)?.texto ??
@@ -200,7 +202,11 @@ export function herramientaBuscarSustitutos(d: DepsHerramientas): Herramienta<Ar
         if (!med || med.usoHumano) continue;
 
         const eq = evaluarEquivalencia(prescrito, med, ctx, d.rules.equivalencia);
-        if (!eq.equivalente) continue;
+        const aptoPreliminar =
+          eq.equivalente ||
+          (requiereAclaracionIndicacion &&
+            eq.motivos.every((m) => m === 'INDICACION_NO_COINCIDE' || m === 'INDICACION_PROBABLE'));
+        if (!aptoPreliminar) continue;
 
         let disponible = 0;
         let tieneStock = false;
@@ -250,6 +256,7 @@ export function herramientaBuscarSustitutos(d: DepsHerramientas): Herramienta<Ar
           version: fuente.version,
           prescrito: infoPrescrito,
           sustitucionPermitida: true,
+          ...(requiereAclaracionIndicacion ? { requiereAclaracionIndicacion: true } : {}),
           candidatosConStock,
           candidatosSinStock,
           obligacionesDispensador: OBLIGACIONES_LEGALES,

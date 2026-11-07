@@ -8,6 +8,11 @@
 
 **Input**: User description: "the assitant is not providing a good advice on substitutions, also is considering the user as the owner of the dog but not the one that is serving the medicines. The assistant should have an MCP or similar that is capable to connect to CIMAVET API or similar and get the information or drive inside the information that is the app and generate the information according to what is correct and checking actually what is on stock and what is not"
 
+## Clarifications
+
+### Session 2026-11-07
+- Q: ¿Cómo debe normalizar y resolver el sistema la equivalencia de especie, vía de administración e indicación en CIMAVet para evitar falsos negativos en la búsqueda y simulación de sustitutos? → A: Mapeo canónico estricto para especie (filtrar exclusivamente `id > 0`, descartando IDs negativos/sintéticos devueltos por la API de CIMAVet) y armonización de códigos oficiales de vía de administración. Si la consulta de mostrador no aporta una indicación clínica explícita, el asistente debe solicitar aclaración de la patología/indicación antes de emitir la simulación de equivalencia definitiva, en lugar de asumir la indicación común autorizada.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Consulta de sustitución por falta de stock con candidatos reales y stock disponible (Priority: P1)
@@ -80,6 +85,8 @@ Un empleado consulta por la sustitución de un medicamento que por regulación n
 ### Edge Cases
 
 - **Medicamento prescrito no encontrado en CIMAVet**: Si el nombre no coincide exactamente con ningún registro, el asistente ofrece los nombres más cercanos en el catálogo y solicita confirmación al empleado, sin asumir un medicamento erróneo.
+- **Discrepancia de identificadores sintéticos o códigos en catálogos de CIMAVet**: Cuando la maestra de CIMAVet devuelva registros duplicados con identificadores negativos para especies o vías (p. ej. «Perros» con `id: -29` frente a `id: 14`), el sistema descarta los registros con `id <= 0` y selecciona el identificador canónico positivo coincidente con las autorizaciones de las fichas técnicas (`especieIds`).
+- **Consulta de sustitución sin indicación clínica expresa**: Si la consulta en mostrador no especifica la patología o indicación prescrita, el asistente lista los candidatos equivalentes en composición, forma y especie clasificados por stock en la farmacia y solicita aclaración de la indicación concreta antes de validar la sustitución definitiva.
 - **Diferente tamaño de envase o número de comprimidos**: Si el sustituto tiene una presentación con diferente número de unidades (ej. 10 comprimidos en lugar de 30), el asistente calcula e indica el número de envases necesarios según las reglas de cambio de formato permitidas, o señala si requiere fraccionamiento.
 - **Fallo temporal de conexión con Siweb360 o CIMAVet**: Si el servicio de inventario o de catálogo no responde, el asistente informa de que los datos de stock o de registro no están disponibles en tiempo real, indica la fecha de la última información en caché y previene al empleado de confirmar la existencia física en balda antes de dispensar.
 - **Múltiples presentaciones del mismo principio activo con diferente concentración**: El asistente advierte que la sustitución exige idéntica concentración y dosificación, salvo que la regla de cambio de formato autorice expresamente el ajuste con confirmación del garante.
@@ -104,6 +111,9 @@ Un empleado consulta por la sustitución de un medicamento que por regulación n
 - **FR-010**: El asistente MUST basar sus decisiones de equivalencia en las reglas deterministas del motor (`@mmx/domain`) y los datos normalizados de CIMAVet, sin realizar inferencias clínicas ni inventar dosificaciones.
 - **FR-011**: Cuando la consulta se inicie desde una línea de receta activa en la aplicación, el asistente MUST cargar automáticamente los datos del medicamento prescrito y la especie desde el contexto de la línea, sin requerir reentrada manual.
 - **FR-012**: Todas las consultas a herramientas de catálogo y stock MUST ser de solo lectura, sin alterar el inventario ni registrar dispensaciones automáticamente.
+- **FR-013**: La resolución de especies y vías de administración en CIMAVet MUST descartar identificadores menores o iguales a cero (`id <= 0`), seleccionando exclusivamente los identificadores canónicos positivos coincidentes con los registros de autorización de las fichas técnicas (`especieIds` y `viaIds`).
+- **FR-014**: El motor de equivalencia MUST reconciliar las vías de administración a través de sus códigos maestros oficiales de administración, asegurando equivalencia coherente tanto si el registro proviene del Nomenclátor XML como de la API REST de CIMAVet.
+- **FR-015**: Si una consulta de sustitución o simulación de equivalencia no contiene la indicación clínica o patología prescrita, el asistente MUST clasificar preliminarmente los candidatos equivalentes en composición, forma y especie con existencias en farmacia, y solicitar aclaración de la indicación clínica para completar la validación reglamentaria de equivalencia.
 
 ### Key Entities *(include if feature involves data)*
 

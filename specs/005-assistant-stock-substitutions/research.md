@@ -83,3 +83,24 @@ En la implementación actual del asistente de consultas (`packages/assistant`):
 ### Decisión 5: Compatibilidad con MCP (Model Context Protocol)
 
 - **Decisión**: Las definiciones de las herramientas siguen el estándar `Herramienta` con JSON Schema generado mediante Zod (`z.toJSONSchema`). Esto permite tanto su ejecución interna directa en `ChatOrchestrator` como su fácil exposición como un servidor MCP de herramientas para clientes externos (por ejemplo, agentes IDE o herramientas externas de inspección).
+
+---
+
+### Decisión 6: Normalización Canónica de Especies y Vías en CIMAVet (`id > 0`)
+
+- **Decisión**: Modificar la resolución de especies por texto (`especiePorTexto`) tanto en `packages/cimavet/src/repo.ts` como en `apps/api/src/servicios/medicamentos.ts` para exigir que los registros maestros evaluados tengan `id > 0` y ordenar por `id asc`:
+  - **Problema resuelto**: En la API REST oficial de CIMAVet, `maestras?maestra=7&nombre=Perro` devuelve registros duplicados donde el primero es sintético/negativo (`{"id": -29, "nombre": "Perros"}`) y el segundo es canónico (`{"id": 14, "nombre": "Perros"}`). Como las fichas de los medicamentos autorizados vinculan exclusivamente al ID canónico (`14`), seleccionar `-29` provocaba que `autorizadoParaEspecie` fallara con falso negativo (`ESPECIE_NO_AUTORIZADA`).
+  - **Armonización de vías**: En Nomenclátor XML, la vía oral se identifica con `cod_via_admin: 54`, mientras que en la API REST `id: 48` corresponde a `codigo: "54"`. El repositorio y motor normalizan el acceso considerando el código oficial para garantizar compatibilidad entre medicamentos sincronizados por diferentes vías.
+- **Alternativas consideradas**:
+  - *Filtrar solo en el asistente*: Descartado. La resolución errónea de especie afectaría también a la revisión manual y evaluación de recetas (`recetas.ts`). Debe corregirse a nivel de repositorio y servicio maestro.
+
+---
+
+### Decisión 7: Aclaración Interactiva de la Indicación Clínica en Mostrador
+
+- **Decisión**: Si la consulta en mostrador no especifica la indicación o diagnóstico clínico prescrito (p. ej., «receta de Hedylon 5 mg para perro»):
+  1. `buscar_sustitutos` evalúa la sustituibilidad técnica por principio activo, dosis, forma y especie destino, calculando las existencias en farmacia de los candidatos.
+  2. Si no se proporcionó indicación explícita, marca `requiereAclaracionIndicacion: true`.
+  3. El asistente presenta los medicamentos alternativos con existencias en el establecimiento e inmediatamente solicita aclaración de la patología/indicación antes de emitir la validación de sustitución definitiva, cumpliendo con la exigencia regulatoria sin bloquear la identificación preliminar de existencias.
+- **Alternativas consideradas**:
+  - *Asumir automáticamente la indicación autorizada común*: Rechazado por el usuario en la sesión de clarificación (Opción B elegida). Se debe pedir aclaración al profesional para verificar la patología específica.

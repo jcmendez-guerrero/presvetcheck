@@ -53,6 +53,18 @@ Este documento describe los escenarios de prueba y validación para verificar de
 1. El asistente invoca `consultar_stock` con `{ cns: ["570016", "590948"] }`.
 2. Informa de las unidades disponibles de cada producto en el almacén de la farmacia.
 
+### Escenario 4: Sustitución de Hedylon 5 mg por Prednicortone 5 mg y solicitud de indicación clínica
+
+**Pregunta del usuario en mostrador**:
+> «Tengo una receta de HEDYLON 5 MG 30 COMP el cual no tengo para un perro, ¿por cuál puedo sustituirlo si es posible?»
+
+**Comportamiento esperado**:
+1. El asistente reconoce al usuario como dispensador y ejecuta `buscar_sustitutos` para «HEDYLON 5 MG 30 COMP» y especie «perro».
+2. El sistema resuelve la especie canónica de CIMAVet (`id: 14`, descartando el duplicado negativo `-29`), identificando como candidato a **Prednicortone 5 mg 30 comprimidos** (nregistro 3313 ESP, CN 584958).
+3. Consulta el stock en Siweb360 y detecta existencias disponibles (ej. 7 unidades).
+4. El asistente informa de la existencia de Prednicortone 5 mg con stock en la farmacia, pero solicita aclaración de la indicación clínica o patología prescrita para confirmar la coincidencia de indicación antes de formalizar la sustitución.
+5. Recuerda las 3 obligaciones legales del dispensador (consentimiento del tutor, comunicación al prescriptor y firma en modo POST del farmacéutico garante).
+
 ---
 
 ## 3. Comandos de Verificación Automatizada

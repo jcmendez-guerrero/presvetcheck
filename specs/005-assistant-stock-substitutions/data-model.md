@@ -61,6 +61,7 @@ export interface ResultadoBuscarSustitutos {
   };
   sustitucionPermitida: boolean;
   motivosBloqueo?: string[];
+  requiereAclaracionIndicacion?: boolean;
   candidatosConStock: CandidatoEquivalente[];
   candidatosSinStock: CandidatoEquivalente[];
   obligacionesDispensador: string[];
