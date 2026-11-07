@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RecetaConfirmada, DomainError } from '@mmx/shared';
+import { RecetaConfirmada, DomainError, PeticionSobreescribirSustitucion } from '@mmx/shared';
 import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import { EvaluarBody, IdParam } from '../schemas';
@@ -89,5 +89,19 @@ export async function rutasRecetas(app: App, d: AppDeps) {
       const forzados = Object.fromEntries(Object.entries(req.body?.forzados ?? {}).map(([k, v]) => [Number(k), v]));
       return svc.evaluar(req.params.id, ctx(req), forzados);
     },
+  );
+
+  app.post(
+    '/api/recetas/:id/lineas/:orden/sustituir-manual',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recetas'],
+        summary: 'Sobreescribe la sustitución de una línea de receta con motivo obligatorio (FR-017)',
+        params: z.object({ id: z.string().uuid(), orden: z.coerce.number().int().positive() }),
+        body: PeticionSobreescribirSustitucion,
+      },
+    },
+    async (req) => svc.sustituirManual(req.params.id, req.params.orden, req.body, ctx(req)),
   );
 }

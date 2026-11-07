@@ -13,6 +13,8 @@
 ### Session 2026-11-07
 - Q: ¿Cómo debe normalizar y resolver el sistema la equivalencia de especie, vía de administración e indicación en CIMAVet para evitar falsos negativos en la búsqueda y simulación de sustitutos? → A: Mapeo canónico estricto para especie (filtrar exclusivamente `id > 0`, descartando IDs negativos/sintéticos devueltos por la API de CIMAVet) y armonización de códigos oficiales de vía de administración. Si la consulta de mostrador no aporta una indicación clínica explícita, el asistente debe solicitar aclaración de la patología/indicación antes de emitir la simulación de equivalencia definitiva, en lugar de asumir la indicación común autorizada.
 - Q: ¿Cómo y dónde debe generarse y representarse la tabla comparativa de criterios de sustitución (A frente a B)? → A: Estructurada en el motor de simulación de equivalencia con criterios legibles para humanos (principio activo, concentración, forma farmacéutica, vía de administración, especie, indicación y tiempos de espera) e indicadores de coincidencia booleana, y renderizada de forma nativa en la tarjeta de simulación del asistente mediante una tabla comparativa visual con distintivos de cumplimiento (✓ / ✗).
+- Q: ¿Cómo debe estructurarse la experiencia de usuario para la selección y sobreescritura de sustitutos en la pantalla de dispensación y la nueva sección del comparador de vademécum? → A: Opción A: Doble integración: 1) En la pantalla de resultado/dispensación se añade un buscador/selector de sustitutos alternativos con evaluación en vivo del motor y posibilidad de sobreescritura/forzado por el garante si no es un bloqueo legal duro. 2) Se crea una nueva página dedicada en el menú principal (`/vademecum` o `/comparador-sustitucion`) para consultar y comparar libremente medicamentos de CIMAVet con la tabla de criterios normativos.
+- Q: ¿Cómo debe gestionarse la confirmación y sobreescritura (override) cuando el sustituto seleccionado manualmente presenta advertencias de equivalencia o discrepancias no bloqueantes? → A: Se requiere introducir obligatoriamente una razón o justificación textual por parte del usuario dispensador, pero no es necesaria la confirmación previa del farmacéutico garante en pantalla (se registra la justificación y auditoría, dejando la receta en la bandeja de sustituciones para su firma en modo posterior).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -99,6 +101,40 @@ Cuando el personal de farmacia pregunta por la sustitución de un medicamento pr
 
 ---
 
+### User Story 6 - Selección interactiva de sustituto y sobreescritura en pantalla de resultado de dispensación (Priority: P1)
+
+Un empleado atiende una receta donde el medicamento prescrito no tiene existencias o el motor ha determinado `PEDIR` (por ejemplo, Bioclanic 50/12,5 mg comprimidos para felino). En la pantalla de resultado, el sistema ofrece al usuario la posibilidad de buscar y seleccionar un producto alternativo del vademécum (por ejemplo, Clavusan 50/12,5 mg). Al seleccionarlo:
+1. El motor de sustitución evalúa en tiempo real la equivalencia y presenta la tabla comparativa de criterios normativos.
+2. Si el sustituto es equivalente o presenta condiciones que admiten valoración profesional (y no incurre en un bloqueo legal duro), permite al usuario registrar la razón o justificación de la sustitución para sobreescribir la recomendación inicial y habilitar la dispensación del sustituto sin requerir confirmación previa de garante en pantalla (quedando la receta separada para la firma posterior del garante).
+
+**Why this priority**: Resuelve la rigidez del mostrador cuando existen alternativas válidas en existencias no detectadas automáticamente o cuando el criterio farmacéutico fundamentado permite sustituir con justificación registrada.
+
+**Independent Test**: Cargar una receta con Bioclanic 50/12,5 mg en estado PEDIR. Seleccionar Clavusan 50/12,5 mg desde el buscador de sustitutos en la pantalla de resultado; el sistema debe mostrar la comparativa de criterios y permitir sobreescribir indicando la razón para proceder a la dispensación.
+
+**Acceptance Scenarios**:
+
+1. **Given** una línea de receta con medicamento prescrito sin existencias o con decisión `PEDIR`, **When** el usuario visualiza la pantalla de resultado, **Then** dispone de una opción interactiva para buscar y seleccionar un sustituto alternativo del catálogo de CIMAVet y almacén.
+2. **Given** un medicamento sustituto seleccionado por el usuario (ej. Clavusan 50/12,5 mg frente a Bioclanic 50/12,5 mg), **When** se pulsa comprobar, **Then** el motor ejecuta la evaluación y renderiza la tabla comparativa de los 7 criterios reglamentarios (principio activo, concentración, forma, vía, especie, indicación y tiempos de espera).
+3. **Given** una propuesta de sustitución que no constituye un bloqueo legal duro (`BLOQUEANTE_DURO`), **When** el usuario confirma la sustitución indicando la razón justificada, **Then** el sistema permite sobreescribir la línea, actualiza la decisión a sustitución autorizada y habilita el paso a la pantalla de dispensación.
+4. **Given** un candidato que incumple prohibiciones legales insubsanables (inmunológico, biológico, prescripción excepcional o no autorizado), **When** se evalúa, **Then** el botón de sobreescritura permanece deshabilitado informando que se trata de un bloqueo reglamentario estricto no forzable.
+
+---
+
+### User Story 7 - Sección dedicada de consulta y comparador de sustitución en Vademécum (Priority: P2)
+
+El personal de la farmacia veterinaria accede a una sección dedicada e independiente en el menú principal de la aplicación (`/vademecum` o `/comparador-sustitucion`) para consultar medicamentos del vademécum oficial de CIMAVet y comparar de forma interactiva cualquier medicamento A frente a un candidato B para una especie e indicación determinadas.
+
+**Why this priority**: Facilita la consulta regulatoria y técnica previa sin requerir escanear una receta física, agilizando la atención telefónica o previa en mostrador.
+
+**Independent Test**: Navegar a la sección del comparador en el menú principal, seleccionar dos medicamentos (ej. Bioclanic y Clavusan), especificar especie felina y verificar que se genera la comparativa reglamentaria completa y su conclusión.
+
+**Acceptance Scenarios**:
+
+1. **Given** un usuario autenticado en la aplicación, **When** accede al menú principal, **Then** encuentra un enlace directo a la sección «Comparador de Sustitución / Vademécum».
+2. **Given** la página del comparador de vademécum, **When** el usuario busca y selecciona un medicamento de referencia (A), un candidato alternativo (B) y la especie de destino, **Then** el sistema presenta la comparación detallada de los 7 criterios normativos con indicación de coincidencia y la conclusión de sustituibilidad.
+
+---
+
 ### Edge Cases
 
 - **Medicamento prescrito no encontrado en CIMAVet**: Si el nombre no coincide exactamente con ningún registro, el asistente ofrece los nombres más cercanos en el catálogo y solicita confirmación al empleado, sin asumir un medicamento erróneo.
@@ -132,6 +168,8 @@ Cuando el personal de farmacia pregunta por la sustitución de un medicamento pr
 - **FR-014**: El motor de equivalencia MUST reconciliar las vías de administración a través de sus códigos maestros oficiales de administración, asegurando equivalencia coherente tanto si el registro proviene del Nomenclátor XML como de la API REST de CIMAVet.
 - **FR-015**: Si una consulta de sustitución o simulación de equivalencia no contiene la indicación clínica o patología prescrita, el asistente MUST clasificar preliminarmente los candidatos equivalentes en composición, forma y especie con existencias en farmacia, y solicitar aclaración de la indicación clínica para completar la validación reglamentaria de equivalencia.
 - **FR-016**: El motor de simulación de equivalencia MUST incluir en sus evidencias un desglose estructurado fila por fila de los criterios normativos de sustitución evaluados (principio activo, concentración, forma farmacéutica, vía de administración, especie de destino, indicación y tiempos de espera) con los valores legibles para humanos del prescrito y del candidato y su estado booleano de coincidencia, y la interfaz web MUST renderizar dicho desglose como una tabla comparativa visual accesible con distintivos de cumplimiento (✓ / ✗) en la tarjeta de simulación.
+- **FR-017**: En la pantalla de resultado de receta (`ResultadoReceta`), cuando un medicamento prescrito carezca de existencias o la decisión sea `PEDIR`, la interfaz MUST permitir al usuario buscar y seleccionar interactivamente un medicamento sustituto del vademécum o almacén; al seleccionarlo, el motor MUST evaluar en tiempo real la equivalencia mostrando la tabla comparativa de criterios, y permitir sobreescribir la dispensación del sustituto siempre que no constituya un `BLOQUEANTE_DURO` registrando obligatoriamente la razón de la sustitución introducida por el dispensador (sin requerir confirmación previa de garante en pantalla), dejando la receta en la bandeja de sustituciones para su firma posterior.
+- **FR-018**: La aplicación MUST disponer de una página dedicada en el menú principal (`/vademecum` o `/comparador-sustitucion`) que permita al personal seleccionar dos medicamentos de CIMAVet (prescrito y candidato) y evaluar su equivalencia técnica mediante el motor de sustitución, presentando la tabla comparativa de los 7 criterios normativos con sus distintivos de cumplimiento y conclusión reglamentaria.
 
 ### Key Entities *(include if feature involves data)*
 

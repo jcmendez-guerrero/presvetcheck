@@ -39,5 +39,6 @@
   "TICKET_YA_FINALIZADO": "El ticket ya está confirmado y no se puede desvincular ni modificar.",
   "TICKET_CANTIDAD_INSUFICIENTE": "La cantidad dispensada supera las unidades del ticket. No se puede confirmar.",
   "MODO_RETROSPECTIVO_DESHABILITADO": "El modo retrospectivo no está habilitado en la configuración del sistema.",
-  "RECETA_YA_VINCULADA": "Esta receta ya está vinculada a otro ticket."
+  "RECETA_YA_VINCULADA": "Esta receta ya está vinculada a otro ticket.",
+  "SUSTITUCION_BLOQUEO_DURO": "La sustitución está bloqueada por ley (medicamento biológico, inmunológico o prescripción en cascada)."
 }

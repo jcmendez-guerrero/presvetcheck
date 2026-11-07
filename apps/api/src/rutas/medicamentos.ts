@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { parseGs1, bytesLegibles } from '@mmx/gs1';
-import { evaluarEquivalencia, proponerLotes, validarVentaSinReceta } from '@mmx/domain';
-import { DomainError, type Canal } from '@mmx/shared';
+import { evaluarEquivalencia, proponerLotes, simularEquivalencia, validarVentaSinReceta, type NombresEquivalencia } from '@mmx/domain';
+import { DomainError, PeticionCompararMedicamentos, type Canal } from '@mmx/shared';
 import { eq } from 'drizzle-orm';
 import { gtinCn } from '@mmx/db';
 import { hoyDe, politica, type AppDeps } from '../deps';
@@ -117,6 +117,110 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
         permitido: !incs.some((i) => i.severidad !== 'AVISO'),
         stock: s.estado,
         propuesta: s.estado === 'OK' ? proponerLotes({ lotes: s.lotes, unidades: 1, hoy: hoyDe(d), duracionDias: null }) : null,
+      };
+    },
+  );
+
+  app.post(
+    '/api/medicamentos/comparar',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['medicamentos'],
+        summary: 'Compara reglamentariamente dos medicamentos en el vademécum (FR-018)',
+        body: PeticionCompararMedicamentos,
+      },
+    },
+    async (req) => {
+      const { prescritoNregistro, candidatoNregistro, especie, indicacion } = req.body;
+      let p = await med.info(prescritoNregistro);
+      if (!p) {
+        const pres = await med.presentacion(prescritoNregistro);
+        if (pres) p = await med.info(pres.nregistro);
+      }
+      let c = await med.info(candidatoNregistro);
+      if (!c) {
+        const pres = await med.presentacion(candidatoNregistro);
+        if (pres) c = await med.info(pres.nregistro);
+      }
+      if (!p || !c) {
+        throw new DomainError('NO_ENCONTRADO', 'Medicamento prescrito o candidato no encontrado en el catálogo');
+      }
+
+      const especieId = await med.especiePorTexto(especie);
+      if (especieId === null) {
+        throw new DomainError('VALIDACION', `Especie "${especie}" no encontrada`);
+      }
+
+      const esBloqueanteDuro =
+        p.biologico ||
+        p.inmunologico ||
+        c.biologico ||
+        c.inmunologico ||
+        p.estado === 'revocado' ||
+        p.estado === 'suspendido' ||
+        c.estado === 'revocado' ||
+        c.estado === 'suspendido' ||
+        p.usoHumano ||
+        c.usoHumano;
+
+      let nombresEtiquetas: NombresEquivalencia | undefined;
+      if (typeof d.cimavet?.nombresFicha === 'function') {
+        try {
+          const formasIds = [p.formaId, c.formaId].filter((x): x is number => typeof x === 'number');
+          const viasIds = [...p.viaIds, ...c.viaIds];
+          const especiesIds = [...p.especieIds, ...c.especieIds, ...(especieId ? [especieId] : [])];
+          const mapaNombres = await d.cimavet.nombresFicha({
+            formas: formasIds,
+            vias: viasIds,
+            especies: especiesIds,
+          });
+          nombresEtiquetas = {
+            formaPrescrito: p.formaId !== null ? mapaNombres.formas.get(p.formaId) ?? null : null,
+            formaCandidato: c.formaId !== null ? mapaNombres.formas.get(c.formaId) ?? null : null,
+            viasPrescrito: p.viaIds
+              .map((v) => mapaNombres.vias.get(v))
+              .filter((x): x is string => typeof x === 'string'),
+            viasCandidato: c.viaIds
+              .map((v) => mapaNombres.vias.get(v))
+              .filter((x): x is string => typeof x === 'string'),
+            especiesPrescrito: p.especieIds
+              .map((e) => mapaNombres.especies.get(e))
+              .filter((x): x is string => typeof x === 'string'),
+            especiesCandidato: c.especieIds
+              .map((e) => mapaNombres.especies.get(e))
+              .filter((x): x is string => typeof x === 'string'),
+            especieContexto: especieId !== null ? mapaNombres.especies.get(especieId) ?? null : null,
+          };
+        } catch {
+          // Degradación suave si no están disponibles las maestras
+        }
+      }
+
+      const sim = simularEquivalencia({
+        prescrito: p,
+        candidato: c,
+        contexto: {
+          especieId,
+          especieProduccion: false,
+          clase: 'ordinaria',
+          indicacion: indicacion ?? null,
+          viaPrescritaId: null,
+          duracionDias: null,
+        },
+        rules: d.rules.bundle,
+        nombres: nombresEtiquetas,
+      });
+
+      return {
+        decision: sim.decision,
+        motivos: sim.motivos.map((m) => m.mensaje ?? m.code),
+        evidencias: {
+          comparativa: (sim.evidencias as { comparativa?: unknown[] })?.comparativa ?? [],
+          indicacion: (sim.evidencias as { indicacion?: string })?.indicacion,
+        },
+        reglaVersion: sim.reglaVersion,
+        esBloqueanteDuro: Boolean(esBloqueanteDuro),
       };
     },
   );

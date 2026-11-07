@@ -506,6 +506,66 @@ const DECISION_SIM: Record<string, string> = {
   FALTAN_DATOS: 'Faltan datos',
 };
 
+export function TablaComparativaCriterios({
+  comparativa,
+}: {
+  comparativa: CriterioComparativaSustitucion[];
+}) {
+  if (!comparativa || comparativa.length === 0) return null;
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table
+        className="w-full text-left text-xs text-slate-800"
+        data-testid="tabla-comparativa-sustitucion"
+        aria-label="Comparativa de criterios de sustitución"
+      >
+        <thead>
+          <tr className="border-b border-slate-300 bg-white/60 font-semibold text-slate-700">
+            <th scope="col" className="p-2">
+              Criterio
+            </th>
+            <th scope="col" className="p-2">
+              Prescrito
+            </th>
+            <th scope="col" className="p-2">
+              Candidato
+            </th>
+            <th scope="col" className="p-2 text-center">
+              Estado
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {comparativa.map((c) => (
+            <tr key={c.criterio} className={c.coincide ? 'bg-white/40' : 'bg-noconforme-bg/40'}>
+              <td className="p-2 font-medium text-slate-900">{c.criterio}</td>
+              <td className="p-2 text-slate-700">{c.prescrito}</td>
+              <td className="p-2 text-slate-700">{c.candidato}</td>
+              <td className="p-2 text-center">
+                {c.coincide ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded bg-dispensar-bg px-2 py-0.5 font-medium text-dispensar"
+                    title={c.detalle ?? 'Cumple el requisito normativo'}
+                  >
+                    ✓ Coincide
+                  </span>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 rounded bg-noconforme-bg px-2 py-0.5 font-medium text-noconforme"
+                    title={c.detalle ?? 'Discrepancia reglamentaria'}
+                  >
+                    ✗ Discrepancia
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function TarjetaSimulacion({ s }: { s: SimulacionGuardada }) {
   const ev = (s.evidencias ?? {}) as Record<string, unknown>;
   const hasta = typeof ev['validezEfectiva'] === 'string' ? ev['validezEfectiva'] : null;
@@ -533,55 +593,8 @@ export function TarjetaSimulacion({ s }: { s: SimulacionGuardada }) {
         </p>
       ))}
       {comparativa && comparativa.length > 0 && (
-        <div className="ml-7 mt-3 overflow-x-auto">
-          <table
-            className="w-full text-left text-xs text-slate-800"
-            data-testid="tabla-comparativa-sustitucion"
-            aria-label="Comparativa de criterios de sustitución"
-          >
-            <thead>
-              <tr className="border-b border-slate-300 bg-white/60 font-semibold text-slate-700">
-                <th scope="col" className="p-2">
-                  Criterio
-                </th>
-                <th scope="col" className="p-2">
-                  Prescrito
-                </th>
-                <th scope="col" className="p-2">
-                  Candidato
-                </th>
-                <th scope="col" className="p-2 text-center">
-                  Estado
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {comparativa.map((c) => (
-                <tr key={c.criterio} className={c.coincide ? 'bg-white/40' : 'bg-noconforme-bg/40'}>
-                  <td className="p-2 font-medium text-slate-900">{c.criterio}</td>
-                  <td className="p-2 text-slate-700">{c.prescrito}</td>
-                  <td className="p-2 text-slate-700">{c.candidato}</td>
-                  <td className="p-2 text-center">
-                    {c.coincide ? (
-                      <span
-                        className="inline-flex items-center gap-1 rounded bg-dispensar-bg px-2 py-0.5 font-medium text-dispensar"
-                        title={c.detalle ?? 'Cumple el requisito normativo'}
-                      >
-                        ✓ Coincide
-                      </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center gap-1 rounded bg-noconforme-bg px-2 py-0.5 font-medium text-noconforme"
-                        title={c.detalle ?? 'Discrepancia reglamentaria'}
-                      >
-                        ✗ Discrepancia
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="ml-7 mt-3">
+          <TablaComparativaCriterios comparativa={comparativa} />
         </div>
       )}
       {Object.keys(s.supuestos).length > 0 && (

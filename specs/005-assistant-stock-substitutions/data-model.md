@@ -38,6 +38,43 @@ export const CriterioComparativaSustitucion = z.object({
   detalle: z.string().optional().describe('Aclaración técnica opcional o motivo de discrepancia'),
 });
 export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;
+
+### `PeticionSobreescribirSustitucion`
+Cuerpo de la petición para `POST /api/recetas/:id/lineas/:orden/sustituir-manual`.
+
+```typescript
+export const PeticionSobreescribirSustitucion = z.object({
+  cn: z.string().regex(/^\d{6}$/).describe('Código nacional de la presentación elegida para sustituir'),
+  nregistro: z.string().optional().describe('Número de registro de CIMAVet del medicamento'),
+  motivo: z.string().min(5, 'El motivo de sustitución debe tener al menos 5 caracteres').describe('Justificación clínica u operativa del dispensador'),
+});
+export type PeticionSobreescribirSustitucion = z.infer<typeof PeticionSobreescribirSustitucion>;
+```
+
+### `PeticionCompararMedicamentos` y `RespuestaCompararMedicamentos`
+Cuerpo de la petición y respuesta para `POST /api/medicamentos/comparar`.
+
+```typescript
+export const PeticionCompararMedicamentos = z.object({
+  prescritoNregistro: z.string().min(1, 'El registro del medicamento prescrito es obligatorio'),
+  candidatoNregistro: z.string().min(1, 'El registro del candidato es obligatorio'),
+  especie: z.string().min(1, 'La especie es obligatoria'),
+  indicacion: z.string().optional(),
+});
+export type PeticionCompararMedicamentos = z.infer<typeof PeticionCompararMedicamentos>;
+
+export const RespuestaCompararMedicamentos = z.object({
+  decision: z.enum(['EQUIVALENTE', 'NO_EQUIVALENTE', 'REQUIERE_REVISION']),
+  motivos: z.array(z.string()),
+  evidencias: z.object({
+    comparativa: z.array(CriterioComparativaSustitucion),
+    indicacion: z.string().optional(),
+  }),
+  reglaVersion: z.string(),
+  esBloqueanteDuro: z.boolean(),
+});
+export type RespuestaCompararMedicamentos = z.infer<typeof RespuestaCompararMedicamentos>;
+```
 ```
 ```
 

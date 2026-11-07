@@ -148,6 +148,60 @@
 
 ---
 
+## Phase 9: User Story 6 - Selección interactiva de sustituto y sobreescritura en pantalla de Resultado (Priority: P1) (FR-017)
+
+**Goal**: En la pantalla de resultado de dispensación (`ResultadoReceta`), cuando un medicamento prescrito carece de existencias o tiene decisión `PEDIR` (ej. Bioclanic 50/12,5 mg felino), permitir buscar y seleccionar interactivamente un producto alternativo (ej. Clavusan 50/12,5 mg), evaluar la equivalencia en tiempo real mostrando la tabla comparativa de criterios de los 7 campos normativos, y habilitar la acción de sobreescribir la dispensación requiriendo obligatoriamente la razón escrita por el dispensador (sin requerir confirmación del garante en pantalla, operando bajo modo POST de RD 1157/2021 donde la receta física se aparta en bandeja para firma posterior), siempre que no constituya un `BLOQUEANTE_DURO`.
+
+**Independent Test**: Cargar una receta con Bioclanic 50/12,5 mg en estado PEDIR. Seleccionar Clavusan 50/12,5 mg desde el buscador de sustitutos en la pantalla de resultado; el sistema debe mostrar la comparativa de criterios y permitir sobreescribir indicando la razón obligatoria para proceder a la dispensación.
+
+### Tests for User Story 6
+
+- [X] T036 [P] [US6] Añadir esquema Zod `PeticionSobreescribirSustitucion` en `packages/shared/src/schemas/receta.ts`
+- [X] T037 [P] [US6] Añadir tests unitarios y de integración para `POST /api/recetas/:id/lineas/:orden/sustituir-manual` en `apps/api/test/rutas-recetas-sustitucion.test.ts` (casos: sustitución exitosa con motivo, rechazo por motivo menor a 5 caracteres, rechazo por `BLOQUEANTE_DURO` [inmunológico/biológico/cascada] y registro en `audit_event` con tipo `SUSTITUCION_SOBREESCRITA`)
+- [X] T038 [P] [US6] Añadir tests de componente en `apps/web/src/paginas/resultado.test.tsx` para el buscador interactivo de sustitutos, renderizado de la tabla comparativa y modal de confirmación con motivo obligatorio
+
+### Implementation for User Story 6
+
+- [X] T039 [US6] Implementar endpoint `POST /api/recetas/:id/lineas/:orden/sustituir-manual` en `apps/api/src/rutas/recetas.ts`, validando que no incurra en `BLOQUEANTE_DURO`, actualizando la línea con el producto sustituto, registrando en `audit_event` el evento inmutable `SUSTITUCION_SOBREESCRITA` y habilitando el paso a dispensación
+- [X] T040 [US6] Implementar en `apps/web/src/paginas/resultado.tsx` la búsqueda interactiva de candidatos (vía `/api/medicamentos/buscar` y stock), la evaluación en vivo mostrando la tabla comparativa de los 7 criterios normativos, y el diálogo con motivo obligatorio para sobreescribir
+- [X] T041 [US6] Conectar en `apps/web/src/paginas/resultado.tsx` la acción de sobreescritura con `POST /api/recetas/:id/lineas/:orden/sustituir-manual` para actualizar el estado de la receta y desbloquear la dispensación
+
+**Checkpoint**: En `ResultadoReceta`, una línea con falta de stock permite buscar Clavusan 50/12,5 mg, evaluar su equivalencia visual y sobreescribir con motivo para dispensar de inmediato.
+
+---
+
+## Phase 10: User Story 7 - Sección dedicada de consulta y comparador de sustitución en Vademécum (Priority: P2) (FR-018)
+
+**Goal**: Proveer una página dedicada e independiente accesible desde el menú principal (`/vademecum`) que permita al personal seleccionar dos medicamentos de CIMAVet (referencia A y candidato B) y evaluar su equivalencia técnica mediante el motor de sustitución, presentando la tabla comparativa de los 7 criterios normativos con sus distintivos de cumplimiento y conclusión reglamentaria.
+
+**Independent Test**: Navegar a `/vademecum` desde el menú principal, seleccionar dos medicamentos (ej. Bioclanic 50/12,5 mg y Clavusan 50/12,5 mg) con especie felina, y verificar que se llama a `POST /api/medicamentos/comparar` y se renderiza la tabla comparativa completa con la conclusión de sustituibilidad.
+
+### Tests for User Story 7
+
+- [X] T042 [P] [US7] Añadir esquemas Zod `PeticionCompararMedicamentos` y `RespuestaCompararMedicamentos` en `packages/shared/src/schemas/asistente.ts`
+- [X] T043 [P] [US7] Añadir tests para el endpoint `POST /api/medicamentos/comparar` en `apps/api/test/rutas-medicamentos-comparar.test.ts`
+- [X] T044 [P] [US7] Añadir tests de componente para la página `Vademecum` en `apps/web/src/paginas/vademecum.test.tsx`
+
+### Implementation for User Story 7
+
+- [X] T045 [US7] Implementar el endpoint `POST /api/medicamentos/comparar` en `apps/api/src/rutas/medicamentos.ts`, cargando ambas fichas de CIMAVet, resolviendo nombres legibles, ejecutando `simularEquivalencia` en `@mmx/domain` y devolviendo comparativa de 7 criterios y conclusión
+- [X] T046 [US7] Implementar la página `Vademecum` en `apps/web/src/paginas/vademecum.tsx` con autocompletado para fármacos A y B, selectores de especie e indicación opcional, invocación a `/api/medicamentos/comparar` y renderizado de la tabla comparativa
+- [X] T047 [US7] Registrar la ruta `/vademecum` en `apps/web/src/main.tsx` y añadir el enlace «Vademécum» en la barra de navegación `NAV` de `apps/web/src/componentes/layout.tsx`
+
+**Checkpoint**: Página `/vademecum` operativa en la navegación para contrastar cualquier fármaco A frente a B y mostrar la conclusión y tabla de criterios.
+
+---
+
+## Phase 11: Polish & Cross-Cutting Concerns (Final)
+
+**Purpose**: Verificación de contratos, linters, pruebas de tipos y validación de escenarios de quickstart
+
+- [X] T048 [P] Actualizar la documentación y contratos en `specs/005-assistant-stock-substitutions/contracts/api-sustitucion-vademecum.md`
+- [X] T049 Ejecutar la verificación completa de calidad: `pnpm lint && pnpm typecheck && pnpm test`
+- [X] T050 Validar de extremo a extremo los Escenarios 6 y 7 de `specs/005-assistant-stock-substitutions/quickstart.md`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -160,6 +214,9 @@
 - **Polish (Phase 6)**: Validación inicial de la base de herramientas.
 - **Normalización y Aclaración (Phase 7)**: Depende de Phase 6. Corrige falsos negativos de CIMAVet (FR-013, FR-014) y añade la solicitud interactiva de indicación prescrita (FR-015).
 - **Tabla Comparativa de Criterios (Phase 8)**: Depende de Phase 7. Incorpora `evidencias.comparativa` en dominio, enriquecimiento en el asistente y tabla visual en la UI web (FR-016).
+- **Sustitución Interactiva y Sobreescritura (Phase 9 - US6)**: Depende de Phase 8 (reutiliza motor de equivalencia y tabla comparativa de criterios).
+- **Sección Vademécum / Comparador (Phase 10 - US7)**: Depende de Phase 8 (reutiliza `simularEquivalencia` y componentes de tabla comparativa). Puede desarrollarse en paralelo con Phase 9.
+- **Polish Final (Phase 11)**: Depende de Phase 9 y Phase 10.
 
 ### User Story Dependencies
 
@@ -173,15 +230,17 @@ flowchart TD
     US4 --> Polish
     Polish --> Phase7["Phase 7: Normalización CIMAVet y Aclaración Indicación (T019-T026)"]
     Phase7 --> Phase8["Phase 8: US5 - Tabla Comparativa Visual (T027-T035)"]
+    Phase8 --> Phase9["Phase 9: US6 - Sustitución y Sobreescritura en Resultado (T036-T041)"]
+    Phase8 --> Phase10["Phase 10: US7 - Vademécum / Comparador A vs B (T042-T047)"]
+    Phase9 --> Phase11["Phase 11: Polish Final (T048-T050)"]
+    Phase10 --> Phase11
 ```
 
 ### Parallel Opportunities
 
-- `T001` y `T002` se pueden ejecutar en paralelo (archivos independientes).
-- `T005`, `T006` y `T007` se pueden escribir en paralelo una vez completada la fase Foundational.
-- `US3` y `US4` pueden implementarse en paralelo tras completar el MVP (`US1 & US2`).
-- En Phase 7, `T019` y `T020` (tests de CIMAVet y de sustitución) se pueden escribir en paralelo antes de la implementación de `T021-T024`.
-- En Phase 8, `T027`, `T028`, `T031` y `T033` (esquema y tests en distintos paquetes) pueden prepararse en paralelo.
+- En Phase 9, `T036` (esquema Zod), `T037` (tests API) y `T038` (tests UI) pueden prepararse en paralelo.
+- En Phase 10, `T042` (esquemas Zod), `T043` (tests API) y `T044` (tests UI) pueden prepararse en paralelo.
+- Phase 9 y Phase 10 pueden ejecutarse en paralelo por desarrolladores distintos al no compartir archivos principales (`resultado.tsx` vs `vademecum.tsx`, `rutas/recetas.ts` vs `rutas/medicamentos.ts`).
 
 ---
 
@@ -197,3 +256,6 @@ flowchart TD
 2. Pasar linter, typecheck y suite completa de tests (`T015`-`T018`).
 3. Aplicar normalización estricta de CIMAVet (`id > 0`, vías unificadas) y flujo de aclaración interactiva de indicación clínica (`T019`-`T026`).
 4. Añadir tabla comparativa de criterios de sustitución en motor, orquestador y componente de interfaz web (`T027`-`T035`).
+5. Añadir selección interactiva y sobreescritura con motivo obligatorio en pantalla de resultado (`T036`-`T041`, US6).
+6. Añadir página de consulta y comparador libre en `/vademecum` (`T042`-`T047`, US7).
+7. Verificación final de calidad, linters, tests y quickstart (`T048`-`T050`).

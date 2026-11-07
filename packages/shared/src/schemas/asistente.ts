@@ -65,6 +65,28 @@ export const CriterioComparativaSustitucion = z.object({
 });
 export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;
 
+/** Petición para comparar reglamentariamente dos medicamentos en el vademécum (FR-018). */
+export const PeticionCompararMedicamentos = z.object({
+  prescritoNregistro: z.string().min(1, 'El registro del medicamento prescrito es obligatorio'),
+  candidatoNregistro: z.string().min(1, 'El registro del candidato es obligatorio'),
+  especie: z.string().min(1, 'La especie es obligatoria'),
+  indicacion: z.string().optional(),
+});
+export type PeticionCompararMedicamentos = z.infer<typeof PeticionCompararMedicamentos>;
+
+/** Respuesta estructurada de la comparación entre dos medicamentos (FR-018). */
+export const RespuestaCompararMedicamentos = z.object({
+  decision: DecisionSimulacion,
+  motivos: z.array(z.string()),
+  evidencias: z.object({
+    comparativa: z.array(CriterioComparativaSustitucion),
+    indicacion: z.string().optional(),
+  }),
+  reglaVersion: z.string(),
+  esBloqueanteDuro: z.boolean(),
+});
+export type RespuestaCompararMedicamentos = z.infer<typeof RespuestaCompararMedicamentos>;
+
 /** Salida estructurada obligatoria del modelo (contracts/salida-modelo.md). */
 export const SalidaModelo = z.object({
   tipo: TipoRespuesta,

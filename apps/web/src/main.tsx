@@ -20,6 +20,7 @@ import { Admin } from './paginas/admin';
 import { PaginaMovil } from './paginas/movil';
 import { Ayuda } from './paginas/ayuda';
 import { AsistenteHistorico } from './paginas/asistente-historico';
+import { Vademecum } from './paginas/vademecum';
 
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
@@ -86,7 +87,12 @@ const rVenta = createRoute({
     canal: s.canal === 'online' ? ('online' as const) : ('presencial' as const),
   }),
 });
-const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda, rAsistente];
+const rVademecum = createRoute({
+  getParentRoute: () => raiz,
+  path: '/vademecum',
+  component: Vademecum,
+});
+const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda, rAsistente, rVademecum];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {

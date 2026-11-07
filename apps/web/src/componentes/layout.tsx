@@ -10,6 +10,7 @@ const NAV = [
   { a: '/', t: 'Inicio', roles: null },
   { a: '/recepciones', t: 'Recepciones', roles: ['empleado', 'veterinaria_responsable'] },
   { a: '/pendientes', t: 'Pendientes', roles: ['empleado', 'veterinaria_responsable'] },
+  { a: '/vademecum', t: 'Vademécum', roles: ['empleado', 'veterinaria_responsable', 'admin'] },
   { a: '/registros', t: 'Registros', roles: ['empleado', 'veterinaria_responsable', 'admin'] },
   { a: '/admin', t: 'Administración', roles: ['admin'] },
   { a: '/ayuda', t: 'Ayuda', roles: null },

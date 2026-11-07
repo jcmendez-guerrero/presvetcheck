@@ -7,6 +7,7 @@ import {
   recetaImagen,
   recetaLinea,
   reglaVersion,
+  sustitucion,
   veterinario,
   MAESTRA,
   type DbOrTx,
@@ -34,11 +35,12 @@ import {
 import { borradorDesdeExtraccion } from '@mmx/extraction';
 import { identificarMedicamentos } from './identificacion';
 import type { ExtractionResult } from '@mmx/shared';
-import { DomainError, RecetaConfirmada, enParalelo, type RecetaConfirmadaInput } from '@mmx/shared';
+import { DomainError, PeticionSobreescribirSustitucion, RecetaConfirmada, enParalelo, type RecetaConfirmadaInput } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
 import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
 import { MedicamentosService } from './medicamentos';
+import { procedimientoVigente } from './sustituciones';
 
 export interface ContextoPeticion {
   usuario: Usuario;
@@ -882,6 +884,181 @@ export class RecetasService {
           forzado: l.forzado?.codigos ?? null,
         })),
       });
+    });
+  }
+
+  /**
+   * Sobreescribe la sustitución de una línea de receta registrando el motivo obligatorio (FR-017).
+   * Valida que no exista un BLOQUEANTE_DURO, genera la fila en sustitucion con modo POST
+   * y registra el evento inmutable de auditoría SUSTITUCION_SOBREESCRITA.
+   */
+  async sustituirManual(
+    recetaId: string,
+    lineaOrden: number,
+    input: PeticionSobreescribirSustitucion,
+    c: ContextoPeticion,
+  ) {
+    const peticion = PeticionSobreescribirSustitucion.parse(input);
+    const [r] = await this.d.db.select().from(receta).where(eq(receta.id, recetaId));
+    if (!r) throw new DomainError('NO_ENCONTRADO', 'Receta no encontrada');
+    const [linea] = await this.d.db
+      .select()
+      .from(recetaLinea)
+      .where(and(eq(recetaLinea.recetaId, recetaId), eq(recetaLinea.orden, lineaOrden)));
+    if (!linea) throw new DomainError('NO_ENCONTRADO', 'Línea de receta no encontrada');
+
+    if (r.clasePrescripcion === 'excepcional') {
+      throw new DomainError(
+        'SUSTITUCION_BLOQUEO_DURO',
+        'Las prescripciones excepcionales (en cascada) no admiten sustitución por el dispensador',
+      );
+    }
+
+    const nregPrescrito = linea.nregistro;
+    if (nregPrescrito) {
+      const medPrescrito = await this.med.info(nregPrescrito);
+      if (medPrescrito?.biologico || medPrescrito?.inmunologico) {
+        throw new DomainError(
+          'SUSTITUCION_BLOQUEO_DURO',
+          'Los medicamentos biológicos o inmunológicos no son sustituibles por ley',
+        );
+      }
+    }
+
+    const presCandidato = await this.med.presentacion(peticion.cn);
+    if (!presCandidato) throw new DomainError('NO_ENCONTRADO', 'Medicamento sustituto no encontrado');
+    const nregCandidato = peticion.nregistro ?? presCandidato.nregistro;
+    const medCandidato = nregCandidato ? await this.med.info(nregCandidato) : null;
+    if (!medCandidato) throw new DomainError('NO_ENCONTRADO', 'Ficha del medicamento candidato no encontrada');
+
+    if (medCandidato.biologico || medCandidato.inmunologico) {
+      throw new DomainError(
+        'SUSTITUCION_BLOQUEO_DURO',
+        'El medicamento sustituto candidato es biológico o inmunológico y no admite sustitución',
+      );
+    }
+    if (medCandidato.estado === 'revocado' || medCandidato.estado === 'suspendido') {
+      throw new DomainError(
+        'SUSTITUCION_BLOQUEO_DURO',
+        'El medicamento sustituto candidato no está debidamente autorizado (suspendido o revocado)',
+      );
+    }
+
+    const proc = await procedimientoVigente(this.d);
+    const ahora = ahoraDe(this.d);
+    const modo = this.d.config.SUBSTITUTION_APPROVAL_MODE;
+
+    return this.d.db.transaction(async (tx) => {
+      const [sust] = await tx
+        .insert(sustitucion)
+        .values({
+          recetaLineaId: linea.id,
+          cnPrescrito: linea.cnPrescrito,
+          cnPropuesto: peticion.cn,
+          nregistroPropuesto: medCandidato.nregistro,
+          equivalencia: {
+            cn: peticion.cn,
+            nregistro: medCandidato.nregistro,
+            nombre: presCandidato.nombre,
+            labtitular: medCandidato.labtitular,
+            modo,
+            sobreescritura: true,
+            motivo: peticion.motivo,
+            envases: linea.cantidadEnvases ?? 1,
+          } as never,
+          estado: 'AVISO_VETERINARIO',
+          modo,
+          consentimientoTutor: {
+            consiente: true,
+            fechaHora: ahora.toISOString(),
+            empleado: c.usuario.id,
+            medio: 'mostrador',
+            motivo: peticion.motivo,
+          } as never,
+          avisoVeterinario: {
+            fechaHora: ahora.toISOString(),
+            empleado: c.usuario.id,
+            medio: 'telefono',
+          } as never,
+          procedimientoVersion: proc ? `${proc.codigo}@${proc.version}` : null,
+          historial: [
+            { estado: 'PROPUESTA', por: c.usuario.id, at: ahora.toISOString() },
+            { estado: 'CONSENTIMIENTO_TUTOR', por: c.usuario.id, at: ahora.toISOString() },
+            { estado: 'AVISO_VETERINARIO', por: c.usuario.id, at: ahora.toISOString() },
+          ] as never,
+        })
+        .returning();
+
+      await tx
+        .update(recetaLinea)
+        .set({
+          decision: 'SUSTITUIR',
+          evidencias: {
+            ...((linea.evidencias as object) ?? {}),
+            sustitucionId: sust!.id,
+            sustitucionManual: {
+              cn: peticion.cn,
+              nregistro: medCandidato.nregistro,
+              motivo: peticion.motivo,
+              por: c.usuario.id,
+              at: ahora.toISOString(),
+            },
+          } as never,
+        })
+        .where(eq(recetaLinea.id, linea.id));
+
+      if (r.evaluacion && typeof r.evaluacion === 'object') {
+        const ev = r.evaluacion as {
+          lineas?: Array<{
+            orden: number;
+            resultado: {
+              decision: string;
+              evidencias: Record<string, unknown>;
+            };
+          }>;
+        };
+        if (Array.isArray(ev.lineas)) {
+          const lEv = ev.lineas.find((x) => x.orden === lineaOrden);
+          if (lEv) {
+            lEv.resultado.decision = 'SUSTITUIR';
+            lEv.resultado.evidencias = {
+              ...lEv.resultado.evidencias,
+              sustitutoElegido: {
+                cn: peticion.cn,
+                nregistro: medCandidato.nregistro,
+                nombre: presCandidato.nombre,
+                sustitucionId: sust!.id,
+                motivo: peticion.motivo,
+              },
+              sustitutos: [
+                {
+                  cn: peticion.cn,
+                  nregistro: medCandidato.nregistro,
+                  nombre: presCandidato.nombre,
+                  labtitular: medCandidato.labtitular,
+                  modo,
+                  id: sust!.id,
+                  sustitucionId: sust!.id,
+                  equivalencia: { envases: linea.cantidadEnvases ?? 1 },
+                },
+                ...(((lEv.resultado.evidencias.sustitutos as unknown[]) ?? []) as unknown[]),
+              ],
+            };
+          }
+        }
+        await tx.update(receta).set({ evaluacion: ev as never }).where(eq(receta.id, recetaId));
+      }
+
+      await audit(tx, c, 'SUSTITUCION_SOBREESCRITA', 'receta_linea', linea.id, null, {
+        recetaId,
+        orden: lineaOrden,
+        cnOriginal: linea.cnPrescrito,
+        cnSustituto: peticion.cn,
+        motivo: peticion.motivo,
+        sustitucionId: sust!.id,
+      });
+
+      return { ok: true, sustitucionId: sust!.id };
     });
   }
 }

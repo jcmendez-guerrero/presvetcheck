@@ -75,6 +75,24 @@ Este documento describe los escenarios de prueba y validación para verificar de
 2. El motor `@mmx/domain` genera en `evidencias.comparativa` la lista de 7 criterios normativos con nombres legibles (Principio activo, Concentración, Forma, Vía, Especie, Indicación, Tiempos de espera).
 3. En la interfaz web, la tarjeta de simulación renderiza una tabla comparativa clara con columnas *Criterio*, *Prescrito*, *Candidato* y *Estado*, destacando con distintivos gráficos (✓ Coincide / ✗ Discrepancia) el cumplimiento de cada requisito normativo.
 
+### Escenario 6: Selección interactiva de sustituto y sobreescritura en pantalla de Resultado
+
+**Flujo en mostrador**:
+1. El usuario visualiza una receta en `ResultadoReceta` con un medicamento prescrito en estado `PEDIR` (por ejemplo, Bioclanic 50/12,5 mg para felino, sin stock en almacén).
+2. En la tarjeta de la línea, el usuario pulsa «Buscar sustituto» y teclea o selecciona `Clavusan 50/12,5 mg`.
+3. El sistema evalúa la equivalencia en tiempo real y muestra la tabla comparativa con los 7 criterios normativos.
+4. El usuario pulsa «Sustituir con motivo», introduce la justificación obligatoria (ej. «Sin existencias de Bioclanic; sustituido por Clavusan con acuerdo del cliente»).
+5. El sistema actualiza la línea a sustitución autorizada, registra el evento de auditoría y habilita el botón «Dispensar».
+
+### Escenario 7: Consulta libre y comparador de medicamentos en `/vademecum`
+
+**Flujo en la aplicación**:
+1. El usuario hace clic en el enlace «Vademécum» del menú superior de navegación.
+2. En la página `/vademecum`, selecciona el medicamento de referencia A (ej. Bioclanic 50/12,5 mg) y el candidato B (ej. Clavusan 50/12,5 mg).
+3. Selecciona la especie de destino (ej. «Gato / Felina»).
+4. Pulsa «Comparar medicamentos».
+5. El sistema presenta la ficha comparativa con la tabla de los 7 criterios reglamentarios y la conclusión normativa.
+
 ---
 
 ## 3. Comandos de Verificación Automatizada

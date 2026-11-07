@@ -115,3 +115,28 @@ En la implementación actual del asistente de consultas (`packages/assistant`):
   3. `herramientaSimularEquivalencia` en `packages/assistant` resuelve de forma asíncrona los nombres legibles de formas, vías y especies mediante `d.cimavet.nombresFicha(...)` y los pasa al motor, evitando mostrar IDs numéricos en pantalla.
   4. En `apps/web/src/componentes/asistente.tsx`, `TarjetaSimulacion` detecta si existen `evidencias.comparativa` y renderiza una tabla visual accesible con badges semánticos (`✓ Coincide` en verde, `✗ Discrepancia` en rojo).
 - **Razón**: Permite al personal de mostrador comprender inmediatamente por qué un fármaco alternativo es o no equivalente, despejando dudas sobre discrepancias en especies autorizadas, vías o indicaciones de manera transparente y profesional.
+
+---
+
+### Decisión 9: Selección Interactiva de Sustituto y Sobreescritura con Motivo en Resultado
+
+- **Decisión**: Extender la pantalla de resultado de dispensación (`ResultadoReceta` en `apps/web/src/paginas/resultado.tsx`):
+  1. Cuando una línea tiene decisión `PEDIR` o no tiene existencias inmediatas, se incorpora un componente interactivo de búsqueda de sustituto alternativo (consultando `/api/medicamentos/buscar`).
+  2. Al seleccionar un candidato (por ejemplo, Clavusan 50/12,5 mg frente al prescrito Bioclanic 50/12,5 mg), la interfaz invoca el endpoint de simulación y evaluación (`POST /api/medicamentos/comparar` o evaluación de equivalencia) y renderiza la tabla comparativa de los 7 criterios normativos con sus distintivos.
+  3. Si el candidato es técnicamente equivalente o viable (y no incurre en un `BLOQUEANTE_DURO`), se habilita la acción «Sustituir con motivo». Al pulsarla, se solicita obligatoriamente el texto de justificación o motivo del dispensador (`motivo`).
+  4. La acción envía la petición `POST /api/recetas/:id/lineas/:orden/sustituir-manual`. El backend valida que no exista un `BLOQUEANTE_DURO`, asocia el medicamento sustituto a la línea, registra en `audit_event` la acción `SUSTITUCION_SOBREESCRITA` con el usuario y el motivo, y actualiza el estado de la línea para permitir la confirmación de dispensación directa.
+  5. Conforme a la aclaración de requerimientos, **no se requiere la confirmación en pantalla del farmacéutico garante** en este paso (la farmacia opera en modo POST según RD 1157/2021, donde la receta física se aparta en bandeja para su firma posterior por el garante).
+  6. Si el candidato o prescripción incurre en un `BLOQUEANTE_DURO` (inmunológico, biológico, prescripción en cascada o no autorizado), el botón de sobreescritura permanece deshabilitado e informa de la prohibición legal infranqueable.
+- **Alternativas consideradas**:
+  - *Exigir firma digital del garante en la misma pantalla*: Descartado por el usuario, ya que ralentizaría la dispensación en mostrador y el procedimiento legal del establecimiento opera con revisión y firma de lote en modo posterior (POST).
+
+---
+
+### Decisión 10: Página Dedicada de Vademécum y Comparador de Sustitución (`/vademecum`)
+
+- **Decisión**: Crear una sección accesible directamente desde el menú principal de la aplicación (`NAV` en `apps/web/src/componentes/layout.tsx`):
+  1. Ruta `/vademecum` registrada en `apps/web/src/App.tsx` accesible para roles `empleado`, `veterinaria_responsable` y `admin`.
+  2. Permite buscar y seleccionar libremente un medicamento prescrito o de referencia (A) y un medicamento candidato (B) desde el catálogo de CIMAVet, seleccionar la especie animal (perro, gato, bovino, etc.) e indicar opcionalmente la patología o indicación clínica.
+  3. Ejecuta la comparación invocando `POST /api/medicamentos/comparar`.
+  4. Renderiza la tabla comparativa visual de los 7 criterios normativos junto a la conclusión de equivalencia y las obligaciones reglamentarias asociadas.
+- **Razón**: Permite realizar consultas técnicas, contrastes normativos y verificación previa de alternativas sin depender del flujo de escaneo o carga de una receta concreta.
