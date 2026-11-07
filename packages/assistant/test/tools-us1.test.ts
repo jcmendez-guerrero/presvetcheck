@@ -191,6 +191,8 @@ describe('definiciones para el modelo', () => {
       'simular_equivalencia',
       'buscar_medicamento',
       'ficha_medicamento',
+      'buscar_sustitutos',
+      'consultar_stock',
     ]);
     const texto = JSON.stringify(defs);
     expect(texto).not.toMatch(/"(minLength|maxLength|minimum|maximum|\$schema)"/);

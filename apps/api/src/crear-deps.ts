@@ -157,7 +157,7 @@ export async function crearDeps(
     nombreFarmacia: 'Mundo Mascotix · Medicamentos Veterinarios',
     asistente: await crearAsistente(
       config,
-      { db, cipher, cimavet, rules: { bundle: rules.bundle, files: rules.files }, clock, log },
+      { db, cipher, cimavet, stock, rules: { bundle: rules.bundle, files: rules.files }, clock, log },
       await crearMailer(config, log),
     ),
   };
@@ -191,7 +191,7 @@ async function crearMailer(config: AppConfig, log: (m: string) => void): Promise
  */
 async function crearAsistente(
   config: AppConfig,
-  d: DepsContexto & { clock: Clock; log: (m: string) => void },
+  d: DepsContexto & { stock: AppDeps['stock']; clock: Clock; log: (m: string) => void },
   mailer: Mailer | null,
 ): Promise<AppDeps['asistente']> {
   const clave =
@@ -215,6 +215,7 @@ async function crearAsistente(
     clock: d.clock,
     indice,
     cimavet: d.cimavet,
+    stock: d.stock,
     permitirCambioFormato: config.ALLOW_PACK_SIZE_CHANGE,
     maxEdadCimavetH: config.CIMAVET_LIVE_CHECK_MAX_AGE_H,
     cargarContextoLinea: (id) => contexto.cargar(id),

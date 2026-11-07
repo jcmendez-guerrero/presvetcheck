@@ -6,11 +6,15 @@ import { herramientaBuscarMedicamento, herramientaFichaMedicamento } from './cim
 import { herramientaContextoLinea } from './linea';
 import { herramientaSimularSustituibilidad, herramientaSimularValidez } from './simulaciones';
 import { herramientaSimularCambioFormato, herramientaSimularEquivalencia } from './simulaciones-medicamento';
+import { herramientaBuscarSustitutos } from './sustitucion';
+import { herramientaConsultarStock } from './stock';
 
 export * from './contexto';
 export * from './registry';
 export { versionDeRegla } from './reglas';
 export { resultadoSimulacion } from './simulaciones';
+export { herramientaBuscarSustitutos } from './sustitucion';
+export { herramientaConsultarStock } from './stock';
 
 /** Registro con todas las herramientas del asistente (todas de solo lectura). */
 export function crearHerramientas(d: DepsHerramientas): ToolRegistry {
@@ -24,6 +28,8 @@ export function crearHerramientas(d: DepsHerramientas): ToolRegistry {
     herramientaSimularEquivalencia(d) as never,
     herramientaBuscarMedicamento(d) as never,
     herramientaFichaMedicamento(d) as never,
+    herramientaBuscarSustitutos(d) as never,
+    herramientaConsultarStock(d) as never,
     herramientaContextoLinea(d) as never,
   ]);
 }

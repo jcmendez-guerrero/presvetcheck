@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import {
   cimavetMaestra,
   cimavetMedAtc,
@@ -243,7 +243,8 @@ export class CimavetRepository implements NomenclatorSink {
     const filas = await this.db
       .select({ id: cimavetMaestra.id, nombre: cimavetMaestra.nombre })
       .from(cimavetMaestra)
-      .where(eq(cimavetMaestra.tipo, MAESTRA.ESPECIES));
+      .where(and(eq(cimavetMaestra.tipo, MAESTRA.ESPECIES), gt(cimavetMaestra.id, 0)))
+      .orderBy(asc(cimavetMaestra.id));
     const exacto = filas.find((f) => normalizeText(f.nombre) === t);
     if (exacto) return exacto.id;
     const plural = filas.find(
