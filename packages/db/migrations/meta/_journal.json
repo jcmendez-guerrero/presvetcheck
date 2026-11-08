@@ -127,6 +127,13 @@
       "when": 1793921000000,
       "tag": "0017_multi_rx_retrospectivo",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794105000000,
+      "tag": "0018_reconciliar_vias_oral_rectal",
+      "breakpoints": true
     }
   ]
 }

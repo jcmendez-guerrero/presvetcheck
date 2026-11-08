@@ -208,10 +208,10 @@ export class CimavetRepository implements NomenclatorSink {
         if (codNum !== null && codNum > 0) {
           clave = String(codNum);
           id = codNum;
-        } else if (it.id === 48) {
+        } else if (it.id === 48 || /oral/i.test(it.nombre)) {
           clave = '54';
           id = 54;
-        } else if (it.id === 54 && /rectal/i.test(it.nombre)) {
+        } else if ((it.id === 54 && /rectal/i.test(it.nombre)) || /rectal/i.test(it.nombre)) {
           clave = '59';
           id = 59;
         }
@@ -280,11 +280,23 @@ export class CimavetRepository implements NomenclatorSink {
 
   async nombresMaestra(tipo: number, ids: number[]): Promise<Map<number, string>> {
     if (!ids.length) return new Map();
+    const queryIds = tipo === MAESTRA.VIAS ? ids.map((id) => (id === 48 ? 54 : id)) : ids;
     const rows = await this.db
       .select()
       .from(cimavetMaestra)
-      .where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
-    return new Map(rows.map((r) => [r.id as number, r.nombre]));
+      .where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, queryIds)));
+    const map = new Map(rows.map((r) => [r.id as number, r.nombre]));
+    if (tipo === MAESTRA.VIAS) {
+      // Reconciliación canónica: 54 es VÍA ORAL y 59 es VÍA RECTAL (FR-019)
+      const oral = map.get(54);
+      if (!oral || /rectal/i.test(oral)) {
+        map.set(54, 'VÍA ORAL');
+      }
+      if (ids.includes(48)) {
+        map.set(48, map.get(54) ?? 'VÍA ORAL');
+      }
+    }
+    return map;
   }
 
   // ── Lectura ──────────────────────────────────────────────────────────────────
@@ -331,7 +343,7 @@ export class CimavetRepository implements NomenclatorSink {
         biologico: false,
         usoHumano: false,
         formaId: m.formaId,
-        viaIds: de(vias).map((v) => v.viaId),
+        viaIds: de(vias).map((v) => (v.viaId === 48 ? 54 : v.viaId)),
         especieIds: de(esp).map((e) => e.especieId),
         atc,
         indicaciones: de(inds)

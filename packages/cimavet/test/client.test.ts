@@ -324,6 +324,30 @@ describe('normalización a la caché', () => {
     expect(r.vias).toEqual([54]);
   });
 
+  it('registroDesdeApi conserva id: 54 como 54 (VÍA ORAL) cuando nombre es VÍA ORAL o se omite (FR-019)', () => {
+    const rOral = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4332 ESP',
+        nombre: 'Bioclanic',
+        viasAdministracion: [{ id: 54, nombre: 'VÍA ORAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(rOral.vias).toEqual([54]);
+
+    const rSinNombre = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4332 ESP',
+        nombre: 'Bioclanic',
+        viasAdministracion: [{ id: 54 }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(rSinNombre.vias).toEqual([54]);
+  });
+
   it('registroDesdeApi mapea id: 54 con nombre VÍA RECTAL a código canónico 59 (FR-019)', () => {
     const r = registroDesdeApi(
       lowerKeys({

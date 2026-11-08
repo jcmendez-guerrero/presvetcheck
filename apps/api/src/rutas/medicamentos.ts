@@ -267,25 +267,33 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
         p.usoHumano ||
         c.usoHumano;
 
+      const viasPrescritoIds = p.viaIds.map((v) => (v === 48 ? 54 : v));
+      const viasCandidatoIds = c.viaIds.map((v) => (v === 48 ? 54 : v));
+
       let nombresEtiquetas: NombresEquivalencia | undefined;
       if (typeof d.cimavet?.nombresFicha === 'function') {
         try {
           const formasIds = [p.formaId, c.formaId].filter((x): x is number => typeof x === 'number');
-          const viasIds = [...p.viaIds, ...c.viaIds];
+          const viasIds = [...viasPrescritoIds, ...viasCandidatoIds];
           const especiesIds = [...p.especieIds, ...c.especieIds, ...(especieId ? [especieId] : [])];
           const mapaNombres = await d.cimavet.nombresFicha({
             formas: formasIds,
             vias: viasIds,
             especies: especiesIds,
           });
+          const resolverNombreVia = (v: number) => {
+            const nom = mapaNombres.vias.get(v);
+            if ((v === 54 || v === 48) && (!nom || /rectal/i.test(nom))) return 'VÍA ORAL';
+            return nom;
+          };
           nombresEtiquetas = {
             formaPrescrito: p.formaId !== null ? (mapaNombres.formas.get(p.formaId) ?? null) : null,
             formaCandidato: c.formaId !== null ? (mapaNombres.formas.get(c.formaId) ?? null) : null,
-            viasPrescrito: p.viaIds
-              .map((v) => mapaNombres.vias.get(v))
+            viasPrescrito: viasPrescritoIds
+              .map(resolverNombreVia)
               .filter((x): x is string => typeof x === 'string'),
-            viasCandidato: c.viaIds
-              .map((v) => mapaNombres.vias.get(v))
+            viasCandidato: viasCandidatoIds
+              .map(resolverNombreVia)
               .filter((x): x is string => typeof x === 'string'),
             especiesPrescrito: p.especieIds
               .map((e) => mapaNombres.especies.get(e))
@@ -301,8 +309,8 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
       }
 
       const sim = simularEquivalencia({
-        prescrito: p,
-        candidato: c,
+        prescrito: { ...p, viaIds: viasPrescritoIds },
+        candidato: { ...c, viaIds: viasCandidatoIds },
         contexto: {
           especieId,
           especieProduccion: false,

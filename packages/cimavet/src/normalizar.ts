@@ -106,7 +106,7 @@ export function canonicaVia(
   const c = codigo ? idNum(codigo) : null;
   if (c !== null && c > 0) return c;
   if (id === 48) return 54;
-  if (id === 54 && (!nombre || /rectal/i.test(nombre))) return 59;
+  if (id === 54 && nombre && /rectal/i.test(nombre)) return 59;
   return id;
 }
 
