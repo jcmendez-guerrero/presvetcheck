@@ -721,6 +721,35 @@ describe('outbox de entradas (SPEC §5.2.4–5.2.5)', () => {
     await expect(svc('entries_only').resolver(row!.id, 'reenviar', 'dev-admin', 'x')).rejects.toThrow();
   });
 
+  it('envío interrumpido (bloqueo caducado) → needs_reconciliation y NO se reenvía solo', async () => {
+    let llamadas = 0;
+    server.use(
+      http.post(`${BASE}inventory/stock/adjustments`, () => {
+        llamadas++;
+        return HttpResponse.json(fx('doc-adjustment.json'));
+      }),
+    );
+    const id = await recepcionFinalizada([{ variant: 9001 }]);
+    await h.db.transaction((tx) => svc('entries_only').encolarRecepcion(tx, id));
+    // El proceso tomó la fila hace 11 minutos y se paró sin guardar el resultado.
+    await h.db
+      .update(outbox)
+      .set({ lockedAt: new Date(Date.now() - 11 * 60_000), attempts: 1 })
+      .where(eq(outbox.status, 'pending'));
+    expect(await svc('entries_only').despachar()).toEqual({ sent: 0, failed: 0, needs_reconciliation: 1 });
+    expect(llamadas).toBe(0);
+    const [row] = await svc('entries_only').listar(['needs_reconciliation']);
+    expect(row?.lockedAt).toBeNull();
+    const [rec] = await h.db.select().from(recepcion).where(eq(recepcion.id, id));
+    expect(rec?.estado).toBe('ERROR_SINCRONIZACION');
+    // Un bloqueo reciente (otro dispatcher enviando ahora) no se toca.
+    const id2 = await recepcionFinalizada([{ variant: 9002 }]);
+    await h.db.transaction((tx) => svc('entries_only').encolarRecepcion(tx, id2));
+    await h.db.update(outbox).set({ lockedAt: new Date() }).where(eq(outbox.status, 'pending'));
+    expect(await svc('entries_only').despachar()).toEqual({ sent: 0, failed: 0, needs_reconciliation: 0 });
+    expect(llamadas).toBe(0);
+  });
+
   it('5xx → needs_reconciliation; 409 (stock ilimitado) y 4xx → failed; confirmar aplicada', async () => {
     const id = await recepcionFinalizada([{ variant: 1 }, { variant: 2 }, { variant: 3 }]);
     server.use(

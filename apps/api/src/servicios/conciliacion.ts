@@ -1,5 +1,5 @@
-import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
-import { appendAudit, conciliacion, dispensacion, receta, ticketReceta } from '@mmx/db';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { appendAudit, conciliacion, dispensacion, dispensacionVigente, receta, ticketReceta } from '@mmx/db';
 import {
   conciliarTicketMultiReceta,
   hoy,
@@ -79,7 +79,7 @@ export class ConciliacionService {
     return this.d.db
       .select({ id: dispensacion.id, fechaVenta: dispensacion.fechaVenta })
       .from(dispensacion)
-      .where(and(eq(dispensacion.recetaId, recetaId), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(eq(dispensacion.recetaId, recetaId), dispensacionVigente));
   }
 
   async estadoReceta(recetaId: string) {
@@ -109,8 +109,7 @@ export class ConciliacionService {
       .where(
         and(
           gte(dispensacion.fechaVenta, desde),
-          isNull(dispensacion.anulaDispensacionId),
-          sql`not exists (select 1 from dispensacion a where a.anula_dispensacion_id = ${dispensacion.id})`,
+          dispensacionVigente,
           sql`not exists (select 1 from conciliacion c where c.dispensacion_id = ${dispensacion.id})`,
         ),
       )
@@ -364,7 +363,7 @@ export class ConciliacionService {
         unidades: dispensacion.unidades,
       })
       .from(dispensacion)
-      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(inArray(dispensacion.recetaId, recetaIds), dispensacionVigente));
 
     // Obtener líneas del ticket desde Siweb360 o Demo
     const ticketItems: LineaTicketItem[] = [];
@@ -472,7 +471,7 @@ export class ConciliacionService {
         cn: dispensacion.cn,
       })
       .from(dispensacion)
-      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(inArray(dispensacion.recetaId, recetaIds), dispensacionVigente));
 
     await this.d.db.transaction(async (tx) => {
       // 1. Marcar ticket_receta como confirmado
