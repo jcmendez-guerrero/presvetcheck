@@ -211,12 +211,10 @@ export function concentracionDelNombre(nombre: string): string | null {
 }
 
 export function normalizarConcentracionTexto(c: string): string {
-  return c
-    .replace(/\s+/g, ' ')
-    .replace(/\s*\/\s*(\d)/g, ' / $1')
-    .replace(/\s*\+\s*/g, ' + ')
-    .replace(/(\d+(?:,\d+)?)\s*(mg|g|kg|µg|mcg|microgramos?|ml|l|%|ui)/gi, '$1 $2')
-    .replace(/([a-zµ%]+)\s*\/\s*([a-z]+)/gi, '$1/$2')
-    .replace(/\s+/g, ' ')
-    .trim();
+  let res = c.replace(/\s+/g, ' ').trim();
+  res = res.replace(/ ?\/ ?(\d)/g, ' / $1');
+  res = res.replace(/ ?\+ ?/g, ' + ');
+  res = res.replace(/(\d+(?:,\d+)?) ?(mg|g|kg|µg|mcg|microgramos?|ml|l|%|ui)\b/gi, '$1 $2');
+  res = res.replace(/([a-zµ%]+) ?\/ ?([a-z]+)/gi, '$1/$2');
+  return res.replace(/\s+/g, ' ').trim();
 }
