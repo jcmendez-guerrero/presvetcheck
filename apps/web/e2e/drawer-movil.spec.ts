@@ -35,11 +35,15 @@ test.describe('Drawer Móvil Accesible con Trampa de Foco (AC 1.3)', () => {
 
     // Obtener todos los elementos interactivos dentro del drawer
     const interactivosDrawer = await dialogoModal.evaluate((dialog) => {
-      const selectores = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const selectores =
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
       return Array.from(dialog.querySelectorAll(selectores)).length;
     });
 
-    expect(interactivosDrawer, 'El drawer debe contener al menos 2 elementos interactivos').toBeGreaterThanOrEqual(2);
+    expect(
+      interactivosDrawer,
+      'El drawer debe contener al menos 2 elementos interactivos',
+    ).toBeGreaterThanOrEqual(2);
 
     // Pulsar Tab múltiples veces para dar una vuelta completa a los elementos
     for (let i = 0; i < interactivosDrawer + 2; i++) {
@@ -80,7 +84,9 @@ test.describe('Drawer Móvil Accesible con Trampa de Foco (AC 1.3)', () => {
     const dialogoModal = page.locator('[role="dialog"][aria-modal="true"]');
     await expect(dialogoModal).toBeVisible();
 
-    const botonCerrar = dialogoModal.locator('button[aria-label*="Cerrar" i], button[aria-label*="cerrar" i]').first();
+    const botonCerrar = dialogoModal
+      .locator('button[aria-label*="Cerrar" i], button[aria-label*="cerrar" i]')
+      .first();
     await botonCerrar.click();
 
     await expect(dialogoModal).toBeHidden();

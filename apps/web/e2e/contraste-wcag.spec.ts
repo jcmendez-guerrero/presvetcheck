@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { compositeColor, contrastRatio, parseColor, relativeLuminance } from './helpers';
 
 test.describe('Contraste Cromático WCAG 2.1 AA en Modo Claro y Oscuro (AC 2.1)', () => {
-  test('evaluación matemática de ratios de contraste en Modo Claro (≥ 4.5:1 texto, ≥ 3:1 UI)', async ({ page }) => {
+  test('evaluación matemática de ratios de contraste en Modo Claro (≥ 4.5:1 texto, ≥ 3:1 UI)', async ({
+    page,
+  }) => {
     await page.goto('/');
     // Activar tema claro
     const botonClaro = page.locator('button[aria-label*="claro" i], button[title*="claro" i]').first();
@@ -23,7 +25,13 @@ test.describe('Contraste Cromático WCAG 2.1 AA en Modo Claro y Oscuro (AC 2.1)'
         return window.getComputedStyle(document.body).backgroundColor || 'rgb(244, 248, 249)';
       }
 
-      const evaluaciones: Array<{ selector: string; fg: string; bg: string; fontSize: number; isBold: boolean }> = [];
+      const evaluaciones: Array<{
+        selector: string;
+        fg: string;
+        bg: string;
+        fontSize: number;
+        isBold: boolean;
+      }> = [];
 
       // 1. Texto del cuerpo / párrafos
       const p = document.querySelector('main p, main span');
@@ -89,7 +97,9 @@ test.describe('Contraste Cromático WCAG 2.1 AA en Modo Claro y Oscuro (AC 2.1)'
     }
   });
 
-  test('evaluación matemática de ratios de contraste en Modo Oscuro (≥ 4.5:1 texto, ≥ 3:1 UI)', async ({ page }) => {
+  test('evaluación matemática de ratios de contraste en Modo Oscuro (≥ 4.5:1 texto, ≥ 3:1 UI)', async ({
+    page,
+  }) => {
     await page.goto('/');
     // Activar tema oscuro (emulando media query y conmutador) y esperar a que finalice la transición
     await page.emulateMedia({ colorScheme: 'dark' });
@@ -111,7 +121,13 @@ test.describe('Contraste Cromático WCAG 2.1 AA en Modo Claro y Oscuro (AC 2.1)'
         return window.getComputedStyle(document.body).backgroundColor || 'rgb(0, 32, 40)';
       }
 
-      const evaluaciones: Array<{ selector: string; fg: string; bg: string; fontSize: number; isBold: boolean }> = [];
+      const evaluaciones: Array<{
+        selector: string;
+        fg: string;
+        bg: string;
+        fontSize: number;
+        isBold: boolean;
+      }> = [];
 
       // 1. Texto de cuerpo en modo oscuro
       const p = document.querySelector('main p, main span');
@@ -155,7 +171,9 @@ test.describe('Contraste Cromático WCAG 2.1 AA en Modo Claro y Oscuro (AC 2.1)'
       return evaluaciones;
     });
 
-    expect(resultados.length, 'Debe haber elementos clave evaluados en modo oscuro').toBeGreaterThanOrEqual(1);
+    expect(resultados.length, 'Debe haber elementos clave evaluados en modo oscuro').toBeGreaterThanOrEqual(
+      1,
+    );
 
     for (const item of resultados) {
       const parsedFg = parseColor(item.fg);

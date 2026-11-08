@@ -60,9 +60,7 @@ export function parseColor(color: string): { r: number; g: number; b: number; a:
     };
   }
 
-  const oklchMatch = c.match(
-    /oklch\s*\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)(?:\s*[/,]\s*([\d.]+%?))?\s*\)/,
-  );
+  const oklchMatch = c.match(/oklch\s*\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)(?:\s*[/,]\s*([\d.]+%?))?\s*\)/);
   if (oklchMatch && oklchMatch[1] && oklchMatch[3] && oklchMatch[4]) {
     let L = parseFloat(oklchMatch[1]);
     if (oklchMatch[2] === '%') L /= 100;
@@ -86,9 +84,7 @@ export function parseColor(color: string): { r: number; g: number; b: number; a:
 
     const toGamma = (v: number) => {
       const clamped = Math.max(0, Math.min(1, v));
-      return clamped <= 0.0031308
-        ? 12.92 * clamped
-        : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+      return clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
     };
 
     let alpha = 1;

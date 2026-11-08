@@ -9,7 +9,9 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
 
   test('muestra las 4 secciones lógicas del flujo veterinario', async ({ page }) => {
     // Esperar a que la navegación esté visible
-    const contenedorNav = page.locator('aside, nav[aria-label*="lateral" i], nav[aria-label*="Principal" i]').first();
+    const contenedorNav = page
+      .locator('aside, nav[aria-label*="lateral" i], nav[aria-label*="Principal" i]')
+      .first();
     await expect(contenedorNav).toBeVisible();
 
     // Comprobar la presencia o encabezados de las 4 secciones lógicas
@@ -22,29 +24,21 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
     // Secciones o enlaces clave de las 4 áreas:
     // 1. Dispensación / Recetas
     const tieneDispensacion =
-      textoNav.includes('Dispensación') ||
-      textoNav.includes('Receta') ||
-      textoNav.includes('Inicio');
+      textoNav.includes('Dispensación') || textoNav.includes('Receta') || textoNav.includes('Inicio');
     expect(tieneDispensacion, 'Debe contener la sección o enlaces de Dispensación').toBe(true);
 
     // 2. Operaciones / Recepción y Stock
     const tieneOperaciones =
-      textoNav.includes('Operaciones') ||
-      textoNav.includes('Recepciones') ||
-      textoNav.includes('Pendientes');
+      textoNav.includes('Operaciones') || textoNav.includes('Recepciones') || textoNav.includes('Pendientes');
     expect(tieneOperaciones, 'Debe contener la sección o enlaces de Operaciones').toBe(true);
 
     // 3. Registros y Consultas
-    const tieneRegistros =
-      textoNav.includes('Registros') ||
-      textoNav.includes('Vademécum');
+    const tieneRegistros = textoNav.includes('Registros') || textoNav.includes('Vademécum');
     expect(tieneRegistros, 'Debe contener la sección o enlaces de Registros').toBe(true);
 
     // 4. Sistema / Administración
     const tieneSistema =
-      textoNav.includes('Sistema') ||
-      textoNav.includes('Administración') ||
-      textoNav.includes('Ayuda');
+      textoNav.includes('Sistema') || textoNav.includes('Administración') || textoNav.includes('Ayuda');
     expect(tieneSistema, 'Debe contener la sección o enlaces de Sistema').toBe(true);
   });
 
@@ -57,8 +51,8 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
     const estadoActivo = await enlaceInicio.evaluate((el) => {
       const ariaCurrent = el.getAttribute('aria-current');
       const classList = Array.from(el.classList);
-      const tieneClaseActiva = classList.some((c) =>
-        c === 'active' || c.includes('bg-pedir-bg') || c.includes('bg-marca') || c.includes('active:'),
+      const tieneClaseActiva = classList.some(
+        (c) => c === 'active' || c.includes('bg-pedir-bg') || c.includes('bg-marca') || c.includes('active:'),
       );
       const esAriaCurrent = ariaCurrent === 'page' || ariaCurrent === 'true';
       return esAriaCurrent || tieneClaseActiva;
@@ -69,7 +63,9 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
 
   test('la navegación a otras secciones actualiza el estado activo', async ({ page }) => {
     // Navegar a /recepciones
-    const enlaceRecepciones = page.locator('nav a[href="/recepciones"], aside a[href="/recepciones"]').first();
+    const enlaceRecepciones = page
+      .locator('nav a[href="/recepciones"], aside a[href="/recepciones"]')
+      .first();
     if (await enlaceRecepciones.isVisible()) {
       await enlaceRecepciones.click();
       await expect(page).toHaveURL(/\/recepciones/);
@@ -78,7 +74,10 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
       const esRecepcionesActivo = await enlaceRecepciones.evaluate((el) => {
         const ariaCurrent = el.getAttribute('aria-current');
         const classList = Array.from(el.classList);
-        return ariaCurrent === 'page' || classList.some((c) => c === 'active' || c.includes('bg-pedir-bg') || c.includes('bg-marca'));
+        return (
+          ariaCurrent === 'page' ||
+          classList.some((c) => c === 'active' || c.includes('bg-pedir-bg') || c.includes('bg-marca'))
+        );
       });
       expect(esRecepcionesActivo, 'El enlace a "/recepciones" debe mostrarse como activo').toBe(true);
 

@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { parseColor, relativeLuminance } from './helpers';
 
 test.describe('Elevación de Tarjetas y Delimitación de Superficies (AC 2.2)', () => {
-  test('las tarjetas tienen fondo diferenciado del lienzo y bordes/sombras en Modo Claro', async ({ page }) => {
+  test('las tarjetas tienen fondo diferenciado del lienzo y bordes/sombras en Modo Claro', async ({
+    page,
+  }) => {
     await page.goto('/');
     // Activar tema claro
     const botonClaro = page.locator('button[aria-label*="claro" i], button[title*="claro" i]').first();
@@ -33,7 +35,10 @@ test.describe('Elevación de Tarjetas y Delimitación de Superficies (AC 2.2)', 
       return { canvasBg, detalles };
     });
 
-    expect(evaluacion.detalles.length, 'Debe haber tarjetas identificadas en el dashboard').toBeGreaterThanOrEqual(1);
+    expect(
+      evaluacion.detalles.length,
+      'Debe haber tarjetas identificadas en el dashboard',
+    ).toBeGreaterThanOrEqual(1);
 
     const parsedCanvas = parseColor(evaluacion.canvasBg);
     const _lumCanvas = relativeLuminance(parsedCanvas.r, parsedCanvas.g, parsedCanvas.b);
@@ -91,7 +96,10 @@ test.describe('Elevación de Tarjetas y Delimitación de Superficies (AC 2.2)', 
       return { canvasBg, detalles };
     });
 
-    expect(evaluacion.detalles.length, 'Debe haber tarjetas identificadas en modo oscuro').toBeGreaterThanOrEqual(1);
+    expect(
+      evaluacion.detalles.length,
+      'Debe haber tarjetas identificadas en modo oscuro',
+    ).toBeGreaterThanOrEqual(1);
 
     const parsedCanvas = parseColor(evaluacion.canvasBg);
 

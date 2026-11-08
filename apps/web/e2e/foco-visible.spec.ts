@@ -25,8 +25,11 @@ test.describe('Navegación por Teclado y Foco Visible (AC 2.3)', () => {
         // Verificar si tiene outline activo o box-shadow de anillo
         const outlineWidth = parseFloat(cs.outlineWidth);
         const tieneOutline = outlineWidth >= 1 && cs.outlineStyle !== 'none';
-        const tieneRingShadow = cs.boxShadow && cs.boxShadow !== 'none' && !cs.boxShadow.includes('rgba(0, 0, 0, 0)');
-        const tieneRingClass = Array.from(el.classList).some((c) => c.includes('focus-visible:ring') || c.includes('ring-'));
+        const tieneRingShadow =
+          cs.boxShadow && cs.boxShadow !== 'none' && !cs.boxShadow.includes('rgba(0, 0, 0, 0)');
+        const tieneRingClass = Array.from(el.classList).some(
+          (c) => c.includes('focus-visible:ring') || c.includes('ring-'),
+        );
 
         return {
           tagName: el.tagName,

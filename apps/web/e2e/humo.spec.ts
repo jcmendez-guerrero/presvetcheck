@@ -7,8 +7,13 @@ test('receta de compañía completa hasta la dispensación', async ({ page }) =>
   await page.getByTestId('boton-receta').click();
 
   // Página de la receta (imagen cualquiera: el extractor falso devuelve la fixture elegida).
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64');
-  await page.getByTestId('subir-receta').setInputFiles({ name: 'receta.png', mimeType: 'image/png', buffer: png });
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=',
+    'base64',
+  );
+  await page
+    .getByTestId('subir-receta')
+    .setInputFiles({ name: 'receta.png', mimeType: 'image/png', buffer: png });
   await page.getByTestId('enviar-receta').click();
 
   // Revisión: la IA propone, la persona decide.

@@ -44,8 +44,9 @@ test.describe('Layout Responsive y Ausencia de Superposiciones (AC 1.1)', () => 
 
         // 1. Logotipo o enlace principal de marca
         const logo =
-          document.querySelector('header a[href="/"], header .logo-clearspace, header img[alt*="Mascotix"]') ??
-          document.querySelector('header img');
+          document.querySelector(
+            'header a[href="/"], header .logo-clearspace, header img[alt*="Mascotix"]',
+          ) ?? document.querySelector('header img');
         if (logo) {
           const r = logo.getBoundingClientRect();
           if (r.width > 0 && r.height > 0) {
@@ -62,9 +63,7 @@ test.describe('Layout Responsive y Ausencia de Superposiciones (AC 1.1)', () => 
 
         // 2. Subtítulo institucional "Medicamentos Veterinarios" (si está visible)
         const todosLosSpans = Array.from(document.querySelectorAll('header span, header p'));
-        const subtitulo = todosLosSpans.find((el) =>
-          el.textContent?.includes('Medicamentos Veterinarios'),
-        );
+        const subtitulo = todosLosSpans.find((el) => el.textContent?.includes('Medicamentos Veterinarios'));
         if (subtitulo) {
           const r = subtitulo.getBoundingClientRect();
           const estilo = window.getComputedStyle(subtitulo);
@@ -98,13 +97,14 @@ test.describe('Layout Responsive y Ausencia de Superposiciones (AC 1.1)', () => 
         }
 
         // 4. Buscador rápido / paleta ⌘K en Topbar (si existe)
-        const todosLosBotones = Array.from(document.querySelectorAll('header button, [data-testid="busqueda-rapida"]'));
+        const todosLosBotones = Array.from(
+          document.querySelectorAll('header button, [data-testid="busqueda-rapida"]'),
+        );
         const buscador =
           document.querySelector('[data-testid="busqueda-rapida"]') ??
           todosLosBotones.find(
             (b) =>
-              b.textContent?.includes('⌘K') ||
-              b.getAttribute('aria-label')?.toLowerCase().includes('buscar'),
+              b.textContent?.includes('⌘K') || b.getAttribute('aria-label')?.toLowerCase().includes('buscar'),
           );
         if (buscador) {
           const r = buscador.getBoundingClientRect();
@@ -174,10 +174,7 @@ test.describe('Layout Responsive y Ausencia de Superposiciones (AC 1.1)', () => 
 
         if (boxA && boxB) {
           const colisiona = doBoxesCollide(boxA, boxB);
-          expect(
-            colisiona,
-            `Colisión detectada en ${vp.nombre} entre [${idA}] y [${idB}]`,
-          ).toBe(false);
+          expect(colisiona, `Colisión detectada en ${vp.nombre} entre [${idA}] y [${idB}]`).toBe(false);
         }
       }
     });
