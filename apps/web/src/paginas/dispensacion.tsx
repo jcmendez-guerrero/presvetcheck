@@ -382,22 +382,37 @@ export function Dispensacion() {
           {l.lineaId && (
             <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />
           )}
-          <Tarjeta titulo="Lote recomendado (caduca antes)">
+          <Tarjeta
+            titulo="Lote recomendado FEFO (caduca antes)"
+            destacada={!!objetivo.lote}
+            className="border-2 border-marca/30 dark:border-acento/40"
+          >
             {objetivo.lote ? (
-              <p data-testid="lote-recomendado" className="font-mono text-4xl font-bold text-marca">
-                {objetivo.lote}
-              </p>
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <p
+                    data-testid="lote-recomendado"
+                    className="font-mono text-4xl font-extrabold tracking-wide text-marca dark:text-acento"
+                  >
+                    {objetivo.lote}
+                  </p>
+                  {'caducidad' in objetivo && objetivo.caducidad && (
+                    <span className="inline-flex items-center rounded-lg bg-dispensar-bg px-2.5 py-1 text-sm font-bold text-dispensar">
+                      Caduca: {fecha(objetivo.caducidad as string)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-texto dark:text-slate-300">
+                  {CN} <span className="font-semibold text-marca dark:text-acento">{objetivo.cn}</span>
+                </p>
+              </div>
             ) : (
-              <p>Sin propuesta de lote: consulta el stock.</p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Sin propuesta automática de lote: consulta las existencias en mostrador.
+              </p>
             )}
-            <p className="mt-1">
-              {CN} {objetivo.cn}{' '}
-              {'caducidad' in objetivo && objetivo.caducidad
-                ? `· caduca el ${fecha(objetivo.caducidad as string)}`
-                : ''}
-            </p>
             {evd.lotes?.alternativaQueCubre && (
-              <p className="mt-1 text-sustituir">
+              <p className="mt-2 text-sm font-semibold text-sustituir">
                 Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}
               </p>
             )}
@@ -584,19 +599,23 @@ export function Dispensacion() {
           </Tarjeta>
 
           {msg && <Mensaje tipo="error">{msg}</Mensaje>}
-          <Boton
-            data-testid="confirmar-dispensacion"
-            className="text-lg"
-            disabled={
-              !envases.length ||
-              enviando ||
-              (evd.psicotropo && !dniRetira.trim()) ||
-              (modoRetrospectivo && !fechaOriginal)
-            }
-            onClick={() => void enviar(forzado)}
-          >
-            Confirmar dispensación
-          </Boton>
+          <div className="pt-2">
+            <Boton
+              data-testid="confirmar-dispensacion"
+              tamano="lg"
+              cargando={enviando}
+              className="text-lg w-full sm:w-auto shadow-md"
+              disabled={
+                !envases.length ||
+                enviando ||
+                (evd.psicotropo && !dniRetira.trim()) ||
+                (modoRetrospectivo && !fechaOriginal)
+              }
+              onClick={() => void enviar(forzado)}
+            >
+              Confirmar dispensación
+            </Boton>
+          </div>
         </ConReceta>
       </Pagina>
       {modal && (

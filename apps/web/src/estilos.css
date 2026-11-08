@@ -2,30 +2,117 @@
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/bricolage-grotesque';
 
-/* Identidad visual (SPEC §2.1) y colores semánticos de estado (nunca solo color: siempre icono + texto). */
+/* 
+ * Sistema de Diseño Oficial Mundo Mascotix (SPEC §2.1 y Manual de Identidad Visual)
+ * 5 Colores Institucionales:
+ *   - Azul petróleo (#016581): Primario, titulares H1/H2, botones principales y acciones clave
+ *   - Azul medio (#2f8198): Apoyo, subtítulos H3, iconos, enlaces, líneas
+ *   - Turquesa (#60abb8): Acento secundario, huella e isotipo, bordes activos y detalles
+ *   - Azul noche (#002028): Texto de lectura principal (contraste 16.5:1 sobre fondo claro)
+ *   - Blanco hielo (#f2f8f9): Lienzo base y tarjetas de apoyo
+ */
 @theme {
   --color-marca: #016581;
+  --color-marca-apoyo: #2f8198;
   --color-marca-2: #2f8198;
   --color-acento: #60abb8;
   --color-fondo: #f2f8f9;
   --color-texto: #002028;
-  --color-dorado: #e3a857;
+  --color-superficie: #ffffff;
+  --color-superficie-borde: rgba(96, 171, 184, 0.25);
+
+  /* Colores semánticos de estado regulatorio (nunca solo color: siempre icono + texto) */
+  --color-dispensar: #047857;
+  --color-dispensar-bg: #d1fae5;
   --color-sustituir: #b45309;
   --color-sustituir-bg: #fef3c7;
   --color-noconforme: #b91c1c;
   --color-noconforme-bg: #fee2e2;
-  --color-dispensar: #047857;
-  --color-dispensar-bg: #d1fae5;
   --color-pedir: #016581;
   --color-pedir-bg: #e0f2f7;
   --color-psicotropo: #6b21a8;
   --color-psicotropo-bg: #f3e8ff;
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --color-dorado: #e3a857;
+  --color-dorado-bg: #fef9c3;
+
+  /* Tipografías oficiales */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-titulo: 'Bricolage Grotesque Variable', 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-html, body { background: var(--color-fondo); color: var(--color-texto); }
-h1, h2, h3 { font-family: var(--font-titulo); }
-/* Objetivos táctiles ≥ 44 px (SPEC §8). */
-button, a.boton, select, input[type='checkbox'] + span { min-height: 44px; }
-:focus-visible { outline: 3px solid var(--color-dorado); outline-offset: 2px; }
+/* Modo oscuro basado en paleta institucional (activado con .dark en <html>) */
+.dark {
+  --color-fondo: #002028;
+  --color-texto: #f2f8f9;
+  --color-superficie: #002c36;
+  --color-superficie-borde: rgba(96, 171, 184, 0.35);
+  --color-marca: #2f8198;
+  --color-marca-apoyo: #60abb8;
+  --color-marca-2: #60abb8;
+  --color-acento: #60abb8;
+
+  /* Ajustes de contraste para semántica regulatoria en modo oscuro */
+  --color-dispensar: #6ee7b7;
+  --color-dispensar-bg: #064e3b;
+  --color-sustituir: #fcd34d;
+  --color-sustituir-bg: #451a03;
+  --color-noconforme: #fca5a5;
+  --color-noconforme-bg: #450a0a;
+  --color-psicotropo: #d8b4fe;
+  --color-psicotropo-bg: #3b0764;
+  --color-pedir: #60abb8;
+  --color-pedir-bg: #003644;
+}
+
+html,
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Regla WCAG 2.2 Focus Not Obscured: garantiza que ningún campo enfocado quede tapado por barras adhesivas */
+html {
+  scroll-padding-top: calc(var(--altura-cabecera, 64px) + var(--altura-banda, 0px) + 16px);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-titulo);
+}
+
+/* Objetivos táctiles ergonómicos ≥ 44 px (SPEC §8, WCAG 2.5.5/2.5.8) */
+button,
+a.boton,
+select,
+input[type='checkbox'] + span,
+[role='button'] {
+  min-height: 44px;
+}
+
+/* Anillo de foco accesible con Dorado de seguridad (#E3A857) */
+:focus-visible {
+  outline: 3px solid var(--color-dorado);
+  outline-offset: 2px;
+}
+
+/* Utilidad para garantizar el margen perimetral del logotipo (altura de la letra «M») */
+.logo-clearspace {
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Respeto a usuarios con sensibilidad al movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

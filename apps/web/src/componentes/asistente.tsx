@@ -31,6 +31,7 @@ import {
 } from '@mmx/shared';
 import { ApiError, get, post, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useFocusTrap } from '../lib/a11y';
 import { Boton } from './ui';
 
 /**
@@ -160,13 +161,13 @@ function PanelAsistente({
   const [ejemplos, setEjemplos] = useState<string[]>(estado.preguntasEjemplo);
   const fin = useRef<HTMLDivElement>(null);
   const campo = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(panelRef, true, onCerrar);
 
   useEffect(() => {
     campo.current?.focus();
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar();
-    document.addEventListener('keydown', esc);
-    return () => document.removeEventListener('keydown', esc);
-  }, [onCerrar]);
+  }, []);
   useEffect(() => {
     fin.current?.scrollIntoView?.({ block: 'end' });
   }, [mensajes]);
@@ -214,10 +215,12 @@ function PanelAsistente({
 
   return (
     <div
+      ref={panelRef}
       role="dialog"
+      aria-modal="true"
       aria-label="Asistente de consultas"
       data-testid="asistente-panel"
-      className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl ring-1 ring-slate-300 sm:w-[28rem]"
+      className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl ring-1 ring-slate-300 sm:w-[28rem] dark:bg-superficie dark:ring-superficie-borde dark:text-texto"
     >
       <header className="flex items-center gap-2 bg-marca px-4 py-3 text-white">
         <MessageCircleQuestion aria-hidden className="h-6 w-6" />
@@ -513,60 +516,68 @@ export function TablaComparativaCriterios({
 }) {
   if (!comparativa || comparativa.length === 0) return null;
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-superficie-borde shadow-xs">
       <table
-        className="w-full text-left text-xs text-slate-800"
+        className="w-full text-left text-xs text-texto dark:text-slate-200"
         data-testid="tabla-comparativa-sustitucion"
         aria-label="Comparativa de criterios de sustitución"
       >
         <thead>
-          <tr className="border-b border-slate-300 bg-white/60 font-semibold text-slate-700">
-            <th scope="col" className="p-2">
+          <tr className="border-b border-slate-200 bg-slate-50 font-bold text-marca dark:bg-black/30 dark:text-acento dark:border-superficie-borde">
+            <th scope="col" className="p-2.5">
               Criterio
             </th>
-            <th scope="col" className="p-2">
+            <th scope="col" className="p-2.5">
               Prescrito
             </th>
-            <th scope="col" className="p-2">
+            <th scope="col" className="p-2.5">
               Candidato
             </th>
-            <th scope="col" className="p-2 text-center">
+            <th scope="col" className="p-2.5 text-center">
               Estado
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200">
+        <tbody className="divide-y divide-slate-200 dark:divide-superficie-borde">
           {comparativa.map((c) => (
             <tr
               key={c.criterio}
               className={
-                c.estado === 'aviso' ? 'bg-amber-50/50' : c.coincide ? 'bg-white/40' : 'bg-noconforme-bg/40'
+                c.estado === 'aviso'
+                  ? 'bg-amber-50/60 dark:bg-sustituir-bg/20'
+                  : c.coincide
+                    ? 'bg-white dark:bg-superficie'
+                    : 'bg-noconforme-bg/40 dark:bg-noconforme-bg/20'
               }
             >
-              <td className="p-2 font-medium text-slate-900">
+              <td className="p-2.5 font-semibold text-texto dark:text-slate-100">
                 {c.criterio}
-                {c.detalle && <p className="text-[10px] font-normal text-slate-500">{c.detalle}</p>}
+                {c.detalle && (
+                  <p className="text-[10px] font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                    {c.detalle}
+                  </p>
+                )}
               </td>
-              <td className="p-2 text-slate-700">{c.prescrito}</td>
-              <td className="p-2 text-slate-700">{c.candidato}</td>
-              <td className="p-2 text-center">
+              <td className="p-2.5 text-texto dark:text-slate-200">{c.prescrito}</td>
+              <td className="p-2.5 text-texto dark:text-slate-200">{c.candidato}</td>
+              <td className="p-2.5 text-center">
                 {c.estado === 'aviso' ? (
                   <span
-                    className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800"
+                    className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:bg-sustituir/30 dark:text-sustituir"
                     title={c.detalle ?? 'Aviso: comprobar ficha técnica'}
                   >
                     ⚠ Aviso
                   </span>
                 ) : c.coincide ? (
                   <span
-                    className="inline-flex items-center gap-1 rounded bg-dispensar-bg px-2 py-0.5 font-medium text-dispensar"
+                    className="inline-flex items-center gap-1 rounded-md bg-dispensar-bg px-2 py-0.5 text-[11px] font-bold text-dispensar dark:bg-dispensar-bg/30"
                     title={c.detalle ?? 'Cumple el requisito normativo'}
                   >
                     ✓ Coincide
                   </span>
                 ) : (
                   <span
-                    className="inline-flex items-center gap-1 rounded bg-noconforme-bg px-2 py-0.5 font-medium text-noconforme"
+                    className="inline-flex items-center gap-1 rounded-md bg-noconforme-bg px-2 py-0.5 text-[11px] font-bold text-noconforme dark:bg-noconforme-bg/30"
                     title={c.detalle ?? 'Discrepancia reglamentaria'}
                   >
                     ✗ Discrepancia
@@ -686,35 +697,42 @@ function Fuentes({ fuentes }: { fuentes: FuenteCitada[] }) {
   };
   return (
     <div>
-      <p className="text-sm font-semibold">Fuentes</p>
-      <ul className="mt-1 flex flex-wrap gap-2">
+      <p className="text-sm font-bold text-marca dark:text-acento">Fuentes oficiales citadas</p>
+      <ul className="mt-1.5 flex flex-wrap gap-2">
         {fuentes.map((f) => (
           <li key={f.fuenteId}>
             <button
               type="button"
               data-testid="asistente-fuente"
               aria-expanded={abierta === f.fuenteId}
-              className="inline-flex min-h-11 items-center gap-1 rounded-full bg-white px-3 text-sm text-marca ring-1 ring-marca/30 hover:bg-fondo"
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-1 text-sm font-medium transition-all cursor-pointer ${
+                abierta === f.fuenteId
+                  ? 'bg-marca text-white dark:bg-acento dark:text-texto shadow-xs ring-2 ring-marca'
+                  : 'bg-white text-marca ring-1 ring-marca/30 hover:bg-pedir-bg dark:bg-superficie dark:text-acento dark:ring-superficie-borde dark:hover:bg-pedir-bg/20'
+              }`}
               onClick={() => void abrir(f)}
             >
-              <BookOpen aria-hidden className="h-4 w-4" /> {f.titulo}{' '}
-              <span className="text-xs text-slate-500">({f.version})</span>
+              <BookOpen aria-hidden className="h-4 w-4 shrink-0" />
+              <span>{f.titulo}</span>
+              <span className="text-xs opacity-75">({f.version})</span>
             </button>
           </li>
         ))}
       </ul>
       {abierta && (
-        <div className="mt-2 rounded-lg bg-white p-2 text-sm ring-1 ring-slate-200">
-          {fallo && <p>No se ha podido abrir la fuente.</p>}
-          {!fallo && !fragmento && <p className="animate-pulse">Abriendo la fuente…</p>}
+        <div className="mt-2.5 rounded-xl bg-white p-3.5 text-sm ring-1 ring-slate-200/80 shadow-xs dark:bg-superficie dark:ring-superficie-borde">
+          {fallo && <p className="text-noconforme">No se ha podido abrir la fuente.</p>}
+          {!fallo && !fragmento && <p className="animate-pulse text-slate-500">Abriendo la fuente…</p>}
           {fragmento && (
             <>
               {!fragmento.versionVigente && (
-                <p className="mb-1 rounded bg-sustituir-bg p-1 text-xs font-semibold">
+                <p className="mb-2 rounded-lg bg-sustituir-bg/80 p-2 text-xs font-semibold text-sustituir dark:bg-sustituir-bg/30">
                   Esta fuente ha cambiado desde que se dio la respuesta: se muestra la versión actual.
                 </p>
               )}
-              <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">{fragmento.contenido}</pre>
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-2.5 font-mono text-xs text-texto select-text dark:bg-black/30 dark:text-slate-200">
+                {fragmento.contenido}
+              </pre>
             </>
           )}
         </div>

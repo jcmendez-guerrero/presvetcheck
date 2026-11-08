@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, XCircle } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
 import { ApiError, get, post, put } from '../lib/api';
 import { CN, type Motivo } from '../lib/textos';
@@ -165,6 +165,9 @@ export function Revision() {
         const c = await post<{ incidencias: Motivo[] }>(`/api/recetas/${id}/comprobar`);
         if (c.incidencias.length) {
           setFaltan(c.incidencias);
+          setTimeout(() => {
+            document.getElementById('resumen-errores')?.focus();
+          }, 50);
           return;
         }
       }
@@ -196,6 +199,29 @@ export function Revision() {
         <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} />
 
         <div className="flex flex-col gap-5">
+          {faltan && faltan.length > 0 && (
+            <div
+              id="resumen-errores"
+              role="alert"
+              tabIndex={-1}
+              aria-labelledby="titulo-resumen-errores"
+              className="rounded-2xl border-2 border-noconforme bg-noconforme-bg/85 p-4 shadow-sm focus:outline-none focus:ring-3 focus:ring-dorado dark:bg-noconforme-bg/20"
+            >
+              <h2
+                id="titulo-resumen-errores"
+                className="flex items-center gap-2 text-base font-bold text-noconforme"
+              >
+                <XCircle aria-hidden className="h-5 w-5 shrink-0" />
+                <span>
+                  Hay {faltan.length} {faltan.length === 1 ? 'incidencia' : 'incidencias'} que revisar con la
+                  receta original:
+                </span>
+              </h2>
+              <div className="mt-3">
+                <ListaMotivos motivos={faltan} />
+              </div>
+            </div>
+          )}
           <Tarjeta titulo="1 · Para dispensar">
             <p className="mb-3 text-sm text-slate-600">
               Lo imprescindible para saber si se puede dispensar y cruzarlo con el envase que vas a entregar.
