@@ -105,8 +105,8 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
             especies: especiesIds,
           });
           nombresEtiquetas = {
-            formaPrescrito: p.formaId !== null ? mapaNombres.formas.get(p.formaId) ?? null : null,
-            formaCandidato: c.formaId !== null ? mapaNombres.formas.get(c.formaId) ?? null : null,
+            formaPrescrito: p.formaId !== null ? (mapaNombres.formas.get(p.formaId) ?? null) : null,
+            formaCandidato: c.formaId !== null ? (mapaNombres.formas.get(c.formaId) ?? null) : null,
             viasPrescrito: p.viaIds
               .map((v) => mapaNombres.vias.get(v))
               .filter((x): x is string => typeof x === 'string'),
@@ -119,7 +119,7 @@ export function herramientaSimularEquivalencia(d: DepsHerramientas): Herramienta
             especiesCandidato: c.especieIds
               .map((e) => mapaNombres.especies.get(e))
               .filter((x): x is string => typeof x === 'string'),
-            especieContexto: especieId !== null ? mapaNombres.especies.get(especieId) ?? null : null,
+            especieContexto: especieId !== null ? (mapaNombres.especies.get(especieId) ?? null) : null,
           };
         } catch {
           // Degradación suave si la consulta de maestras no está disponible

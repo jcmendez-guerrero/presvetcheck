@@ -35,7 +35,13 @@ import {
 import { borradorDesdeExtraccion } from '@mmx/extraction';
 import { identificarMedicamentos } from './identificacion';
 import type { ExtractionResult } from '@mmx/shared';
-import { DomainError, PeticionSobreescribirSustitucion, RecetaConfirmada, enParalelo, type RecetaConfirmadaInput } from '@mmx/shared';
+import {
+  DomainError,
+  PeticionSobreescribirSustitucion,
+  RecetaConfirmada,
+  enParalelo,
+  type RecetaConfirmadaInput,
+} from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
 import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
@@ -929,7 +935,8 @@ export class RecetasService {
     if (!presCandidato) throw new DomainError('NO_ENCONTRADO', 'Medicamento sustituto no encontrado');
     const nregCandidato = peticion.nregistro ?? presCandidato.nregistro;
     const medCandidato = nregCandidato ? await this.med.info(nregCandidato) : null;
-    if (!medCandidato) throw new DomainError('NO_ENCONTRADO', 'Ficha del medicamento candidato no encontrada');
+    if (!medCandidato)
+      throw new DomainError('NO_ENCONTRADO', 'Ficha del medicamento candidato no encontrada');
 
     if (medCandidato.biologico || medCandidato.inmunologico) {
       throw new DomainError(
@@ -1046,7 +1053,10 @@ export class RecetasService {
             };
           }
         }
-        await tx.update(receta).set({ evaluacion: ev as never }).where(eq(receta.id, recetaId));
+        await tx
+          .update(receta)
+          .set({ evaluacion: ev as never })
+          .where(eq(receta.id, recetaId));
       }
 
       await audit(tx, c, 'SUSTITUCION_SOBREESCRITA', 'receta_linea', linea.id, null, {

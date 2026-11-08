@@ -540,11 +540,7 @@ export function TablaComparativaCriterios({
             <tr
               key={c.criterio}
               className={
-                c.estado === 'aviso'
-                  ? 'bg-amber-50/50'
-                  : c.coincide
-                    ? 'bg-white/40'
-                    : 'bg-noconforme-bg/40'
+                c.estado === 'aviso' ? 'bg-amber-50/50' : c.coincide ? 'bg-white/40' : 'bg-noconforme-bg/40'
               }
             >
               <td className="p-2 font-medium text-slate-900">

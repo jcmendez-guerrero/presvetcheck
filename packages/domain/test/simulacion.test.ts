@@ -376,7 +376,9 @@ describe('simularEquivalencia (SPEC §4.4.2)', () => {
       viaIds: [54], // Vía oral
       especieIds: [ESPECIE.PERROS, ESPECIE.GATOS],
       atc: ['QJ01CR02'],
-      indicaciones: [{ especieId: null, texto: 'Infecciones bacterianas del tracto respiratorio y urinario' }],
+      indicaciones: [
+        { especieId: null, texto: 'Infecciones bacterianas del tracto respiratorio y urinario' },
+      ],
       tiemposEspera: [],
       estado: 'autorizado' as const,
       comerc: true,

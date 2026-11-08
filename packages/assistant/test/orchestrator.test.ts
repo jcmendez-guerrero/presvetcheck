@@ -57,7 +57,12 @@ const herramientaBuscarSustitutosMock: Herramienta<{ nombre?: string | undefined
           sustitucionPermitida: true,
           requiereAclaracionIndicacion: true,
           candidatosConStock: [
-            { cn: '584958', nombre: 'Prednicortone 5 mg 30 comprimidos', stockDisponible: 7, tieneStock: true },
+            {
+              cn: '584958',
+              nombre: 'Prednicortone 5 mg 30 comprimidos',
+              stockDisponible: 7,
+              tieneStock: true,
+            },
           ],
           candidatosSinStock: [],
           obligacionesDispensador: ['Conformidad tutor', 'Aviso prescriptor', 'Bandeja garante'],

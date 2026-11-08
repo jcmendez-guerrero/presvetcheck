@@ -92,7 +92,24 @@ const rVademecum = createRoute({
   path: '/vademecum',
   component: Vademecum,
 });
-const rutas = [r0, r1, r2, rRegistro, r3, r4, r5, r6, r7, r8, r9, rDisp, rVenta, rAyuda, rAsistente, rVademecum];
+const rutas = [
+  r0,
+  r1,
+  r2,
+  rRegistro,
+  r3,
+  r4,
+  r5,
+  r6,
+  r7,
+  r8,
+  r9,
+  rDisp,
+  rVenta,
+  rAyuda,
+  rAsistente,
+  rVademecum,
+];
 const router = createRouter({ routeTree: raiz.addChildren(rutas) });
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {

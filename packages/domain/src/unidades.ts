@@ -176,6 +176,19 @@ export function textoConcentracion(c: Concentracion): string {
 const primerNombre = (s: string) => s.split(' # ')[0]!.trim();
 const UNIDAD_REGEX = /^(mg|g|kg|µg|mcg|microgramos?|ng|ui|u\.?i\.?|ml|l|%|mmol|meq|ufc|dosis)$/i;
 
+function limpiarPuntuacionFinal(str: string): string {
+  let fin = str.length;
+  while (fin > 0) {
+    const ch = str[fin - 1];
+    if (ch === '/' || ch === ',' || ch === '.' || ch === ';') {
+      fin--;
+    } else {
+      break;
+    }
+  }
+  return str.slice(0, fin);
+}
+
 /**
  * Concentración nominal autorizada en la denominación oficial del medicamento
  * ("AMODIP 1,25 mg COMPRIMIDOS..." -> "1,25 mg",
@@ -189,20 +202,21 @@ export function concentracionDelNombre(nombre: string): string | null {
   const out: string[] = [];
   for (const w of t.slice(ini)) {
     if (/^[A-ZÁÉÍÓÚÑ]{3,}[,.]?$/.test(w) && w !== 'UFC') break;
-    if (!/[\d/+%-]/.test(w) && !UNIDAD_REGEX.test(w.replace(/[/,]+$/, '').split('/')[0] ?? '')) break;
+    if (!/[\d/+%-]/.test(w) && !UNIDAD_REGEX.test(limpiarPuntuacionFinal(w).split('/')[0] ?? '')) break;
     out.push(w);
   }
-  const r = out.join(' ').replace(/[,;]$/, '');
+  const r = limpiarPuntuacionFinal(out.join(' '));
   if (!/\d/.test(r) || !/[a-zµ%]/i.test(r)) return null;
   return normalizarConcentracionTexto(r);
 }
 
 export function normalizarConcentracionTexto(c: string): string {
   return c
-    .replace(/\s*\/\s*(?=\d)/g, ' / ')
-    .replace(/([a-zµ%]+)\s*\/\s*([a-z]+)/gi, '$1/$2')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*(\d)/g, ' / $1')
     .replace(/\s*\+\s*/g, ' + ')
-    .replace(/(\d+(?:,\d+)?)\s*(mg|g|kg|µg|mcg|microgramos?|ml|l|%|ui)(?!\/)/gi, '$1 $2')
+    .replace(/(\d+(?:,\d+)?)\s*(mg|g|kg|µg|mcg|microgramos?|ml|l|%|ui)/gi, '$1 $2')
+    .replace(/([a-zµ%]+)\s*\/\s*([a-z]+)/gi, '$1/$2')
     .replace(/\s+/g, ' ')
     .trim();
 }

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { parseGs1, bytesLegibles } from '@mmx/gs1';
-import { evaluarEquivalencia, proponerLotes, simularEquivalencia, validarVentaSinReceta, type NombresEquivalencia } from '@mmx/domain';
+import {
+  evaluarEquivalencia,
+  proponerLotes,
+  simularEquivalencia,
+  validarVentaSinReceta,
+  type NombresEquivalencia,
+} from '@mmx/domain';
 import { DomainError, PeticionCompararMedicamentos, type Canal } from '@mmx/shared';
 import { eq } from 'drizzle-orm';
 import { gtinCn } from '@mmx/db';
@@ -14,15 +20,33 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
   const med = new MedicamentosService(d);
   const pre = requiereRol(...ROLES.operativa, 'admin');
 
-  app.get('/api/medicamentos/buscar', { preHandler: pre, schema: { tags: ['medicamentos'], summary: 'Candidatos desde la caché (trigramas)', querystring: BuscarQuery } }, async (req) =>
-    d.cimavet.buscar(req.query.q, { especieId: req.query.especie ?? null, formaId: req.query.forma ?? null }),
+  app.get(
+    '/api/medicamentos/buscar',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['medicamentos'],
+        summary: 'Candidatos desde la caché (trigramas)',
+        querystring: BuscarQuery,
+      },
+    },
+    async (req) =>
+      d.cimavet.buscar(req.query.q, {
+        especieId: req.query.especie ?? null,
+        formaId: req.query.forma ?? null,
+      }),
   );
 
   app.get(
     '/api/medicamentos/presentaciones/:cn/resumen',
     {
       preHandler: pre,
-      schema: { tags: ['medicamentos'], summary: 'Nombre, forma, principios activos y concentración de una presentación', params: z.object({ cn: z.string().regex(/^\d{6}$/) }), querystring: z.object({ especie: z.coerce.number().int().optional() }) },
+      schema: {
+        tags: ['medicamentos'],
+        summary: 'Nombre, forma, principios activos y concentración de una presentación',
+        params: z.object({ cn: z.string().regex(/^\d{6}$/) }),
+        querystring: z.object({ especie: z.coerce.number().int().optional() }),
+      },
     },
     async (req) => {
       const r = await med.resumen(req.params.cn, req.query.especie ?? null);
@@ -33,12 +57,24 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
 
   app.get(
     '/api/medicamentos/:nregistro',
-    { preHandler: pre, schema: { tags: ['medicamentos'], params: z.object({ nregistro: z.string().min(1) }), querystring: z.object({ vivo: z.enum(['0', '1']).default('0') }) } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['medicamentos'],
+        params: z.object({ nregistro: z.string().min(1) }),
+        querystring: z.object({ vivo: z.enum(['0', '1']).default('0') }),
+      },
+    },
     async (req) => {
       const cacheDesde = req.query.vivo === '1' ? await med.verificar(req.params.nregistro) : null;
       const m = await med.info(req.params.nregistro);
       if (!m) throw new DomainError('NO_ENCONTRADO');
-      return { ...m, presentaciones: await d.cimavet.presentacionesDe([m.nregistro]), cacheDesde, especies: await med.nombresEspecies(m.especieIds) };
+      return {
+        ...m,
+        presentaciones: await d.cimavet.presentacionesDe([m.nregistro]),
+        cacheDesde,
+        especies: await med.nombresEspecies(m.especieIds),
+      };
     },
   );
 
@@ -49,7 +85,11 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
       schema: {
         tags: ['medicamentos'],
         params: z.object({ nregistro: z.string().min(1) }),
-        querystring: z.object({ especie: z.coerce.number().int().optional(), indicacion: z.string().optional(), produccion: z.enum(['0', '1']).default('0') }),
+        querystring: z.object({
+          especie: z.coerce.number().int().optional(),
+          indicacion: z.string().optional(),
+          produccion: z.enum(['0', '1']).default('0'),
+        }),
       },
     },
     async (req) => {
@@ -61,11 +101,24 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
         const e = evaluarEquivalencia(
           p,
           c.medicamento,
-          { especieId: req.query.especie ?? null, especieProduccion: req.query.produccion === '1', clase: 'ordinaria', indicacion: req.query.indicacion ?? null, viaPrescritaId: null, duracionDias: null },
+          {
+            especieId: req.query.especie ?? null,
+            especieProduccion: req.query.produccion === '1',
+            clase: 'ordinaria',
+            indicacion: req.query.indicacion ?? null,
+            viaPrescritaId: null,
+            duracionDias: null,
+          },
           d.rules.bundle.equivalencia,
         );
         const s = await d.stock.lotes(c.presentacion.cn, c.medicamento);
-        out.push({ cn: c.presentacion.cn, nombre: c.presentacion.nombre, labtitular: c.medicamento.labtitular, equivalencia: e, stock: s.estado === 'OK' ? s.lotes.reduce((a, l) => a + l.disponible, 0) : null });
+        out.push({
+          cn: c.presentacion.cn,
+          nombre: c.presentacion.nombre,
+          labtitular: c.medicamento.labtitular,
+          equivalencia: e,
+          stock: s.estado === 'OK' ? s.lotes.reduce((a, l) => a + l.disponible, 0) : null,
+        });
       }
       return out;
     },
@@ -73,36 +126,75 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
 
   app.get(
     '/api/stock/:cn/fefo',
-    { preHandler: pre, schema: { tags: ['stock'], summary: 'Propuesta de lote(s) FEFO', params: z.object({ cn: z.string().regex(/^\d{6}$/) }), querystring: FefoQuery } },
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['stock'],
+        summary: 'Propuesta de lote(s) FEFO',
+        params: z.object({ cn: z.string().regex(/^\d{6}$/) }),
+        querystring: FefoQuery,
+      },
+    },
     async (req) => {
       const pres = await med.presentacion(req.params.cn);
       const m = pres ? await med.info(pres.nregistro) : null;
       const s = await d.stock.lotes(req.params.cn, m ? { nombre: m.nombre, labtitular: m.labtitular } : null);
       if (s.estado !== 'OK') return { estado: s.estado, propuesta: null };
-      return { estado: s.estado, avisosStock: s.avisos, propuesta: proponerLotes({ lotes: s.lotes, unidades: req.query.unidades, hoy: hoyDe(d), duracionDias: req.query.duracionDias ?? null }) };
+      return {
+        estado: s.estado,
+        avisosStock: s.avisos,
+        propuesta: proponerLotes({
+          lotes: s.lotes,
+          unidades: req.query.unidades,
+          hoy: hoyDe(d),
+          duracionDias: req.query.duracionDias ?? null,
+        }),
+      };
     },
   );
 
-  app.post('/api/scan/parse', { preHandler: pre, schema: { tags: ['stock'], summary: 'Parsea un código GS1/EAN → GTIN, CN, lote, caducidad, serie', body: ScanDto } }, async (req) => {
-    const r = parseGs1(req.body.raw, { gsSubstitute: d.config.SCANNER_GS_SUBSTITUTE });
-    let cn = r.ok ? r.cn : null;
-    let origen: string | null = r.ok ? r.cnOrigen : null;
-    if (r.ok && r.gtin) {
-      const [aprendido] = await d.db.select().from(gtinCn).where(eq(gtinCn.gtin, r.gtin));
-      if (aprendido) {
-        cn = aprendido.cn;
-        origen = 'aprendido';
+  app.post(
+    '/api/scan/parse',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['stock'],
+        summary: 'Parsea un código GS1/EAN → GTIN, CN, lote, caducidad, serie',
+        body: ScanDto,
+      },
+    },
+    async (req) => {
+      const r = parseGs1(req.body.raw, { gsSubstitute: d.config.SCANNER_GS_SUBSTITUTE });
+      let cn = r.ok ? r.cn : null;
+      let origen: string | null = r.ok ? r.cnOrigen : null;
+      if (r.ok && r.gtin) {
+        const [aprendido] = await d.db.select().from(gtinCn).where(eq(gtinCn.gtin, r.gtin));
+        if (aprendido) {
+          cn = aprendido.cn;
+          origen = 'aprendido';
+        }
       }
-    }
-    const pres = cn ? await med.presentacion(cn) : null;
-    return { ...r, cn, cnOrigen: origen, cnEnCimavet: !!pres, presentacion: pres, bytes: bytesLegibles(req.body.raw) };
-  });
+      const pres = cn ? await med.presentacion(cn) : null;
+      return {
+        ...r,
+        cn,
+        cnOrigen: origen,
+        cnEnCimavet: !!pres,
+        presentacion: pres,
+        bytes: bytesLegibles(req.body.raw),
+      };
+    },
+  );
 
   app.get(
     '/api/venta/comprobar',
     {
       preHandler: requiereRol(...ROLES.operativa),
-      schema: { tags: ['dispensaciones'], summary: 'Comprueba si un CN se puede vender sin receta', querystring: z.object({ cn: z.string().regex(/^\d{6}$/), canal: z.enum(['presencial', 'online']) }) },
+      schema: {
+        tags: ['dispensaciones'],
+        summary: 'Comprueba si un CN se puede vender sin receta',
+        querystring: z.object({ cn: z.string().regex(/^\d{6}$/), canal: z.enum(['presencial', 'online']) }),
+      },
     },
     async (req) => {
       const pres = await med.presentacion(req.query.cn);
@@ -112,11 +204,19 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
       const s = await d.stock.lotes(req.query.cn, m);
       return {
         presentacion: pres,
-        medicamento: { nombre: m.nombre, receta: m.receta, psicotropo: m.psicotropo, especies: await med.nombresEspecies(m.especieIds) },
+        medicamento: {
+          nombre: m.nombre,
+          receta: m.receta,
+          psicotropo: m.psicotropo,
+          especies: await med.nombresEspecies(m.especieIds),
+        },
         incidencias: incs,
         permitido: !incs.some((i) => i.severidad !== 'AVISO'),
         stock: s.estado,
-        propuesta: s.estado === 'OK' ? proponerLotes({ lotes: s.lotes, unidades: 1, hoy: hoyDe(d), duracionDias: null }) : null,
+        propuesta:
+          s.estado === 'OK'
+            ? proponerLotes({ lotes: s.lotes, unidades: 1, hoy: hoyDe(d), duracionDias: null })
+            : null,
       };
     },
   );
@@ -144,7 +244,10 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
         if (pres) c = await med.info(pres.nregistro);
       }
       if (!p || !c) {
-        throw new DomainError('NO_ENCONTRADO', 'Medicamento prescrito o candidato no encontrado en el catálogo');
+        throw new DomainError(
+          'NO_ENCONTRADO',
+          'Medicamento prescrito o candidato no encontrado en el catálogo',
+        );
       }
 
       const especieId = await med.especiePorTexto(especie);
@@ -176,8 +279,8 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
             especies: especiesIds,
           });
           nombresEtiquetas = {
-            formaPrescrito: p.formaId !== null ? mapaNombres.formas.get(p.formaId) ?? null : null,
-            formaCandidato: c.formaId !== null ? mapaNombres.formas.get(c.formaId) ?? null : null,
+            formaPrescrito: p.formaId !== null ? (mapaNombres.formas.get(p.formaId) ?? null) : null,
+            formaCandidato: c.formaId !== null ? (mapaNombres.formas.get(c.formaId) ?? null) : null,
             viasPrescrito: p.viaIds
               .map((v) => mapaNombres.vias.get(v))
               .filter((x): x is string => typeof x === 'string'),
@@ -190,7 +293,7 @@ export async function rutasMedicamentos(app: App, d: AppDeps) {
             especiesCandidato: c.especieIds
               .map((e) => mapaNombres.especies.get(e))
               .filter((x): x is string => typeof x === 'string'),
-            especieContexto: especieId !== null ? mapaNombres.especies.get(especieId) ?? null : null,
+            especieContexto: especieId !== null ? (mapaNombres.especies.get(especieId) ?? null) : null,
           };
         } catch {
           // Degradación suave si no están disponibles las maestras

@@ -9,7 +9,9 @@ describe('TarjetaSimulacion', () => {
       simulacionId: 'sim-123',
       herramienta: 'simular_equivalencia',
       decision: 'NO_EQUIVALENTE',
-      motivos: [{ code: 'VIA_NO_AUTORIZADA', mensaje: 'No está autorizado para la vía de administración prescrita.' }],
+      motivos: [
+        { code: 'VIA_NO_AUTORIZADA', mensaje: 'No está autorizado para la vía de administración prescrita.' },
+      ],
       reglaVersion: 'equivalencia.v1@21dfa268',
       supuestos: { prescrito: '3738 ESP', candidato: '3313 ESP' },
       evidencias: {

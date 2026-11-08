@@ -1,6 +1,11 @@
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { cimavetMaestra, MAESTRA } from '@mmx/db';
-import { concentracionDelNombre, type Candidato, type MedicamentoInfo, type PresentacionInfo } from '@mmx/domain';
+import {
+  concentracionDelNombre,
+  type Candidato,
+  type MedicamentoInfo,
+  type PresentacionInfo,
+} from '@mmx/domain';
 import { enParalelo, normalizeText } from '@mmx/shared';
 import type { AppDeps } from '../deps';
 
@@ -33,7 +38,10 @@ export class MedicamentosService {
     const pres = await this.d.cimavet.presentacionesDe(nregs);
     return pres
       .filter((p) => p.cn !== excluirCn && meds.has(p.nregistro))
-      .map((p) => ({ medicamento: meds.get(p.nregistro) as MedicamentoInfo, presentacion: p as PresentacionInfo }));
+      .map((p) => ({
+        medicamento: meds.get(p.nregistro) as MedicamentoInfo,
+        presentacion: p as PresentacionInfo,
+      }));
   }
 
   /** Ids de una maestra cuyo nombre coincide (o contiene) el texto normalizado. */
@@ -46,7 +54,9 @@ export class MedicamentosService {
       .where(and(eq(cimavetMaestra.tipo, tipo), gt(cimavetMaestra.id, 0)))
       .orderBy(asc(cimavetMaestra.id));
     const exactos = filas.filter((f) => normalizeText(f.nombre) === t);
-    const parecidos = filas.filter((f) => normalizeText(f.nombre).startsWith(t) || t.startsWith(normalizeText(f.nombre)));
+    const parecidos = filas.filter(
+      (f) => normalizeText(f.nombre).startsWith(t) || t.startsWith(normalizeText(f.nombre)),
+    );
     return [...new Set([...exactos, ...parecidos].map((f) => f.id as number))].slice(0, limite);
   }
 
@@ -62,7 +72,9 @@ export class MedicamentosService {
     const exacto = filas.find((f) => normalizeText(f.nombre) === t);
     if (exacto) return exacto.id;
     // Singular/plural: "perro" → "perros", "gato" → "gatos", "bovino".
-    const plural = filas.find((f) => normalizeText(f.nombre) === `${t}s` || normalizeText(f.nombre) === `${t}es`);
+    const plural = filas.find(
+      (f) => normalizeText(f.nombre) === `${t}s` || normalizeText(f.nombre) === `${t}es`,
+    );
     return plural?.id ?? null;
   }
 
@@ -74,7 +86,10 @@ export class MedicamentosService {
 
   async nombreMaestra(tipo: number, id: number | null): Promise<string | null> {
     if (id === null) return null;
-    const [r] = await this.d.db.select().from(cimavetMaestra).where(and(eq(cimavetMaestra.tipo, tipo), eq(cimavetMaestra.id, id)));
+    const [r] = await this.d.db
+      .select()
+      .from(cimavetMaestra)
+      .where(and(eq(cimavetMaestra.tipo, tipo), eq(cimavetMaestra.id, id)));
     return r?.nombre ?? null;
   }
 
@@ -130,7 +145,14 @@ export class MedicamentosService {
     const out = await enParalelo(validas, 4, async ({ p, m }) => {
       // Sin datos del medicamento: solo se mira el índice del catálogo (sin búsquedas por nombre en Siweb360).
       const s = await this.d.stock.lotes(p.cn, null);
-      return { cn: p.cn, nregistro: p.nregistro, nombre: p.nombre, labtitular: m.labtitular, comerc: p.comerc, enStock: s.lotes.some((l) => l.disponible > 0) };
+      return {
+        cn: p.cn,
+        nregistro: p.nregistro,
+        nombre: p.nombre,
+        labtitular: m.labtitular,
+        comerc: p.comerc,
+        enStock: s.lotes.some((l) => l.disponible > 0),
+      };
     });
     return out.sort((a, b) => Number(b.enStock) - Number(a.enStock) || Number(b.comerc) - Number(a.comerc));
   }
@@ -143,7 +165,10 @@ export class MedicamentosService {
 
   async maestra(tipo: number, ids: number[]) {
     if (!ids.length) return [];
-    return this.d.db.select().from(cimavetMaestra).where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
+    return this.d.db
+      .select()
+      .from(cimavetMaestra)
+      .where(and(eq(cimavetMaestra.tipo, tipo), inArray(cimavetMaestra.id, ids)));
   }
 }
 
@@ -151,15 +176,22 @@ const primerNombre = (s: string) => s.split(' # ')[0]!.trim();
 
 export { concentracionDelNombre };
 
-const coma = (n: string) => n.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1').replace('.', ',');
+const coma = (n: string) =>
+  n
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace('.', ',');
 /** Unidades de dosificación: la concentración es por unidad ("1,25 mg" por comprimido), sin "/comprimido". */
-const POR_UNIDAD = /comprimid|c[aá]psula|pipeta|unidad|dosis|jeringa|aplicador|sobre|vial|collar|implante|bolo|tableta/i;
+const POR_UNIDAD =
+  /comprimid|c[aá]psula|pipeta|unidad|dosis|jeringa|aplicador|sobre|vial|collar|implante|bolo|tableta/i;
 
 /** Concentración legible a partir de la composición de CIMAVet ("1,25 mg", "400 mg + 100 mg", "50 mg/ml"). */
 export function concentracion(m: Pick<MedicamentoInfo, 'composicion'>): string | null {
   const pas = m.composicion.pas.filter((p) => p.cantidad);
   if (!pas.length) return null;
-  const base = pas.map((p) => [coma(p.cantidad as string), p.unidad?.toLowerCase()].filter(Boolean).join(' ')).join(' + ');
+  const base = pas
+    .map((p) => [coma(p.cantidad as string), p.unidad?.toLowerCase()].filter(Boolean).join(' '))
+    .join(' + ');
   const { porCantidad, porUnidad } = m.composicion;
   if (!porUnidad || POR_UNIDAD.test(porUnidad)) return base;
   const cant = porCantidad && Number(porCantidad) !== 1 ? `${coma(porCantidad)} ` : '';

@@ -171,9 +171,7 @@ export function registroDesdeApi(
     })),
     principiosActivos: pas,
     especies: m.especies
-      ? m.especies
-          .map((e) => idNum(e.id))
-          .filter((x): x is number => x !== null && x > 0)
+      ? m.especies.map((e) => idNum(e.id)).filter((x): x is number => x !== null && x > 0)
       : null,
     vias: m.viasadministracion
       ? m.viasadministracion

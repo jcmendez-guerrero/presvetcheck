@@ -16,7 +16,13 @@ import { evaluarAlternativaFormato, notaAdministracion, validarEnvasesFormato } 
 import { esIndicacionGenerica } from './indicacion';
 import { esAntimicrobiano, excluidoValidezAmpliada } from './medicamento';
 import { sustitucionPermitida } from './sustitucion';
-import type { ContextoPrescripcion, MedicamentoInfo, PresentacionInfo, ResultadoEquivalencia, ResultadoMotor } from './tipos';
+import type {
+  ContextoPrescripcion,
+  MedicamentoInfo,
+  PresentacionInfo,
+  ResultadoEquivalencia,
+  ResultadoMotor,
+} from './tipos';
 import { concentracionDelNombre } from './unidades';
 import { calcularValidez, recetaCaducada, textoPlazo, type LineaValidez } from './validez';
 
@@ -338,9 +344,11 @@ function construirComparativa(
   }
 
   const pForma =
-    nombres?.formaPrescrito ?? (prescrito.formaId !== null ? `Forma #${prescrito.formaId}` : 'No especificada');
+    nombres?.formaPrescrito ??
+    (prescrito.formaId !== null ? `Forma #${prescrito.formaId}` : 'No especificada');
   const cForma =
-    nombres?.formaCandidato ?? (candidato.formaId !== null ? `Forma #${candidato.formaId}` : 'No especificada');
+    nombres?.formaCandidato ??
+    (candidato.formaId !== null ? `Forma #${candidato.formaId}` : 'No especificada');
   const formaCoincide = !r.motivos.includes('FORMA_DISTINTA');
 
   const pVias =
@@ -353,8 +361,8 @@ function construirComparativa(
 
   const pEspecie =
     nombres?.especieContexto ??
-    (nombres?.especiesPrescrito?.join(', ') ??
-      (contexto.especieId !== null ? `Especie #${contexto.especieId}` : 'No especificada'));
+    nombres?.especiesPrescrito?.join(', ') ??
+    (contexto.especieId !== null ? `Especie #${contexto.especieId}` : 'No especificada');
   const cEspecie =
     nombres?.especiesCandidato?.join(', ') ??
     (candidato.especieIds.length > 0
@@ -373,7 +381,10 @@ function construirComparativa(
     indEstado = 'aviso';
     indDetalle = 'Indicación no especificada en receta: comprobar ficha técnica del sustituto';
     if (candidato.indicaciones.length > 0) {
-      cInd = candidato.indicaciones.map((i) => i.texto).slice(0, 2).join('; ');
+      cInd = candidato.indicaciones
+        .map((i) => i.texto)
+        .slice(0, 2)
+        .join('; ');
     } else {
       cInd = 'Consultar indicaciones autorizadas en ficha técnica';
     }
@@ -384,7 +395,10 @@ function construirComparativa(
     indEstado = 'aviso';
     indDetalle = 'Indicación probable (requiere validación del garante)';
   } else if (candidato.indicaciones.length > 0) {
-    cInd = candidato.indicaciones.map((i) => i.texto).slice(0, 2).join('; ');
+    cInd = candidato.indicaciones
+      .map((i) => i.texto)
+      .slice(0, 2)
+      .join('; ');
     indDetalle = 'Indicación clínica no coincidente con las autorizadas';
   }
 

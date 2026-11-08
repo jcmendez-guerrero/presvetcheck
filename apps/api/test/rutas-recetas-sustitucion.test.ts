@@ -63,7 +63,8 @@ describe('POST /api/recetas/:id/lineas/:orden/sustituir-manual (FR-017)', () => 
     await confirmar(E.app, recetaId, recetaCorrecta('R-SUST-03'));
     await api(E.app, 'dev-empleado', 'POST', `/api/recetas/${recetaId}/evaluar`, {});
 
-    const motivo = 'Falta de stock en almacén del prescrito Clavubay; sustituido por Genériclav con acuerdo del tutor';
+    const motivo =
+      'Falta de stock en almacén del prescrito Clavubay; sustituido por Genériclav con acuerdo del tutor';
     const res = await api(
       E.app,
       'dev-empleado',
@@ -95,7 +96,9 @@ describe('POST /api/recetas/:id/lineas/:orden/sustituir-manual (FR-017)', () => 
       .from(auditEvent)
       .where(eq(auditEvent.accion, 'SUSTITUCION_SOBREESCRITA'));
     expect(eventos.length).toBeGreaterThan(0);
-    const ev = eventos.find((e) => (e.despues as { sustitucionId?: string })?.sustitucionId === sustitucionId);
+    const ev = eventos.find(
+      (e) => (e.despues as { sustitucionId?: string })?.sustitucionId === sustitucionId,
+    );
     expect(ev).toBeDefined();
     expect(ev?.actor).toBe('dev-empleado');
     expect((ev?.despues as { motivo?: string })?.motivo).toBe(motivo);

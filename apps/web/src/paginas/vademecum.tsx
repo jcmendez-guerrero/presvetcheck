@@ -292,9 +292,7 @@ export function Vademecum() {
                       : 'bg-noconforme-bg text-noconforme'
                   }`}
                 >
-                  {resultado.decision === 'EQUIVALENTE'
-                    ? '✓ Equivalente reglamentario'
-                    : '✗ No equivalente'}
+                  {resultado.decision === 'EQUIVALENTE' ? '✓ Equivalente reglamentario' : '✗ No equivalente'}
                 </span>
               </div>
             }
@@ -319,8 +317,8 @@ export function Vademecum() {
 
             {resultado.esBloqueanteDuro && (
               <p className="mt-4 rounded-lg bg-noconforme-bg p-3 text-sm font-semibold text-noconforme">
-                Bloqueo legal insubsanable: uno o ambos medicamentos son biológicos, inmunológicos o se
-                trata de una prescripción no autorizada. La sustitución por el dispensador está prohibida por ley.
+                Bloqueo legal insubsanable: uno o ambos medicamentos son biológicos, inmunológicos o se trata
+                de una prescripción no autorizada. La sustitución por el dispensador está prohibida por ley.
               </p>
             )}
 

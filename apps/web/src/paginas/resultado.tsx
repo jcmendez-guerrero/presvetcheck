@@ -345,7 +345,8 @@ export function ModalSustitucionManual({
           Vas a sustituir el medicamento prescrito por <strong>{candidatoNombre}</strong> (CN {candidatoCn}).
         </p>
         <p className="mt-2 text-xs text-slate-600">
-          La receta quedará separada para la firma posterior del farmacéutico garante (modo POST). Recuerda recabar la conformidad del tutor del animal y notificar al veterinario prescriptor.
+          La receta quedará separada para la firma posterior del farmacéutico garante (modo POST). Recuerda
+          recabar la conformidad del tutor del animal y notificar al veterinario prescriptor.
         </p>
         <label className="mt-4 flex flex-col gap-1">
           <span className="font-medium text-slate-800">
@@ -363,11 +364,7 @@ export function ModalSustitucionManual({
           <Boton variante="secundario" onClick={onCancelar}>
             Cancelar
           </Boton>
-          <Boton
-            variante="principal"
-            disabled={!valido}
-            onClick={() => onConfirmar(motivo.trim())}
-          >
+          <Boton variante="principal" disabled={!valido} onClick={() => onConfirmar(motivo.trim())}>
             Confirmar y sustituir
           </Boton>
         </div>
@@ -525,7 +522,9 @@ export function BuscadorSustitutoLinea({
             </ul>
           )}
 
-          {comparando && <p className="text-sm text-slate-600 animate-pulse">Evaluando equivalencia con el motor...</p>}
+          {comparando && (
+            <p className="text-sm text-slate-600 animate-pulse">Evaluando equivalencia con el motor...</p>
+          )}
           {errorComp && <Mensaje tipo="error">{errorComp}</Mensaje>}
 
           {comparacion && candidatoElegido && (
@@ -533,7 +532,9 @@ export function BuscadorSustitutoLinea({
               <div className="flex items-center justify-between bg-slate-50 p-2 rounded-lg">
                 <div>
                   <span className="text-xs font-semibold uppercase text-slate-500">Candidato evaluado</span>
-                  <p className="font-semibold text-slate-900">{candidatoElegido.nombre} (CN {candidatoElegido.cn})</p>
+                  <p className="font-semibold text-slate-900">
+                    {candidatoElegido.nombre} (CN {candidatoElegido.cn})
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -549,8 +550,16 @@ export function BuscadorSustitutoLinea({
 
               <div className="text-sm">
                 <span className="font-semibold">Resultado de la evaluación: </span>
-                <span className={comparacion.decision === 'EQUIVALENTE' ? 'font-bold text-dispensar' : 'font-bold text-noconforme'}>
-                  {comparacion.decision === 'EQUIVALENTE' ? '✓ Equivalente reglamentario' : '✗ No equivalente reglamentario'}
+                <span
+                  className={
+                    comparacion.decision === 'EQUIVALENTE'
+                      ? 'font-bold text-dispensar'
+                      : 'font-bold text-noconforme'
+                  }
+                >
+                  {comparacion.decision === 'EQUIVALENTE'
+                    ? '✓ Equivalente reglamentario'
+                    : '✗ No equivalente reglamentario'}
                 </span>
                 {comparacion.motivos.length > 0 && (
                   <p className="text-xs text-slate-600 mt-1">{comparacion.motivos.join(' · ')}</p>
@@ -561,7 +570,8 @@ export function BuscadorSustitutoLinea({
 
               {comparacion.esBloqueanteDuro ? (
                 <p className="rounded-lg bg-noconforme-bg p-2 text-xs font-semibold text-noconforme">
-                  Bloqueo normativo estricto: este medicamento no admite sustitución por ley (medicamento biológico, inmunológico o prescripción en cascada).
+                  Bloqueo normativo estricto: este medicamento no admite sustitución por ley (medicamento
+                  biológico, inmunológico o prescripción en cascada).
                 </p>
               ) : (
                 <div className="flex justify-end pt-1">

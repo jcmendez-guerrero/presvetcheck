@@ -529,7 +529,13 @@ describe('herramientaBuscarSustitutos', () => {
 
   it('propone Prednicortone 5 mg para sustituir a Hedylon 5 mg con stock y activa requiereAclaracionIndicacion (US1, FR-013, FR-014, FR-015)', async () => {
     // Hedylon 5 mg (580001) tiene 0 stock; Prednicortone (584958) tiene 7 unidades
-    const stockPort = createMockStockPort({ '580001': 0, '584958': 7, '570001': 0, '570002': 0, '570003': 0 });
+    const stockPort = createMockStockPort({
+      '580001': 0,
+      '584958': 7,
+      '570001': 0,
+      '570002': 0,
+      '570003': 0,
+    });
     const deps: DepsHerramientas = {
       rules: RULES,
       clock: fixedClock('2026-10-14T10:00:00Z'),
