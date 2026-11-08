@@ -172,3 +172,37 @@ export function totalPaEnvase(c: Concentracion | null, contenido: Cantidad | nul
 export function textoConcentracion(c: Concentracion): string {
   return `${c.valor.toDecimalPlaces(4).toString()} ${c.num}`;
 }
+
+const primerNombre = (s: string) => s.split(' # ')[0]!.trim();
+const UNIDAD_REGEX = /^(mg|g|kg|µg|mcg|microgramos?|ng|ui|u\.?i\.?|ml|l|%|mmol|meq|ufc|dosis)$/i;
+
+/**
+ * Concentración nominal autorizada en la denominación oficial del medicamento
+ * ("AMODIP 1,25 mg COMPRIMIDOS..." -> "1,25 mg",
+ * "BIOCLANIC 50 mg +12,5 mg COMPRIMIDOS..." -> "50 mg + 12,5 mg",
+ * "CLAVUSAN 50 mg + 12,5mg COMPRIMIDOS..." -> "50 mg + 12,5 mg").
+ */
+export function concentracionDelNombre(nombre: string): string | null {
+  const t = primerNombre(nombre).split(/\s+/);
+  const ini = t.findIndex((w, i) => i > 0 && /^\d/.test(w));
+  if (ini < 0) return null;
+  const out: string[] = [];
+  for (const w of t.slice(ini)) {
+    if (/^[A-ZÁÉÍÓÚÑ]{3,}[,.]?$/.test(w) && w !== 'UFC') break;
+    if (!/[\d/+%-]/.test(w) && !UNIDAD_REGEX.test(w.replace(/[/,]+$/, '').split('/')[0] ?? '')) break;
+    out.push(w);
+  }
+  const r = out.join(' ').replace(/[,;]$/, '');
+  if (!/\d/.test(r) || !/[a-zµ%]/i.test(r)) return null;
+  return normalizarConcentracionTexto(r);
+}
+
+export function normalizarConcentracionTexto(c: string): string {
+  return c
+    .replace(/\s*\/\s*(?=\d)/g, ' / ')
+    .replace(/([a-zµ%]+)\s*\/\s*([a-z]+)/gi, '$1/$2')
+    .replace(/\s*\+\s*/g, ' + ')
+    .replace(/(\d+(?:,\d+)?)\s*(mg|g|kg|µg|mcg|microgramos?|ml|l|%|ui)(?!\/)/gi, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

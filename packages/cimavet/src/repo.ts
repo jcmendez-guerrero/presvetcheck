@@ -19,6 +19,7 @@ import type { MedicamentoInfo, PresentacionInfo } from '@mmx/domain';
 import { normalizeText } from '@mmx/shared';
 import type { Diccionarios, NomenclatorSink } from './nomenclator';
 import { diasEspera, type RegistroCache } from './normalizar';
+import { idNum } from './schemas';
 
 export interface ResultadoBusqueda {
   cn: string;
@@ -200,14 +201,28 @@ export class CimavetRepository implements NomenclatorSink {
   ): Promise<number> {
     let n = 0;
     for (const it of items) {
-      const clave = it.id !== null ? String(it.id) : it.codigo;
+      let clave = it.id !== null ? String(it.id) : it.codigo;
+      let id = it.id;
+      if (tipo === MAESTRA.VIAS) {
+        const codNum = it.codigo ? idNum(it.codigo) : null;
+        if (codNum !== null && codNum > 0) {
+          clave = String(codNum);
+          id = codNum;
+        } else if (it.id === 48) {
+          clave = '54';
+          id = 54;
+        } else if (it.id === 54 && /rectal/i.test(it.nombre)) {
+          clave = '59';
+          id = 59;
+        }
+      }
       if (!clave) continue;
       await this.db
         .insert(cimavetMaestra)
-        .values({ tipo, clave, id: it.id, codigo: it.codigo, nombre: it.nombre })
+        .values({ tipo, clave, id, codigo: it.codigo, nombre: it.nombre })
         .onConflictDoUpdate({
           target: [cimavetMaestra.tipo, cimavetMaestra.clave],
-          set: { id: it.id, codigo: it.codigo, nombre: it.nombre },
+          set: { id, codigo: it.codigo, nombre: it.nombre },
         });
       n++;
     }

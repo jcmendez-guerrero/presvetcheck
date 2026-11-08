@@ -1,8 +1,8 @@
-import type { CodigoEquivalencia, EquivalenciaRules } from '@mmx/shared';
-import { compararIndicacion } from './indicacion';
+import type { CodigoEquivalencia, EquivalenciaIndicacion, EquivalenciaRules } from '@mmx/shared';
+import { compararIndicacion, esIndicacionGenerica } from './indicacion';
 import { autorizadoParaEspecie, especiesEquivalentes } from './medicamento';
 import type { ContextoPrescripcion, MedicamentoInfo, ResultadoEquivalencia } from './tipos';
-import { concentracion, type Concentracion } from './unidades';
+import { concentracion, concentracionDelNombre, type Concentracion } from './unidades';
 
 /** Conjunto de principios activos con su concentración normalizada (null = no normalizable). */
 export function concentraciones(m: MedicamentoInfo): Map<number, Concentracion | null> {
@@ -80,6 +80,7 @@ export function evaluarEquivalencia(
   } else {
     const cp = concentraciones(prescrito);
     const cc = concentraciones(candidato);
+    let concentracionDistinta = false;
     for (const [paId, c1] of cp) {
       const c2 = cc.get(paId) ?? null;
       if (!c1 || !c2) {
@@ -87,11 +88,25 @@ export function evaluarEquivalencia(
         continue;
       }
       if (c1.num !== c2.num || c1.den !== c2.den || !c1.valor.equals(c2.valor)) {
-        motivos.push('CONCENTRACION_DISTINTA');
+        concentracionDistinta = true;
         break;
       }
     }
-    if (revisarManual) motivos.push('CANTIDAD_NO_NORMALIZABLE');
+    if (concentracionDistinta) {
+      const nomP = prescrito.nombre ? concentracionDelNombre(prescrito.nombre) : null;
+      const nomC = candidato.nombre ? concentracionDelNombre(candidato.nombre) : null;
+      if (nomP && nomC && nomP.toLowerCase() === nomC.toLowerCase()) {
+        if (nomP.includes('+') || nomP.includes('/') || prescrito.composicion.pas.length > 1) {
+          concentracionDistinta = false;
+        }
+      } else {
+        motivos.push('CONCENTRACION_DISTINTA');
+      }
+      if (concentracionDistinta && !motivos.includes('CONCENTRACION_DISTINTA')) {
+        motivos.push('CONCENTRACION_DISTINTA');
+      }
+    }
+    if (revisarManual && concentracionDistinta) motivos.push('CANTIDAD_NO_NORMALIZABLE');
   }
 
   // 2. Forma farmacéutica
@@ -102,14 +117,22 @@ export function evaluarEquivalencia(
   if (!autorizadoParaEspecie(candidato, ctx.especieId, rules.especie_padre))
     motivos.push('ESPECIE_NO_AUTORIZADA');
 
-  // 6. Indicación
   const especies = especiesEquivalentes(ctx.especieId, rules.especie_padre);
-  const indicacionesCandidato = candidato.indicaciones
-    .filter((i) => i.especieId === null || especies.includes(i.especieId))
-    .map((i) => i.texto);
-  const ind = compararIndicacion(ctx.indicacion, indicacionesCandidato, rules.indicacion);
-  if (ind.resultado === 'NO_COINCIDE') motivos.push('INDICACION_NO_COINCIDE');
-  if (ind.resultado === 'PROBABLE') motivos.push('INDICACION_PROBABLE');
+
+  // 6. Indicación
+  const esGenerica = esIndicacionGenerica(ctx.indicacion);
+  let ind: { resultado: EquivalenciaIndicacion; similitud: number; mejor: string | null };
+  if (esGenerica) {
+    ind = { resultado: 'PROBABLE', similitud: 0, mejor: null };
+    motivos.push('INDICACION_PROBABLE');
+  } else {
+    const indicacionesCandidato = candidato.indicaciones
+      .filter((i) => i.especieId === null || especies.includes(i.especieId))
+      .map((i) => i.texto);
+    ind = compararIndicacion(ctx.indicacion, indicacionesCandidato, rules.indicacion);
+    if (ind.resultado === 'NO_COINCIDE') motivos.push('INDICACION_NO_COINCIDE');
+    if (ind.resultado === 'PROBABLE') motivos.push('INDICACION_PROBABLE');
+  }
 
   // 7. Tiempos de espera en especies productoras
   if (ctx.especieProduccion) {

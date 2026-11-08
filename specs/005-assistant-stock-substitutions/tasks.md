@@ -202,6 +202,27 @@
 
 ---
 
+## Phase 12: Reconciliación de Equivalencia en Mostrador (FR-019, FR-020, FR-021)
+
+**Goal**: Resolver los falsos negativos observados en la sustitución en mostrador (caso Bioclanic vs Clavusan 50/12,5 mg): reconciliar vías de administración canónicas evitando colisiones de IDs entre Nomenclátor XML y la API REST de CIMAVet (FR-019), admitir la coincidencia de dosis por denominación nominal autorizada ante variaciones en la formulación de sales/diluyentes galénicos (FR-020), y tratar indicaciones no especificadas o genéricas como avisos informativos no bloqueantes (FR-021).
+
+**Independent Test**: Comparar `BIOCLANIC 50 mg + 12,5 mg` (`4332 ESP`) frente a `CLAVUSAN 50 mg + 12,5 mg` (`4161 ESP`) en `/vademecum` o vía `POST /api/medicamentos/comparar` para perros o gatos sin indicación clínica específica. El sistema debe evaluar `VÍA ORAL` coincidente para ambos (✓), concentración coincidente basada en el nombre nominal `50 mg + 12,5 mg` (✓), indicación con aviso informativo de comprobación, y conclusión reglamentaria `EQUIVALENTE` (Escenario 8 de `quickstart.md`).
+
+### Tests & Implementation for Phase 12
+
+- [X] T051 [P] [US7] Añadir tests unitarios en `packages/cimavet/test/client.test.ts` y `packages/cimavet/test/nomenclator-jobs.test.ts` para verificar la armonización canónica de vías (`id: 48` → clave `54` VÍA ORAL, `id: 54` → clave `59` VÍA RECTAL) en normalización y `upsertMaestras` (FR-019)
+- [X] T052 [US7] Implementar la armonización canónica de vías en `packages/cimavet/src/normalizar.ts` y `packages/cimavet/src/repo.ts` garantizando que las vías orales y rectales usen los códigos del Nomenclátor (`54` y `59`) tanto al normalizar medicamentos de la API REST como al guardar diccionarios en `cimavet_maestra` (FR-019)
+- [X] T053 [P] [US7] Añadir tests unitarios en `packages/domain/test/equivalencia.test.ts` para reconciliación de concentración por nombre nominal (`concentracionDelNombre`) evaluando Bioclanic vs Clavusan 50/12,5 mg y verificando que no se marca `CONCENTRACION_DISTINTA` (FR-020)
+- [X] T054 [US7] Implementar en `packages/domain/src/equivalencia.ts` y `packages/domain/src/simulacion.ts` el fallback a `concentracionDelNombre` cuando las cantidades brutas de sal difieran pero la dosis nominal autorizada coincida, reflejándolo en la comparativa de criterios (FR-020)
+- [X] T055 [P] [US7] Añadir tests unitarios en `packages/domain/test/equivalencia.test.ts` y `packages/domain/test/simulacion.test.ts` verificando que una indicación clínica ausente, nula o genérica ("Tratamiento prescrito") genera estado `aviso` en la comparativa sin bloquear la equivalencia técnica (FR-021)
+- [X] T056 [US7] Implementar en `packages/domain/src/equivalencia.ts`, `packages/domain/src/indicacion.ts` y `packages/domain/src/simulacion.ts` el tratamiento no bloqueante de indicación clínica no especificada o genérica, emitiendo estado `aviso` en lugar de `INDICACION_NO_COINCIDE` (FR-021)
+- [X] T057 [P] [US7] Añadir test de integración en `apps/api/test/rutas-medicamentos-comparar.test.ts` comparando Bioclanic (`4332 ESP`) y Clavusan (`4161 ESP`) y verificando respuesta `decision: 'EQUIVALENTE'` con vía oral coincidente y fila de indicación con estado `aviso`
+- [X] T058 [US7] Actualizar los componentes visuales de la tabla comparativa en `apps/web/src/componentes/asistente.tsx`, `apps/web/src/paginas/vademecum.tsx` y `apps/web/src/paginas/resultado.tsx` para renderizar el distintivo de estado `aviso` en ámbar sin penalizar la conclusión general
+- [X] T059 Ejecutar la verificación completa de calidad: `pnpm lint && pnpm typecheck && pnpm test`
+- [X] T060 Validar el Escenario 8 de `specs/005-assistant-stock-substitutions/quickstart.md` comprobando la equivalencia de Bioclanic vs Clavusan 50/12,5 mg en el navegador o mediante tests
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -216,7 +237,8 @@
 - **Tabla Comparativa de Criterios (Phase 8)**: Depende de Phase 7. Incorpora `evidencias.comparativa` en dominio, enriquecimiento en el asistente y tabla visual en la UI web (FR-016).
 - **Sustitución Interactiva y Sobreescritura (Phase 9 - US6)**: Depende de Phase 8 (reutiliza motor de equivalencia y tabla comparativa de criterios).
 - **Sección Vademécum / Comparador (Phase 10 - US7)**: Depende de Phase 8 (reutiliza `simularEquivalencia` y componentes de tabla comparativa). Puede desarrollarse en paralelo con Phase 9.
-- **Polish Final (Phase 11)**: Depende de Phase 9 y Phase 10.
+- **Polish (Phase 11)**: Depende de Phase 9 y Phase 10.
+- **Reconciliación de Equivalencia en Mostrador (Phase 12)**: Depende de Phase 11. Corrige la armonización canónica de vías (FR-019), la reconciliación de concentraciones por nombre nominal (FR-020) y el manejo de indicación clínica ausente como aviso no bloqueante (FR-021).
 
 ### User Story Dependencies
 
@@ -234,13 +256,13 @@ flowchart TD
     Phase8 --> Phase10["Phase 10: US7 - Vademécum / Comparador A vs B (T042-T047)"]
     Phase9 --> Phase11["Phase 11: Polish Final (T048-T050)"]
     Phase10 --> Phase11
+    Phase11 --> Phase12["Phase 12: Reconciliación de Equivalencia en Mostrador (T051-T060)"]
 ```
 
 ### Parallel Opportunities
 
-- En Phase 9, `T036` (esquema Zod), `T037` (tests API) y `T038` (tests UI) pueden prepararse en paralelo.
-- En Phase 10, `T042` (esquemas Zod), `T043` (tests API) y `T044` (tests UI) pueden prepararse en paralelo.
-- Phase 9 y Phase 10 pueden ejecutarse en paralelo por desarrolladores distintos al no compartir archivos principales (`resultado.tsx` vs `vademecum.tsx`, `rutas/recetas.ts` vs `rutas/medicamentos.ts`).
+- En Phase 12, los tests `T051` (CIMAVet vías), `T053` (Dominio concentración), `T055` (Dominio indicación) y `T057` (API comparar) pueden prepararse en paralelo al residir en paquetes y archivos desacoplados.
+- Las implementaciones `T052` (CIMAVet), `T054` (Dominio concentración) y `T056` (Dominio indicación) pueden ejecutarse en paralelo antes de la integración visual en UI (`T058`).
 
 ---
 
@@ -258,4 +280,5 @@ flowchart TD
 4. Añadir tabla comparativa de criterios de sustitución en motor, orquestador y componente de interfaz web (`T027`-`T035`).
 5. Añadir selección interactiva y sobreescritura con motivo obligatorio en pantalla de resultado (`T036`-`T041`, US6).
 6. Añadir página de consulta y comparador libre en `/vademecum` (`T042`-`T047`, US7).
-7. Verificación final de calidad, linters, tests y quickstart (`T048`-`T050`).
+7. Verificación de calidad, linters, tests y quickstart (`T048`-`T050`).
+8. Implementar reconciliación de equivalencia para mostrador: vías canónicas (FR-019), concentración nominal (FR-020) e indicación no especificada como aviso (FR-021) (`T051`-`T060`).

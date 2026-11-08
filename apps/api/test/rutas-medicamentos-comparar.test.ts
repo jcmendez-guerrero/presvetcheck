@@ -49,4 +49,22 @@ describe('POST /api/medicamentos/comparar (FR-018)', () => {
     const comparativa = res.json.evidencias.comparativa;
     expect(comparativa.length).toBe(7);
   });
+
+  it('compara medicamentos sin indicación clínica específica devolviendo EQUIVALENTE y estado aviso en indicación (FR-021)', async () => {
+    const res = await api(E.app, 'dev-empleado', 'POST', '/api/medicamentos/comparar', {
+      prescritoNregistro: '1868 ESP',
+      candidatoNregistro: '9999 TEST',
+      especie: 'perro',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.json.decision).toBe('EQUIVALENTE');
+    const comparativa = res.json.evidencias.comparativa;
+    const filaInd = comparativa.find((c: { criterio: string }) => c.criterio === 'Indicación');
+    expect(filaInd).toMatchObject({
+      criterio: 'Indicación',
+      coincide: true,
+      estado: 'aviso',
+    });
+  });
 });

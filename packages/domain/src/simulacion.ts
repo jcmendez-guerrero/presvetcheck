@@ -13,9 +13,11 @@ import { hoy, type Clock } from './clock';
 import { fechaEs, type FechaIso } from './fechas';
 import { evaluarEquivalencia } from './equivalencia';
 import { evaluarAlternativaFormato, notaAdministracion, validarEnvasesFormato } from './formato';
+import { esIndicacionGenerica } from './indicacion';
 import { esAntimicrobiano, excluidoValidezAmpliada } from './medicamento';
 import { sustitucionPermitida } from './sustitucion';
 import type { ContextoPrescripcion, MedicamentoInfo, PresentacionInfo, ResultadoEquivalencia, ResultadoMotor } from './tipos';
+import { concentracionDelNombre } from './unidades';
 import { calcularValidez, recetaCaducada, textoPlazo, type LineaValidez } from './validez';
 
 /**
@@ -313,18 +315,27 @@ function construirComparativa(
   const cPas = candidato.composicion.pas.map((pa) => pa.nombre).join(', ') || 'Sin principio activo';
   const paCoincide = !r.motivos.includes('COMPOSICION_DISTINTA');
 
-  const pConc =
+  let pConc =
     prescrito.composicion.pas
       .map((pa) => `${pa.cantidad ?? ''} ${pa.unidad ?? ''}`.trim())
       .filter(Boolean)
       .join(', ') || 'No especificada';
-  const cConc =
+  let cConc =
     candidato.composicion.pas
       .map((pa) => `${pa.cantidad ?? ''} ${pa.unidad ?? ''}`.trim())
       .filter(Boolean)
       .join(', ') || 'No especificada';
   const concCoincide =
     !r.motivos.includes('CONCENTRACION_DISTINTA') && !r.motivos.includes('CANTIDAD_NO_NORMALIZABLE');
+
+  if (concCoincide) {
+    const nomP = prescrito.nombre ? concentracionDelNombre(prescrito.nombre) : null;
+    const nomC = candidato.nombre ? concentracionDelNombre(candidato.nombre) : null;
+    if (nomP && nomC && nomP.toLowerCase() === nomC.toLowerCase()) {
+      pConc = nomP;
+      cConc = nomC;
+    }
+  }
 
   const pForma =
     nombres?.formaPrescrito ?? (prescrito.formaId !== null ? `Forma #${prescrito.formaId}` : 'No especificada');
@@ -351,16 +362,31 @@ function construirComparativa(
       : 'No especificada');
   const especieCoincide = !r.motivos.includes('ESPECIE_NO_AUTORIZADA');
 
-  const pInd = contexto.indicacion?.trim() || 'Tratamiento prescrito';
+  const esGenerica = esIndicacionGenerica(contexto.indicacion);
+  const pInd = contexto.indicacion?.trim() || 'No especificada';
   let cInd = 'No autorizada para la indicación prescrita';
-  if (r.indicacion === 'COINCIDE') {
+  const indCoincide = !r.motivos.includes('INDICACION_NO_COINCIDE');
+  let indEstado: 'coincide' | 'discrepancia' | 'aviso' = indCoincide ? 'coincide' : 'discrepancia';
+  let indDetalle: string | undefined;
+
+  if (esGenerica) {
+    indEstado = 'aviso';
+    indDetalle = 'Indicación no especificada en receta: comprobar ficha técnica del sustituto';
+    if (candidato.indicaciones.length > 0) {
+      cInd = candidato.indicaciones.map((i) => i.texto).slice(0, 2).join('; ');
+    } else {
+      cInd = 'Consultar indicaciones autorizadas en ficha técnica';
+    }
+  } else if (r.indicacion === 'COINCIDE') {
     cInd = 'Autorizada para la misma indicación';
   } else if (r.indicacion === 'PROBABLE') {
-    cInd = 'Indicación probable (requiere validación del garante)';
+    cInd = 'Indicación probable (requiere aprobación previa del garante)';
+    indEstado = 'aviso';
+    indDetalle = 'Indicación probable (requiere validación del garante)';
   } else if (candidato.indicaciones.length > 0) {
     cInd = candidato.indicaciones.map((i) => i.texto).slice(0, 2).join('; ');
+    indDetalle = 'Indicación clínica no coincidente con las autorizadas';
   }
-  const indCoincide = !r.motivos.includes('INDICACION_NO_COINCIDE');
 
   let pTe = 'No aplica (animal de compañía)';
   let cTe = 'No aplica (animal de compañía)';
@@ -394,53 +420,56 @@ function construirComparativa(
       prescrito: pPas,
       candidato: cPas,
       coincide: paCoincide,
-      detalle: paCoincide ? undefined : 'Composición cualitativa en principios activos distinta',
+      estado: paCoincide ? 'coincide' : 'discrepancia',
+      ...(paCoincide ? {} : { detalle: 'Composición cualitativa en principios activos distinta' }),
     },
     {
       criterio: 'Concentración',
       prescrito: pConc,
       candidato: cConc,
       coincide: concCoincide,
-      detalle: concCoincide ? undefined : 'Concentración o cantidad por unidad distinta',
+      estado: concCoincide ? 'coincide' : 'discrepancia',
+      ...(concCoincide ? {} : { detalle: 'Concentración o cantidad por unidad distinta' }),
     },
     {
       criterio: 'Forma farmacéutica',
       prescrito: pForma,
       candidato: cForma,
       coincide: formaCoincide,
-      detalle: formaCoincide ? undefined : 'Forma farmacéutica distinta',
+      estado: formaCoincide ? 'coincide' : 'discrepancia',
+      ...(formaCoincide ? {} : { detalle: 'Forma farmacéutica distinta' }),
     },
     {
       criterio: 'Vía de administración',
       prescrito: pVias,
       candidato: cVias,
       coincide: viaCoincide,
-      detalle: viaCoincide ? undefined : 'Vía de administración no autorizada en el candidato',
+      estado: viaCoincide ? 'coincide' : 'discrepancia',
+      ...(viaCoincide ? {} : { detalle: 'Vía de administración no autorizada en el candidato' }),
     },
     {
       criterio: 'Especie de destino',
       prescrito: pEspecie,
       candidato: cEspecie,
       coincide: especieCoincide,
-      detalle: especieCoincide ? undefined : 'Candidato no autorizado para la especie de la receta',
+      estado: especieCoincide ? 'coincide' : 'discrepancia',
+      ...(especieCoincide ? {} : { detalle: 'Candidato no autorizado para la especie de la receta' }),
     },
     {
       criterio: 'Indicación',
       prescrito: pInd,
       candidato: cInd,
       coincide: indCoincide,
-      detalle: indCoincide
-        ? r.indicacion === 'PROBABLE'
-          ? 'Indicación probable (requiere aprobación previa del garante)'
-          : undefined
-        : 'Indicación clínica no coincidente con las autorizadas',
+      estado: indEstado,
+      ...(indDetalle ? { detalle: indDetalle } : {}),
     },
     {
       criterio: 'Tiempo de espera',
       prescrito: pTe,
       candidato: cTe,
       coincide: teCoincide,
-      detalle: teDetalle,
+      estado: teCoincide ? 'coincide' : 'discrepancia',
+      ...(teDetalle ? { detalle: teDetalle } : {}),
     },
   ];
 }
@@ -450,6 +479,7 @@ export function simularEquivalencia(e: EntradaSimularEquivalencia): ResultadoSim
   const r = evaluarEquivalencia(e.prescrito, e.candidato, e.contexto, e.rules.equivalencia);
   const motivos = r.motivos.map(motivoEq);
   const comparativa = construirComparativa(e.prescrito, e.candidato, e.contexto, r, e.nombres);
+  const esGenerica = esIndicacionGenerica(e.contexto.indicacion);
   return {
     decision: r.equivalente ? 'EQUIVALENTE' : 'NO_EQUIVALENTE',
     motivos:
@@ -458,7 +488,9 @@ export function simularEquivalencia(e: EntradaSimularEquivalencia): ResultadoSim
             ...motivos,
             {
               code: 'REQUIERE_APROBACION_PREVIA',
-              mensaje: 'Hay que confirmar con el farmacéutico garante antes de sustituir.',
+              mensaje: esGenerica
+                ? 'Indicación clínica no especificada: comprobar indicaciones autorizadas en la ficha técnica del sustituto.'
+                : 'Hay que confirmar con el farmacéutico garante antes de sustituir.',
             },
           ]
         : motivos,

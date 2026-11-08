@@ -311,6 +311,32 @@ describe('normalización a la caché', () => {
     expect(r.vias).toEqual([54, 12]);
   });
 
+  it('registroDesdeApi mapea id: 48 a 54 (VÍA ORAL) aunque la API REST omita el campo codigo (FR-019)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4161 ESP',
+        nombre: 'Clavusan',
+        viasAdministracion: [{ id: 48, nombre: 'VÍA ORAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([54]);
+  });
+
+  it('registroDesdeApi mapea id: 54 con nombre VÍA RECTAL a código canónico 59 (FR-019)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '9999 ESP',
+        nombre: 'Supositorio Vet',
+        viasAdministracion: [{ id: 54, nombre: 'VÍA RECTAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([59]);
+  });
+
   it('tiempos de espera con la forma real (objetos tejido/unidadTiempo/forma/vía)', () => {
     const r = registroDesdeApi(
       lowerKeys({

@@ -537,12 +537,31 @@ export function TablaComparativaCriterios({
         </thead>
         <tbody className="divide-y divide-slate-200">
           {comparativa.map((c) => (
-            <tr key={c.criterio} className={c.coincide ? 'bg-white/40' : 'bg-noconforme-bg/40'}>
-              <td className="p-2 font-medium text-slate-900">{c.criterio}</td>
+            <tr
+              key={c.criterio}
+              className={
+                c.estado === 'aviso'
+                  ? 'bg-amber-50/50'
+                  : c.coincide
+                    ? 'bg-white/40'
+                    : 'bg-noconforme-bg/40'
+              }
+            >
+              <td className="p-2 font-medium text-slate-900">
+                {c.criterio}
+                {c.detalle && <p className="text-[10px] font-normal text-slate-500">{c.detalle}</p>}
+              </td>
               <td className="p-2 text-slate-700">{c.prescrito}</td>
               <td className="p-2 text-slate-700">{c.candidato}</td>
               <td className="p-2 text-center">
-                {c.coincide ? (
+                {c.estado === 'aviso' ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 font-medium text-amber-800"
+                    title={c.detalle ?? 'Aviso: comprobar ficha técnica'}
+                  >
+                    ⚠ Aviso
+                  </span>
+                ) : c.coincide ? (
                   <span
                     className="inline-flex items-center gap-1 rounded bg-dispensar-bg px-2 py-0.5 font-medium text-dispensar"
                     title={c.detalle ?? 'Cumple el requisito normativo'}

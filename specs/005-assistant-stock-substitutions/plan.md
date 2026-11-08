@@ -16,6 +16,9 @@ Esta funcionalidad corrige el asesoramiento del asistente conversacional ante co
 7. **Tabla comparativa de criterios de sustitución (FR-016)**: El motor de simulación (`simularEquivalencia` en `@mmx/domain`) genera en `evidencias.comparativa` un desglose estructurado fila a fila de los criterios reglamentarios evaluados (principio activo, concentración, forma, vía, especie, indicación y tiempos de espera) enriquecidos con nombres legibles vía `nombresFicha` de CIMAVet, y la interfaz web (`TarjetaSimulacion` en `apps/web`) renderiza una tabla comparativa visual con distintivos gráficos de cumplimiento (✓ / ✗).
 8. **Selección interactiva de sustituto y sobreescritura con motivo en pantalla de Resultado (`ResultadoReceta`, US6, FR-017)**: Cuando una línea de receta no tiene stock o la decisión es `PEDIR` (por ejemplo, Bioclanic 50/12,5 mg), la pantalla de resultado permite buscar un medicamento sustituto del catálogo/almacén (ej. Clavusan 50/12,5 mg), evaluar en tiempo real la equivalencia mostrando la tabla de criterios de los 7 campos normativos, y habilitar la sobreescritura de la línea con motivo obligatorio introducido por el dispensador (sin requerir confirmación del garante en pantalla, separando la receta física para firma posterior en modo POST), siempre que no se vulnere un `BLOQUEANTE_DURO`.
 9. **Página dedicada de Vademécum y Comparador de Sustitución (`/vademecum`, US7, FR-018)**: Nueva página en el menú de navegación principal (`apps/web/src/paginas/vademecum.tsx`) para la consulta libre y comparación de cualquier medicamento de referencia A frente a un candidato B para una especie e indicación dadas, invocando el endpoint de comparación y renderizando la tabla comparativa de criterios y conclusión reglamentaria.
+10. **Armonización canónica de vías de administración (FR-019)**: Mapeo inequívoco entre los códigos del Nomenclátor XML (`54` = VÍA ORAL, `59` = VÍA RECTAL) y la API REST de CIMAVet (`id: 48, codigo: 54` = VÍA ORAL), garantizando que fármacos con la misma vía oral coincidan y evitando colisiones de claves en `cimavet_maestra`.
+11. **Reconciliación de concentración nominal autorizada (FR-020)**: Fallback a `concentracionDelNombre` en `@mmx/domain` cuando las cantidades brutas de sal/diluyente difieren en CIMAVet (ej. dispersión 1:1 de clavulanato potásico en Bioclanic vs sal pura en Clavusan), considerando equivalentes las concentraciones idénticas autorizadas en ficha técnica (`50 mg + 12,5 mg`).
+12. **Manejo de indicación no especificada como aviso no bloqueante (FR-021)**: Cuando no se aporte patología o se indique "Tratamiento prescrito", emitir un aviso informativo de revisión de ficha técnica sin marcar `INDICACION_NO_COINCIDE` bloqueante, permitiendo la equivalencia técnica si los 6 criterios restantes concuerdan.
 
 ---
 
@@ -77,13 +80,18 @@ packages/
 │       └── asistente.ts            # Añadir CriterioComparativaSustitucion, ArgsBuscarSustitutos, ArgsConsultarStock
 ├── domain/
 │   ├── src/
-│   │   └── simulacion.ts           # Generar comparativa en simularEquivalencia
+│   │   ├── equivalencia.ts         # Reconciliación de concentración por nombre nominal y tratamiento de indicación no especificada
+│   │   ├── indicacion.ts           # Manejo de indicación ausente/genérica
+│   │   └── simulacion.ts           # Generar comparativa con distintivos de estado y notas en simularEquivalencia
 │   └── test/
-│       └── simulacion.test.ts      # Tests de evidencias.comparativa
+│       ├── equivalencia.test.ts    # Tests de concentración nominal (Bioclanic vs Clavusan) e indicación no especificada
+│       └── simulacion.test.ts      # Tests de evidencias.comparativa y filas con estado aviso
 ├── cimavet/
-│   └── src/
-│       ├── repo.ts                 # Filtrar id > 0 en especiePorTexto y normalizar vías
-│       └── normalizar.ts           # Mapear códigos de vía y especie canónicos
+│   ├── src/
+│   │   ├── repo.ts                 # Filtrar id > 0 en especiePorTexto y upsertMaestras con clave canónica de vías
+│   │   └── normalizar.ts           # Mapear códigos canónicos de vía (48 -> 54 Vía Oral, 54 -> 59 Vía Rectal)
+│   └── test/
+│       └── normalizar.test.ts      # Tests de normalización canónica de vías
 ├── assistant/
 │   ├── src/
 │   │   ├── instrucciones.ts        # Actualizar prompt: rol dispensador, solicitud de indicación si falta

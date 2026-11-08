@@ -140,3 +140,62 @@ En la implementación actual del asistente de consultas (`packages/assistant`):
   3. Ejecuta la comparación invocando `POST /api/medicamentos/comparar`.
   4. Renderiza la tabla comparativa visual de los 7 criterios normativos junto a la conclusión de equivalencia y las obligaciones reglamentarias asociadas.
 - **Razón**: Permite realizar consultas técnicas, contrastes normativos y verificación previa de alternativas sin depender del flujo de escaneo o carga de una receta concreta.
+
+---
+
+### Decisión 11: Armonización Canónica de Vías de Administración entre Nomenclátor y CIMAVet REST API (FR-019)
+
+- **Contexto del error detectado**:
+  - Al comparar BIOCLANIC 50/12,5 mg (`4332 ESP`) frente a CLAVUSAN 50/12,5 mg (`4161 ESP`), la ficha de CIMAVet indica oficialmente que ambos son de `VÍA ORAL`.
+  - Sin embargo, el motor mostraba a Clavusan con `VÍA RECTAL` y marcaba discrepancia en vía de administración.
+  - **Causa raíz identificada**:
+    - En el Nomenclátor oficial de la AEMPS (`DICCIONARIO_VIAS_ADMINISTRACION.xml`), el código oficial de `VÍA ORAL` es `54`, y el de `VÍA RECTAL` es `59`.
+    - En la API REST de CIMAVet (`maestras?maestra=3`), la AEMPS utiliza IDs auto-incrementales divergentes donde `id: 48, codigo: "54"` es `VÍA ORAL` e `id: 54, codigo: "59"` es `VÍA RECTAL`.
+    - Al persistir maestras desde la API REST (`upsertMaestras`), si se usaba `it.id` (54) como identificador maestro, sobreescribía la clave `54` asignándole `VÍA RECTAL`. Cuando un medicamento registraba `viaId: 54` procedente del Nomenclátor o de la API REST, la resolución de nombres devolvía erróneamente `VÍA RECTAL`.
+- **Decisión**:
+  - Armonizar en `packages/cimavet/src/normalizar.ts`, `repo.ts` y `jobs.ts`:
+    - Para `MAESTRA.VIAS`, utilizar siempre como identificador canónico el código oficial del Nomenclátor (`codigo` o mapeo explícito de `id: 48` → `54` para VÍA ORAL, `id: 54` → `59` para VÍA RECTAL).
+    - Al normalizar medicamentos (`normalizarMedicamentoDetalle` y `registroDesdeApi`), mapear cualquier vía devuelta con `id: 48` a `54` (VÍA ORAL).
+    - En `upsertMaestras`, para `tipo === MAESTRA.VIAS`, utilizar `it.codigo ?? it.id` como clave e identificador principal, garantizando que el ID `54` sea inmutablemente `VÍA ORAL` y el ID `59` sea `VÍA RECTAL`.
+- **Alternativas consideradas**:
+  - *Mapear únicamente en la UI*: Descartado. Provocaría que `evaluarEquivalencia` en `@mmx/domain` siguiera comparando IDs distintos (`48` vs `54`), persistiendo el falso rechazo normativo.
+
+---
+
+### Decisión 12: Reconciliación de Concentración por Denominación Nominal Autorizada (FR-020)
+
+- **Contexto del error detectado**:
+  - BIOCLANIC 50/12,5 mg (`4332 ESP`) y CLAVUSAN 50/12,5 mg (`4161 ESP`) comparten exactamente la misma dosificación nominal de principios activos: 50 mg de amoxicilina (como trihidrato) + 12,5 mg de ácido clavulánico (como clavulanato de potasio).
+  - En la ficha técnica de CIMAVet, ambos declaran 57,40 mg de amoxicilina trihidrato (equivalente a 50 mg base).
+  - Sin embargo, para el clavulanato de potasio:
+    - Clavusan declara 14,89 mg de sal pura (equivalente a 12,5 mg de ácido clavulánico base).
+    - Bioclanic declara 29,80 mg porque el fabricante utiliza una dispersión/mezcla galénica diluida al 50 % (1:1) de clavulanato con celulosa/sílice para estabilizar la sustancia.
+    - El motor de equivalencia comparaba los miligramos brutos de la sal (`29,80 mg` vs `14,89 mg`), concluyendo falsamente que las concentraciones eran distintas.
+- **Decisión**:
+  - Incorporar la función pura `concentracionDelNombre(nombre)` en `@mmx/domain` (o reutilizarla desde `servicios/medicamentos.ts` elevándola a dominio).
+  - En `evaluarEquivalencia` (`packages/domain/src/equivalencia.ts`), cuando la comparación de principios activos detecte una diferencia cuantitativa en las cantidades brutas normalizadas de CIMAVet:
+    - Extraer la concentración nominal autorizada del nombre de ambos fármacos (`concentracionDelNombre(prescrito.nombre)` y `concentracionDelNombre(candidato.nombre)`).
+    - Normalizar las cadenas de concentración (espaciado alrededor de `+`, `/`, comas decimales).
+    - Si ambas concentraciones nominales son idénticas (p. ej. `50 mg + 12,5 mg`), considerar la concentración como **equivalente** y no añadir `CONCENTRACION_DISTINTA`.
+  - En `construirComparativa` (`packages/domain/src/simulacion.ts`), si la concentración bruta difiere pero la nominal coincide, presentar en la comparativa la concentración nominal autorizada (`50 mg + 12,5 mg`) con estado `✓ Coincide` y detalle explicativo si procede.
+- **Alternativas consideradas**:
+  - *Calcular estequiométricamente el principio activo base para cada sal en CIMAVet*: Descartado por complejidad excesiva y falta de tablas universales de peso molecular en los diccionarios de la AEMPS. La denominación autorizada en el nombre es el estándar legal de comercialización según ficha técnica.
+
+---
+
+### Decisión 13: Tratamiento de Indicación Clínica No Especificada como Aviso Informativo (FR-021)
+
+- **Contexto del error detectado**:
+  - En el comparador de Vademécum (`/vademecum`) o en recetas generales donde la prescripción veterinaria indica "Tratamiento prescrito" o no especifica una patología concreta (`indicacion: null` o vacía), `compararIndicacion` devolvía `{ resultado: 'NO_COINCIDE' }`.
+  - Esto añadía `INDICACION_NO_COINCIDE` a `motivos`, transformando la simulación en `NO_EQUIVALENTE` aunque el fármaco cumpliera los 6 criterios restantes.
+- **Decisión**:
+  - Actualizar `evaluarEquivalencia` (`packages/domain/src/equivalencia.ts`) e `indicacion.ts`:
+    - Si `ctx.indicacion` es nulo, vacío o coincide con términos comodín/genéricos (como "Tratamiento prescrito", "Tratamiento", "Prescripción general"), no emitir `INDICACION_NO_COINCIDE`.
+    - En su lugar, registrar el estado de indicación como `NO_ESPECIFICADA` (o `PROBABLE`), lo que permite que la decisión global sea `EQUIVALENTE` con requerimiento de revisión manual de la ficha técnica.
+  - En `construirComparativa` (`packages/domain/src/simulacion.ts`), renderizar la fila de indicación como:
+    - Prescrito: `No especificada (o "Tratamiento prescrito")`
+    - Candidato: Fórmulas autorizadas o texto informativo «Revisar ficha técnica»
+    - Estado: `aviso` (o `coincide` con advertencia explicativa en `detalle`).
+  - En la UI (`TarjetaSimulacion` y `Vademecum`), renderizar las filas con estado `aviso` en amarillo/ámbar («Aviso: indicación no especificada»), sin bloquear el distintivo verde general de equivalencia técnica cuando el resto de requisitos normativos concuerdan.
+- **Alternativas consideradas**:
+  - *Bloquear siempre como no equivalente*: Rechazado en la sesión de clarificación. En el mostrador es común que el veterinario consigne la pauta posológica sin detallar el código de patología de CIMAVet; bloquear la sustitución generaba falsos rechazos en la operativa diaria.

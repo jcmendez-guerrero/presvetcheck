@@ -93,6 +93,15 @@ Este documento describe los escenarios de prueba y validación para verificar de
 4. Pulsa «Comparar medicamentos».
 5. El sistema presenta la ficha comparativa con la tabla de los 7 criterios reglamentarios y la conclusión normativa.
 
+### Escenario 8: Comparativa técnica de Bioclanic vs Clavusan (50 mg + 12,5 mg) (FR-019, FR-020, FR-021)
+
+**Flujo en mostrador o comparador de Vademécum**:
+1. El usuario compara `BIOCLANIC 50 mg + 12,5 mg COMPRIMIDOS` (Axience, 4332 ESP, CN 591386) frente a `CLAVUSAN 50 mg + 12,5 mg COMPRIMIDOS` (Alfasan, 4161 ESP, CN 590388) para la especie `Perros` (o `Gatos`) sin aportar indicación clínica específica.
+2. **Evaluación de vía de administración (FR-019)**: Ambos fármacos se evalúan con `VÍA ORAL` (código canónico 54), resolviendo la vía como coincidente (✓ Coincide) y sin asignar erróneamente `VÍA RECTAL` a Clavusan.
+3. **Evaluación de concentración (FR-020)**: Pese a la disparidad en miligramos brutos de la sal/dispersión de clavulanato de potasio en la composición de CIMAVet (29,8 mg vs 14,89 mg), el motor reconcilia la concentración nominal del nombre autorizado (`50 mg + 12,5 mg`), resolviendo el criterio de concentración como coincidente (✓ Coincide).
+4. **Evaluación de indicación clínica no especificada (FR-021)**: Al no facilitarse patología específica en la consulta o receta, el motor emite una advertencia informativa de comprobación («Aviso: indicación no especificada, revisar ficha técnica») sin penalizar la equivalencia técnica como `INDICACION_NO_COINCIDE`.
+5. **Resultado global**: La comparativa técnica concluye en `EQUIVALENTE` (con aviso informativo), permitiendo la sustitución reglamentaria ante falta de existencias.
+
 ---
 
 ## 3. Comandos de Verificación Automatizada

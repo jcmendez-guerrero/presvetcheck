@@ -106,4 +106,32 @@ describe('TarjetaSimulacion', () => {
     expect(html).toMatch(/Simulación:.*Receta válida/);
     expect(html).not.toContain('data-testid="tabla-comparativa-sustitucion"');
   });
+
+  it('renderiza badge de aviso cuando un criterio tiene estado aviso (FR-021)', () => {
+    const simulacion: SimulacionGuardada = {
+      simulacionId: 'sim-789',
+      herramienta: 'simular_equivalencia',
+      decision: 'EQUIVALENTE',
+      motivos: [],
+      reglaVersion: 'equivalencia.v1@21dfa268',
+      supuestos: { prescrito: '4332 ESP', candidato: '4161 ESP' },
+      evidencias: {
+        comparativa: [
+          {
+            criterio: 'Indicación',
+            prescrito: 'No especificada',
+            candidato: 'Infección cutánea',
+            coincide: true,
+            estado: 'aviso',
+            detalle: 'Indicación no especificada en receta: comprobar ficha técnica del sustituto',
+          },
+        ],
+      },
+    };
+
+    const html = renderToString(<TarjetaSimulacion s={simulacion} />);
+    expect(html).toContain('⚠ Aviso');
+    expect(html).toContain('bg-amber-100');
+    expect(html).toContain('Indicación no especificada en receta');
+  });
 });

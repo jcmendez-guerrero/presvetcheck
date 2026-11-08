@@ -61,6 +61,7 @@ export const CriterioComparativaSustitucion = z.object({
   prescrito: z.string().describe('Valor correspondiente al medicamento prescrito'),
   candidato: z.string().describe('Valor correspondiente al medicamento candidato'),
   coincide: z.boolean().describe('true si el criterio cumple los requisitos legales de equivalencia'),
+  estado: z.enum(['coincide', 'discrepancia', 'aviso']).optional().describe('Estado semántico visual'),
   detalle: z.string().optional().describe('Aclaración técnica opcional o motivo de discrepancia'),
 });
 export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;

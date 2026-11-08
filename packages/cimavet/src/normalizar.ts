@@ -91,6 +91,25 @@ const texto = (v: unknown): string | null => {
   return String(v);
 };
 
+/**
+ * Armoniza los identificadores de vía de administración (FR-014, FR-019).
+ * En Nomenclátor XML, el código oficial de VÍA ORAL es 54 y VÍA RECTAL es 59.
+ * En la API REST de CIMAVet, la maestra devuelve id: 48 con codigo: "54" para Vía Oral,
+ * e id: 54 con codigo: "59" para Vía Rectal.
+ * Si el campo `codigo` no viene informado o coincide con id: 48, se mapea al código canónico oficial.
+ */
+export function canonicaVia(
+  id: number | null,
+  codigo?: string | number | null,
+  nombre?: string | null,
+): number | null {
+  const c = codigo ? idNum(codigo) : null;
+  if (c !== null && c > 0) return c;
+  if (id === 48) return 54;
+  if (id === 54 && (!nombre || /rectal/i.test(nombre))) return 59;
+  return id;
+}
+
 /** Respuesta de `GET medicamento` → registro de caché (SPEC §5.1.2, source=api). */
 export function registroDesdeApi(
   m: MedicamentoApi,
@@ -158,7 +177,7 @@ export function registroDesdeApi(
       : null,
     vias: m.viasadministracion
       ? m.viasadministracion
-          .map((e) => (e.codigo ? idNum(e.codigo) : null) ?? idNum(e.id))
+          .map((e) => canonicaVia(idNum(e.id), e.codigo, e.nombre))
           .filter((x): x is number => x !== null)
       : null,
     atc: m.atcs ? m.atcs.map((a) => a.codigo).filter((x): x is string => !!x) : null,
