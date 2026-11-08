@@ -18,8 +18,8 @@
   --color-acento: #60abb8;
   --color-fondo: #f2f8f9;
   --color-texto: #002028;
-  --color-superficie: #ffffff;
-  --color-superficie-borde: rgba(96, 171, 184, 0.25);
+  --color-superficie: #fff;
+  --color-superficie-borde: rgb(96 171 184 / 25%);
 
   /* Colores semánticos de estado regulatorio (nunca solo color: siempre icono + texto) */
   --color-dispensar: #047857;
@@ -46,7 +46,7 @@
   --color-fondo: #002028;
   --color-texto: #f2f8f9;
   --color-superficie: #002c36;
-  --color-superficie-borde: rgba(96, 171, 184, 0.35);
+  --color-superficie-borde: rgb(96 171 184 / 35%);
   --color-marca: #2f8198;
   --color-marca-apoyo: #60abb8;
   --color-marca-2: #60abb8;
