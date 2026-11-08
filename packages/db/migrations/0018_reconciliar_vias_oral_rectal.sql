@@ -6,7 +6,8 @@ WHERE via_id = 48
     WHERE v2.nregistro = cimavet_med_via.nregistro AND v2.via_id = 54
   );
 --> statement-breakpoint
-DELETE FROM cimavet_med_via WHERE via_id = 48;
+DELETE FROM cimavet_med_via
+WHERE via_id = 48;
 --> statement-breakpoint
 DELETE FROM cimavet_maestra
 WHERE tipo = 3 AND (id = 54 OR clave = '54') AND nombre ILIKE '%rectal%';
