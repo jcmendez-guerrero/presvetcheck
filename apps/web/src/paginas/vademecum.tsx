@@ -114,11 +114,11 @@ export function Vademecum() {
                 data-testid="input-med-a"
               />
               {itemsA.length > 0 && (
-                <ul className="divide-y divide-slate-100 border rounded-lg max-h-48 overflow-y-auto text-sm bg-white">
+                <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
                   {itemsA.map((it) => (
                     <li
                       key={it.cn}
-                      className="p-2 hover:bg-slate-50 cursor-pointer flex justify-between items-center"
+                      className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
                       onClick={() => {
                         setMedA(it);
                         setItemsA([]);
@@ -126,8 +126,8 @@ export function Vademecum() {
                       }}
                     >
                       <div>
-                        <strong className="block text-slate-900">{it.nombre}</strong>
-                        <span className="text-xs text-slate-500">
+                        <strong className="block text-texto">{it.nombre}</strong>
+                        <span className="text-xs text-texto-muted dark:text-slate-400">
                           CN {it.cn} · {it.labtitular ?? '—'}
                         </span>
                       </div>
@@ -176,11 +176,11 @@ export function Vademecum() {
                 data-testid="input-med-b"
               />
               {itemsB.length > 0 && (
-                <ul className="divide-y divide-slate-100 border rounded-lg max-h-48 overflow-y-auto text-sm bg-white">
+                <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
                   {itemsB.map((it) => (
                     <li
                       key={it.cn}
-                      className="p-2 hover:bg-slate-50 cursor-pointer flex justify-between items-center"
+                      className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
                       onClick={() => {
                         setMedB(it);
                         setItemsB([]);
@@ -188,12 +188,12 @@ export function Vademecum() {
                       }}
                     >
                       <div>
-                        <strong className="block text-slate-900">{it.nombre}</strong>
-                        <span className="text-xs text-slate-500">
+                        <strong className="block text-texto">{it.nombre}</strong>
+                        <span className="text-xs text-texto-muted dark:text-slate-400">
                           CN {it.cn} · {it.labtitular ?? '—'}
                         </span>
                       </div>
-                      <span className="text-xs text-marca font-medium">Elegir</span>
+                      <span className="text-xs text-marca dark:text-acento font-medium">Elegir</span>
                     </li>
                   ))}
                 </ul>
@@ -227,12 +227,12 @@ export function Vademecum() {
         <Tarjeta titulo="3. Parámetros de destino">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="select-especie" className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="select-especie" className="block text-xs font-semibold text-texto mb-1">
                 Especie animal
               </label>
               <select
                 id="select-especie"
-                className="w-full rounded-lg border border-slate-300 p-2 text-sm bg-white"
+                className="w-full rounded-lg border border-borde p-2 text-sm bg-superficie text-texto"
                 value={especie}
                 onChange={(e) => setEspecie(e.target.value)}
                 data-testid="select-especie"

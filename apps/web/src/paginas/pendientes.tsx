@@ -245,7 +245,7 @@ export function PaginaPendientes() {
                     void buscarTickets();
                   }
                 }}
-                className="min-h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                className="min-h-10 flex-1 rounded-lg border border-borde bg-superficie px-3 text-sm text-texto"
               />
               <Boton
                 disabled={buscandoTickets || ticketSearch.trim().length < 3}
@@ -258,7 +258,10 @@ export function PaginaPendientes() {
             {ticketsResult.length > 0 && (
               <div className="mt-3 max-h-60 space-y-2 overflow-y-auto">
                 {ticketsResult.map((t) => (
-                  <div key={t.id} className="flex flex-col gap-2 rounded-lg border bg-white p-3 text-sm">
+                  <div
+                    key={t.id}
+                    className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 text-sm text-texto"
+                  >
                     <div className="flex items-center justify-between font-medium">
                       <span>
                         Ticket {t.numero} · {t.fecha} {t.hora ?? ''} ({t.estado})

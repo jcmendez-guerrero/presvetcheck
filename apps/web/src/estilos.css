@@ -2,6 +2,8 @@
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/bricolage-grotesque';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Sistema de Diseño Oficial Mundo Mascotix (SPEC §2.1 y Manual de Identidad Visual)
  * Arquitectura de Tokens en 3 Capas:
@@ -59,8 +61,13 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+:root {
+  color-scheme: light;
+}
+
 /* ── Modo Oscuro Calibrado (Inspirado en la referencia interna) ── */
 .dark {
+  color-scheme: dark;
   --color-fondo: #00161c; /* Lienzo azul noche profundo */
   --color-fondo-secundario: #001e26;
   --color-superficie: #00252f; /* Tarjeta visible y elevada */
@@ -123,6 +130,50 @@ select,
 input[type='checkbox'] + span,
 [role='button'] {
   min-height: 44px;
+}
+
+/* Soporte accesible de controles de formulario para modos claro y oscuro */
+input,
+select,
+textarea {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+  border-color: var(--color-borde);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+  border-color: var(--color-borde);
+}
+
+.dark select option {
+  background-color: var(--color-superficie);
+  color: var(--color-texto);
+}
+
+input[type='file'] {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+}
+
+input[type='file']::file-selector-button {
+  background-color: var(--color-fondo-secundario);
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  margin-right: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.dark input[type='file']::file-selector-button {
+  background-color: var(--color-superficie-elevada);
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
 }
 
 /* Anillo de foco accesible con Dorado de seguridad */

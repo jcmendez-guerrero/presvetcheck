@@ -130,7 +130,7 @@ export function Registros() {
         <Tarjeta titulo={`${tabla.nombre} (${tabla.filas.length})`}>
           <div className="max-h-[60vh] overflow-auto">
             <table className="text-xs">
-              <thead className="sticky top-0 bg-white">
+              <thead className="sticky top-0 bg-superficie border-b border-borde text-texto">
                 <tr>
                   {tabla.columnas.map((c) => (
                     <th key={c} className="whitespace-nowrap p-1 text-left">
@@ -321,7 +321,7 @@ function ImportarAnteriores() {
               info="Si el fichero tiene la columna «TIPO DE SALIDA» (como el informe «Todas las salidas»), se toma de ahí. Si no, indica cuál es."
             />
             <select
-              className="min-h-11 rounded-lg border px-2"
+              className="min-h-11 rounded-lg border border-borde bg-superficie px-3 text-texto"
               value={plantilla}
               onChange={(e) => setPlantilla(e.target.value)}
             >
@@ -340,7 +340,7 @@ function ImportarAnteriores() {
           <input
             type="file"
             accept=".xlsx,.csv"
-            className="min-h-11 rounded-lg border bg-white px-2 py-2"
+            className="min-h-11 rounded-lg border border-borde bg-superficie px-3 py-2 text-texto cursor-pointer"
             onChange={(e) => {
               setFichero(e.target.files?.[0] ?? null);
               setVista(null);

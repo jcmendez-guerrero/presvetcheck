@@ -230,7 +230,7 @@ export function ComandoBuscar({ abierto, alCerrar }: Props) {
             }}
             onKeyDown={manejarTeclado}
             placeholder="Ir a una pantalla o buscar comando… (ej. Recetas, Stock, Libros)"
-            className="flex-1 bg-transparent text-sm sm:text-base font-medium outline-hidden placeholder:text-slate-400 dark:placeholder:text-slate-400"
+            className="flex-1 bg-transparent text-sm sm:text-base font-medium outline-hidden placeholder:text-slate-400 dark:placeholder:text-slate-400 text-texto"
             aria-label="Buscar pantalla"
           />
           <button
@@ -277,8 +277,8 @@ export function ComandoBuscar({ abierto, alCerrar }: Props) {
                   </div>
                   <div className="flex flex-1 flex-col overflow-hidden">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm truncate">{d.titulo}</span>
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-400 shrink-0">
+                      <span className="font-semibold text-sm truncate text-texto">{d.titulo}</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-texto-muted dark:text-slate-400 shrink-0">
                         {d.seccion}
                       </span>
                     </div>

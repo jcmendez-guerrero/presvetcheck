@@ -938,12 +938,12 @@ function LineaForm({
               {cand.data?.map((c, j) => (
                 <li
                   key={c.cn}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 ring-1 ${j === 0 ? 'ring-marca' : 'ring-slate-200'}`}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-lg bg-superficie p-2.5 ring-1 text-texto ${j === 0 ? 'ring-marca dark:ring-acento' : 'ring-slate-200 dark:ring-white/10'}`}
                 >
                   <span className="text-sm">
                     {c.nombre}
                     <br />
-                    <span className="text-slate-600">
+                    <span className="text-texto-muted dark:text-slate-400">
                       {CN} {c.cn} · {c.labtitular ?? '—'} {c.comerc === false && '· no comercializado'}
                     </span>
                     {c.autorizadoEspecie === false && (

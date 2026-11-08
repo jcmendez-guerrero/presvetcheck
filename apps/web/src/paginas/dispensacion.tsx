@@ -153,7 +153,7 @@ export function ListaEnvases({
 
 export function Imprimible({ titulo, texto }: { titulo: string; texto: string }) {
   return (
-    <div className="rounded-xl border-2 border-dashed border-slate-400 bg-white p-4">
+    <div className="rounded-xl border-2 border-dashed border-slate-400 bg-superficie p-4 text-texto">
       <div className="flex items-center justify-between">
         <p className="font-semibold">{titulo}</p>
         <Boton

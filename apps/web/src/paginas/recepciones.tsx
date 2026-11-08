@@ -321,7 +321,7 @@ export function Recepciones() {
             {modo === 'albaran' && (
               <div className="flex flex-wrap items-center gap-3">
                 <label
-                  className={`inline-flex items-center gap-2 rounded-xl bg-marca px-5 py-3 font-semibold text-white ${leyendo ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
+                  className={`inline-flex items-center gap-2 rounded-xl bg-marca px-5 py-3 font-semibold text-white dark:text-mmx-noche ${leyendo ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
                 >
                   {leyendo ? (
                     <Loader2 aria-hidden className="h-5 w-5 animate-spin" />
@@ -1602,7 +1602,7 @@ function LeerDocumento({
             {lec.lineas.map((x, i) => (
               <li
                 key={i}
-                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-2 ring-1 ${usadas.has(i) ? 'bg-dispensar-bg ring-dispensar' : 'bg-white ring-slate-200'}`}
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-2 ring-1 text-texto ${usadas.has(i) ? 'bg-dispensar-bg ring-dispensar dark:bg-dispensar-bg/40' : 'bg-superficie ring-slate-200 dark:ring-white/10'}`}
               >
                 <span className="text-sm">
                   <strong>{x.descripcion ?? '(sin descripción)'}</strong>
@@ -1643,7 +1643,7 @@ function VisorDocumento({ documento }: { documento: { url: string; pdf: boolean 
   const cambiar = (d: number) => setZoom((z) => Math.min(300, Math.max(50, z + d)));
   return (
     <div
-      className="flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 lg:sticky lg:top-4"
+      className="flex flex-col gap-2 rounded-2xl bg-superficie p-3.5 shadow-sm border border-slate-200/90 dark:border-white/10 dark:shadow-md text-texto lg:sticky lg:top-4"
       data-testid="visor-albaran"
     >
       <div className="flex items-center gap-2">

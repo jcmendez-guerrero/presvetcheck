@@ -397,7 +397,7 @@ export function Respuesta({
                 <button
                   type="button"
                   data-testid="asistente-candidato"
-                  className="min-h-11 w-full rounded-xl bg-white px-3 py-2 text-left ring-1 ring-marca/30 hover:bg-pedir-bg"
+                  className="min-h-11 w-full rounded-xl bg-superficie px-3 py-2 text-left text-texto ring-1 ring-marca/30 hover:bg-pedir-bg dark:bg-superficie-elevada dark:ring-white/10 dark:hover:bg-pedir-bg/20 cursor-pointer"
                   onClick={() => onElegir?.(c)}
                 >
                   {c.nombre}
@@ -451,7 +451,7 @@ function Valoracion({
         <button
           type="button"
           aria-pressed={valor === 'util'}
-          className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3 ring-1 ring-slate-300 ${valor === 'util' ? 'bg-dispensar-bg font-semibold text-dispensar' : 'bg-white'}`}
+          className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3 ring-1 ring-slate-300 dark:ring-white/10 ${valor === 'util' ? 'bg-dispensar-bg font-semibold text-dispensar dark:bg-dispensar-bg/40' : 'bg-superficie text-texto'}`}
           onClick={() => void enviar('util')}
         >
           <ThumbsUp aria-hidden className="h-4 w-4" /> Útil
@@ -459,7 +459,7 @@ function Valoracion({
         <button
           type="button"
           aria-pressed={valor === 'incorrecta'}
-          className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3 ring-1 ring-slate-300 ${valor === 'incorrecta' ? 'bg-noconforme-bg font-semibold text-noconforme' : 'bg-white'}`}
+          className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3 ring-1 ring-slate-300 dark:ring-white/10 ${valor === 'incorrecta' ? 'bg-noconforme-bg font-semibold text-noconforme dark:bg-noconforme-bg/40' : 'bg-superficie text-texto'}`}
           onClick={() => setComentando(true)}
         >
           <ThumbsDown aria-hidden className="h-4 w-4" /> Incorrecta
@@ -626,12 +626,12 @@ export function TarjetaSimulacion({ s }: { s: SimulacionGuardada }) {
       {Object.keys(s.supuestos).length > 0 && (
         <details className="ml-7 mt-1 text-sm">
           <summary className="cursor-pointer text-marca-2">Datos supuestos</summary>
-          <pre className="mt-1 whitespace-pre-wrap rounded bg-white p-2 text-xs">
+          <pre className="mt-1 whitespace-pre-wrap rounded bg-superficie border border-borde p-2 text-xs text-texto">
             {JSON.stringify(s.supuestos, null, 2)}
           </pre>
         </details>
       )}
-      <p className="ml-7 mt-1 text-xs text-slate-600">
+      <p className="ml-7 mt-1 text-xs text-texto-muted dark:text-slate-400">
         Simulación: no se ha guardado ninguna receta. Reglas {s.reglaVersion}.
       </p>
     </section>
@@ -641,7 +641,7 @@ export function TarjetaSimulacion({ s }: { s: SimulacionGuardada }) {
 function TarjetaMotor({ r, version }: { r: NonNullable<IntercambioDto['resultadoMotor']>; version: string }) {
   return (
     <section
-      className="rounded-xl border-l-4 border-marca-2 bg-white p-3 ring-1 ring-slate-200"
+      className="rounded-xl border-l-4 border-marca-2 bg-superficie p-3 ring-1 ring-slate-200 dark:ring-white/10 text-texto"
       aria-label="Resultado de la aplicación"
       data-testid="asistente-motor"
     >

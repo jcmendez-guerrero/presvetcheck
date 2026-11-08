@@ -17,7 +17,9 @@ test.describe('Barra Lateral y Navegación por Secciones (AC 1.2)', () => {
     // Comprobar la presencia o encabezados de las 4 secciones lógicas
     // En el Sidebar moderno de PROJECT.md: Dispensación, Operaciones, Registros, Sistema
     const textoNav = await page.evaluate(() => {
-      const aside = document.querySelector('aside, nav');
+      const aside =
+        document.querySelector('aside') ??
+        document.querySelector('nav[aria-label*="lateral" i], nav[aria-label*="Principal" i]');
       return aside ? (aside.textContent ?? '') : '';
     });
 
