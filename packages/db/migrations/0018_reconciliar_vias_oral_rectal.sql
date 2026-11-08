@@ -8,8 +8,7 @@ WHERE via_id = 48
 --> statement-breakpoint
 DELETE FROM cimavet_med_via WHERE via_id = 48;
 --> statement-breakpoint
-UPDATE cimavet_maestra
-SET id = 59, clave = '59', nombre = 'VÍA RECTAL'
+DELETE FROM cimavet_maestra
 WHERE tipo = 3 AND (id = 54 OR clave = '54') AND nombre ILIKE '%rectal%';
 --> statement-breakpoint
 INSERT INTO cimavet_maestra (tipo, clave, id, codigo, nombre)
