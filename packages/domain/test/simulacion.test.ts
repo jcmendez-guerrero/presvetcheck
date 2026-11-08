@@ -291,4 +291,192 @@ describe('simularEquivalencia (SPEC §4.4.2)', () => {
     expect(r.decision).toBe('NO_EQUIVALENTE');
     expect(r.motivos.map((m) => m.code)).toContain('INDICACION_NO_COINCIDE');
   });
+
+  it('genera evidencias.comparativa con los 7 criterios normativos y detalle legible', () => {
+    const r = simularEquivalencia({
+      prescrito: amoxicilina(500),
+      candidato: amoxicilina(500, { nregistro: '9999 TEST', labtitular: 'OTRO LAB' }),
+      contexto,
+      rules: RULES,
+      nombres: {
+        formaPrescrito: 'Comprimido',
+        formaCandidato: 'Comprimido',
+        viasPrescrito: ['Vía oral'],
+        viasCandidato: ['Vía oral'],
+        especiesPrescrito: ['Perros'],
+        especiesCandidato: ['Perros', 'Gatos'],
+        especieContexto: 'Perros',
+      },
+    });
+
+    const comp = r.evidencias['comparativa'] as Array<{
+      criterio: string;
+      prescrito: string;
+      candidato: string;
+      coincide: boolean;
+      detalle?: string;
+    }>;
+    expect(Array.isArray(comp)).toBe(true);
+    expect(comp).toHaveLength(7);
+    expect(comp.map((c) => c.criterio)).toEqual([
+      'Principio activo',
+      'Concentración',
+      'Forma farmacéutica',
+      'Vía de administración',
+      'Especie de destino',
+      'Indicación',
+      'Tiempo de espera',
+    ]);
+    expect(comp.every((c) => c.coincide)).toBe(true);
+    expect(comp.find((c) => c.criterio === 'Forma farmacéutica')?.prescrito).toBe('Comprimido');
+    expect(comp.find((c) => c.criterio === 'Vía de administración')?.candidato).toBe('Vía oral');
+    expect(comp.find((c) => c.criterio === 'Tiempo de espera')?.prescrito).toContain('animal de compañía');
+  });
+
+  it('refleja discrepancias en evidencias.comparativa para cada criterio no cumplido', () => {
+    const r = simularEquivalencia({
+      prescrito: amoxicilina(500),
+      candidato: amoxicilina(250, {
+        nregistro: '9999 TEST',
+        formaId: 99,
+        viaIds: [10],
+        especieIds: [ESPECIE.BOVINO],
+        indicaciones: [{ especieId: null, texto: 'Alivio del dolor' }],
+      }),
+      contexto,
+      rules: RULES,
+    });
+
+    const comp = r.evidencias['comparativa'] as Array<{
+      criterio: string;
+      coincide: boolean;
+      detalle?: string;
+    }>;
+    expect(comp.find((c) => c.criterio === 'Concentración')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Forma farmacéutica')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Vía de administración')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Especie de destino')?.coincide).toBe(false);
+    expect(comp.find((c) => c.criterio === 'Indicación')?.coincide).toBe(false);
+  });
+
+  it('Bioclanic 50/12,5 mg vs Clavusan 50/12,5 mg: reconcilia concentración nominal y maneja indicación no especificada con aviso (FR-020, FR-021)', () => {
+    // Bioclanic: amoxicilina 57.40 mg + clavulanato 29.80 mg (dispersión 1:1)
+    const bioclanic = {
+      nregistro: '4332 ESP',
+      nombre: 'BIOCLANIC 50 mg +12,5 mg COMPRIMIDOS CON SABOR PARA GATOS Y PERROS',
+      labtitular: 'Axience',
+      receta: true,
+      antibiotico: true,
+      estupefaciente: false,
+      psicotropo: false,
+      inmunologico: false,
+      biologico: false,
+      usoHumano: false,
+      formaId: 1, // Comprimido
+      viaIds: [54], // Vía oral
+      especieIds: [ESPECIE.PERROS, ESPECIE.GATOS],
+      atc: ['QJ01CR02'],
+      indicaciones: [
+        { especieId: null, texto: 'Infecciones bacterianas del tracto respiratorio y urinario' },
+      ],
+      tiemposEspera: [],
+      estado: 'autorizado' as const,
+      comerc: true,
+      psum: false,
+      notas: false,
+      composicion: {
+        pas: [
+          { paId: 161, nombre: 'AMOXICILINA TRIHIDRATO', cantidad: '57.40', unidad: 'mg' },
+          { paId: 200, nombre: 'CLAVULANATO POTASIO', cantidad: '29.80', unidad: 'mg' },
+        ],
+        porCantidad: '1',
+        porUnidad: 'Comprimido',
+      },
+    };
+
+    // Clavusan: amoxicilina 57.40 mg + clavulanato 14.89 mg (sal pura)
+    const clavusan = {
+      nregistro: '4161 ESP',
+      nombre: 'CLAVUSAN 50 mg + 12,5mg COMPRIMIDOS PARA PERROS Y GATOS',
+      labtitular: 'Alfasan',
+      receta: true,
+      antibiotico: true,
+      estupefaciente: false,
+      psicotropo: false,
+      inmunologico: false,
+      biologico: false,
+      usoHumano: false,
+      formaId: 1, // Comprimido
+      viaIds: [54], // Vía oral
+      especieIds: [ESPECIE.PERROS, ESPECIE.GATOS],
+      atc: ['QJ01CR02'],
+      indicaciones: [{ especieId: null, texto: 'Infección cutánea causada por microorganismos sensibles' }],
+      tiemposEspera: [],
+      estado: 'autorizado' as const,
+      comerc: true,
+      psum: false,
+      notas: false,
+      composicion: {
+        pas: [
+          { paId: 161, nombre: 'AMOXICILINA TRIHIDRATO', cantidad: '57.40', unidad: 'mg' },
+          { paId: 200, nombre: 'CLAVULANATO POTASIO', cantidad: '14.89', unidad: 'mg' },
+        ],
+        porCantidad: '1',
+        porUnidad: 'Comprimido',
+      },
+    };
+
+    const r = simularEquivalencia({
+      prescrito: bioclanic,
+      candidato: clavusan,
+      contexto: {
+        especieId: ESPECIE.PERROS,
+        especieProduccion: false,
+        clase: 'ordinaria',
+        indicacion: 'Tratamiento prescrito',
+        viaPrescritaId: null,
+        duracionDias: null,
+      },
+      rules: RULES,
+      nombres: {
+        formaPrescrito: 'Comprimido',
+        formaCandidato: 'Comprimido',
+        viasPrescrito: ['Vía oral'],
+        viasCandidato: ['Vía oral'],
+        especiesPrescrito: ['Perros', 'Gatos'],
+        especiesCandidato: ['Perros', 'Gatos'],
+        especieContexto: 'Perros',
+      },
+    });
+
+    expect(r.decision).toBe('EQUIVALENTE');
+
+    const comp = r.evidencias['comparativa'] as Array<{
+      criterio: string;
+      prescrito: string;
+      candidato: string;
+      coincide: boolean;
+      estado?: 'coincide' | 'discrepancia' | 'aviso';
+      detalle?: string;
+    }>;
+
+    // 1. Concentración reconciliada por nombre nominal (FR-020)
+    const conc = comp.find((c) => c.criterio === 'Concentración')!;
+    expect(conc.coincide).toBe(true);
+    expect(conc.estado).toBe('coincide');
+    expect(conc.prescrito).toBe('50 mg + 12,5 mg');
+    expect(conc.candidato).toBe('50 mg + 12,5 mg');
+
+    // 2. Vía de administración coincidente (FR-019)
+    const via = comp.find((c) => c.criterio === 'Vía de administración')!;
+    expect(via.coincide).toBe(true);
+    expect(via.prescrito).toBe('Vía oral');
+    expect(via.candidato).toBe('Vía oral');
+
+    // 3. Indicación clínica no especificada con aviso informativo (FR-021)
+    const ind = comp.find((c) => c.criterio === 'Indicación')!;
+    expect(ind.coincide).toBe(true);
+    expect(ind.estado).toBe('aviso');
+    expect(ind.detalle).toContain('Indicación no especificada');
+  });
 });

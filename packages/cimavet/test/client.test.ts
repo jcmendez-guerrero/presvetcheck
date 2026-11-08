@@ -295,6 +295,72 @@ describe('normalización a la caché', () => {
     ).toBe('suspendido');
   });
 
+  it('registroDesdeApi reconcilia vías de administración prefiriendo codigo canónico sobre id interno (FR-014)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '3313 ESP',
+        nombre: 'Prednicortone',
+        viasAdministracion: [
+          { id: 48, codigo: '54', nombre: 'VÍA ORAL' },
+          { id: 12, nombre: 'VÍA TÓPICA' },
+        ],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([54, 12]);
+  });
+
+  it('registroDesdeApi mapea id: 48 a 54 (VÍA ORAL) aunque la API REST omita el campo codigo (FR-019)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4161 ESP',
+        nombre: 'Clavusan',
+        viasAdministracion: [{ id: 48, nombre: 'VÍA ORAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([54]);
+  });
+
+  it('registroDesdeApi conserva id: 54 como 54 (VÍA ORAL) cuando nombre es VÍA ORAL o se omite (FR-019)', () => {
+    const rOral = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4332 ESP',
+        nombre: 'Bioclanic',
+        viasAdministracion: [{ id: 54, nombre: 'VÍA ORAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(rOral.vias).toEqual([54]);
+
+    const rSinNombre = registroDesdeApi(
+      lowerKeys({
+        nregistro: '4332 ESP',
+        nombre: 'Bioclanic',
+        viasAdministracion: [{ id: 54 }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(rSinNombre.vias).toEqual([54]);
+  });
+
+  it('registroDesdeApi mapea id: 54 con nombre VÍA RECTAL a código canónico 59 (FR-019)', () => {
+    const r = registroDesdeApi(
+      lowerKeys({
+        nregistro: '9999 ESP',
+        nombre: 'Supositorio Vet',
+        viasAdministracion: [{ id: 54, nombre: 'VÍA RECTAL' }],
+      }) as never,
+      {},
+      new Date(),
+    );
+    expect(r.vias).toEqual([59]);
+  });
+
   it('tiempos de espera con la forma real (objetos tejido/unidadTiempo/forma/vía)', () => {
     const r = registroDesdeApi(
       lowerKeys({

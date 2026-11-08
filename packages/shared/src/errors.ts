@@ -44,6 +44,7 @@ export const CODIGOS_ERROR = [
   'TICKET_CANTIDAD_INSUFICIENTE',
   'MODO_RETROSPECTIVO_DESHABILITADO',
   'RECETA_YA_VINCULADA',
+  'SUSTITUCION_BLOQUEO_DURO',
 ] as const;
 export type CodigoError = (typeof CODIGOS_ERROR)[number];
 

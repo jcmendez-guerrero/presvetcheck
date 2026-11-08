@@ -117,3 +117,11 @@ export const RecetaConfirmada = z.object({
 });
 export type RecetaConfirmada = z.output<typeof RecetaConfirmada>;
 export type RecetaConfirmadaInput = z.input<typeof RecetaConfirmada>;
+
+/** Petición para sobreescribir la sustitución de una línea de receta (FR-017). */
+export const PeticionSobreescribirSustitucion = z.object({
+  cn: z.string().regex(/^\d{6}$/, 'El Código nacional debe tener 6 dígitos'),
+  nregistro: z.string().optional().nullable(),
+  motivo: z.string().trim().min(5, 'El motivo de sustitución debe tener al menos 5 caracteres'),
+});
+export type PeticionSobreescribirSustitucion = z.infer<typeof PeticionSobreescribirSustitucion>;

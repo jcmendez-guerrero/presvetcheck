@@ -55,6 +55,39 @@ export const SimulacionGuardada = z.object({
 });
 export type SimulacionGuardada = z.infer<typeof SimulacionGuardada>;
 
+/** Elemento de la comparativa de sustitución criterio a criterio entre medicamentos (FR-016). */
+export const CriterioComparativaSustitucion = z.object({
+  criterio: z.string().describe('Denominación del criterio normativo evaluado'),
+  prescrito: z.string().describe('Valor correspondiente al medicamento prescrito'),
+  candidato: z.string().describe('Valor correspondiente al medicamento candidato'),
+  coincide: z.boolean().describe('true si el criterio cumple los requisitos legales de equivalencia'),
+  estado: z.enum(['coincide', 'discrepancia', 'aviso']).optional().describe('Estado semántico visual'),
+  detalle: z.string().optional().describe('Aclaración técnica opcional o motivo de discrepancia'),
+});
+export type CriterioComparativaSustitucion = z.infer<typeof CriterioComparativaSustitucion>;
+
+/** Petición para comparar reglamentariamente dos medicamentos en el vademécum (FR-018). */
+export const PeticionCompararMedicamentos = z.object({
+  prescritoNregistro: z.string().min(1, 'El registro del medicamento prescrito es obligatorio'),
+  candidatoNregistro: z.string().min(1, 'El registro del candidato es obligatorio'),
+  especie: z.string().min(1, 'La especie es obligatoria'),
+  indicacion: z.string().optional(),
+});
+export type PeticionCompararMedicamentos = z.infer<typeof PeticionCompararMedicamentos>;
+
+/** Respuesta estructurada de la comparación entre dos medicamentos (FR-018). */
+export const RespuestaCompararMedicamentos = z.object({
+  decision: DecisionSimulacion,
+  motivos: z.array(z.string()),
+  evidencias: z.object({
+    comparativa: z.array(CriterioComparativaSustitucion),
+    indicacion: z.string().optional(),
+  }),
+  reglaVersion: z.string(),
+  esBloqueanteDuro: z.boolean(),
+});
+export type RespuestaCompararMedicamentos = z.infer<typeof RespuestaCompararMedicamentos>;
+
 /** Salida estructurada obligatoria del modelo (contracts/salida-modelo.md). */
 export const SalidaModelo = z.object({
   tipo: TipoRespuesta,
@@ -184,6 +217,22 @@ export const ArgsSimularEquivalencia = z.object({
   indicacion: z.string().max(300).optional(),
   especieProduccion: z.boolean().optional(),
 });
+
+export const ArgsBuscarSustitutos = z.object({
+  nombre: z.string().min(2).max(120).optional(),
+  nregistro: z.string().min(1).max(30).optional(),
+  especie: z.string().min(1).max(60),
+  indicacion: z.string().max(300).optional(),
+});
+export type ArgsBuscarSustitutos = z.infer<typeof ArgsBuscarSustitutos>;
+
+export const ArgsConsultarStock = z.object({
+  cns: z
+    .array(z.string().regex(/^\d{6}$/))
+    .min(1)
+    .max(50),
+});
+export type ArgsConsultarStock = z.infer<typeof ArgsConsultarStock>;
 
 // ── API HTTP (contracts/api.md) ─────────────────────────────────────────────
 

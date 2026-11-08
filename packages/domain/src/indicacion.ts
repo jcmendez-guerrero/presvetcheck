@@ -30,6 +30,17 @@ export function similitudIndicacion(
   return comunes / a.size;
 }
 
+const INDICACIONES_GENERICAS =
+  /^(tratamiento( prescrito)?|prescripci[oó]n( general)?|no especificada?|sin especificaci[oó]n)$/i;
+
+/**
+ * Determina si la indicación clínica facilitada es nula, vacía o un texto comodín genérico (FR-021).
+ */
+export function esIndicacionGenerica(ind: string | null | undefined): boolean {
+  if (!ind) return true;
+  return INDICACIONES_GENERICAS.test(ind.trim());
+}
+
 export function compararIndicacion(
   receta: string | null,
   candidatas: string[],
