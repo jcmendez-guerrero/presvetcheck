@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { api, confirmar, crearReceta, entorno, recetaCorrecta } from './entorno';
-import { dispensacion, evidenciaStockRetrospectiva } from '@mmx/db';
+import { dispensacion, evidenciaStockRetrospectiva, siwebVariantMap } from '@mmx/db';
 import { eq } from 'drizzle-orm';
 
 describe('Dispensación en modo retrospectivo (formación)', () => {
@@ -131,6 +131,23 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
     expect(dispRes.status).toBe(403);
     expect((dispRes.json as { error: { code: string } }).error.code).toBe('MODO_RETROSPECTIVO_DESHABILITADO');
 
+    await app.close();
+  });
+
+  it('si Siweb360 no responde, lo dice (503) en lugar de dar la venta por inexistente', async () => {
+    const { app, deps, h } = await entorno({ config: { RETROSPECTIVE_DISPENSATION_MODE: 'enabled' } });
+    await h.db.insert(siwebVariantMap).values({ cn: '570016', variantId: 9001, metodo: 'manual' });
+    deps.siweb = {
+      ...(deps.siweb ?? {}),
+      client: { movements: async () => Promise.reject(new Error('ECONNRESET')) },
+    } as never;
+    const r = await api(app, 'dev-empleado', 'POST', '/api/inventario/movimientos/retrospectivo', {
+      cn: '570016',
+      fechaOriginal: '2026-09-15',
+      unidadesRequeridas: 1,
+    });
+    expect(r.status).toBe(503);
+    expect(r.json.error.code).toBe('SIWEB_NO_DISPONIBLE');
     await app.close();
   });
 });

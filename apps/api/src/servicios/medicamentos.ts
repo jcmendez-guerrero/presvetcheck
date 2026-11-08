@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
-import { cimavetMaestra, MAESTRA } from '@mmx/db';
+import { cimavetMaestra, filas, MAESTRA } from '@mmx/db';
 import {
   concentracionDelNombre,
   type Candidato,
@@ -159,8 +159,7 @@ export class MedicamentosService {
 
   async contarMedicamentos(): Promise<number> {
     const r = await this.d.db.execute(sql`select count(*)::int as n from cimavet_medicamento`);
-    const rows = (Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ n: number }>;
-    return rows[0]?.n ?? 0;
+    return filas<{ n: number }>(r)[0]?.n ?? 0;
   }
 
   async maestra(tipo: number, ids: number[]) {

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
-import { conciliacion, dispensacion, receta, recetaLinea } from '@mmx/db';
+import { and, eq } from 'drizzle-orm';
+import { auditEvent, conciliacion, dispensacion, receta, recetaLinea } from '@mmx/db';
 import { api, confirmar, crearReceta, entorno, recetaCorrecta, type Entorno } from './entorno';
 
 let E: Entorno;
@@ -118,5 +118,47 @@ describe('dispensación concurrente y anulación', () => {
     ).toBe(200);
     const conc = await E.h.db.select().from(conciliacion).where(eq(conciliacion.ticket, numero));
     expect(conc.map((c) => c.dispensacionId)).toEqual([vigente]);
+  });
+});
+
+describe('recepción: doble envío al finalizar', () => {
+  it('la segunda petición que llega a la vez se rechaza y no se finaliza dos veces', async () => {
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', {
+      distribuidor: 'Distribuidora Test',
+      albaran: 'ALB-DOBLE-1',
+    });
+    const rid = (r.json as { id: string }).id;
+    const l = await api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/lineas`, {
+      cn: '570016',
+      lote: 'L-2026-01',
+      caducidad: '2027-12-31',
+      unidades: 5,
+      precioNetoCompra: '18.5000',
+      precioCoste: '18.5000',
+    });
+    expect(l.status).toBe(201);
+    const finalizar = () => api(E.app, 'dev-empleado', 'POST', `/api/recepciones/${rid}/finalizar`);
+    // La otra petición termina justo cuando la primera abre su transacción (tras comprobar que estaba abierta).
+    const db = E.deps.db;
+    const original = db.transaction;
+    let colada: Awaited<ReturnType<typeof finalizar>> | null = null;
+    db.transaction = (async (...args: Parameters<typeof original>) => {
+      db.transaction = original;
+      colada = await finalizar();
+      return original.apply(db, args);
+    }) as typeof original;
+    let fin: Awaited<ReturnType<typeof finalizar>>;
+    try {
+      fin = await finalizar();
+    } finally {
+      db.transaction = original;
+    }
+    expect(colada!.status).toBe(200);
+    expect(fin.json.error.code).toBe('RECEPCION_NO_EDITABLE');
+    const audits = await E.h.db
+      .select()
+      .from(auditEvent)
+      .where(and(eq(auditEvent.entidadId, rid), eq(auditEvent.accion, 'recepcion_finalizar')));
+    expect(audits).toHaveLength(1);
   });
 });

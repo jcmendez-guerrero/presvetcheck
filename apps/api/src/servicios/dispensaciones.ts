@@ -3,6 +3,7 @@ import {
   appendAudit,
   dispensacion,
   dispensacionVigente,
+  filas,
   evidenciaStockRetrospectiva,
   gtinCn,
   pedidoPendiente,
@@ -42,7 +43,6 @@ import {
 import {
   DomainError,
   type Canal,
-  type CodigoIncidencia,
   type EstadoReceta,
   type MetodoCaptura,
   type ConsultaStockRetrospectivoBody,
@@ -112,21 +112,14 @@ export class DispensacionesService {
     this.recetas = new RecetasService(d);
   }
 
-  /** Unidades de dosificación ya entregadas en fracciones para la línea (sin anuladas). */
-  private async unidadesFormaYaDispensadas(tx: DbOrTx, recetaLineaId: string): Promise<number> {
-    const r = await tx.execute(sql`
-      select coalesce(sum(unidades_forma), 0)::int as n from dispensacion
-      where receta_linea_id = ${recetaLineaId} and ${dispensacionVigente}`);
-    const rows = (Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ n: number }>;
-    return rows[0]?.n ?? 0;
-  }
-
-  private async unidadesYaDispensadas(tx: DbOrTx, recetaLineaId: string): Promise<number> {
-    const r = await tx.execute(sql`
-      select coalesce(sum(unidades), 0)::int as n from dispensacion
-      where receta_linea_id = ${recetaLineaId} and ${dispensacionVigente}`);
-    const rows = (Array.isArray(r) ? r : (r as { rows: unknown[] }).rows) as Array<{ n: number }>;
-    return rows[0]?.n ?? 0;
+  /** Lo ya entregado en la línea (sin anuladas): envases y unidades de dosificación en fracciones. */
+  private async yaDispensado(tx: DbOrTx, recetaLineaId: string): Promise<{ envases: number; forma: number }> {
+    const [r] = filas<{ envases: number; forma: number }>(
+      await tx.execute(sql`
+        select coalesce(sum(unidades), 0)::int as envases, coalesce(sum(unidades_forma), 0)::int as forma
+        from dispensacion where receta_linea_id = ${recetaLineaId} and ${dispensacionVigente}`),
+    );
+    return r ?? { envases: 0, forma: 0 };
   }
 
   /**
@@ -352,7 +345,7 @@ export class DispensacionesService {
 
     // 2b. Dispensación fraccionada (guía §5.9): solo la presentación prescrita, autorizada para fraccionar,
     // en múltiplos de la fracción del laboratorio y sin superar las unidades prescritas pendientes.
-    const yaForma = await this.unidadesFormaYaDispensadas(this.d.db, lineaDb.id);
+    const { envases: ya, forma: yaForma } = await this.yaDispensado(this.d.db, lineaDb.id);
     if (s.fraccion) {
       if (r.decision !== 'DISPENSAR')
         throw new DomainError('FRACCION_NO_VALIDA', 'Solo se fracciona la presentación prescrita', {
@@ -384,7 +377,6 @@ export class DispensacionesService {
       throw new DomainError('DNI_RETIRA_OBLIGATORIO', 'Psicótropo: falta el DNI/NIE válido de quien retira');
 
     // 3. Escaneo y forzado combinado (receta + envase).
-    const ya = await this.unidadesYaDispensadas(this.d.db, lineaDb.id);
     const escaneo = await this.validarEnvases({
       cn: cnPermitido,
       envases: s.envases,
@@ -439,10 +431,8 @@ export class DispensacionesService {
         .from(recetaLinea)
         .where(eq(recetaLinea.id, lineaDb.id))
         .for('update');
-      if (
-        (await this.unidadesYaDispensadas(tx, lineaDb.id)) !== ya ||
-        (await this.unidadesFormaYaDispensadas(tx, lineaDb.id)) !== yaForma
-      )
+      const ahoraYa = await this.yaDispensado(tx, lineaDb.id);
+      if (ahoraYa.envases !== ya || ahoraYa.forma !== yaForma)
         throw new DomainError('CONFLICTO', 'Se acaba de dispensar esta línea: vuelve a cargar la receta');
       const propietarioId = s.propietario ? await this.guardarPropietario(tx, s.propietario, c) : null;
       const out: string[] = [];
@@ -816,12 +806,10 @@ export class DispensacionesService {
           .returning({ id: dispensacion.id });
         if (o.recetaLineaId) {
           // Lo vigente nunca supera lo prescrito: tras anular, la línea queda pendiente o a medio entregar.
-          const quedan =
-            (await this.unidadesYaDispensadas(tx, o.recetaLineaId)) +
-            (await this.unidadesFormaYaDispensadas(tx, o.recetaLineaId));
+          const quedan = await this.yaDispensado(tx, o.recetaLineaId);
           await tx
             .update(recetaLinea)
-            .set({ estado: quedan ? 'PENDIENTE_ENTREGA' : 'PENDIENTE' })
+            .set({ estado: quedan.envases + quedan.forma ? 'PENDIENTE_ENTREGA' : 'PENDIENTE' })
             .where(eq(recetaLinea.id, o.recetaLineaId));
         }
         if (o.recetaId)
@@ -899,7 +887,8 @@ export class DispensacionesService {
           reference_number: m.reference_id ? String(m.reference_id) : null,
         }));
       } catch {
-        // En caso de fallo de red con Siweb360, continúa con movimientos vacíos
+        // Sin respuesta no se sabe si hubo venta: no se presenta como «sin movimientos».
+        throw new DomainError('SIWEB_NO_DISPONIBLE');
       }
     }
 
@@ -922,10 +911,5 @@ export class DispensacionesService {
     });
 
     return { ...resEvaluacion, variantId, movimientos: movimientosRaw };
-  }
-
-  /** Códigos de incidencia de una dispensación (para la UI). */
-  static codigosDe(incs: Incidencia[]): CodigoIncidencia[] {
-    return incs.map((i) => i.code);
   }
 }

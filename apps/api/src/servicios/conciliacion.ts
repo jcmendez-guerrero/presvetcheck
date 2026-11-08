@@ -8,7 +8,7 @@ import {
   type DispensacionMultiRx,
   type LineaTicketItem,
 } from '@mmx/domain';
-import { DemoSalesMovementsSource, conciliarDia, estadoConciliacion } from '@mmx/siweb';
+import { DemoSalesMovementsSource, HttpError, conciliarDia, estadoConciliacion } from '@mmx/siweb';
 import {
   DomainError,
   type AsociarTicketBody,
@@ -387,7 +387,8 @@ export class ConciliacionService {
           }
         }
       } catch {
-        // En caso de error consultando el ticket, continúa con lo que haya
+        // Sin las líneas del ticket la conciliación saldría falsamente descuadrada: mejor decirlo.
+        throw new DomainError('SIWEB_NO_DISPONIBLE');
       }
     }
 
@@ -411,8 +412,9 @@ export class ConciliacionService {
               }
             }
           }
-        } catch {
-          // Siweb client error
+        } catch (e) {
+          // Un 404 es que no hay ticket con ese id (se sigue sin líneas); lo demás es que Siweb360 no responde.
+          if (!(e instanceof HttpError && e.status === 404)) throw new DomainError('SIWEB_NO_DISPONIBLE');
         }
       }
     }

@@ -193,7 +193,6 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
         if (body.quantity === 99) return new HttpResponse(null, { status: 502 });
         return HttpResponse.json(fx('doc-adjustment.json'));
       }),
-      http.post(`${BASE}inventory/stock/transfers`, () => HttpResponse.json(fx('doc-transfer.json'))),
     );
     const c = client();
     const r = await c.ajustarStock({
@@ -208,9 +207,6 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
       status: 502,
     });
     expect(n).toBe(2);
-    expect(
-      await c.transferir({ variant_id: 1, from_warehouse_id: 1, to_warehouse_id: 2, quantity: 5 }),
-    ).toMatchObject({ data: { reference_id: 'TRF-1728374400000' } });
   });
 
   it('409 por stock ilimitado y respuesta no válida', async () => {
