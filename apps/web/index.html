@@ -7,6 +7,21 @@
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icono-192.png" />
     <title>Recetas · Mundo Mascotix</title>
+    <script>
+      (function () {
+        try {
+          var tema = localStorage.getItem('mmx-tema-ui');
+          var prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (tema === 'oscuro' || ((!tema || tema === 'sistema') && prefiereOscuro)) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

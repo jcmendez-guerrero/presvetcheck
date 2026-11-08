@@ -34,6 +34,7 @@ export default tseslint.config(
       // Recursos de las skills de Copilot (copiados de terceros, no son código del producto).
       '.github/skills/**',
       '.claude/**',
+      '.agents/**',
     ],
   },
   js.configs.recommended,
