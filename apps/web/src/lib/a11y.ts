@@ -63,8 +63,10 @@ export function useFocusTrap(
         const primero = elementos[0]!;
         const ultimo = elementos[elementos.length - 1]!;
 
-        // Foco en algo fuera de la lista (el título con data-autofocus o el propio contenedor): Tab no debe escaparse.
-        if (!elementos.includes(document.activeElement as HTMLElement)) {
+        // Foco dentro del contenedor pero fuera de la lista (el título con data-autofocus o el propio contenedor): Tab no
+        // debe escaparse. Si el foco está fuera (panel sin velo, como el asistente), Tab sigue su curso por la página.
+        const activo = document.activeElement as HTMLElement | null;
+        if (contenedor.contains(activo) && !elementos.includes(activo!)) {
           e.preventDefault();
           (e.shiftKey ? ultimo : primero).focus();
         } else if (e.shiftKey && document.activeElement === primero) {
