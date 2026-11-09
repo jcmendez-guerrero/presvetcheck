@@ -52,13 +52,30 @@ export function configurarCabeceras(f: () => Promise<Record<string, string>>) {
   cabeceras = f;
 }
 
+/** Se llama ante un 401: renueva la sesión y responde si merece la pena repetir la petición. */
+let alNoAutorizado: (() => Promise<boolean>) | null = null;
+export function configurarNoAutorizado(f: (() => Promise<boolean>) | null) {
+  alNoAutorizado = f;
+}
+
 export async function api<T = unknown>(metodo: string, url: string, cuerpo?: unknown): Promise<T> {
   const esForm = cuerpo instanceof FormData;
-  const res = await fetch(url, {
-    method: metodo,
-    headers: { ...(await cabeceras()), ...(cuerpo !== undefined && !esForm ? { 'Content-Type': 'application/json' } : {}) },
-    ...(cuerpo !== undefined ? { body: esForm ? cuerpo : JSON.stringify(cuerpo) } : {}),
-  });
+  const pedir = async () =>
+    fetch(url, {
+      method: metodo,
+      headers: {
+        ...(await cabeceras()),
+        // Así la autenticación de la plataforma responde 401 en lugar de redirigir a Microsoft.
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(cuerpo !== undefined && !esForm ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(cuerpo !== undefined ? { body: esForm ? cuerpo : JSON.stringify(cuerpo) } : {}),
+    });
+  let res = await pedir();
+  // Repetir es seguro también en escrituras: la API rechaza un 401 antes de hacer nada.
+  if (res.status === 401 && url !== '/api/config/publica' && alNoAutorizado && (await alNoAutorizado())) {
+    res = await pedir();
+  }
   if (res.status === 204) return undefined as T;
   const tipo = res.headers.get('content-type') ?? '';
   const datos = tipo.includes('json') ? await res.json() : await res.blob();
