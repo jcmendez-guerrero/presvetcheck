@@ -16,8 +16,8 @@ what the user sees in each session state.
 ## Request header added to every API call
 
 - `X-Requested-With: XMLHttpRequest` — makes the platform answer **401** instead of **302 to the login page** for
-  unauthenticated API calls. (Fallback if not honoured: `fetch(..., { redirect: 'manual' })` and treat
-  `opaqueredirect` as 401 — see research R4.)
+  unauthenticated API calls. Every call also uses `fetch(..., { redirect: 'manual' })` and treats an
+  `opaqueredirect` response as 401, in case the header is not honoured (research R4).
 
 ## Existing API behaviour relied on (unchanged)
 

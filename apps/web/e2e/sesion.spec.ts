@@ -6,7 +6,7 @@ import { expect, test, type BrowserContext, type Page, type Route } from '@playw
  * (AUTH_MODE=dev) como la empleada, o se responde 401 para simular una sesión caducada.
  * Ver specs/009-fix-session-expiry-sso/quickstart.md.
  */
-type Respuesta = number | 'abort' | 'pendiente' | Record<string, unknown>;
+type Respuesta = number | 'abort' | 'pendiente' | 'redireccion' | Record<string, unknown>;
 
 const USUARIO = { id: 'u1', nombre: 'Empleada', roles: ['empleado'], mfa: false };
 const NO_AUTORIZADO = { error: { code: 'NO_AUTORIZADO' } };
@@ -24,6 +24,8 @@ async function modoEntra(contexto: BrowserContext, opciones: { me?: Respuesta[];
   const responder = async (route: Route, r: Respuesta) => {
     if (r === 'pendiente') return; // la petición queda sin respuesta
     if (r === 'abort') return route.abort();
+    // La plataforma sin X-Requested-With: 302 al inicio de sesión de Microsoft.
+    if (r === 'redireccion') return route.fulfill({ status: 302, headers: { location: 'https://login.example.test/' } });
     if (typeof r === 'number') return route.fulfill({ status: r, json: r === 401 ? NO_AUTORIZADO : { error: {} } });
     return route.fulfill({ json: r });
   };
@@ -78,6 +80,13 @@ test('sin renovación posible, va a Microsoft con la dirección de vuelta', asyn
   const { reg } = await modoEntra(context, { me: [401], refresh: 401 });
   await page.goto('/recetas/nueva?x=1');
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecetas%2Fnueva%3Fx%3D1');
+});
+
+test('si la plataforma redirige en vez de responder 401, también va a Microsoft', async ({ page, context }) => {
+  const { reg } = await modoEntra(context, { me: ['redireccion'], refresh: 401 });
+  await page.goto('/recepciones');
+  await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
+  await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
 });
 
 test('mientras se comprueba la sesión no se ve nada de la aplicación', async ({ page, context }) => {
@@ -181,6 +190,16 @@ test('caducidad durante el uso con renovación correcta: sin aviso', async ({ pa
   await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
   await expect.poll(() => reg.refresh).toBeGreaterThan(0);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
+test('caducidad durante el uso: renovada pero sigue rechazada, muestra el aviso', async ({ page, context }) => {
+  const { estado } = await modoEntra(context);
+  await page.goto('/registros');
+  await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
+  estado.resto401 = 1_000;
+  estado.refresh = 200;
+  await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).dispatchEvent('click');
+  await expect(page.getByRole('alertdialog')).toContainText('Tu sesión ha caducado');
 });
 
 // FR-011 — la página del móvil no pasa por el inicio de sesión

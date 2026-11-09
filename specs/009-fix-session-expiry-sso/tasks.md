@@ -280,3 +280,14 @@ T021 apps/web/e2e/sesion.spec.ts /movil test
 4. **Polish (T019–T024)**: docs, `/movil` check, consistency, full gates, non-production verification.
 
 One PR for the whole feature (Constitution IV: one scoped change), Conventional Commit `fix(web): …`.
+
+---
+
+## Phase 7: Convergence
+
+**Source**: ponytail review of commit `392825b` (findings 1–4).
+
+- [X] T025 In `apps/web/src/lib/api.ts` `pedir()`, add `redirect: 'manual'` to the `fetch` options and treat a response with `res.type === 'opaqueredirect'` exactly like a 401 (handler call, retry, then `ApiError(401, 'NO_AUTORIZADO', …)`), so a platform 302 to Microsoft ends in the sign-in path instead of a network error shown as "Conectando con el servidor…" forever; update research R4 to say the fallback is now built in and N1 only confirms it; add an e2e case to `apps/web/e2e/sesion.spec.ts` where `/api/me` answers `302` with `Location: https://login.example.test/` and refresh fails → the login route is hit with the return address per FR-001, FR-002, research R4 (partial)
+- [X] T026 In `apps/web/src/lib/api.ts`, when the retried request after a successful refresh is still 401, call the handler a second time with a flag (`alNoAutorizado(true)`, handler type `(reintento: boolean) => Promise<boolean>`); in `apps/web/src/lib/auth.tsx` the handler, when `reintento` is true, sets `caducada` if the state is `activa` and resolves `false` without calling `/.auth/refresh`; add an e2e case to `apps/web/e2e/sesion.spec.ts`: app active, then `/.auth/refresh` 200 but every API-client `/api/**` call keeps answering 401 → the "Tu sesión ha caducado" dialog appears per FR-007, US3/AC1 (partial)
+- [X] T027 Remove the dead `url !== '/api/config/publica'` condition from the 401 branch in `apps/web/src/lib/api.ts` (the config is loaded before the handler is registered and `/movil` uses its own `fetch`) per plan: api.ts touch-point (unrequested)
+- [X] T028 In `apps/web/src/lib/auth.tsx`, merge the config loader's retry loop into the session-check effect so one backoff (1 s doubling to 5 s, `esperaRef`/`intento`) serves both "config not loaded" and "session check unreachable"; keep `conectando` until the config answers and keep the existing comment about slow API start per research R2 "existing backoff" (partial)

@@ -23,7 +23,7 @@ All findings come from reading the current code (`apps/web/src/lib/auth.tsx`, `a
   unreachable": state `conectando`, retried with the existing backoff (1 s doubling to 5 s). It never triggers a
   sign-in redirect, because a redirect to a server that is down fails too and hides the real problem (US2-4).
   With `X-Requested-With` (R4) a lost platform session answers 401, so no network error needs to mean "signed out";
-  if N1 shows the header is not honoured, the R4 `redirect: 'manual'` fallback turns the 302 into a 401-equivalent,
+  if the header is not honoured, the built-in R4 `redirect: 'manual'` safety net turns the 302 into a 401-equivalent,
   still without reinterpreting network errors.
 - **Rationale**: In `auth.tsx` the `/api/me` call ends in `.catch(() => setUsuario(null))`. With the token store,
   `/.auth/me` can return 200 with an `id_token` that has already expired (the platform session cookie lasts longer
@@ -55,9 +55,11 @@ All findings come from reading the current code (`apps/web/src/lib/auth.tsx`, `a
 - **Rationale**: The built-in authentication (App Service / Container Apps "Easy Auth") answers 401 instead of a 302
   to the login page when the request carries this header. Without it, `fetch` follows the redirect to
   `login.microsoftonline.com`, fails CORS and rejects with a `TypeError`, indistinguishable from "server down".
-- **Alternatives considered**: `redirect: 'manual'` on `fetch` — gives an opaque redirect response; works but is
-  less explicit than a 401. Kept as the fallback if the header does not behave as documented in Container Apps
-  (to confirm in quickstart step N1).
+- **Safety net (built in)**: every API `fetch` also uses `redirect: 'manual'`; an `opaqueredirect` response is handled
+  exactly like a 401 (the API itself never redirects). So the app reaches the sign-in path even if Container Apps
+  ignores the header; quickstart step N1 only confirms which of the two happens.
+- **Mid-session**: if a refresh succeeds but the retried request is still rejected, the 401 handler is called again
+  with `reintento = true` and marks the session `caducada` without refreshing again (FR-007).
 
 ## R5. Loop protection
 

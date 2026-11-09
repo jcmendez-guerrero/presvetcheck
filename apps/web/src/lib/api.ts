@@ -52,11 +52,18 @@ export function configurarCabeceras(f: () => Promise<Record<string, string>>) {
   cabeceras = f;
 }
 
-/** Se llama ante un 401: renueva la sesión y responde si merece la pena repetir la petición. */
-let alNoAutorizado: (() => Promise<boolean>) | null = null;
-export function configurarNoAutorizado(f: (() => Promise<boolean>) | null) {
+/**
+ * Se llama ante un 401: renueva la sesión y responde si merece la pena repetir la petición. Con `reintento` la
+ * petición ya se repitió tras renovar y sigue rechazada: la sesión no tiene arreglo.
+ */
+type NoAutorizado = (reintento: boolean) => Promise<boolean>;
+let alNoAutorizado: NoAutorizado | null = null;
+export function configurarNoAutorizado(f: NoAutorizado | null) {
   alNoAutorizado = f;
 }
+
+// La API nunca redirige: una redirección es la plataforma mandando a Microsoft (sesión perdida).
+const rechazada = (r: Response) => r.status === 401 || r.type === 'opaqueredirect';
 
 export async function api<T = unknown>(metodo: string, url: string, cuerpo?: unknown): Promise<T> {
   const esForm = cuerpo instanceof FormData;
@@ -70,12 +77,16 @@ export async function api<T = unknown>(metodo: string, url: string, cuerpo?: unk
         ...(cuerpo !== undefined && !esForm ? { 'Content-Type': 'application/json' } : {}),
       },
       ...(cuerpo !== undefined ? { body: esForm ? cuerpo : JSON.stringify(cuerpo) } : {}),
+      // Si la plataforma no respeta X-Requested-With y responde 302, no se sigue (fallaría por CORS como «sin red»).
+      redirect: 'manual',
     });
   let res = await pedir();
   // Repetir es seguro también en escrituras: la API rechaza un 401 antes de hacer nada.
-  if (res.status === 401 && url !== '/api/config/publica' && alNoAutorizado && (await alNoAutorizado())) {
+  if (rechazada(res) && alNoAutorizado && (await alNoAutorizado(false))) {
     res = await pedir();
+    if (rechazada(res)) await alNoAutorizado(true);
   }
+  if (res.type === 'opaqueredirect') throw new ApiError(401, 'NO_AUTORIZADO', null, null);
   if (res.status === 204) return undefined as T;
   const tipo = res.headers.get('content-type') ?? '';
   const datos = tipo.includes('json') ? await res.json() : await res.blob();

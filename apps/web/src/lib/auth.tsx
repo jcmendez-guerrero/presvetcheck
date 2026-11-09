@@ -122,30 +122,35 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
   const [mfaDev, setMfaDev] = useState(leer('mmx.devMfa') === '1');
 
   useEffect(() => {
-    // La API puede tardar en arrancar (p. ej. `pnpm demo` carga el Nomenclátor completo): se reintenta
-    // hasta que responda en lugar de quedarse en "Iniciando sesión…".
     let activo = true;
-    let espera = 1000;
-    const cargar = () =>
+    let limite: ReturnType<typeof setTimeout> | undefined;
+    let reintento: ReturnType<typeof setTimeout> | undefined;
+    const limpiar = () => {
+      activo = false;
+      clearTimeout(limite);
+      clearTimeout(reintento);
+    };
+    // Red caída, error del servidor o sin respuesta: se sigue intentando (1 s, doblando hasta 5 s), nunca se manda
+    // a Microsoft. La API puede tardar en arrancar (p. ej. `pnpm demo` carga el Nomenclátor completo).
+    const sinServidor = () => {
+      if (!activo) return;
+      fijar('conectando');
+      reintento = setTimeout(() => setIntento((n) => n + 1), esperaRef.current);
+      esperaRef.current = Math.min(esperaRef.current * 2, 5000);
+    };
+
+    if (!config) {
       get<ConfigPublica>('/api/config/publica')
         .then((c) => {
           if (!activo) return;
+          esperaRef.current = 1000;
           setConfig(c);
           fijar('comprobando');
         })
-        .catch(() => {
-          if (!activo) return;
-          setTimeout(cargar, espera);
-          espera = Math.min(espera * 2, 5000);
-        });
-    void cargar();
-    return () => {
-      activo = false;
-    };
-  }, [fijar]);
+        .catch(sinServidor);
+      return limpiar;
+    }
 
-  useEffect(() => {
-    if (!config) return;
     const entra = config.authMode === 'entra';
     if (entra) {
       configurarCabeceras(async () => {
@@ -168,9 +173,14 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
           .finally(() => {
             refrescoRef.current = null;
           }));
-      configurarNoAutorizado(async () => {
+      configurarNoAutorizado(async (reintento) => {
         // Ya caducada: no se renueva otra vez (react-query reintenta las consultas fallidas).
         if (estadoRef.current === 'caducada') return false;
+        // Renovada pero sigue rechazada: renovar no la arregla.
+        if (reintento) {
+          if (estadoRef.current === 'activa') fijar('caducada');
+          return false;
+        }
         const ok = await refrescar();
         if (!ok && estadoRef.current === 'activa') fijar('caducada');
         return ok;
@@ -190,9 +200,6 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       }
     };
 
-    let activo = true;
-    let limite: ReturnType<typeof setTimeout> | undefined;
-    let reintento: ReturnType<typeof setTimeout> | undefined;
     const tiempoAgotado = new Promise<never>((_, rechazar) => {
       limite = setTimeout(() => rechazar(new Error('tiempo agotado')), LIMITE_COMPROBACION_MS);
     });
@@ -210,17 +217,10 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       .catch((e: unknown) => {
         if (!activo) return;
         if (e instanceof ApiError && e.status === 401) return sesionPerdida();
-        // Red caída, error del servidor o sin respuesta: se sigue intentando, nunca se manda a Microsoft.
-        fijar('conectando');
-        reintento = setTimeout(() => setIntento((n) => n + 1), esperaRef.current);
-        esperaRef.current = Math.min(esperaRef.current * 2, 5000);
+        sinServidor();
       })
       .finally(() => clearTimeout(limite));
-    return () => {
-      activo = false;
-      clearTimeout(limite);
-      clearTimeout(reintento);
-    };
+    return limpiar;
   }, [config, devId, mfaDev, intento, fijar]);
 
   const value: Ctx = {
