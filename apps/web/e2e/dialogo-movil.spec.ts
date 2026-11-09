@@ -41,6 +41,27 @@ test.describe('Diálogo «Usar el móvil» cabe en la ventana (spec 008)', () =>
     });
   }
 
+  test('la página de detrás no se desplaza con el diálogo abierto', async ({ page }) => {
+    await page.setViewportSize({ width: ANCHO, height: 430 });
+    const dialogo = await abrirDialogo(page);
+    await expect(dialogo.getByTestId('qr-movil')).toBeVisible();
+    const desplazamiento = () => page.evaluate(() => document.scrollingElement!.scrollTop);
+    const antes = await desplazamiento();
+
+    // Rueda sobre el velo (fuera del panel) y sobre el panel hasta pasar su final.
+    await page.mouse.move(100, 200);
+    await page.mouse.wheel(0, 600);
+    await page.mouse.move(ANCHO / 2, 200);
+    await page.mouse.wheel(0, 2000);
+    await page.waitForTimeout(300);
+    expect(await desplazamiento()).toBe(antes);
+
+    // Al cerrar, la página vuelve a poder desplazarse.
+    await page.keyboard.press('Escape');
+    await expect(dialogo).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe('');
+  });
+
   test('teclado: el foco no sale del diálogo y Escape lo cierra', async ({ page }) => {
     await page.setViewportSize({ width: ANCHO, height: 430 });
     const dialogo = await abrirDialogo(page);

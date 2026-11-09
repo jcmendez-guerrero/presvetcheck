@@ -46,7 +46,7 @@ existente `useFocusTrap` y `aria-modal="true"`. Una prueba Playwright nueva cubr
 | II. Disciplina de pruebas | ✅ | Prueba e2e nueva; `pnpm lint && pnpm typecheck && pnpm test` antes de cerrar. Sin servicios reales. |
 | III. Seguridad y protección de datos | ✅ | No se tocan datos personales, sesión del móvil ni reglas legales. |
 | IV. Mantenibilidad | ✅ | Sin variables de entorno ni decisiones abiertas. Commit `fix(web): …`. |
-| V. Idioma | ⚠️ | Plan, investigación y guía en español. **`spec.md` está en inglés** (hay precedente en la 004); conviene traducirla antes de `/speckit-tasks`. Sin textos de UI nuevos. |
+| V. Idioma | ✅ | Spec, checklist, plan, investigación y guía en español (spec y checklist traducidas en T016). Sin textos de UI nuevos. |
 | Cumplimiento y trazabilidad | ✅ | No afecta a dispensación, `reglaVersion`, outbox ni auditoría. |
 
 **Re-check post-design**: sin cambios; el diseño no añade nada que altere la tabla.

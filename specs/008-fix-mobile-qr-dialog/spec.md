@@ -1,4 +1,4 @@
-# Feature Specification: Mobile pairing dialog always fits on screen
+# Feature Specification: El diálogo «Usar el móvil» siempre cabe en la pantalla
 
 **Feature Branch**: `008-fix-mobile-qr-dialog`
 
@@ -10,105 +10,116 @@
 
 ## Context
 
-Staff open the "Usar el móvil" dialog from the page header to pair a phone with the PC. The phone then works as a
-camera to photograph prescriptions and read pack barcodes. The dialog shows a title, a short explanation, the QR
-code, the pairing link, the connection status, the expiry time and two buttons ("Desconectar el móvil" and "Cerrar").
+El personal abre el diálogo «Usar el móvil» desde la cabecera de la página para emparejar un móvil con el PC. Después,
+el móvil funciona como cámara para fotografiar recetas y leer los códigos de los envases. El diálogo muestra un título,
+una explicación breve, el código QR, el enlace de emparejamiento, el estado de la conexión, la hora de caducidad y dos
+botones («Desconectar el móvil» y «Cerrar»).
 
-**Observed defect**: when the dialog opens, it grows past the top edge of the window. The title, the explanation
-and the top part of the QR code are cut off and cannot be reached by scrolling, so the phone cannot read the QR
-code and pairing is impossible. The rest of the page is not dimmed behind the dialog. Observed on the admin screen
-of the non-production environment.
+**Defecto observado**: al abrirse, el diálogo sobresale por el borde superior de la ventana. El título, la explicación
+y la parte de arriba del código QR quedan cortados y no se puede llegar a ellos desplazando, así que el móvil no puede
+leer el QR y es imposible emparejarlo. El resto de la página no se oscurece detrás del diálogo. Se observó en la
+pantalla de administración del entorno no productivo.
 
-This is a regression: pairing worked when it was released (2026-10-15) and broke with the page-header redesign of
-2026-11-08 (feature 007). The defect affects every window size, not only short windows; short windows make it worse
-because the dialog is taller than the space available.
+Es una regresión: el emparejamiento funcionaba cuando se publicó (2026-10-15) y dejó de funcionar con el rediseño de
+la cabecera del 2026-11-08 (feature 007). El defecto afecta a cualquier tamaño de ventana, no solo a las ventanas
+bajas; en las ventanas bajas es peor porque el diálogo es más alto que el espacio disponible.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Scan the QR code on a short screen (Priority: P1)
+### User Story 1 - Leer el código QR en una pantalla baja (Priority: P1)
 
-A staff member on a laptop with a short browser window opens the mobile pairing dialog and scans the whole QR
-code with the phone camera.
+Una persona del personal, en un portátil con la ventana del navegador baja, abre el diálogo de emparejamiento y lee
+el código QR entero con la cámara del móvil.
 
-**Why this priority**: this is the defect. Without the whole QR code on screen, the phone cannot pair, and the staff
-member loses the phone camera for prescriptions and barcodes.
+**Why this priority**: es el defecto. Sin el código QR entero en pantalla el móvil no se puede emparejar, y el
+personal se queda sin la cámara del móvil para recetas y códigos.
 
-**Independent Test**: open the dialog in a browser window 430 px tall (the height seen in the report) and check that
-the whole QR code is visible and that a phone reads it.
+**Independent Test**: abrir el diálogo en una ventana de 430 px de alto (la altura del informe) y comprobar que el
+código QR se ve entero y que un móvil lo lee.
 
 **Acceptance Scenarios**:
 
-1. **Given** a browser window shorter than the dialog, **When** the staff member opens the mobile pairing dialog,
-   **Then** the top of the dialog (title) is at or below the top edge of the window and the whole QR code can be
-   brought into view.
-2. **Given** the dialog is taller than the window, **When** the staff member scrolls inside the dialog area,
-   **Then** every part of the dialog (title, explanation, QR code, link, status, expiry, buttons) can be reached.
-3. **Given** a browser window tall enough for the dialog, **When** the dialog opens, **Then** it is fully visible,
-   centred over the whole page, with no scrollbar, like the other dialogs of the app.
+1. **Given** una ventana más baja que el diálogo, **When** la persona abre el diálogo de emparejamiento, **Then** la
+   parte superior del diálogo (el título) queda en el borde superior de la ventana o por debajo, y el código QR entero
+   se puede poner a la vista.
+2. **Given** un diálogo más alto que la ventana, **When** la persona desplaza el contenido del diálogo, **Then** se
+   puede llegar a todas sus partes (título, explicación, código QR, enlace, estado, caducidad y botones).
+3. **Given** una ventana con altura suficiente para el diálogo, **When** el diálogo se abre, **Then** se ve entero,
+   centrado sobre toda la página y sin barra de desplazamiento, como los demás diálogos de la aplicación.
 
 ---
 
-### User Story 2 - Close or disconnect on a short screen (Priority: P2)
+### User Story 2 - Cerrar o desconectar en una pantalla baja (Priority: P2)
 
-A staff member on a short screen can always reach the "Cerrar" and "Desconectar el móvil" buttons.
+Una persona con una pantalla baja siempre puede llegar a los botones «Cerrar» y «Desconectar el móvil».
 
-**Why this priority**: if the buttons are off screen the staff member is stuck behind the dialog or cannot cut off a
-phone they no longer trust.
+**Why this priority**: si los botones quedan fuera de la pantalla, la persona se queda atrapada detrás del diálogo o
+no puede desconectar un móvil en el que ya no confía.
 
-**Independent Test**: with the dialog open in a 430 px tall window, reach and press "Cerrar" using only the mouse,
-then again using only the keyboard.
+**Independent Test**: con el diálogo abierto en una ventana de 430 px de alto, llegar a «Cerrar» y pulsarlo solo con
+el ratón, y después solo con el teclado.
 
 **Acceptance Scenarios**:
 
-1. **Given** the dialog is open in a short window, **When** the staff member scrolls to the bottom of the dialog,
-   **Then** both buttons are visible and work.
-2. **Given** the dialog is open in a short window, **When** the staff member moves through it with the Tab key,
-   **Then** each focused element scrolls into view.
+1. **Given** el diálogo abierto en una ventana baja, **When** la persona se desplaza hasta el final del diálogo,
+   **Then** los dos botones se ven y funcionan.
+2. **Given** el diálogo abierto en una ventana baja, **When** la persona lo recorre con la tecla Tab, **Then** cada
+   elemento que recibe el foco se desplaza hasta quedar a la vista.
 
 ---
 
 ### Edge Cases
 
-- Window resized (or page zoomed) while the dialog is open: the dialog keeps fitting without reopening it.
-- Very short window (for example 300 px): content scrolls; nothing is clipped beyond reach.
-- Narrow window (phone-sized or split screen): the long pairing link still wraps and the dialog fits the width.
-- While the QR code is still being generated ("Preparando el código…") or an error is shown, the dialog also fits.
-- The page behind the dialog must not scroll instead of the dialog.
-- The phone connects while the staff member has scrolled: the dialog still closes on its own as it does today.
+- Ventana redimensionada (o página ampliada) con el diálogo abierto: el diálogo sigue cabiendo sin volver a abrirlo.
+- Ventana muy baja (por ejemplo, 300 px): el contenido se desplaza; nada queda cortado fuera de alcance.
+- Ventana estrecha (tamaño móvil o pantalla dividida): el enlace largo de emparejamiento se parte en líneas y el
+  diálogo cabe a lo ancho.
+- Mientras el código QR se está generando («Preparando el código…») o se muestra un error, el diálogo también cabe.
+- La página de detrás del diálogo no debe desplazarse en lugar del diálogo.
+- El móvil se conecta mientras la persona ha desplazado el diálogo: el diálogo se sigue cerrando solo, como ahora.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The mobile pairing dialog MUST never extend beyond the top or bottom edge of the browser window.
-- **FR-002**: When the dialog content is taller than the window, the user MUST be able to scroll to every part of it.
-- **FR-003**: The QR code MUST be shown whole and at a size a phone camera can read (no smaller than today's size on
-  windows tall enough to fit it).
-- **FR-004**: The "Cerrar" and "Desconectar el móvil" buttons MUST always be reachable with mouse, touch and keyboard.
-- **FR-005**: On windows tall enough for the whole dialog, it MUST be fully visible and centred with no scrollbar,
-  consistent with the other dialogs of the app; its content and actions stay as they are today.
-- **FR-009**: While the dialog is open, the whole page behind it MUST be dimmed and not clickable, as with the other
-  dialogs.
-- **FR-006**: The dialog MUST keep fitting when the window is resized or the page zoom changes while it is open.
-- **FR-007**: Other dialogs that share the same layout pattern SHOULD get the same fix, so the defect does not
-  reappear elsewhere on short screens.
-- **FR-008**: An automated check MUST cover opening the dialog in a short window and asserting that the title, the
-  whole QR code and the buttons can be reached.
+- **FR-001**: El diálogo de emparejamiento NUNCA DEBE sobresalir por el borde superior ni por el inferior de la
+  ventana del navegador.
+- **FR-002**: Si el contenido del diálogo es más alto que la ventana, la persona DEBE poder desplazarse hasta
+  cualquier parte de él.
+- **FR-003**: El código QR DEBE mostrarse entero y con un tamaño que la cámara de un móvil pueda leer (no más pequeño
+  que el actual en ventanas con altura suficiente).
+- **FR-004**: Los botones «Cerrar» y «Desconectar el móvil» DEBEN poder alcanzarse siempre con ratón, pantalla táctil
+  y teclado.
+- **FR-005**: En ventanas con altura suficiente para todo el diálogo, DEBE verse entero y centrado, sin barra de
+  desplazamiento, igual que los demás diálogos de la aplicación; su contenido y sus acciones no cambian.
+- **FR-009**: Con el diálogo abierto, toda la página de detrás DEBE quedar oscurecida y sin poder pulsarse, como con
+  los demás diálogos.
+- **FR-006**: El diálogo DEBE seguir cabiendo cuando se redimensiona la ventana o cambia la ampliación de la página
+  con el diálogo abierto.
+- **FR-007**: Los demás diálogos con el mismo patrón de maquetación DEBERÍAN recibir el mismo arreglo, para que el
+  defecto no reaparezca en otras pantallas bajas.
+- **FR-008**: Una comprobación automática DEBE cubrir la apertura del diálogo en una ventana baja y comprobar que se
+  puede llegar al título, al código QR entero y a los botones.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: In a window 430 px tall, a phone pairs on the first scan in 100% of attempts during acceptance testing.
-- **SC-002**: In windows from 300 px to 1080 px tall, no part of the dialog is outside reach (verified at 300, 430,
-  600 and 1080 px).
-- **SC-003**: Staff can close the dialog in under 5 seconds on any of those window heights.
-- **SC-004**: No new reports of the pairing dialog being cut off after release.
+- **SC-001**: En una ventana de 430 px de alto, un móvil se empareja a la primera en el 100 % de los intentos durante
+  las pruebas de aceptación.
+- **SC-002**: En ventanas de 300 px a 1080 px de alto, todas las partes del diálogo quedan al alcance (comprobado a
+  300, 430, 600 y 1080 px).
+- **SC-003**: El personal puede cerrar el diálogo en menos de 5 segundos con cualquiera de esas alturas de ventana.
+- **SC-004**: Tras la publicación no llegan nuevos avisos de que el diálogo de emparejamiento se corte.
 
 ## Assumptions
 
-- The defect is a regression introduced by the page-header redesign (feature 007) and is a layout problem only; QR generation, pairing and session expiry work correctly and stay unchanged.
-- Scrolling inside the dialog is acceptable on short windows; shrinking the QR code below a readable size is not.
-- The fix applies to every screen that opens the dialog (it lives in the shared header), not only the admin screen.
-- No regulatory, data-protection or traceability rules are affected; the QR link and session data are unchanged.
-- No new UI text is needed, so no new European Spanish copy has to be reviewed.
+- El defecto es una regresión del rediseño de la cabecera (feature 007) y es solo de maquetación; la generación del
+  QR, el emparejamiento y la caducidad de la sesión funcionan bien y no cambian.
+- En ventanas bajas es aceptable desplazar el contenido del diálogo; reducir el código QR por debajo de un tamaño
+  legible no lo es.
+- El arreglo se aplica a todas las pantallas que abren el diálogo (está en la cabecera común), no solo a la de
+  administración.
+- No afecta a ninguna regla regulatoria, de protección de datos ni de trazabilidad; el enlace del QR y los datos de la
+  sesión no cambian.
+- No hacen falta textos nuevos en la interfaz, así que no hay nuevos textos en español que revisar.

@@ -38,6 +38,15 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
   const { sesion, abrir, conectado } = m;
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef, true, onCerrar);
+  // Con el diálogo abierto, la rueda del ratón sobre el velo no debe desplazar la página de detrás.
+  useEffect(() => {
+    const raiz = document.documentElement;
+    const previo = raiz.style.overflow;
+    raiz.style.overflow = 'hidden';
+    return () => {
+      raiz.style.overflow = previo;
+    };
+  }, []);
   // Cuando el móvil se conecta mientras se muestra el QR, el diálogo sobra: se cierra solo.
   const yaConectado = useRef(conectado);
   useEffect(() => {
@@ -55,7 +64,7 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 text-slate-900" role="dialog" aria-modal="true" aria-label="Usar el móvil">
-      <div ref={panelRef} className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-auto rounded-2xl bg-white p-6">
+      <div ref={panelRef} className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-auto overscroll-contain rounded-2xl bg-white p-6">
         <h2 tabIndex={-1} data-autofocus className="text-2xl font-bold outline-none">
           Usar el móvil
         </h2>
