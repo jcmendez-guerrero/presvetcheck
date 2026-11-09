@@ -138,6 +138,16 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       reintento = setTimeout(() => setIntento((n) => n + 1), esperaRef.current);
       esperaRef.current = Math.min(esperaRef.current * 2, 5000);
     };
+    // Sin sesión: a Microsoft (como mucho una vez por minuto y nunca tras cerrar sesión) o a la página de acceso.
+    const sesionPerdida = (entra: boolean) => {
+      setUsuario(null);
+      if (entra && puedeRedirigir(Date.now(), Number(leer(CLAVE_REINTENTO)) || null, leer(CLAVE_CERRADA) === '1')) {
+        fijar('redirigiendo');
+        irALogin();
+      } else {
+        fijar('sin-sesion');
+      }
+    };
 
     if (!config) {
       get<ConfigPublica>('/api/config/publica')
@@ -147,7 +157,12 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
           setConfig(c);
           fijar('comprobando');
         })
-        .catch(sinServidor);
+        .catch((e: unknown) => {
+          if (!activo) return;
+          // La ruta es pública en la API: un 401 solo puede venir de la autenticación de la plataforma (modo entra).
+          if (e instanceof ApiError && e.status === 401) return sesionPerdida(true);
+          sinServidor();
+        });
       return limpiar;
     }
 
@@ -190,16 +205,6 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       configurarNoAutorizado(null);
     }
 
-    const sesionPerdida = () => {
-      setUsuario(null);
-      if (entra && puedeRedirigir(Date.now(), Number(leer(CLAVE_REINTENTO)) || null, leer(CLAVE_CERRADA) === '1')) {
-        fijar('redirigiendo');
-        irALogin();
-      } else {
-        fijar('sin-sesion');
-      }
-    };
-
     const tiempoAgotado = new Promise<never>((_, rechazar) => {
       limite = setTimeout(() => rechazar(new Error('tiempo agotado')), LIMITE_COMPROBACION_MS);
     });
@@ -207,7 +212,7 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       .then((u) => {
         if (!activo) return;
         esperaRef.current = 1000;
-        if (!esUsuario(u)) return sesionPerdida();
+        if (!esUsuario(u)) return sesionPerdida(entra);
         setUsuario(u);
         if (u.roles.length === 0) return fijar('sin-acceso');
         borrar(CLAVE_REINTENTO);
@@ -216,7 +221,7 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       })
       .catch((e: unknown) => {
         if (!activo) return;
-        if (e instanceof ApiError && e.status === 401) return sesionPerdida();
+        if (e instanceof ApiError && e.status === 401) return sesionPerdida(entra);
         sinServidor();
       })
       .finally(() => clearTimeout(limite));

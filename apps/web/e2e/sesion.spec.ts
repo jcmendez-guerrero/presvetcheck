@@ -11,15 +11,26 @@ type Respuesta = number | 'abort' | 'pendiente' | 'redireccion' | Record<string,
 const USUARIO = { id: 'u1', nombre: 'Empleada', roles: ['empleado'], mfa: false };
 const NO_AUTORIZADO = { error: { code: 'NO_AUTORIZADO' } };
 
-async function modoEntra(contexto: BrowserContext, opciones: { me?: Respuesta[]; refresh?: number } = {}) {
+async function modoEntra(
+  contexto: BrowserContext,
+  opciones: { me?: Respuesta[]; refresh?: number; config?: Array<Respuesta | 'real'> } = {},
+) {
   const estado = {
     me: opciones.me ?? [USUARIO],
     refresh: opciones.refresh ?? 401,
     /** Peticiones a /api (salvo /api/me y la config) que responderán 401 antes de volver a funcionar. */
     resto401: 0,
   };
-  const reg = { login: [] as string[], auth: [] as string[], refresh: 0, cabecerasMe: [] as Record<string, string>[] };
+  const reg = {
+    login: [] as string[],
+    auth: [] as string[],
+    refresh: 0,
+    config: 0,
+    cabecerasMe: [] as Record<string, string>[],
+  };
   let iMe = 0;
+  let iConfig = 0;
+  const config = opciones.config ?? ['real'];
 
   const responder = async (route: Route, r: Respuesta) => {
     if (r === 'pendiente') return; // la petición queda sin respuesta
@@ -37,6 +48,9 @@ async function modoEntra(contexto: BrowserContext, opciones: { me?: Respuesta[];
       const p = url.pathname;
       if (p.startsWith('/.auth/')) reg.auth.push(p);
       if (p === '/api/config/publica') {
+        reg.config++;
+        const c = config[Math.min(iConfig++, config.length - 1)] ?? 'real';
+        if (c !== 'real') return responder(route, c);
         const r = await route.fetch();
         return route.fulfill({ response: r, json: { ...(await r.json()), authMode: 'entra' } });
       }
@@ -87,6 +101,21 @@ test('si la plataforma redirige en vez de responder 401, también va a Microsoft
   await page.goto('/recepciones');
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
   await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
+});
+
+test('la plataforma rechaza la configuración: va a Microsoft, no a «Conectando…»', async ({ page, context }) => {
+  const { reg } = await modoEntra(context, { config: [401] });
+  await page.goto('/recepciones');
+  await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
+  await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
+});
+
+test('la configuración falla una vez y luego responde: se reintenta y abre la pantalla', async ({ page, context }) => {
+  const { reg } = await modoEntra(context, { config: ['abort', 'real'] });
+  await page.goto('/recepciones');
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({ timeout: 15_000 });
+  expect(reg.config).toBe(2);
+  expect(reg.login).toEqual([]);
 });
 
 test('mientras se comprueba la sesión no se ve nada de la aplicación', async ({ page, context }) => {

@@ -21,6 +21,14 @@ nothing works and there is no way out except clearing the browser's cookies by h
 session expires while the app is already open: the next action fails silently or with a generic error instead of
 asking the user to sign in again.
 
+## Clarifications
+
+### Session 2026-11-09
+
+- Q: Should the platform sign-in keep protecting the app's settings address (`/api/config/publica`), or should
+  anonymous visitors be able to read it? → A: Keep it protected. No infrastructure change; when the platform
+  rejects that call, the app treats it as "not signed in" (T030 dropped).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Reload with an expired session goes back to sign-in (Priority: P1)
@@ -110,6 +118,9 @@ confirm the user is asked to sign in again and returns to the same screen.
 - The platform answers a session check with a web page instead of user data (current known behaviour): treated as
   "not signed in".
 - The server is slow to start: still shows "Conectando con el servidor…" and retries, as today.
+- The platform's own sign-in has expired (for example overnight) and it rejects even the app's settings call made
+  before the session check: treated as "not signed in" (automatic sign-in or sign-in page), never as "server
+  unreachable".
 - Development mode (`AUTH_MODE=dev`): no Microsoft sign-in; the user/role selector keeps working unchanged.
 - The mobile companion page (paired phone camera) uses its own pairing session: it must not be sent to Microsoft
   sign-in by this change.
@@ -143,7 +154,8 @@ confirm the user is asked to sign in again and returns to the same screen.
 - **FR-009**: The return address MUST be limited to addresses within the app; anything else falls back to the home
   screen.
 - **FR-010**: The server MUST keep rejecting unauthenticated requests on its own; the sign-in page is a usability
-  aid, not a security control.
+  aid, not a security control. This feature MUST NOT widen what anonymous visitors can reach: the platform sign-in
+  keeps protecting the same addresses as before, including the app's settings address.
 - **FR-011**: Development mode and the mobile companion page MUST keep their current behaviour.
 - **FR-012**: Session-expiry and sign-in events MUST NOT write personal data (name, e-mail, tokens) to logs, errors
   or telemetry.
