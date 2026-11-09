@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 import { appendAudit, outbox, recepcion, recepcionLinea, type Db, type DbOrTx } from '@mmx/db';
 import { DomainError } from '@mmx/shared';
@@ -185,13 +185,26 @@ export class OutboxService {
   async despachar(limite = 20): Promise<Record<ResultadoEnvio, number>> {
     const cuenta: Record<ResultadoEnvio, number> = { sent: 0, failed: 0, needs_reconciliation: 0 };
     if (this.cfg.modo === 'off') return cuenta;
+    // Un bloqueo caducado es un envío que se cortó (proceso parado, fallo al guardar el resultado): no se
+    // sabe si Siweb360 lo aplicó, así que va a reconciliación humana y nunca se reenvía solo.
     const bloqueoCaducado = new Date(this.now().getTime() - 10 * 60_000);
+    const cortadas = await this.db
+      .update(outbox)
+      .set({
+        status: 'needs_reconciliation',
+        lockedAt: null,
+        lastError: 'Envío interrumpido: no se sabe si se aplicó',
+      })
+      .where(and(eq(outbox.status, 'pending'), lt(outbox.lockedAt, bloqueoCaducado)))
+      .returning();
+    for (const f of cortadas) {
+      await this.registrar(f, 'needs_reconciliation', f.lastError, null, false);
+      cuenta.needs_reconciliation++;
+    }
     const filas = await this.db
       .select()
       .from(outbox)
-      .where(
-        and(eq(outbox.status, 'pending'), or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado))),
-      )
+      .where(and(eq(outbox.status, 'pending'), isNull(outbox.lockedAt)))
       .orderBy(asc(outbox.createdAt))
       .limit(limite);
     for (const f of filas) {
@@ -199,13 +212,7 @@ export class OutboxService {
       const tomadas = await this.db
         .update(outbox)
         .set({ lockedAt: this.now(), attempts: sql`${outbox.attempts} + 1` })
-        .where(
-          and(
-            eq(outbox.id, f.id),
-            eq(outbox.status, 'pending'),
-            or(isNull(outbox.lockedAt), lt(outbox.lockedAt, bloqueoCaducado)),
-          ),
-        )
+        .where(and(eq(outbox.id, f.id), eq(outbox.status, 'pending'), isNull(outbox.lockedAt)))
         .returning({ id: outbox.id });
       if (!tomadas.length) continue;
       const r = await this.enviar(f);
@@ -258,17 +265,31 @@ export class OutboxService {
         error = e instanceof HttpError || e instanceof SiwebValidationError ? e.message : String(e);
       }
     }
+    await this.registrar(f, status, error, response, true);
+    if (status !== 'sent') this.opts.log?.('outbox: operación no enviada', { id: f.id, status });
+    return status;
+  }
+
+  /** Guarda el resultado de un envío: fila del outbox (si `guardarFila`), estado de la recepción y auditoría. */
+  private async registrar(
+    f: typeof outbox.$inferSelect,
+    status: ResultadoEnvio,
+    error: string | null,
+    response: unknown,
+    guardarFila: boolean,
+  ) {
     await this.db.transaction(async (tx) => {
-      await tx
-        .update(outbox)
-        .set({
-          status,
-          lastError: error,
-          response: response as never,
-          lockedAt: null,
-          sentAt: status === 'sent' ? this.now() : null,
-        })
-        .where(eq(outbox.id, f.id));
+      if (guardarFila)
+        await tx
+          .update(outbox)
+          .set({
+            status,
+            lastError: error,
+            response: response as never,
+            lockedAt: null,
+            sentAt: status === 'sent' ? this.now() : null,
+          })
+          .where(eq(outbox.id, f.id));
       if (f.entidad === 'recepcion_linea' && f.entidadId && f.operation === OPERACION_ENTRADA)
         await this.actualizarRecepcion(tx, f.entidadId, status);
       await appendAudit(tx, {
@@ -279,8 +300,6 @@ export class OutboxService {
         despues: { idempotencyKey: f.idempotencyKey, status, error },
       });
     });
-    if (status !== 'sent') this.opts.log?.('outbox: operación no enviada', { id: f.id, status });
-    return status;
   }
 
   private async actualizarRecepcion(tx: DbOrTx, lineaId: string, status: ResultadoEnvio | 'resuelta') {

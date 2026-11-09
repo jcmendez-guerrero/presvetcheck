@@ -1,5 +1,5 @@
-import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
-import { appendAudit, conciliacion, dispensacion, receta, ticketReceta } from '@mmx/db';
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { appendAudit, conciliacion, dispensacion, dispensacionVigente, receta, ticketReceta } from '@mmx/db';
 import {
   conciliarTicketMultiReceta,
   hoy,
@@ -8,7 +8,7 @@ import {
   type DispensacionMultiRx,
   type LineaTicketItem,
 } from '@mmx/domain';
-import { DemoSalesMovementsSource, conciliarDia, estadoConciliacion } from '@mmx/siweb';
+import { DemoSalesMovementsSource, HttpError, conciliarDia, estadoConciliacion } from '@mmx/siweb';
 import {
   DomainError,
   type AsociarTicketBody,
@@ -79,7 +79,7 @@ export class ConciliacionService {
     return this.d.db
       .select({ id: dispensacion.id, fechaVenta: dispensacion.fechaVenta })
       .from(dispensacion)
-      .where(and(eq(dispensacion.recetaId, recetaId), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(eq(dispensacion.recetaId, recetaId), dispensacionVigente));
   }
 
   async estadoReceta(recetaId: string) {
@@ -109,8 +109,7 @@ export class ConciliacionService {
       .where(
         and(
           gte(dispensacion.fechaVenta, desde),
-          isNull(dispensacion.anulaDispensacionId),
-          sql`not exists (select 1 from dispensacion a where a.anula_dispensacion_id = ${dispensacion.id})`,
+          dispensacionVigente,
           sql`not exists (select 1 from conciliacion c where c.dispensacion_id = ${dispensacion.id})`,
         ),
       )
@@ -364,7 +363,7 @@ export class ConciliacionService {
         unidades: dispensacion.unidades,
       })
       .from(dispensacion)
-      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(inArray(dispensacion.recetaId, recetaIds), dispensacionVigente));
 
     // Obtener líneas del ticket desde Siweb360 o Demo
     const ticketItems: LineaTicketItem[] = [];
@@ -388,7 +387,8 @@ export class ConciliacionService {
           }
         }
       } catch {
-        // En caso de error consultando el ticket, continúa con lo que haya
+        // Sin las líneas del ticket la conciliación saldría falsamente descuadrada: mejor decirlo.
+        throw new DomainError('SIWEB_NO_DISPONIBLE');
       }
     }
 
@@ -412,8 +412,9 @@ export class ConciliacionService {
               }
             }
           }
-        } catch {
-          // Siweb client error
+        } catch (e) {
+          // Un 404 es que no hay ticket con ese id (se sigue sin líneas); lo demás es que Siweb360 no responde.
+          if (!(e instanceof HttpError && e.status === 404)) throw new DomainError('SIWEB_NO_DISPONIBLE');
         }
       }
     }
@@ -472,7 +473,7 @@ export class ConciliacionService {
         cn: dispensacion.cn,
       })
       .from(dispensacion)
-      .where(and(inArray(dispensacion.recetaId, recetaIds), isNull(dispensacion.anulaDispensacionId)));
+      .where(and(inArray(dispensacion.recetaId, recetaIds), dispensacionVigente));
 
     await this.d.db.transaction(async (tx) => {
       // 1. Marcar ticket_receta como confirmado

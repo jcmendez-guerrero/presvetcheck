@@ -979,10 +979,13 @@ export class RecepcionesService {
         lineas: incompletas.map((l) => ({ numero: l.numero, faltan: l.faltan })),
       });
     const res = await this.d.db.transaction(async (tx) => {
-      await tx
+      // Solo si sigue abierta: un doble envío no vuelve a encolar ni devuelve las líneas sincronizadas a ENCOLADA.
+      const [abierta] = await tx
         .update(recepcion)
         .set({ estado: 'FINALIZADA', finalizadaAt: new Date(this.d.clock.now().epochMilliseconds) })
-        .where(eq(recepcion.id, id));
+        .where(and(eq(recepcion.id, id), eq(recepcion.estado, 'ABIERTA')))
+        .returning({ id: recepcion.id });
+      if (!abierta) throw new DomainError('RECEPCION_NO_EDITABLE');
       const enc = this.d.siweb
         ? await this.d.siweb.outbox.encolarRecepcion(tx, id)
         : { encoladas: 0, pendientesAlta: 0, escrituraDesactivada: true };

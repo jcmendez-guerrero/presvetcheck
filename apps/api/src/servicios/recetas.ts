@@ -1,7 +1,8 @@
-import { and, asc, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import {
   appendAudit,
   dispensacion,
+  dispensacionVigente,
   plataformaRecetaElectronica,
   receta,
   recetaImagen,
@@ -605,8 +606,7 @@ export class RecetasService {
                   eq(receta.numColegiado, conf.veterinario.numColegiado),
                   eq(receta.tipo, 'papel'),
                   ne(receta.id, id),
-                  isNull(dispensacion.anulaDispensacionId),
-                  sql`not exists (select 1 from dispensacion a where a.anula_dispensacion_id = ${dispensacion.id})`,
+                  dispensacionVigente,
                 ),
               )
               .limit(1)

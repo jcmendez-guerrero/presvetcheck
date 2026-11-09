@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   CODIGOS_INCIDENCIA,
@@ -60,15 +61,15 @@ describe('utilidades de texto', () => {
 
 describe('streamXmlRecords', () => {
   it('lee el diccionario de especies real en streaming', async () => {
+    const fichero = resolve(ROOT, 'fixtures/nomenclator/DICCIONARIO_ESPECIES_DESTINO.xml');
     const out = [];
-    for await (const r of streamXmlRecords(
-      resolve(ROOT, 'fixtures/nomenclator/DICCIONARIO_ESPECIES_DESTINO.xml'),
-      'especiesdestino',
-      { highWaterMark: 512 },
-    )) {
+    for await (const r of streamXmlRecords(fichero, 'especiesdestino', { highWaterMark: 512 })) {
       out.push(r);
     }
-    expect(out.length).toBe(371);
+    // El fichero se descarga de CIMAVet y crece: se compara con los registros del propio fichero, no con un número fijo.
+    const total = readFileSync(fichero, 'utf8').match(/<especiesdestino[\s>]/g)?.length ?? 0;
+    expect(total).toBeGreaterThan(300);
+    expect(out.length).toBe(total);
     expect(xmlText(out[0]!, 'cod_espdes')).toBe('1');
     expect(xmlText(out[0]!, 'des_espdes')).toBe('Bovino');
   });

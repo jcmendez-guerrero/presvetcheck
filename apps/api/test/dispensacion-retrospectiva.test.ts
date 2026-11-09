@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { api, confirmar, crearReceta, entorno, recetaCorrecta } from './entorno';
-import { dispensacion, evidenciaStockRetrospectiva } from '@mmx/db';
+import { dispensacion, evidenciaStockRetrospectiva, siwebVariantMap } from '@mmx/db';
 import { eq } from 'drizzle-orm';
 
 describe('Dispensación en modo retrospectivo (formación)', () => {
@@ -28,8 +28,9 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
     await confirmar(app, id, recetaCorrecta('R-COMPLETA'));
     await api(app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
 
-    // 3. Dispensar en modo retrospectivo
-    const dispRes = await api(app, 'dev-empleado', 'POST', '/api/dispensaciones', {
+    // 3. Dispensar en modo retrospectivo. Sin Siweb360 no hay venta que lo respalde: la API lo bloquea (no
+    // solo la UI) y solo se registra forzándolo con motivo.
+    const cuerpo = {
       conReceta: true,
       recetaId: id,
       lineaOrden: 1,
@@ -45,6 +46,20 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
       ],
       modo: 'retrospectivo',
       fechaOriginal: '2026-09-15',
+    };
+    const sinForzar = await api(app, 'dev-empleado', 'POST', '/api/dispensaciones', cuerpo);
+    expect(sinForzar.status).toBe(422);
+    expect(sinForzar.json.error).toMatchObject({
+      code: 'DISPENSACION_BLOQUEADA',
+      detalles: { forzables: ['SIN_MOVIMIENTO_STOCK_RETROSPECTIVO'] },
+    });
+    const dispRes = await api(app, 'dev-empleado', 'POST', '/api/dispensaciones', {
+      ...cuerpo,
+      forzado: {
+        codigos: ['SIN_MOVIMIENTO_STOCK_RETROSPECTIVO'],
+        motivo: 'Venta de formación sin ticket en Siweb360',
+        aceptaRiesgos: true,
+      },
     });
     expect(dispRes.status).toBe(201);
     const dispIds = (dispRes.json as { dispensaciones: string[] }).dispensaciones;
@@ -65,8 +80,15 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
     expect(evRow).toBeDefined();
     expect(evRow!.cn).toBe('570016');
     expect(evRow!.fechaOriginal).toBe('2026-09-15');
-    expect(evRow!.unidadesRequeridas).toBe(1);
-    expect(evRow!.unidadesEncontradas).toBe(1);
+    // La evidencia es la comprobación real, no un «OK» fijo.
+    expect(evRow).toMatchObject({
+      unidadesRequeridas: 1,
+      unidadesEncontradas: 0,
+      resultado: 'SIN_MOVIMIENTO',
+      movimientosConsultados: [],
+      forzado: true,
+      motivoForzado: 'Venta de formación sin ticket en Siweb360',
+    });
 
     await app.close();
   });
@@ -109,6 +131,23 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
     expect(dispRes.status).toBe(403);
     expect((dispRes.json as { error: { code: string } }).error.code).toBe('MODO_RETROSPECTIVO_DESHABILITADO');
 
+    await app.close();
+  });
+
+  it('si Siweb360 no responde, lo dice (503) en lugar de dar la venta por inexistente', async () => {
+    const { app, deps, h } = await entorno({ config: { RETROSPECTIVE_DISPENSATION_MODE: 'enabled' } });
+    await h.db.insert(siwebVariantMap).values({ cn: '570016', variantId: 9001, metodo: 'manual' });
+    deps.siweb = {
+      ...(deps.siweb ?? {}),
+      client: { movements: async () => Promise.reject(new Error('ECONNRESET')) },
+    } as never;
+    const r = await api(app, 'dev-empleado', 'POST', '/api/inventario/movimientos/retrospectivo', {
+      cn: '570016',
+      fechaOriginal: '2026-09-15',
+      unidadesRequeridas: 1,
+    });
+    expect(r.status).toBe(503);
+    expect(r.json.error.code).toBe('SIWEB_NO_DISPONIBLE');
     await app.close();
   });
 });

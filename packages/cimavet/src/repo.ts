@@ -11,6 +11,7 @@ import {
   cimavetNota,
   cimavetPresentacion,
   cimavetSyncRun,
+  filas,
   MAESTRA,
   type Db,
   type DbOrTx,
@@ -447,9 +448,7 @@ export class CimavetRepository implements NomenclatorSink {
         and ${filtros[0]} and ${filtros[1]}
       order by puntuacion desc, autorizado_especie desc nulls last, p.comerc desc nulls last, p.cn
       limit ${f.limite ?? 10}`);
-    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<
-      Record<string, unknown>
-    >;
+    const rows = filas<Record<string, unknown>>(res);
     return rows.map((r) => ({
       cn: String(r.cn),
       nregistro: String(r.nregistro),
@@ -475,9 +474,7 @@ export class CimavetRepository implements NomenclatorSink {
         select nregistro, array_agg(pa_id order by pa_id) as pas from cimavet_med_principio_activo group by nregistro
       )
       select t.nregistro from todos t, objetivo o where t.pas = o.pas order by t.nregistro limit ${limite}`);
-    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as Array<{
-      nregistro: string;
-    }>;
+    const rows = filas<{ nregistro: string }>(res);
     return rows.map((r) => r.nregistro);
   }
 

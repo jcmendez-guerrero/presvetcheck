@@ -1,5 +1,13 @@
-import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
-import { conciliacion, discrepancia, dispensacion, siwebVariantMap, ticketDemo, type Db } from '@mmx/db';
+import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import {
+  conciliacion,
+  discrepancia,
+  dispensacion,
+  dispensacionVigente,
+  siwebVariantMap,
+  ticketDemo,
+  type Db,
+} from '@mmx/db';
 import { conciliar, type Discrepancia, type MovimientoVenta } from '@mmx/domain';
 import { rangoMadrid } from '@mmx/shared';
 import type { SalesMovementsSource } from './ventas';
@@ -34,8 +42,7 @@ export async function conciliarDia(
       and(
         gte(dispensacion.fechaVenta, ini),
         lt(dispensacion.fechaVenta, fin),
-        isNull(dispensacion.anulaDispensacionId),
-        sql`not exists (select 1 from dispensacion a where a.anula_dispensacion_id = ${dispensacion.id})`,
+        dispensacionVigente,
         sql`not exists (select 1 from conciliacion c where c.dispensacion_id = ${dispensacion.id})`,
       ),
     );

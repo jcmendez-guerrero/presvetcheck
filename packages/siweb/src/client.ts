@@ -15,7 +15,6 @@ import {
   type Product,
   type Stock,
   type Ticket,
-  type TransferRequest,
   type Variant,
   type Warehouse,
   ContactSchema,
@@ -57,7 +56,7 @@ export type FiltrosVariantes = {
 
 /**
  * Cliente de la API de Inventario de Siweb360 (SPEC §5.2.1). Las lecturas se reintentan; las
- * escrituras (`adjustments`, `transfers`) NUNCA se reintentan automáticamente (no hay claves de
+ * escrituras (`adjustments`, `pricing`) NUNCA se reintentan automáticamente (no hay claves de
  * idempotencia: ADR-08, outbox).
  */
 export class SiwebClient {
@@ -263,15 +262,6 @@ export class SiwebClient {
       message: (json as { message?: string })?.message ?? null,
       raw: json,
     };
-  }
-
-  async transferir(body: TransferRequest): Promise<unknown> {
-    const { json } = await this.http.request(
-      this.url('inventory/stock/transfers'),
-      { method: 'POST', headers: await this.headers(), body: JSON.stringify(body) },
-      false,
-    );
-    return json;
   }
 }
 

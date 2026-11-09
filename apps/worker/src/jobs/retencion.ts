@@ -6,6 +6,7 @@ import {
   discrepancia,
   dispensacion,
   entradaImportada,
+  filas,
   importacion,
   salidaImportada,
   outbox,
@@ -63,10 +64,10 @@ export async function retentionSweep(ctx: Contexto, args: Record<string, string>
 
     // 1. Registros de solo inserción (salidas y ajustes de entrada): función de la BD con permisos propios.
     const reg = await tx.execute(sql`select mmx_purgar_registros(${lim}) as r`);
-    const filas = (Array.isArray(reg) ? reg : (reg as { rows: unknown[] }).rows) as Array<{
-      r: { dispensaciones: number; ajustes: number };
-    }>;
-    const purgados = filas[0]?.r ?? { dispensaciones: 0, ajustes: 0 };
+    const purgados = filas<{ r: { dispensaciones: number; ajustes: number } }>(reg)[0]?.r ?? {
+      dispensaciones: 0,
+      ajustes: 0,
+    };
 
     // 2. Recetas antiguas sin dispensaciones restantes, con todo lo que cuelga de ellas.
     const conDisp = tx

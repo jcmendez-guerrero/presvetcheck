@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -213,6 +214,9 @@ export const dispensacion = pgTable(
     uniqueIndex().on(t.anulaDispensacionId),
   ],
 );
+
+/** Salida vigente: no es una anulación ni ha sido anulada. Úsese siempre que se cuenten salidas. */
+export const dispensacionVigente = sql`(${dispensacion.anulaDispensacionId} is null and not exists (select 1 from dispensacion a where a.anula_dispensacion_id = ${dispensacion.id}))`;
 
 export const sustitucion = pgTable(
   'sustitucion',

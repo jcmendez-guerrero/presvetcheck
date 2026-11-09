@@ -214,17 +214,6 @@ export interface AdjustmentRequest {
   expiry_date?: string;
 }
 
-export interface TransferRequest {
-  variant_id: number;
-  from_warehouse_id: number;
-  to_warehouse_id: number;
-  quantity: number;
-  from_location_id?: number;
-  to_location_id?: number;
-  batch_number?: string;
-  notes?: string;
-}
-
 /** Lote y disponible de una fila del desglose. null si faltan: entonces no se recomienda dispensar. */
 export function leerNivel(l: Level): {
   lote: string | null;

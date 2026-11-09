@@ -11,6 +11,11 @@ export type Db = PgDatabase<PgQueryResultHKT, Schema>;
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type DbOrTx = Db | Tx;
 
+/** Filas de `db.execute`: postgres-js devuelve un array; PGlite, `{ rows }`. */
+export function filas<T>(r: unknown): T[] {
+  return (Array.isArray(r) ? r : (r as { rows: T[] }).rows) as T[];
+}
+
 export interface DbHandle {
   db: Db;
   kind: 'postgres' | 'pglite';
