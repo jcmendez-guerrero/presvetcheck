@@ -13,10 +13,10 @@ export function PaginaAcceso({ estado }: { estado: EstadoSesion }) {
   if (estado === 'sin-sesion' && config?.authMode === 'dev') {
     contenido = (
       <>
-        <h1 className="text-2xl font-extrabold text-marca dark:text-acento">No se ha podido iniciar sesión</h1>
-        <Boton onClick={() => location.reload()}>
-          Reintentar
-        </Boton>
+        <h1 className="text-2xl font-extrabold text-marca dark:text-acento">
+          No se ha podido iniciar sesión
+        </h1>
+        <Boton onClick={() => location.reload()}>Reintentar</Boton>
       </>
     );
   } else if (estado === 'sin-sesion') {
@@ -24,9 +24,7 @@ export function PaginaAcceso({ estado }: { estado: EstadoSesion }) {
       <>
         <h1 className="text-2xl font-extrabold text-marca dark:text-acento">Tu sesión ha terminado</h1>
         <p>Vuelve a entrar con tu cuenta de trabajo de Microsoft.</p>
-        <Boton onClick={iniciarSesion}>
-          Iniciar sesión con Microsoft
-        </Boton>
+        <Boton onClick={iniciarSesion}>Iniciar sesión con Microsoft</Boton>
       </>
     );
   } else if (estado === 'sin-acceso') {
@@ -34,9 +32,7 @@ export function PaginaAcceso({ estado }: { estado: EstadoSesion }) {
       <>
         <h1 className="text-2xl font-extrabold text-marca dark:text-acento">Sin acceso</h1>
         <p>Tu cuenta no tiene acceso a esta aplicación. Pide a Administración que te asigne un rol.</p>
-        <Boton onClick={cerrarSesion}>
-          Cerrar sesión
-        </Boton>
+        <Boton onClick={cerrarSesion}>Cerrar sesión</Boton>
       </>
     );
   } else {

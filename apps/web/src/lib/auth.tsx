@@ -141,7 +141,10 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
     // Sin sesión: a Microsoft (como mucho una vez por minuto y nunca tras cerrar sesión) o a la página de acceso.
     const sesionPerdida = (entra: boolean) => {
       setUsuario(null);
-      if (entra && puedeRedirigir(Date.now(), Number(leer(CLAVE_REINTENTO)) || null, leer(CLAVE_CERRADA) === '1')) {
+      if (
+        entra &&
+        puedeRedirigir(Date.now(), Number(leer(CLAVE_REINTENTO)) || null, leer(CLAVE_CERRADA) === '1')
+      ) {
         fijar('redirigiendo');
         irALogin();
       } else {
@@ -180,7 +183,9 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
       });
       // Una sola renovación en curso aunque fallen varias peticiones a la vez.
       const refrescar = () =>
-        (refrescoRef.current ??= fetch('/.auth/refresh', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        (refrescoRef.current ??= fetch('/.auth/refresh', {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
           .then(
             (r) => r.ok,
             () => false,

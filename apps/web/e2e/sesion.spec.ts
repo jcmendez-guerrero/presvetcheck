@@ -36,8 +36,10 @@ async function modoEntra(
     if (r === 'pendiente') return; // la petición queda sin respuesta
     if (r === 'abort') return route.abort();
     // La plataforma sin X-Requested-With: 302 al inicio de sesión de Microsoft.
-    if (r === 'redireccion') return route.fulfill({ status: 302, headers: { location: 'https://login.example.test/' } });
-    if (typeof r === 'number') return route.fulfill({ status: r, json: r === 401 ? NO_AUTORIZADO : { error: {} } });
+    if (r === 'redireccion')
+      return route.fulfill({ status: 302, headers: { location: 'https://login.example.test/' } });
+    if (typeof r === 'number')
+      return route.fulfill({ status: r, json: r === 401 ? NO_AUTORIZADO : { error: {} } });
     return route.fulfill({ json: r });
   };
 
@@ -96,24 +98,35 @@ test('sin renovación posible, va a Microsoft con la dirección de vuelta', asyn
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecetas%2Fnueva%3Fx%3D1');
 });
 
-test('si la plataforma redirige en vez de responder 401, también va a Microsoft', async ({ page, context }) => {
+test('si la plataforma redirige en vez de responder 401, también va a Microsoft', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { me: ['redireccion'], refresh: 401 });
   await page.goto('/recepciones');
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
   await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
 });
 
-test('la plataforma rechaza la configuración: va a Microsoft, no a «Conectando…»', async ({ page, context }) => {
+test('la plataforma rechaza la configuración: va a Microsoft, no a «Conectando…»', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { config: [401] });
   await page.goto('/recepciones');
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
   await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
 });
 
-test('la configuración falla una vez y luego responde: se reintenta y abre la pantalla', async ({ page, context }) => {
+test('la configuración falla una vez y luego responde: se reintenta y abre la pantalla', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { config: ['abort', 'real'] });
   await page.goto('/recepciones');
-  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({
+    timeout: 15_000,
+  });
   expect(reg.config).toBe(2);
   expect(reg.login).toEqual([]);
 });
@@ -127,7 +140,10 @@ test('mientras se comprueba la sesión no se ve nada de la aplicación', async (
 });
 
 // US2 — página de acceso
-test('protección contra bucles: muestra la página de acceso y el botón inicia sesión', async ({ page, context }) => {
+test('protección contra bucles: muestra la página de acceso y el botón inicia sesión', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { me: [401], refresh: 401 });
   await page.addInitScript(() => localStorage.setItem('mmx.reintentoLogin', String(Date.now())));
   await page.goto('/registros');
@@ -165,11 +181,16 @@ test('servidor caído: «Conectando con el servidor…» sin ir a Microsoft', as
   const { reg } = await modoEntra(context, { me: ['abort', 503, USUARIO] });
   await page.goto('/recepciones');
   await expect(page.getByText('Conectando con el servidor…')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({
+    timeout: 15_000,
+  });
   expect(reg.login).toEqual([]);
 });
 
-test('una comprobación que no responde no deja «Iniciando sesión…» para siempre', async ({ page, context }) => {
+test('una comprobación que no responde no deja «Iniciando sesión…» para siempre', async ({
+  page,
+  context,
+}) => {
   await modoEntra(context, { me: ['pendiente'] });
   await page.clock.install();
   await page.goto('/');
@@ -221,7 +242,10 @@ test('caducidad durante el uso con renovación correcta: sin aviso', async ({ pa
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
-test('caducidad durante el uso: renovada pero sigue rechazada, muestra el aviso', async ({ page, context }) => {
+test('caducidad durante el uso: renovada pero sigue rechazada, muestra el aviso', async ({
+  page,
+  context,
+}) => {
   const { estado } = await modoEntra(context);
   await page.goto('/registros');
   await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();

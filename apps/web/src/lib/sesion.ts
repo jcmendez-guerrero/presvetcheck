@@ -4,13 +4,7 @@
  */
 
 export type EstadoSesion =
-  | 'conectando'
-  | 'comprobando'
-  | 'activa'
-  | 'sin-acceso'
-  | 'redirigiendo'
-  | 'sin-sesion'
-  | 'caducada';
+  'conectando' | 'comprobando' | 'activa' | 'sin-acceso' | 'redirigiendo' | 'sin-sesion' | 'caducada';
 
 /** Ventana en la que no se repite la redirección automática a Microsoft. */
 export const VENTANA_REINTENTO_MS = 60_000;
@@ -24,14 +18,23 @@ export const CLAVE_CERRADA = 'mmx.sesionCerrada';
 /** Dirección de vuelta: solo rutas de esta aplicación; cualquier otra cosa vuelve al inicio. */
 export function rutaRetorno(pathname: string, search: string, hash: string): string {
   const ruta = `${pathname}${search}${hash}`;
-  if (!ruta.startsWith('/') || ruta.startsWith('//') || ruta.startsWith('/\\') || ruta.startsWith('/.auth/')) {
+  if (
+    !ruta.startsWith('/') ||
+    ruta.startsWith('//') ||
+    ruta.startsWith('/\\') ||
+    ruta.startsWith('/.auth/')
+  ) {
     return '/';
   }
   return ruta;
 }
 
 /** Se puede redirigir automáticamente si el usuario no cerró sesión y no se intentó hace menos de un minuto. */
-export function puedeRedirigir(ahora: number, ultimoIntento: number | null, cerradaPorUsuario: boolean): boolean {
+export function puedeRedirigir(
+  ahora: number,
+  ultimoIntento: number | null,
+  cerradaPorUsuario: boolean,
+): boolean {
   if (cerradaPorUsuario) return false;
   return ultimoIntento === null || ahora - ultimoIntento > VENTANA_REINTENTO_MS;
 }
