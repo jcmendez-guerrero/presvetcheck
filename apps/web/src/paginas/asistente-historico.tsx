@@ -71,34 +71,34 @@ export function AsistenteHistorico() {
 
   return (
     <Pagina titulo="Consultas al asistente">
-      <p className="text-slate-700">
+      <p className="text-texto-muted dark:text-slate-300">
         {veTodo ? 'Las consultas de todo el equipo.' : 'Tus consultas.'} Se eliminan al año. Las valoradas
         como «incorrecta» ayudan a mejorar la documentación.
       </p>
       <Tarjeta titulo="Filtros">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-sm font-medium text-texto">
             Desde
             <input
               type="date"
-              className="min-h-11 rounded-lg border px-2"
+              className="min-h-11 rounded-lg border border-borde bg-superficie px-2 text-texto"
               value={f.desde}
               onChange={(e) => cambiar('desde', e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-sm font-medium text-texto">
             Hasta
             <input
               type="date"
-              className="min-h-11 rounded-lg border px-2"
+              className="min-h-11 rounded-lg border border-borde bg-superficie px-2 text-texto"
               value={f.hasta}
               onChange={(e) => cambiar('hasta', e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-sm font-medium text-texto">
             Valoración
             <select
-              className="min-h-11 rounded-lg border px-2"
+              className="min-h-11 rounded-lg border border-borde bg-superficie px-2 text-texto"
               value={f.valoracion}
               onChange={(e) => cambiar('valoracion', e.target.value)}
             >
@@ -108,10 +108,10 @@ export function AsistenteHistorico() {
               <option value="sin_valorar">Sin valorar</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-sm font-medium text-texto">
             Con receta
             <select
-              className="min-h-11 rounded-lg border px-2"
+              className="min-h-11 rounded-lg border border-borde bg-superficie px-2 text-texto"
               value={f.conReceta}
               onChange={(e) => cambiar('conReceta', e.target.value)}
             >
@@ -121,10 +121,10 @@ export function AsistenteHistorico() {
             </select>
           </label>
           {veTodo && (
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-1 text-sm font-medium text-texto">
               Persona
               <select
-                className="min-h-11 rounded-lg border px-2"
+                className="min-h-11 rounded-lg border border-borde bg-superficie px-2 text-texto"
                 value={f.usuario}
                 onChange={(e) => cambiar('usuario', e.target.value)}
               >
@@ -152,18 +152,23 @@ export function AsistenteHistorico() {
       {lista.data && lista.data.items.length > 0 && (
         <ul className="flex flex-col gap-2" data-testid="asistente-lista">
           {lista.data.items.map((i) => (
-            <li key={i.id} className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
+            <li
+              key={i.id}
+              className="rounded-xl bg-superficie p-3.5 border border-slate-200/90 dark:border-white/10 dark:shadow-md text-texto"
+            >
               <button
                 type="button"
-                className="flex min-h-11 w-full flex-wrap items-center gap-x-4 gap-y-1 text-left"
+                className="flex min-h-11 w-full flex-wrap items-center gap-x-4 gap-y-1 text-left text-texto cursor-pointer"
                 aria-expanded={abierta === i.id}
                 onClick={() => setAbierta(abierta === i.id ? null : i.id)}
               >
-                <span className="font-semibold">{fechaHora(i.createdAt)}</span>
-                <span>{i.usuario.nombre}</span>
-                <span className="rounded-full bg-fondo px-2 text-sm">{CONTEXTO[i.contexto.tipo]}</span>
-                <span className="flex-1 truncate">{i.primeraPregunta ?? '(sin preguntas)'}</span>
-                <span className="text-sm text-slate-600">{i.intercambios} resp.</span>
+                <span className="font-semibold text-texto">{fechaHora(i.createdAt)}</span>
+                <span className="text-texto">{i.usuario.nombre}</span>
+                <span className="rounded-full bg-fondo-secundario px-2.5 py-0.5 text-xs font-medium text-texto-muted dark:text-slate-300">
+                  {CONTEXTO[i.contexto.tipo]}
+                </span>
+                <span className="flex-1 truncate text-texto">{i.primeraPregunta ?? '(sin preguntas)'}</span>
+                <span className="text-sm text-texto-muted dark:text-slate-400">{i.intercambios} resp.</span>
                 {i.incorrectas > 0 && (
                   <span className="rounded-full bg-noconforme-bg px-2 text-sm font-semibold text-noconforme">
                     {i.incorrectas} incorrecta(s)
@@ -171,11 +176,13 @@ export function AsistenteHistorico() {
                 )}
               </button>
               {abierta === i.id && (
-                <div className="mt-3 space-y-4 border-t pt-3">
+                <div className="mt-3 space-y-4 border-t border-slate-100 dark:border-white/10 pt-3">
                   {detalle.isLoading && <Cargando />}
                   {detalle.data?.intercambios.map((x) => (
                     <div key={x.id} className="space-y-2">
-                      <p className="rounded-2xl bg-marca px-3 py-2 text-white">{x.pregunta}</p>
+                      <p className="rounded-2xl bg-marca px-3.5 py-2 text-white dark:text-mmx-noche font-medium">
+                        {x.pregunta}
+                      </p>
                       {x.estado === 'respondida' ? (
                         <Respuesta i={x} />
                       ) : (
@@ -187,13 +194,13 @@ export function AsistenteHistorico() {
                           ).
                         </p>
                       )}
-                      <p className="text-xs text-slate-600">
+                      <p className="text-xs text-texto-muted dark:text-slate-400">
                         Reglas <span className="break-all">{x.reglaVersion}</span> · Fuentes{' '}
                         <span className="break-all">{x.fuentesVersion}</span> · {fechaHora(x.createdAt)}
                       </p>
                       {x.valoracion && (
                         <p
-                          className={`rounded-lg p-2 text-sm ${x.valoracion.valor === 'incorrecta' ? 'bg-noconforme-bg' : 'bg-dispensar-bg'}`}
+                          className={`rounded-lg p-2 text-sm ${x.valoracion.valor === 'incorrecta' ? 'bg-noconforme-bg text-noconforme dark:bg-noconforme-bg/40' : 'bg-dispensar-bg text-dispensar dark:bg-dispensar-bg/40'}`}
                         >
                           Valoración:{' '}
                           <strong>{x.valoracion.valor === 'incorrecta' ? 'incorrecta' : 'útil'}</strong>

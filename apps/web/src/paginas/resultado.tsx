@@ -335,30 +335,32 @@ export function ModalSustitucionManual({
       role="dialog"
       aria-modal="true"
       aria-labelledby="titulo-sustitucion-manual"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
     >
-      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-2xl bg-white p-6 shadow-xl">
-        <h2 id="titulo-sustitucion-manual" className="text-xl font-bold text-marca">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-2xl bg-superficie border border-slate-200/90 dark:border-white/10 p-6 shadow-2xl text-texto">
+        <h2 id="titulo-sustitucion-manual" className="text-xl font-bold text-marca dark:text-acento">
           Confirmar sustitución por falta de existencias
         </h2>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-texto-muted dark:text-slate-300">
           Vas a sustituir el medicamento prescrito por <strong>{candidatoNombre}</strong> (CN {candidatoCn}).
         </p>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-texto-atenuado dark:text-slate-400">
           La receta quedará separada para la firma posterior del farmacéutico garante (modo POST). Recuerda
           recabar la conformidad del tutor del animal y notificar al veterinario prescriptor.
         </p>
         <label className="mt-4 flex flex-col gap-1">
-          <span className="font-medium text-slate-800">
+          <span className="font-medium text-texto">
             Razón / Justificación de la sustitución <span className="text-noconforme">*</span>
           </span>
           <textarea
-            className="min-h-20 rounded-lg border border-slate-300 p-2 text-sm"
+            className="min-h-20 rounded-lg border border-borde bg-superficie p-2.5 text-sm text-texto"
             placeholder="Ej.: Sin existencias del prescrito; sustituido por equivalente con acuerdo del cliente..."
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
           />
-          <span className="text-xs text-slate-500">Mínimo 5 caracteres ({motivo.trim().length}/5).</span>
+          <span className="text-xs text-texto-atenuado dark:text-slate-400">
+            Mínimo 5 caracteres ({motivo.trim().length}/5).
+          </span>
         </label>
         <div className="mt-6 flex flex-wrap justify-between gap-3">
           <Boton variante="secundario" onClick={onCancelar}>
@@ -466,9 +468,9 @@ export function BuscadorSustitutoLinea({
           🔍 Buscar sustituto en vademécum o almacén
         </button>
       ) : (
-        <div className="rounded-xl border border-marca/30 bg-white p-3 space-y-3">
+        <div className="rounded-xl border border-marca/30 dark:border-white/10 bg-superficie p-3.5 space-y-3 text-texto">
           <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-sm text-marca">
+            <h4 className="font-semibold text-sm text-marca dark:text-acento">
               Comparador y selección de sustituto (Línea {linea.orden})
             </h4>
             <button

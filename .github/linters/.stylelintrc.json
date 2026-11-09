@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": ["theme", "import", "utility", "variant", "custom-variant", "source"]
+      }
+    ],
+    "import-notation": null
+  }
+}

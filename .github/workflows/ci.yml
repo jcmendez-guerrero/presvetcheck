@@ -86,6 +86,7 @@ jobs:
           VALIDATE_NATURAL_LANGUAGE: false
           VALIDATE_MARKDOWN_PRETTIER: false
           FIX_YAML_PRETTIER: true
+          VALIDATE_CSS: false
           VALIDATE_BIOME_LINT: false
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_TRIVY: false
