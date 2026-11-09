@@ -52,10 +52,16 @@ export function configurarCabeceras(f: () => Promise<Record<string, string>>) {
   cabeceras = f;
 }
 
-export async function api<T = unknown>(metodo: string, url: string, cuerpo?: unknown): Promise<T> {
+export async function api<T = unknown>(
+  metodo: string,
+  url: string,
+  cuerpo?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const esForm = cuerpo instanceof FormData;
   const res = await fetch(url, {
     method: metodo,
+    ...(signal ? { signal } : {}),
     headers: { ...(await cabeceras()), ...(cuerpo !== undefined && !esForm ? { 'Content-Type': 'application/json' } : {}) },
     ...(cuerpo !== undefined ? { body: esForm ? cuerpo : JSON.stringify(cuerpo) } : {}),
   });
@@ -79,6 +85,6 @@ export async function descargar(url: string, nombre: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
-export const get = <T>(u: string) => api<T>('GET', u);
+export const get = <T>(u: string, signal?: AbortSignal) => api<T>('GET', u, undefined, signal);
 export const post = <T>(u: string, b?: unknown) => api<T>('POST', u, b ?? {});
 export const put = <T>(u: string, b: unknown) => api<T>('PUT', u, b);
