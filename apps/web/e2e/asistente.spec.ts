@@ -88,3 +88,16 @@ test('pregunta sobre una línea: explica el resultado del motor y devuelve el fo
   await expect(panel).toBeHidden();
   await expect(escaneo).toBeFocused();
 });
+
+test('con el asistente abierto, Tab en la página no salta al panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.getByTestId('asistente-abrir').click();
+  const panel = page.getByTestId('asistente-panel');
+  await expect(panel).toBeVisible();
+
+  // El panel no tiene velo: se puede seguir trabajando en la página de al lado.
+  await page.getByTestId('boton-movil').focus();
+  await page.keyboard.press('Tab');
+  expect(await panel.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+});

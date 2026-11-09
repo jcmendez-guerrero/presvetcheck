@@ -30,8 +30,12 @@ export function useFocusTrap(
 
     const contenedor = contenedorRef.current;
     const enfocarPrimero = () => {
+      // `data-autofocus` permite empezar arriba (p. ej. el título) en vez de en un botón al fondo de un panel desplazable.
+      const destino = contenedor.querySelector<HTMLElement>('[data-autofocus]');
       const elementos = contenedor.querySelectorAll<HTMLElement>(SELECTOR_ELEMENTOS_ENFOCABLES);
-      if (elementos.length > 0) {
+      if (destino) {
+        destino.focus();
+      } else if (elementos.length > 0) {
         elementos[0]?.focus();
       } else {
         contenedor.setAttribute('tabindex', '-1');
@@ -59,7 +63,13 @@ export function useFocusTrap(
         const primero = elementos[0]!;
         const ultimo = elementos[elementos.length - 1]!;
 
-        if (e.shiftKey && document.activeElement === primero) {
+        // Foco dentro del contenedor pero fuera de la lista (el título con data-autofocus o el propio contenedor): Tab no
+        // debe escaparse. Si el foco está fuera (panel sin velo, como el asistente), Tab sigue su curso por la página.
+        const activo = document.activeElement as HTMLElement | null;
+        if (contenedor.contains(activo) && !elementos.includes(activo!)) {
+          e.preventDefault();
+          (e.shiftKey ? ultimo : primero).focus();
+        } else if (e.shiftKey && document.activeElement === primero) {
           e.preventDefault();
           ultimo.focus();
         } else if (!e.shiftKey && document.activeElement === ultimo) {
