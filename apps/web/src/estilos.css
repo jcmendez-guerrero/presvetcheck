@@ -2,30 +2,236 @@
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/bricolage-grotesque';
 
-/* Identidad visual (SPEC §2.1) y colores semánticos de estado (nunca solo color: siempre icono + texto). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Sistema de Diseño Oficial Mundo Mascotix (SPEC §2.1 y Manual de Identidad Visual)
+ * Arquitectura de Tokens en 3 Capas:
+ *   Capa 1: Primitivas Institucionales Mundo Mascotix (#016581, #2f8198, #60abb8, #002028, #f2f8f9, #e3a857)
+ *   Capa 2: Tokens Semánticos Globales (Superficie, Lienzo, Textos calibrados WCAG 2.1 AA)
+ *   Capa 3: Tokens de Estado Regulatorio (Dispensar, Sustituir, No conforme, Pedir, Psicotropo, Dorado)
+ */
 @theme {
+  /* ── Capa 1: Primitivas Institucionales Mundo Mascotix ── */
+  --color-mmx-petroleo: #016581; /* Primario */
+  --color-mmx-azul-medio: #2f8198; /* Apoyo */
+  --color-mmx-turquesa: #60abb8; /* Acento claro */
+  --color-mmx-noche: #002028; /* Texto oscuro / base */
+  --color-mmx-hielo: #f2f8f9; /* Blanco hielo */
+  --color-mmx-dorado: #e3a857; /* Seguridad / MFA */
+
+  /* ── Capa 2: Tokens Semánticos Globales (Modo Claro por Defecto) ── */
+  --color-fondo: #f4f8f9;
+  --color-fondo-secundario: #e9f2f4;
+  --color-superficie: #ffffff;
+  --color-superficie-elevada: #ffffff;
+  --color-borde: #e2e8f0;
+  --color-borde-marca: rgb(1 101 129 / 18%);
+  --color-superficie-borde: rgb(96 171 184 / 22%);
+
+  /* Textos calibrados para WCAG 2.1 AA (≥ 4.5:1 sobre superficie/fondo) */
+  --color-texto: #002028; /* Ratio 16.97:1 sobre blanco */
+  --color-texto-muted: #1f5d6e; /* Ratio 7.37:1 sobre blanco (reemplaza #2f8198) */
+  --color-texto-atenuado: #475569; /* Ratio 5.68:1 sobre blanco / fondo */
+
+  /* Colores de acción y botones */
   --color-marca: #016581;
-  --color-marca-2: #2f8198;
+  --color-marca-hover: #015167; /* Ratio con blanco: 8.41:1 */
+  --color-marca-apoyo: #1f5d6e; /* Calibrado para contraste ≥ 4.5:1 */
+  --color-marca-2: #1f5d6e; /* Compatibilidad con vistas previas */
   --color-acento: #60abb8;
-  --color-fondo: #f2f8f9;
-  --color-texto: #002028;
-  --color-dorado: #e3a857;
+
+  /* ── Capa 3: Estados Regulatorios (SPEC §2.1) ── */
+  --color-dispensar: #047857;
+  --color-dispensar-bg: #d1fae5;
   --color-sustituir: #b45309;
   --color-sustituir-bg: #fef3c7;
   --color-noconforme: #b91c1c;
   --color-noconforme-bg: #fee2e2;
-  --color-dispensar: #047857;
-  --color-dispensar-bg: #d1fae5;
   --color-pedir: #016581;
   --color-pedir-bg: #e0f2f7;
   --color-psicotropo: #6b21a8;
   --color-psicotropo-bg: #f3e8ff;
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --color-dorado: #b45309; /* En claro: dorado calibrado para texto ≥ 4.5:1 */
+  --color-dorado-bg: #fef9c3;
+
+  /* Tipografías oficiales */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-titulo: 'Bricolage Grotesque Variable', 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-html, body { background: var(--color-fondo); color: var(--color-texto); }
-h1, h2, h3 { font-family: var(--font-titulo); }
-/* Objetivos táctiles ≥ 44 px (SPEC §8). */
-button, a.boton, select, input[type='checkbox'] + span { min-height: 44px; }
-:focus-visible { outline: 3px solid var(--color-dorado); outline-offset: 2px; }
+:root {
+  color-scheme: light;
+}
+
+/* ── Modo Oscuro Calibrado (Inspirado en la referencia interna) ── */
+.dark {
+  color-scheme: dark;
+  --color-fondo: #00161c; /* Lienzo azul noche profundo */
+  --color-fondo-secundario: #001e26;
+  --color-superficie: #00252f; /* Tarjeta visible y elevada */
+  --color-superficie-elevada: #003340; /* Tarjeta flotante / modal / desplegable */
+  --color-borde: rgb(255 255 255 / 10%);
+  --color-borde-marca: rgb(96 171 184 / 30%);
+  --color-superficie-borde: rgb(96 171 184 / 35%);
+
+  /* Textos en modo oscuro calibrados (≥ 4.5:1 sobre superficie #00252f) */
+  --color-texto: #f2f8f9; /* Ratio 14.99:1 sobre superficie */
+  --color-texto-muted: #94a3b8; /* Ratio 6.27:1 sobre superficie */
+  --color-texto-atenuado: #8193a8; /* Ratio 5.11:1 sobre superficie */
+
+  /* Colores de marca y acciones en modo oscuro */
+  --color-marca: #60abb8; /* Acento turquesa vivo */
+  --color-marca-hover: #74bdc9;
+  --color-marca-apoyo: #60abb8;
+  --color-marca-2: #60abb8;
+  --color-acento: #60abb8;
+
+  /* Ajustes semánticos oscuros (todos ≥ 4.5:1) */
+  --color-dispensar: #6ee7b7;
+  --color-dispensar-bg: #064e3b;
+  --color-sustituir: #fcd34d;
+  --color-sustituir-bg: #451a03;
+  --color-noconforme: #fca5a5;
+  --color-noconforme-bg: #450a0a;
+  --color-psicotropo: #d8b4fe;
+  --color-psicotropo-bg: #3b0764;
+  --color-pedir: #60abb8;
+  --color-pedir-bg: #003644;
+  --color-dorado: #e3a857; /* En oscuro: ratio 7.08:1 sobre superficie */
+  --color-dorado-bg: #3c2a05;
+}
+
+html,
+body {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Regla WCAG 2.2 Focus Not Obscured: garantiza que ningún campo enfocado quede tapado por barras adhesivas */
+html {
+  scroll-padding-top: calc(var(--altura-cabecera, 64px) + var(--altura-banda, 0px) + 16px);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-titulo);
+}
+
+/* Objetivos táctiles ergonómicos ≥ 44 px (SPEC §8, WCAG 2.5.5/2.5.8) */
+button,
+a.boton,
+select,
+input[type='checkbox'] + span,
+[role='button'] {
+  min-height: 44px;
+}
+
+/* Soporte accesible de controles de formulario para modos claro y oscuro */
+input,
+select,
+textarea {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+  border-color: var(--color-borde);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+  border-color: var(--color-borde);
+}
+
+.dark select option {
+  background-color: var(--color-superficie);
+  color: var(--color-texto);
+}
+
+input[type='file'] {
+  color: var(--color-texto);
+  background-color: var(--color-superficie);
+}
+
+input[type='file']::file-selector-button {
+  background-color: var(--color-fondo-secundario);
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  margin-right: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.dark input[type='file']::file-selector-button {
+  background-color: var(--color-superficie-elevada);
+  color: var(--color-texto);
+  border: 1px solid var(--color-borde);
+}
+
+/* Anillo de foco accesible con Dorado de seguridad */
+:focus-visible {
+  outline: 3px solid var(--color-dorado);
+  outline-offset: 2px;
+}
+
+/* Utilidad para garantizar el margen perimetral del logotipo (altura de la letra «M») */
+.logo-clearspace {
+  padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Utilidades de elevación visual y profundidad de tarjetas */
+.tarjeta-elevada {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.06),
+    0 1px 2px -1px rgb(0 0 0 / 0.06);
+}
+
+.dark .tarjeta-elevada {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-top-color: rgb(255 255 255 / 0.15);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.45);
+}
+
+.tarjeta-elevada-hover {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.tarjeta-elevada-hover:hover {
+  box-shadow:
+    0 10px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  border-color: var(--color-superficie-borde);
+}
+
+.dark .tarjeta-elevada-hover:hover {
+  border-color: rgb(96 171 184 / 0.5);
+  border-top-color: rgb(96 171 184 / 0.7);
+  box-shadow:
+    0 12px 32px -4px rgba(0, 0, 0, 0.65),
+    0 0 16px -2px rgba(96, 171 184, 0.15);
+}
+
+/* Respeto a usuarios con sensibilidad al movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

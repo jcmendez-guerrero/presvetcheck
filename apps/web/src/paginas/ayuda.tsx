@@ -13,11 +13,11 @@ const inline = (xs: Inline[]): ReactNode[] =>
 
 const bloque = (b: Bloque, i: number): ReactNode =>
   'p' in b ? (
-    <p key={i} className="mt-2 text-slate-800">
+    <p key={i} className="mt-2 text-texto leading-relaxed">
       {inline(b.p)}
     </p>
   ) : (
-    <ul key={i} className="mt-2 list-disc space-y-1 pl-6 text-slate-800">
+    <ul key={i} className="mt-2 list-disc space-y-1.5 pl-6 text-texto leading-relaxed">
       {b.lista.map((item, j) => (
         <li key={j}>{inline(item)}</li>
       ))}
@@ -41,14 +41,14 @@ export function Ayuda() {
   );
   return (
     <Pagina titulo="Ayuda">
-      <p className="text-slate-700">
+      <p className="text-texto-muted dark:text-slate-300">
         Cómo funciona cada parte de la app. Pulsa una sección o busca una palabra.
       </p>
-      <label className="flex max-w-md items-center gap-2 rounded-lg border bg-white px-3">
-        <Search aria-hidden className="h-5 w-5 text-marca" />
+      <label className="flex max-w-md items-center gap-2 rounded-xl border border-borde bg-superficie px-3.5 text-texto shadow-2xs focus-within:ring-2 focus-within:ring-dorado">
+        <Search aria-hidden className="h-5 w-5 text-marca dark:text-acento shrink-0" />
         <input
           aria-label="Buscar en la ayuda"
-          className="min-h-11 flex-1 outline-none"
+          className="min-h-11 flex-1 bg-transparent text-texto placeholder:text-texto-atenuado outline-none"
           placeholder="Por ejemplo: albarán, sustitución, importar…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -59,7 +59,7 @@ export function Ayuda() {
           <a
             key={s.id}
             href={`#${s.id}`}
-            className="rounded-full bg-white px-3 py-1 text-sm text-marca ring-1 ring-marca/30 hover:bg-fondo"
+            className="rounded-full bg-superficie px-3.5 py-1.5 text-sm font-medium text-marca dark:text-acento border border-marca/30 dark:border-white/10 hover:bg-fondo transition-colors"
           >
             {s.titulo}
           </a>
@@ -71,13 +71,15 @@ export function Ayuda() {
             key={s.id}
             id={s.id}
             hidden={!visibles.includes(s)}
-            className="scroll-mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+            className="scroll-mt-4 rounded-2xl bg-superficie p-6 shadow-xs border border-slate-200/90 dark:border-white/10 dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.45)] text-texto"
           >
-            <h2 className="text-xl font-bold text-marca-2">{s.titulo}</h2>
+            <h2 className="text-xl font-bold text-marca dark:text-acento">{s.titulo}</h2>
             {s.contenido}
           </section>
         ))}
-        {!visibles.length && <p className="text-slate-600">No hay ninguna sección con «{q}».</p>}
+        {!visibles.length && (
+          <p className="text-texto-muted dark:text-slate-400">No hay ninguna sección con «{q}».</p>
+        )}
       </div>
     </Pagina>
   );
