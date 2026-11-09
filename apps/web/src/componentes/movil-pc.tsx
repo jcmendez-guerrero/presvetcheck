@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Smartphone } from 'lucide-react';
 import { enlaceMovil, useMovil } from '../lib/movil';
 import { qrSvg } from '../lib/zxing';
+import { useFocusTrap } from '../lib/a11y';
 import { Boton, Mensaje } from './ui';
 
 /** Botón de la cabecera: empareja un móvil con este PC mediante un código QR. */
 export function BotonMovil() {
   const m = useMovil();
   const [abierto, setAbierto] = useState(false);
+  const cerrar = useCallback(() => setAbierto(false), []);
   if (!m) return null;
   return (
     <>
@@ -22,7 +25,8 @@ export function BotonMovil() {
         Móvil
         {m.sesion && <span aria-label={m.conectado ? 'conectado' : 'esperando'} className={`h-2.5 w-2.5 rounded-full ${m.conectado ? 'bg-green-400' : 'bg-dorado'}`} />}
       </button>
-      {abierto && <DialogoMovil onCerrar={() => setAbierto(false)} />}
+      {/* Portal a <body>: el backdrop-filter de la cabecera atraparía el velo `fixed` dentro de sus 64 px. */}
+      {abierto && createPortal(<DialogoMovil onCerrar={cerrar} />, document.body)}
     </>
   );
 }
@@ -32,6 +36,8 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { sesion, abrir, conectado } = m;
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true, onCerrar);
   // Cuando el móvil se conecta mientras se muestra el QR, el diálogo sobra: se cierra solo.
   const yaConectado = useRef(conectado);
   useEffect(() => {
@@ -48,9 +54,11 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
   }, [sesion]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 text-texto" role="dialog" aria-label="Usar el móvil">
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-6">
-        <h2 className="text-2xl font-bold">Usar el móvil</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 text-slate-900" role="dialog" aria-modal="true" aria-label="Usar el móvil">
+      <div ref={panelRef} className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-auto rounded-2xl bg-white p-6">
+        <h2 tabIndex={-1} data-autofocus className="text-2xl font-bold outline-none">
+          Usar el móvil
+        </h2>
         <p className="text-slate-700">Lee este código con la cámara del móvil. Desde el móvil podrás fotografiar recetas y leer los códigos de los envases; todo llega a esta pantalla.</p>
         {svg && sesion ? (
           <>
