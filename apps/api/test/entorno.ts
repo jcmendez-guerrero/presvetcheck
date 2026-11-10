@@ -318,3 +318,41 @@ export const recetaCorrecta =
     indicacion: 'Infección cutánea producida por Staphylococcus',
     lineas: (r.lineas ?? []).map((l) => ({ ...l, cn: '570016', nregistro: '1868 ESP', cantidadEnvases: 1 })),
   });
+
+// ── Alta manual de recetas (specs/011) ──
+export const ACTIVA = { config: { MANUAL_PRESCRIPTION_ENTRY: 'enabled' } };
+export const ALTA = {
+  tipo: 'papel',
+  motivo: 'Dispensada con la aplicación caída',
+  custodiaPapel: 'Archivador de recetas de octubre',
+};
+
+/** Datos de una receta manual completa: CLAVUBAY (CN 570016) para un perro, emitida el 2026-10-01. */
+export const datosManuales = (numero: string, cambios: Partial<RecetaConfirmadaInput> = {}) =>
+  ({
+    ...recetaCorrecta(numero)({
+      tipo: 'papel',
+      lineas: [{ orden: 1, declaracionAntimicrobiano: { declarada: true, finalidad: 'tratamiento' } }],
+    } as RecetaConfirmadaInput),
+    fechaEmision: '2026-10-01',
+    fechaOriginal: '2026-10-04',
+    tipoDispensacion: 'dispensacion',
+    titular: { nombre: 'Titular de prueba', telefono: '600000000', direccion: null, dni: null },
+    animalIdentificacion: '941000000000001',
+    veterinario: {
+      nombre: 'Veterinaria de prueba',
+      telefono: null,
+      email: null,
+      numColegiado: '28/1234',
+      colegio: null,
+      clinica: null,
+      direccion: null,
+    },
+    ...cambios,
+  }) as RecetaConfirmadaInput;
+
+export async function altaManual(app: FastifyInstance, cuerpo: object = ALTA) {
+  const r = await api(app, 'dev-veterinaria', 'POST', '/api/recetas/manual', cuerpo);
+  if (r.status !== 201) throw new Error(`altaManual ${r.status}: ${JSON.stringify(r.json)}`);
+  return r.json.id as string;
+}

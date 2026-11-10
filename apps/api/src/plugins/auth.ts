@@ -141,4 +141,6 @@ export const ROLES = {
   operativa: ['empleado', 'veterinaria_responsable'] as Rol[],
   lecturaRegistros: ['empleado', 'veterinaria_responsable', 'admin'] as Rol[],
   admin: ['admin'] as Rol[],
+  /** Alta manual de recetas sin imagen (specs/011): solo la veterinaria responsable. */
+  altaManual: ['veterinaria_responsable'] as Rol[],
 };

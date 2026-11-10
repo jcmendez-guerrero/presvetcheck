@@ -3,7 +3,7 @@ import { useNavigate, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Search, XCircle } from 'lucide-react';
 import type { RecetaConfirmadaInput } from '@mmx/shared';
-import { ApiError, get, post, put } from '../lib/api';
+import { ApiError, api, get, post, put } from '../lib/api';
 import { CN, type Motivo } from '../lib/textos';
 import { ListaMotivos } from '../componentes/estado';
 import { Pagina } from '../componentes/layout';
@@ -20,6 +20,10 @@ interface RecetaApi {
   id: string;
   estado: string;
   imagenes: { pagina: number; url: string; mime: string }[];
+  /** escaneo | manual (alta sin imagen, specs/011). */
+  origen?: string;
+  motivoAlta?: string | null;
+  custodiaPapel?: string | null;
   confirmacion: RecetaConfirmadaInput | null;
   dudosos: string[];
   /** Resultado de la lectura automática (null si no se pudo leer). */
@@ -112,6 +116,7 @@ export function Revision() {
     r.antimicrobianos,
     r.especieProduccion,
     r.cronicoPlanSanitario,
+    r.fechaOriginal,
     (r.lineas ?? []).map((l) => l.nregistro),
   ];
   const validez = useQuery({
@@ -145,6 +150,7 @@ export function Revision() {
   );
 
   if (!q.data || !r) return <Cargando />;
+  const manual = q.data.origen === 'manual';
   const dud = (k: string) => q.data.dudosos.includes(k);
   const set = (f: (x: RecetaConfirmadaInput) => RecetaConfirmadaInput) => {
     cambiado.current = true;
@@ -189,14 +195,54 @@ export function Revision() {
         Comprueba cada dato con la receta original. Los campos marcados «Revisar» se han leído con poca
         seguridad o no se han encontrado.
       </p>
-      {!q.data.extraccion && (
+      {!q.data.extraccion && !manual && (
         <Mensaje tipo="aviso">
           No se ha podido leer la receta automáticamente (el servicio no ha respondido a tiempo o no está
           configurado). Introduce los datos a mano.
         </Mensaje>
       )}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-        <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} />
+        {manual && !q.data.imagenes.length ? (
+          <Tarjeta titulo="Receta dada de alta a mano, sin imagen">
+            <p className="text-sm">
+              <span className="font-semibold">Motivo:</span> {q.data.motivoAlta}
+            </p>
+            {q.data.custodiaPapel && (
+              <p className="mt-1 text-sm">
+                <span className="font-semibold">Receta en papel guardada en:</span> {q.data.custodiaPapel}
+              </p>
+            )}
+            <p className="mt-3 text-sm text-slate-600">
+              Elige el medicamento y la especie de la lista de CIMAVet: la forma, el principio activo y la
+              concentración se rellenan solos.
+            </p>
+            <label className="mt-4 flex min-h-11 cursor-pointer flex-col gap-1 text-sm">
+              <span className="font-medium">Adjuntar imagen de la receta (opcional)</span>
+              <input
+                data-testid="adjuntar-imagen"
+                type="file"
+                accept="image/png,image/jpeg,image/heic,application/pdf"
+                onChange={async (e) => {
+                  const fichero = e.target.files?.[0];
+                  if (!fichero) return;
+                  const fd = new FormData();
+                  fd.append('pagina', fichero, fichero.name);
+                  try {
+                    await api('POST', `/api/recetas/${id}/imagenes`, fd);
+                    await q.refetch();
+                  } catch (err) {
+                    setMsg({
+                      t: 'error',
+                      m: err instanceof ApiError ? err.message : 'No se ha podido adjuntar la imagen',
+                    });
+                  }
+                }}
+              />
+            </label>
+          </Tarjeta>
+        ) : (
+          <VisorReceta imagenes={q.data.imagenes} ocrTexto={q.data.extraccion?.ocrTexto} />
+        )}
 
         <div className="flex flex-col gap-5">
           {faltan && faltan.length > 0 && (
@@ -328,6 +374,16 @@ export function Revision() {
                   value={r.fechaEmision ?? ''}
                   onChange={(e) => set((x) => ({ ...x, fechaEmision: txt(e.target.value) }))}
                 />
+                {manual && (
+                  <Campo
+                    data-testid="fecha-entrega"
+                    etiqueta="Fecha en que se entregó"
+                    ayuda="La validez de la receta se comprueba en esta fecha"
+                    type="date"
+                    value={r.fechaOriginal ?? ''}
+                    onChange={(e) => set((x) => ({ ...x, fechaOriginal: txt(e.target.value) }))}
+                  />
+                )}
                 {r.fechaEmision && validez.data?.validez && (
                   <p
                     data-testid="aviso-validez"
@@ -516,7 +572,13 @@ export function Revision() {
               <p className="mb-3 text-sm text-slate-600">
                 En animales productores de alimentos estos datos se comprueban antes de dispensar.
               </p>
-              <DatosRegistro r={r} set={set} dud={dud} />
+              <DatosRegistro r={r} set={set} dud={dud} soloLecturaCimavet={manual} />
+            </Tarjeta>
+          )}
+          {/* Alta manual: no hay "anotar después"; todos los datos se completan ahora (specs/011). */}
+          {manual && !r.especieProduccion && (
+            <Tarjeta titulo="Datos del registro">
+              <DatosRegistro r={r} set={set} dud={dud} soloLecturaCimavet />
             </Tarjeta>
           )}
 
@@ -533,7 +595,7 @@ export function Revision() {
                   set((x) => ({
                     ...x,
                     comprobadoConOriginal: e.target.checked,
-                    registroDiferido: e.target.checked && !x.especieProduccion,
+                    registroDiferido: e.target.checked && !x.especieProduccion && !manual,
                   }))
                 }
               />
@@ -542,7 +604,7 @@ export function Revision() {
                   He comprobado con la receta original los datos para dispensar
                 </span>{' '}
                 <Info texto={AYUDA.comprobado} />
-                {!r.especieProduccion && (
+                {!r.especieProduccion && !manual && (
                   <span className="block text-sm text-slate-600">
                     y que incluye el resto de datos obligatorios (titular, veterinario, indicación,
                     posología), que se anotan después de dispensar.
@@ -603,10 +665,13 @@ export function DatosRegistro({
   r,
   set,
   dud,
+  soloLecturaCimavet = false,
 }: {
   r: RecetaConfirmadaInput;
   set: (f: (x: RecetaConfirmadaInput) => RecetaConfirmadaInput) => void;
   dud: (k: string) => boolean;
+  /** Alta manual: principio activo, forma y concentración solo pueden venir de CIMAVet (specs/011). */
+  soloLecturaCimavet?: boolean;
 }) {
   const v = r.veterinario ?? {};
   const txt = (s: string) => (s.trim() === '' ? null : s);
@@ -733,6 +798,7 @@ export function DatosRegistro({
                 info={AYUDA.principioActivo}
                 dudoso={k('principioActivo')}
                 value={l.principioActivoTexto ?? ''}
+                readOnly={soloLecturaCimavet}
                 onChange={(e) => setLinea(i, { principioActivoTexto: txt(e.target.value) })}
               />
               <Campo
@@ -740,6 +806,7 @@ export function DatosRegistro({
                 info={AYUDA.forma}
                 dudoso={k('forma')}
                 value={l.formaTexto ?? ''}
+                readOnly={soloLecturaCimavet}
                 onChange={(e) => setLinea(i, { formaTexto: txt(e.target.value) })}
               />
               <Campo
@@ -747,6 +814,7 @@ export function DatosRegistro({
                 info={AYUDA.concentracion}
                 dudoso={k('concentracion')}
                 value={l.concentracionTexto ?? ''}
+                readOnly={soloLecturaCimavet}
                 onChange={(e) => setLinea(i, { concentracionTexto: txt(e.target.value) })}
               />
               <Campo

@@ -378,5 +378,10 @@
     "titulo": "La fecha original de la dispensación tiene más de {dias} días de antigüedad",
     "donde": "Modo retrospectivo",
     "accion": "Comprueba que la fecha sea correcta. Los movimientos antiguos pueden no estar disponibles en el historial"
+  },
+  "LOTE_NO_RECIBIDO": {
+    "titulo": "Lote no encontrado en las recepciones registradas",
+    "donde": "Alta manual de receta",
+    "accion": "Comprueba el lote con el envase o el albarán. Si la mercancía llegó antes de usar la aplicación, es normal"
   }
 }

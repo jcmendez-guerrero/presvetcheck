@@ -126,6 +126,8 @@ export const envSchema = z
     /** Modo retrospectivo de dispensación para formación (specs/004-multi-rx-ticket-training-mode, D-14). */
     RETROSPECTIVE_DISPENSATION_MODE: z.enum(['enabled', 'disabled']).default('disabled'),
     RETROSPECTIVE_MAX_AGE_DAYS: num(90),
+    /** Alta manual de recetas sin imagen, con dispensación en su fecha original (specs/011-manual-prescription-entry). */
+    MANUAL_PRESCRIPTION_ENTRY: z.enum(['enabled', 'disabled']).default('disabled'),
 
     AUTH_MODE: z.enum(['entra', 'dev']).default('entra'),
     ENTRA_TENANT_ID: optStr,

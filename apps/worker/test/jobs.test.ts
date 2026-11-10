@@ -141,6 +141,7 @@ describe('worker', () => {
       '5b Psicotropos',
       '6 Discrepancias',
       '7 Precios de coste',
+      '8 Altas manuales',
     ]);
     expect(r.hojas.find((x) => x.nombre === '2B Salidas B')?.filas).toBe(3);
     expect(r.hojas.find((x) => x.nombre === '4b Dispensaciones forzadas')?.filas).toBe(1);
@@ -149,7 +150,7 @@ describe('worker', () => {
     const x = await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/reporte-semanal.xlsx');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(Buffer.from(x!.bytes) as never);
-    expect(wb.worksheets).toHaveLength(12);
+    expect(wb.worksheets).toHaveLength(13);
     expect(await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/2b-salidas-b.csv')).not.toBeNull();
     expect(mailer.enviados[0]).toMatchObject({ para: ['garante@example.org', 'jc@example.org'] });
     expect(mailer.enviados[0]!.adjuntos![0]!.nombre).toMatch(/\.xlsx$/);

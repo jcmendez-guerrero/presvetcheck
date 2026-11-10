@@ -91,11 +91,18 @@ export const receta = pgTable(
     evaluacion: jsonb(),
     reglaVersionId: uuid().references(() => reglaVersion.id),
     reglaVersion: text(),
+    /** escaneo (por defecto) | manual: alta sin imagen por la veterinaria responsable (specs/011). */
+    origen: text().notNull().default('escaneo'),
+    /** Alta manual: por qué no se capturó la imagen (sin datos personales). */
+    motivoAlta: text(),
+    /** Alta manual en papel: dónde se guarda el original (sin datos personales). */
+    custodiaPapel: text(),
     creadaPor: text().notNull(),
     ...timestamps,
   },
   (t) => [
     index().on(t.numero, t.numColegiado),
+    index().on(t.origen),
     index().on(t.sha256),
     index().on(t.phash),
     index().on(t.estado),

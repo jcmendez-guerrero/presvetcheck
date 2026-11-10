@@ -18,6 +18,8 @@ export interface ConfigPublica {
   ventas?: 'siweb' | 'demo' | 'off';
   escrituraStock: string;
   modoRetrospectivoHabilitado?: boolean;
+  /** Alta manual de recetas sin imagen (specs/011). */
+  altaManualHabilitada?: boolean;
   fechaCorteEntradas: string | null;
   telefonoFarmacia: string;
 }

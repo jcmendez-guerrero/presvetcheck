@@ -91,6 +91,8 @@ export const CODIGOS_INCIDENCIA = [
   // Modo retrospectivo (specs/004-multi-rx-ticket-training-mode, D-14)
   'SIN_MOVIMIENTO_STOCK_RETROSPECTIVO',
   'AVISO_FECHA_RETROSPECTIVA_ANTIGUA',
+  // Alta manual (specs/011): el lote entregado no consta en ninguna recepción registrada.
+  'LOTE_NO_RECIBIDO',
 ] as const;
 
 export const CodigoIncidencia = z.enum(CODIGOS_INCIDENCIA);

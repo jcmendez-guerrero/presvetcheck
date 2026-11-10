@@ -47,6 +47,7 @@ export class SustitucionesService {
 
   /** Inicia la sustitución con uno de los sustitutos que propone el motor (solo si la línea está en SUSTITUIR). */
   async crear(recetaId: string, lineaOrden: number, cn: string, c: ContextoPeticion) {
+    await this.recetas.exigirAccesoManual(recetaId, c.usuario);
     const ev = await this.recetas.evaluar(recetaId, c, {}, false);
     const l = ev.lineas.find((x) => x.orden === lineaOrden);
     if (!l || l.resultado.decision !== 'SUSTITUIR') throw new DomainError('CONFLICTO', 'La línea no está en SUSTITUIR: el prescrito está disponible o la sustitución no procede');

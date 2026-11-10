@@ -68,7 +68,7 @@ export class ConciliacionService {
   async conciliarReceta(recetaId: string, c: ContextoPeticion) {
     const salidas = await this.salidasDeReceta(recetaId);
     const r = await this.conciliarDias(
-      salidas.map((s) => dia(s.fechaVenta)),
+      salidas.map((s) => s.fechaOriginal ?? dia(s.fechaVenta)),
       c,
       { origen: 'registro' },
     );
@@ -77,7 +77,11 @@ export class ConciliacionService {
 
   private salidasDeReceta(recetaId: string) {
     return this.d.db
-      .select({ id: dispensacion.id, fechaVenta: dispensacion.fechaVenta })
+      .select({
+        id: dispensacion.id,
+        fechaVenta: dispensacion.fechaVenta,
+        fechaOriginal: dispensacion.fechaOriginal,
+      })
       .from(dispensacion)
       .where(and(eq(dispensacion.recetaId, recetaId), dispensacionVigente));
   }
@@ -103,6 +107,7 @@ export class ConciliacionService {
         unidades: dispensacion.unidades,
         unidadesForma: dispensacion.unidadesForma,
         fecha: dispensacion.fechaVenta,
+        fechaOriginal: dispensacion.fechaOriginal,
         recetaId: dispensacion.recetaId,
       })
       .from(dispensacion)
@@ -123,9 +128,10 @@ export class ConciliacionService {
       configurado: this.d.ventas.configurado,
       salidas: filas
         .filter((f) => est.get(f.id) === 'pendiente')
-        .map(({ unidadesForma, ...f }) => ({
+        .map(({ unidadesForma, fechaOriginal, ...f }) => ({
           ...f,
-          fecha: f.fecha.toISOString(),
+          // Entrega pasada: el día de la entrega (12:00 UTC cae siempre en ese día en Madrid).
+          fecha: fechaOriginal ? `${fechaOriginal}T12:00:00.000Z` : f.fecha.toISOString(),
           fraccion: unidadesForma !== null,
         })),
     };

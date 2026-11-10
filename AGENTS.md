@@ -65,7 +65,7 @@ Document every variable in `.env.example`, including its description and default
 `DOCINTEL_ENDPOINT`, `DOCINTEL_MODEL_ID`, `EXTRACTION_CONFIDENCE_THRESHOLD`,
 `SUBSTITUTION_APPROVAL_MODE`, `SUBSTITUTION_SIGN_MAX_DAYS`, `ALLOW_PACK_SIZE_CHANGE`,
 `ALLOW_PARTIAL_DISPENSATION`, `ENTRY_MIN_SHELF_LIFE_DAYS`, `SCANNER_GS_SUBSTITUTE`,
-`PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `AUTH_MODE` (`entra|dev`),
+`PRODUCT_VALIDITY_HARD_BLOCK`, `PSYCHOTROPIC_ALLOW_FORCE`, `MANUAL_PRESCRIPTION_ENTRY` (`enabled|disabled`, default `disabled`), `AUTH_MODE` (`entra|dev`),
 `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MAILER` (`smtp|acs|console`), `COLUMN_ENCRYPTION_KEY` (local only).
 
 In production, the app must not start if a required variable is missing (validate with zod at startup).

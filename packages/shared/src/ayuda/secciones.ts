@@ -350,6 +350,40 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
     ],
   },
   {
+    id: 'alta-manual',
+    titulo: 'Alta manual de recetas (sin imagen)',
+    bloques: [
+      {
+        p: [
+          'Para recetas que ya se entregaron fuera de la app (con la app caída, antes de usarla…) y no se pudieron fotografiar. Solo la ',
+          { b: 'veterinaria responsable' },
+          ', y solo si está activado. Botón «Alta manual de receta» en Inicio.',
+        ],
+      },
+      {
+        lista: [
+          [
+            'Indica el motivo y dónde está guardada la receta en papel (o la plataforma y el identificador si es electrónica). Sin nombres ni teléfonos.',
+          ],
+          [
+            'En la revisión, el medicamento y la especie se eligen de la lista de CIMAVet; la forma, el principio activo y la concentración se rellenan solos y no se escriben a mano.',
+          ],
+          ['Indica la «Fecha en que se entregó»: la validez de la receta se comprueba en esa fecha, no hoy.'],
+          [
+            'Al registrar la entrega, anota el lote y la caducidad del envase entregado. No se descuenta stock: ya lo hizo el ticket del TPV.',
+          ],
+        ],
+      },
+      {
+        p: [
+          'Los defectos se tratan igual que en una receta escaneada: los que se pueden forzar exigen motivo y los bloqueos que no se pueden forzar impiden registrarla (por ejemplo, una receta ya registrada). En Registros aparece en su fecha de entrega con «ALTA MANUAL = S»; un error se corrige ',
+          { b: 'anulando' },
+          ' la entrega y registrándola de nuevo. Guarda siempre el papel original; si lo tienes, puedes adjuntar su imagen después.',
+        ],
+      },
+    ],
+  },
+  {
     id: 'admin',
     titulo: 'Administración',
     bloques: [

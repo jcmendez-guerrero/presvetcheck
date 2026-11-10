@@ -151,3 +151,36 @@ describe('Dispensación en modo retrospectivo (formación)', () => {
     await app.close();
   });
 });
+
+describe('Registro de salidas con entregas pasadas (specs/011, T043)', () => {
+  it('una dispensación retrospectiva cuenta en su fecha original, no en la del registro', async () => {
+    const { app, h } = await entorno();
+    // Venta retrospectiva sin receta (plantilla B), registrada el 14/10 con fecha original 15/09.
+    await h.db.insert(dispensacion).values({
+      canal: 'presencial',
+      conReceta: false,
+      cn: '570016',
+      nombreFarmaco: 'CLAVUBAY',
+      lote: 'RETRO-B',
+      unidades: 1,
+      metodoCaptura: 'manual',
+      empleado: 'dev-empleado',
+      modo: 'retrospectivo',
+      fechaOriginal: '2026-09-15',
+      fechaVenta: new Date('2026-10-14T09:00:00Z'),
+    });
+    const filas = async (dia: string) =>
+      (
+        await api(
+          app,
+          'dev-veterinaria',
+          'GET',
+          `/api/registros/salidas?desde=${dia}&hasta=${dia}&plantilla=B`,
+        )
+      ).json.tablas[0].filas.filter((f: unknown[]) => f.includes('RETRO-B'));
+    const [enOriginal] = await filas('2026-09-15');
+    expect(enOriginal).toBeDefined();
+    expect(enOriginal).toContain('15/09/2026');
+    expect(await filas('2026-10-14')).toHaveLength(0);
+  });
+});

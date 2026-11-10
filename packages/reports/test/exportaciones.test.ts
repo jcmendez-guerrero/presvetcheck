@@ -82,6 +82,11 @@ describe('registro de salidas (SPEC §4.8)', () => {
       'dev-empleado',
       'camara',
       'N',
+      'N', // ALTA MANUAL (S/N), specs/011
+      '', // CONCILIACIÓN TPV (sin dato en la fila de ejemplo)
+      '', // FECHA ALTA MANUAL
+      '', // MOTIVO ALTA MANUAL
+      '', // CUSTODIA DEL PAPEL
     ]);
   });
 
