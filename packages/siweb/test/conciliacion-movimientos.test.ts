@@ -191,30 +191,29 @@ describe('conciliación nocturna de movimientos de Siweb360 (specs/011, US3)', (
         AHORA,
       ),
     ).rejects.toMatchObject({ code: 'MOTIVO_INCOMPATIBLE' });
-    await expect(
+    const vincular = (recepcionLineaId: string) =>
       justificarMovimiento(
         h.db,
         80004,
-        {
-          tipo: 'VINCULO_RECEPCION',
-          recepcionLineaId: '00000000-0000-4000-8000-00000000abcd',
-          nota: 'No existe',
-        },
-        'u',
+        { tipo: 'VINCULO_RECEPCION', recepcionLineaId, nota: 'Dada de alta a mano por error' },
+        'dev-empleado',
         AHORA,
-      ),
-    ).rejects.toMatchObject({ code: 'NO_ENCONTRADO' });
+      );
+    await expect(vincular('00000000-0000-4000-8000-00000000abcd')).rejects.toMatchObject({
+      code: 'CONFLICTO',
+    });
+    // La recepción sigue abierta y es del día anterior al movimiento: no se puede vincular (FR-009b).
+    await expect(vincular(lineaId)).rejects.toMatchObject({ code: 'CONFLICTO' });
     await expect(
       justificarMovimiento(h.db, 123, { tipo: 'MOTIVO', motivo: 'OTRO', nota: 'No existe' }, 'u', AHORA),
     ).rejects.toMatchObject({ code: 'NO_ENCONTRADO' });
-    // La entrada manual se vincula a mano a la línea de recepción.
-    await justificarMovimiento(
-      h.db,
-      80004,
-      { tipo: 'VINCULO_RECEPCION', recepcionLineaId: lineaId, nota: 'Dada de alta a mano por error' },
-      'dev-empleado',
-      AHORA,
-    );
+    // Finalizada y del mismo día, la entrada manual se vincula a mano a la línea de recepción.
+    const [l] = await h.db.select().from(recepcionLinea).where(eq(recepcionLinea.id, lineaId));
+    await h.db
+      .update(recepcion)
+      .set({ estado: 'FINALIZADA', fechaRecepcion: '2026-11-04' })
+      .where(eq(recepcion.id, l!.recepcionId));
+    await vincular(lineaId);
     expect(await listarMovimientos(h.db, { corte: CORTE, estado: 'sin_justificar' })).toEqual([]);
   });
 });

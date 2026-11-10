@@ -143,7 +143,7 @@ registro.
 - [x] T039 [US3] Servicio `justificarMovimiento(db, id, body, actor, ahora)` en `packages/siweb/src/conciliacion-movimientos.ts`: valida con el dominio, comprueba que existan la línea de recepción o la dispensación, inserta en `movimiento_justificacion` (con `sustituye_a` si había vigente) y audita `movimiento_justificar`
 - [x] T040 [US3] Llamar a `conciliarMovimientosDia` al final de `apps/worker/src/jobs/conciliacion.ts` (tras `conciliarDia`), con `ENTRY_CUTOVER_DATE` y el almacén del contexto; devolver sus contadores
 - [x] T041 [US3] Rutas en `apps/api/src/rutas/operativa.ts`: `GET /api/movimientos-siweb` y `POST /api/movimientos-siweb/:id/justificar` (roles `operativa` + `admin`, zod de `packages/shared`)
-- [X] T042 [US3] UI en `apps/web/src/paginas/pendientes.tsx`: bandeja "Movimientos sin justificar" con fecha, código nacional, nombre, lote, caducidad, unidades y motivo de Siweb360; acciones "Vincular a una recepción", "Vincular a una dispensación" (buscador por CN y fecha) y "Justificar" con lista de motivos en español y nota
+- [x] T042 [US3] UI en `apps/web/src/paginas/pendientes.tsx`: bandeja "Movimientos sin justificar" con fecha, código nacional, nombre, lote, caducidad, unidades y motivo de Siweb360; acciones "Vincular a una recepción", "Vincular a una dispensación" (buscador por CN y fecha) y "Justificar" con lista de motivos en español y nota
 - [x] T043 [US3] `bajas(desde, hasta)` en `packages/reports/src/datos.ts` y `BAJA` / `ANULACIÓN BAJA` en `psicotropos()`; ampliar el tipo en `packages/reports/src/entradas.ts`; añadir `// TODO(decision DUDA-30): ¿las justificaciones de entradas van al registro?`
 - [x] T044 [US3] Registro "Bajas" con exportación en `apps/api/src/rutas/registros.ts` y pestaña en `apps/web/src/paginas/registros.tsx`
 - [x] T045 [US3] Informe semanal en `packages/reports/src/semanal.ts`: sección "Movimientos sin justificar" (recuento y lista) y "Conciliación de movimientos sin fecha de corte" si no hay corte
@@ -154,13 +154,14 @@ registro.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [X] T046 [P] ADR `docs/adr/0018-conciliacion-movimientos-siweb.md` (en español): historial como fuente, verificación de dudosos, justificaciones append-only, prueba de escritura en la app; enlazar en `docs/adr/README.md`
-- [X] T047 [P] Actualizar `SPEC.md` §5.2.4 (control de entradas → conciliación de movimientos, D-02b parcialmente desbloqueada), §5.2.5 (ya se pueden consultar movimientos; verificación automática) y §12.3 (prueba desde administración, `historialOk`)
-- [X] T048 [P] `docs/glosario.md`: "justificación de movimiento", "movimiento sin justificar", "baja", "prueba de escritura"
-- [X] T049 [P] Añadir DUDA-30 a `docs/dudas.md` (justificaciones de entradas en el registro) y crear la incidencia en Jira KAN si hay acceso; si no, dejar la fila como "Pendiente de crear en Jira"
-- [X] T050 Comprobar FR-015: `grep` de logs nuevos en `packages/siweb/src` y `apps/worker/src/jobs` sin `notes`, nombres de propietario ni payload crudo
-- [X] T051 Ejecutar `pnpm lint && pnpm typecheck && pnpm test` y `pnpm test:int`; validar los pasos locales de `specs/011-siweb-stock-entries-enable/quickstart.md`
-- [ ] T052 [US3] Buscador en `apps/web/src/paginas/pendientes.tsx` para «Vincular a una recepción» / «Vincular a una dispensación» (candidatos por CN y fecha; la API `POST /api/movimientos-siweb/:id/justificar` ya admite `VINCULO_RECEPCION` y `VINCULO_DISPENSACION`). Hoy la bandeja solo justifica con motivo.
+- [x] T046 [P] ADR `docs/adr/0018-conciliacion-movimientos-siweb.md` (en español): historial como fuente, verificación de dudosos, justificaciones append-only, prueba de escritura en la app; enlazar en `docs/adr/README.md`
+- [x] T047 [P] Actualizar `SPEC.md` §5.2.4 (control de entradas → conciliación de movimientos, D-02b parcialmente desbloqueada), §5.2.5 (ya se pueden consultar movimientos; verificación automática) y §12.3 (prueba desde administración, `historialOk`)
+- [x] T048 [P] `docs/glosario.md`: "justificación de movimiento", "movimiento sin justificar", "baja", "prueba de escritura"
+- [x] T049 [P] Añadir DUDA-30 a `docs/dudas.md` (justificaciones de entradas en el registro) y crear la incidencia en Jira KAN si hay acceso; si no, dejar la fila como "Pendiente de crear en Jira"
+- [x] T050 Comprobar FR-015: `grep` de logs nuevos en `packages/siweb/src` y `apps/worker/src/jobs` sin `notes`, nombres de propietario ni payload crudo
+- [x] T051 Ejecutar `pnpm lint && pnpm typecheck && pnpm test` y `pnpm test:int`; validar los pasos locales de `specs/011-siweb-stock-entries-enable/quickstart.md`
+- [X] T052 [US3] Buscador en `apps/web/src/paginas/pendientes.tsx` para «Vincular a una recepción» / «Vincular a una dispensación» (candidatos del mismo CN y del mismo día que el movimiento, Clarify 2026-11-10; nota obligatoria; la API `POST /api/movimientos-siweb/:id/justificar` ya admite `VINCULO_RECEPCION` y `VINCULO_DISPENSACION`). Hoy la bandeja solo justifica con motivo.
+- [X] T053 [US3] FR-009e (DUDA-30): entradas justificadas de psicótropos como `ALTA` / `ANULACIÓN ALTA` en `psicotropos()` (`packages/reports/src/datos.ts`, tipo en `entradas.ts`, suman en el saldo); quitar el `TODO(decision DUDA-30)`; test en `packages/reports/test/exportaciones.test.ts`
 
 ---
 
@@ -218,3 +219,8 @@ Task: "T036 tests de bajas en packages/reports/test/exportaciones.test.ts"
 3. US3: conciliación completa y registro de bajas.
 4. **Solo entonces** encender en producción: la SPEC exige el control de entradas manuales (US3) antes de la fecha de
    corte, y la app no arranca en producción con `entries_only` sin fecha de corte (FR-010).
+
+## Phase 8: Convergence
+
+- [X] T054 Mostrar en español claro el envío en revisión de la bandeja de administración (`apps/web/src/paginas/admin.tsx`): estado traducido en lugar de `o.status` (`needs_reconciliation`…) y «Stock que tiene ahora Siweb360: N» en lugar de `<pre>{JSON.stringify(o.stockActual)}</pre>`, como ya hace `pendientes.tsx` per FR-007, Constitution V (partial)
+- [X] T055 Acción de administración para enviar a Siweb360 una recepción finalizada con la escritura apagada (`syncEstado = ESCRITURA_DESACTIVADA`), solo a petición expresa, auditada y con la puerta de la prueba de escritura; sin reenvío automático per Edge Cases «Recepción finalizada justo antes de encender la escritura», FR-013 (missing)

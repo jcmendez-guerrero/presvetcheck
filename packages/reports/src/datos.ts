@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import {
   cimavetMedicamento,
   entradaImportada,
@@ -307,10 +307,23 @@ export class RegistrosService {
   /**
    * Bajas: salidas de medicamentos en Siweb360 justificadas con un motivo (specs/011, FR-009d), por fecha del
    * movimiento. Una justificación sustituida aparece como baja y como anulación; la vigente, como baja.
-   * TODO(decision DUDA-30): ¿las justificaciones de entradas (devolución de cliente, recuento al alza) van al registro?
    */
   async bajas(desde: string, hasta: string): Promise<Baja[]> {
+    return (await this.justificadosConMotivo(desde, hasta, 'salida')) as Baja[];
+  }
+
+  /**
+   * Movimientos de Siweb360 justificados con motivo, de salida (BAJA) o de entrada (ALTA). Las altas solo van al
+   * registro de psicótropos (specs/011, FR-009e, DUDA-30).
+   */
+  private async justificadosConMotivo(
+    desde: string,
+    hasta: string,
+    sentido: 'salida' | 'entrada',
+  ): Promise<(Omit<Baja, 'tipo'> & { tipo: Baja['tipo'] | 'ALTA' | 'ANULACIÓN ALTA' })[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
+    const [tipo, anulacion] =
+      sentido === 'salida' ? (['BAJA', 'ANULACIÓN BAJA'] as const) : (['ALTA', 'ANULACIÓN ALTA'] as const);
     const filas = await this.d.db
       .select({ j: movimientoJustificacion, m: siwebMovimiento, p: cimavetPresentacion })
       .from(movimientoJustificacion)
@@ -319,7 +332,7 @@ export class RegistrosService {
       .where(
         and(
           eq(movimientoJustificacion.tipo, 'MOTIVO'),
-          lt(siwebMovimiento.quantity, 0),
+          sentido === 'salida' ? lt(siwebMovimiento.quantity, 0) : gt(siwebMovimiento.quantity, 0),
           gte(siwebMovimiento.createdAtSiweb, ini),
           lt(siwebMovimiento.createdAtSiweb, fin),
         ),
@@ -341,20 +354,20 @@ export class RegistrosService {
       return n;
     };
     return filas.flatMap(({ j, m, p }) => {
-      const baja: Baja = {
+      const baja = {
         fecha: m.createdAtSiweb,
-        tipo: 'BAJA',
+        tipo,
         cn: m.cn ?? '',
         nombre: p?.nombre ?? '',
         nregistro: p?.nregistro ?? null,
         lote: m.batchNumber ?? '',
-        unidades: -m.quantity,
+        unidades: Math.abs(m.quantity),
         motivo: TEXTO_MOTIVO[j.motivo as MotivoJustificacion] ?? j.motivo ?? '',
         nota: j.nota,
         referencia: j.id,
         orden: orden(j.id),
       };
-      return sustituidas.has(j.id) ? [baja, { ...baja, tipo: 'ANULACIÓN BAJA' as const }] : [baja];
+      return sustituidas.has(j.id) ? [baja, { ...baja, tipo: anulacion }] : [baja];
     });
   }
 
@@ -390,7 +403,10 @@ export class RegistrosService {
           sql`${recepcion.estado} <> 'ABIERTA'`,
         ),
       );
-    const bajas = (await this.bajas(desde, hasta)).filter((b) => b.nregistro && psico.includes(b.nregistro));
+    const bajas = [
+      ...(await this.justificadosConMotivo(desde, hasta, 'salida')),
+      ...(await this.justificadosConMotivo(desde, hasta, 'entrada')),
+    ].filter((b) => b.nregistro && psico.includes(b.nregistro));
     return [
       ...bajas.map((b) => ({
         fecha: b.fecha,

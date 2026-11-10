@@ -468,6 +468,22 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     },
   );
 
+  app.post(
+    '/api/admin/recepciones/:id/enviar-siweb',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['admin'],
+        summary:
+          'Envía a Siweb360 el stock de una recepción finalizada con la escritura apagada (a petición expresa)',
+        params: IdParam,
+        body: z.object({ nota: z.string().trim().min(5) }),
+      },
+    },
+    async (req) =>
+      siweb().outbox.enviarRecepcionDesactivada(req.params.id, ctx(req).usuario.id, req.body.nota),
+  );
+
   // ── Escritura de stock en Siweb360: estado y prueba de escritura (specs/011) ─────────────
   app.get(
     '/api/admin/estado-stock',

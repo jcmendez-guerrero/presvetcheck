@@ -1,8 +1,18 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { auditEvent, outbox, siwebMovimiento } from '@mmx/db';
+import {
+  auditEvent,
+  cimavetMedicamento,
+  cimavetPresentacion,
+  dispensacion,
+  distribuidor,
+  outbox,
+  recepcion,
+  recepcionLinea,
+  siwebMovimiento,
+} from '@mmx/db';
 import { OutboxService, SiwebClient } from '@mmx/siweb';
 import { api, entorno, type Entorno } from './entorno';
 
@@ -180,6 +190,54 @@ describe('envíos a Siweb360 en revisión (US2)', () => {
   });
 });
 
+describe('recepción finalizada con la escritura apagada (FR-013)', () => {
+  it('solo administración la envía, una vez, sin precios y queda auditada', async () => {
+    const { app, h } = await conSiweb();
+    const [dist] = await h.db.select().from(distribuidor).limit(1);
+    const [r] = await h.db
+      .insert(recepcion)
+      .values({ distribuidorId: dist!.id, fechaCompra: '2026-10-20', empleado: 'dev-empleado' })
+      .returning();
+    await h.db.insert(recepcionLinea).values({
+      recepcionId: r!.id,
+      numero: 1,
+      cn: '570016',
+      nombreFarmaco: 'CLAVUBAY',
+      lote: 'D1',
+      caducidad: '2028-12-31',
+      unidades: 2,
+      origenDatos: 'cimavet',
+      empleado: 'x',
+      siwebVariantId: 9001,
+      actualizarPrecio: true,
+      precioCoste: '3.10',
+    });
+    await h.db
+      .update(recepcion)
+      .set({ estado: 'FINALIZADA', syncEstado: 'ESCRITURA_DESACTIVADA' })
+      .where(eq(recepcion.id, r!.id));
+    const url = `/api/admin/recepciones/${r!.id}/enviar-siweb`;
+    expect((await api(app, 'dev-empleado', 'POST', url, { nota: 'Se olvidó' })).status).toBe(403);
+    const ok = await api(app, 'dev-admin', 'POST', url, { nota: 'No se dio de alta a mano' });
+    expect(ok.status).toBe(200);
+    expect(ok.json).toMatchObject({ encoladas: 1 });
+    const filas = await h.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.idempotencyKey, `MMX-REC-${r!.id}-L1`));
+    expect(filas).toHaveLength(1);
+    // Sin precio: el de entonces podría pisar uno más reciente.
+    const todas = await h.db
+      .select()
+      .from(outbox)
+      .where(like(outbox.idempotencyKey, `%${r!.id}%`));
+    expect(todas).toHaveLength(1);
+    const audit = await h.db.select().from(auditEvent).where(eq(auditEvent.entidadId, r!.id));
+    expect(audit.map((x) => x.accion)).toContain('recepcion_enviar_siweb_manual');
+    expect((await api(app, 'dev-admin', 'POST', url, { nota: 'Otra vez más' })).status).toBe(409);
+  });
+});
+
 describe('movimientos de Siweb360 sin justificar (US3)', () => {
   it('lista, justifica, sustituye y valida', async () => {
     const { app, h } = await conSiweb();
@@ -240,6 +298,139 @@ describe('movimientos de Siweb360 sin justificar (US3)', () => {
       ['ANULACIÓN BAJA', '570016', 'A2026', 1, 'Rotura'],
       ['BAJA', '570016', 'A2026', 1, 'Caducado'],
     ]);
+  });
+
+  it('candidatas para vincular: mismo código nacional y mismo día (T052)', async () => {
+    const { app, h } = await conSiweb();
+    const [dist] = await h.db.select().from(distribuidor).limit(1);
+    const [r] = await h.db
+      .insert(recepcion)
+      .values({ distribuidorId: dist!.id, fechaCompra: '2026-10-22', empleado: 'dev-empleado' })
+      .returning();
+    const linea = {
+      recepcionId: r!.id,
+      nombreFarmaco: 'CLAVUBAY',
+      unidades: 3,
+      origenDatos: 'cimavet',
+      empleado: 'x',
+    };
+    const [l1, l2] = await h.db
+      .insert(recepcionLinea)
+      .values([
+        { ...linea, numero: 1, cn: '570016', lote: 'C1' },
+        { ...linea, numero: 2, cn: '999901', lote: 'C2' },
+      ])
+      .returning();
+    await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, r!.id));
+    const disp = {
+      canal: 'presencial',
+      conReceta: true,
+      metodoCaptura: 'manual',
+      cn: '570016',
+      nombreFarmaco: 'CLAVUBAY',
+      lote: 'C1',
+      unidades: 1,
+      empleado: 'dev-empleado',
+    };
+    const [mismoDia, otroDia] = await h.db
+      .insert(dispensacion)
+      .values([
+        { ...disp, fechaVenta: new Date('2026-10-22T21:30:00Z') }, // 23:30 en Madrid
+        { ...disp, fechaVenta: new Date('2026-10-22T22:30:00Z') }, // ya es día 23 en Madrid
+      ])
+      .returning();
+    const base = {
+      variantId: 9001,
+      cn: '570016',
+      warehouseId: 21,
+      leidoAt: new Date('2026-10-23T19:00:00Z'),
+    };
+    await h.db.insert(siwebMovimiento).values([
+      {
+        ...base,
+        id: 920001,
+        quantity: 3,
+        reason: 'manual',
+        createdAtSiweb: new Date('2026-10-22T08:00:00Z'),
+      },
+      { ...base, id: 920002, quantity: -1, reason: 'sale', createdAtSiweb: new Date('2026-10-22T12:00:00Z') },
+    ]);
+    const cand = async (id: number) =>
+      (
+        (await api(app, 'dev-empleado', 'GET', `/api/movimientos-siweb/${id}/candidatos`)).json as {
+          candidatos: Array<{ tipo: string; id: string }>;
+        }
+      ).candidatos;
+    expect(await cand(920001)).toEqual([expect.objectContaining({ tipo: 'VINCULO_RECEPCION', id: l1!.id })]);
+    const ventas = (await cand(920002)).map((c) => c.id);
+    expect(ventas).toContain(mismoDia!.id);
+    expect(ventas).not.toContain(otroDia!.id);
+    expect((await api(app, 'dev-empleado', 'GET', '/api/movimientos-siweb/1/candidatos')).status).toBe(404);
+    // La API no acepta un vínculo fuera de la lista: otra venta de otro día, o una línea de otro código nacional.
+    for (const [mov, body] of [
+      [920002, { tipo: 'VINCULO_DISPENSACION', dispensacionId: otroDia!.id }],
+      [920001, { tipo: 'VINCULO_RECEPCION', recepcionLineaId: l2!.id }],
+      [920001, { tipo: 'VINCULO_DISPENSACION', dispensacionId: mismoDia!.id }],
+    ] as const) {
+      const r409 = await api(app, 'dev-empleado', 'POST', `/api/movimientos-siweb/${mov}/justificar`, {
+        ...body,
+        nota: 'Vínculo que no corresponde',
+      });
+      expect(r409.status).toBe(409);
+    }
+    const v = await api(app, 'dev-empleado', 'POST', '/api/movimientos-siweb/920001/justificar', {
+      tipo: 'VINCULO_RECEPCION',
+      recepcionLineaId: l1!.id,
+      nota: 'Alta tecleada a mano',
+    });
+    expect(v.status).toBe(200);
+  });
+
+  it('entradas justificadas: solo las de psicótropos van al registro, como ALTA (FR-009e)', async () => {
+    const { app, h } = await conSiweb();
+    const [psico] = await h.db
+      .select({ cn: cimavetPresentacion.cn })
+      .from(cimavetPresentacion)
+      .innerJoin(cimavetMedicamento, eq(cimavetMedicamento.nregistro, cimavetPresentacion.nregistro))
+      .where(eq(cimavetMedicamento.psicotropo, true))
+      .limit(1);
+    const base = {
+      variantId: 9002,
+      warehouseId: 21,
+      quantity: 2,
+      reason: 'manual',
+      batchNumber: 'P1',
+      createdAtSiweb: new Date('2026-11-03T09:00:00Z'),
+      leidoAt: new Date('2026-11-03T19:00:00Z'),
+    };
+    await h.db.insert(siwebMovimiento).values([
+      { ...base, id: 930001, cn: psico!.cn },
+      { ...base, id: 930002, cn: '570016' },
+    ]);
+    for (const id of [930001, 930002])
+      expect(
+        (
+          await api(app, 'dev-empleado', 'POST', `/api/movimientos-siweb/${id}/justificar`, {
+            tipo: 'MOTIVO',
+            motivo: 'REVISION_INVENTARIO',
+            nota: 'Recuento al alza',
+          })
+        ).status,
+      ).toBe(200);
+    const filas = async (registro: string) =>
+      (
+        (
+          await api(
+            app,
+            'dev-empleado',
+            'GET',
+            `/api/registros/${registro}?desde=2026-11-03&hasta=2026-11-03`,
+          )
+        ).json as { tablas: Array<{ filas: unknown[][] }> }
+      ).tablas[0]!.filas;
+    const p = await filas('psicotropos');
+    expect(p.map((f) => [f[0], f[4], f[5]])).toEqual([[psico!.cn, 'ALTA', 2]]);
+    expect(await filas('bajas')).toEqual([]);
   });
 
   it('sin fecha de corte la bandeja está vacía', async () => {

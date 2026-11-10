@@ -56,6 +56,19 @@ exigía y que ahora la API permite construir, más los pasos controlados de pues
   regulatorio de movimientos? → A: Sí, para todos los medicamentos: toda salida justificada se añade al registro de
   movimientos como "BAJA" con su motivo.
 
+### Session 2026-11-10
+
+- Q: ¿Las entradas justificadas a mano (devolución de cliente, recuento al alza) van al registro regulatorio? (DUDA-30)
+  → A: Solo las de psicótropos, como "ALTA" con su motivo. Las devoluciones de cliente del resto de medicamentos van a
+  "no conformes", que no exige registro y se tratará en otra feature; aquí quedan solo justificadas en la auditoría.
+- Q: ¿La nota es obligatoria en toda justificación o solo con "Otro"? → A: Siempre obligatoria (mínimo 5 caracteres),
+  también en los vínculos manuales.
+- Q: Si `reference_id` resulta no ser el id del ticket del TPV, ¿qué se hace con las ventas? (D-02b) → A: Van a la
+  bandeja "Movimientos sin justificar" hasta tener una muestra real del historial de una venta; con ella se ajusta el
+  emparejamiento. No se empareja por aproximación.
+- Q: ¿Qué candidatas propone el buscador para vincular a mano? (T052) → A: Solo registros del mismo código nacional y
+  del mismo día que el movimiento.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - El stock entra solo al finalizar una recepción (Priority: P1)
@@ -146,7 +159,8 @@ que al justificar uno desaparece de la bandeja y queda en la auditoría.
    corte, **When** se ejecuta la conciliación, **Then** no aparecen.
 6. **Given** no hay fecha de corte configurada, **When** se ejecuta la conciliación, **Then** no se ejecuta y el
    informe lo indica ("Conciliación de movimientos sin fecha de corte").
-7. **Given** se elige el motivo "Otro", **When** se intenta justificar sin nota, **Then** no se permite.
+7. **Given** se elige cualquier motivo o un vínculo manual, **When** se intenta guardar sin nota, **Then** no se
+   permite.
 
 ---
 
@@ -194,6 +208,8 @@ mensaje claro; con ambos valores → la pantalla de estado muestra "Escritura de
   dispensación.
 - Un movimiento que se lee dos veces en noches distintas: se identifica por su identificador de Siweb360 y no se
   duplica en la bandeja.
+- Una venta cuyo `reference_id` no corresponde a ningún ticket conciliado: va a la bandeja; nunca se vincula por
+  aproximación (código nacional, fecha o unidades).
 
 ## Requirements _(mandatory)_
 
@@ -224,12 +240,18 @@ mensaje claro; con ambos valores → la pantalla de estado muestra "Escritura de
 - **FR-009b**: Cualquier usuario de la app MUST poder cerrar un movimiento sin justificar vinculándolo a mano a una
   línea de recepción o dispensación, o justificándolo con un motivo de una lista cerrada (revisión de inventario,
   revisión de lote, revisión de caducidad, caducado, rotura, devolución de cliente, devolución a proveedor, robo o
-  pérdida, otro) y una nota (obligatoria con "Otro"). El vínculo o la justificación MUST guardarse como registro
+  pérdida, otro) y una nota obligatoria (mínimo 5 caracteres). Para vincular a mano, el sistema MUST proponer solo
+  líneas de recepción o dispensaciones del mismo código nacional y del mismo día que el movimiento. El vínculo o la
+  justificación MUST guardarse como registro
   nuevo en la auditoría; nunca se modifica el movimiento ni una justificación anterior.
 - **FR-009d**: Toda salida de stock de un medicamento justificada con motivo (no vinculada a una dispensación) MUST
   añadirse al registro regulatorio de movimientos como "BAJA", con fecha del movimiento, código nacional, nombre, lote,
   unidades, motivo y referencia a la justificación. Si la justificación se sustituye, el registro MUST mostrar la
   anulación y la nueva baja, nunca editar la anterior.
+- **FR-009e**: Toda entrada de stock de un **psicótropo** justificada con motivo MUST añadirse al registro de
+  psicótropos como "ALTA" (y "ANULACIÓN ALTA" si se sustituye), con los mismos datos que una baja. Las entradas
+  justificadas del resto de medicamentos MUST NOT ir al registro; quedan solo en la auditoría. Las devoluciones de
+  cliente como no conformidad quedan fuera de alcance (otra feature).
 - **FR-009c**: Los movimientos de productos no mapeados a un código nacional y los anteriores a la fecha de corte
   MUST NOT aparecer en la bandeja.
 - **FR-010**: En producción, la app MUST negarse a arrancar con la escritura activa si falta la fecha de corte.
@@ -285,5 +307,6 @@ mensaje claro; con ambos valores → la pantalla de estado muestra "Escritura de
 - Las nuevas columnas de coste e IVA de la variante quedan fuera de alcance (no afectan a la escritura de stock).
 - Las transferencias entre almacenes y el stock ilimitado quedan fuera de alcance: solo existe el almacén «Farmacia».
 - La conciliación ticket ↔ dispensación (spec 003, D-02b) se reutiliza tal cual para vincular las ventas; esta feature
-  solo añade la bandeja común y la justificación del resto de movimientos.
+  solo añade la bandeja común y la justificación del resto de movimientos. Se supone que `reference_id` de una venta
+  es el id del ticket; si no lo es, las ventas van a la bandeja hasta tener una muestra real y no se aproxima.
 - La conciliación de movimientos se ejecuta cada noche junto al trabajo de conciliación de ventas existente (21:00).

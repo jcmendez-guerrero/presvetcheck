@@ -1272,6 +1272,7 @@ function TotalesRecepcion({ r }: { r: Recepcion }) {
  */
 function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void }) {
   const nav = useNavigate();
+  const { tiene, config } = useAuth();
   const abierta = r.estado === 'ABIERTA';
   const prov = useQuery({
     queryKey: ['proveedores'],
@@ -1348,6 +1349,24 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
       setMsg(erroresDe(e).mensaje);
     }
   };
+  // Recepción finalizada con la escritura apagada: solo administración la envía, a petición expresa (specs/011).
+  const enviable =
+    tiene('admin') &&
+    r.syncEstado === 'ESCRITURA_DESACTIVADA' &&
+    corregible &&
+    config?.escrituraStock === 'entries_only';
+  const enviarSiweb = async () => {
+    const nota = window.prompt(
+      'Se dará entrada en Siweb360 al stock de esta recepción. Comprueba antes que no se dio de alta a mano, o quedará duplicado. ¿Por qué se envía ahora?',
+    );
+    if (!nota) return;
+    try {
+      await post(`/api/admin/recepciones/${r.id}/enviar-siweb`, { nota });
+      onCambio();
+    } catch (e) {
+      setMsg(erroresDe(e).mensaje);
+    }
+  };
   if (!editando)
     return (
       <Tarjeta titulo="Datos del documento">
@@ -1388,6 +1407,13 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
         </dl>
         {r.correcciones.length > 0 && <HistorialCorrecciones correcciones={r.correcciones} />}
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
+        {enviable && (
+          <div className="mt-3">
+            <Boton variante="secundario" onClick={() => void enviarSiweb()}>
+              Enviar el stock a Siweb360
+            </Boton>
+          </div>
+        )}
         {corregible && (
           <div className="mt-3 flex flex-wrap gap-3">
             <Boton

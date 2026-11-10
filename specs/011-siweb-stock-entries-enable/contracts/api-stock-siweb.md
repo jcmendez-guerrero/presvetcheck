@@ -61,6 +61,16 @@ recepción, `evidencia` y stock actual. Sin payload crudo.
 
 No se añade a `GET /api/config/publica` porque esa ruta no exige sesión.
 
+### `POST /api/admin/recepciones/:id/enviar-siweb` — nuevo · `admin`
+
+`{ "nota": "string (≥ 5)" }` → `{ "encoladas": 2, "pendientesAlta": 0, "escrituraDesactivada": false }`
+
+- Encola el stock (sin precios) de una recepción finalizada con `syncEstado = ESCRITURA_DESACTIVADA` (FR-013). Se
+  despacha como cualquier otra fila del outbox, sujeta a la prueba de escritura.
+- 409 `CONFLICTO` si la recepción no está en ese estado (incluido un segundo envío); 409
+  `SIWEB_ESCRITURA_DESACTIVADA` si la escritura está apagada; 404 si no existe.
+- Auditoría `recepcion_enviar_siweb_manual` con la nota.
+
 ## Movimientos de Siweb360
 
 ### `GET /api/movimientos-siweb?estado=sin_justificar|justificados&desde=&hasta=` — nuevo · `operativa` + `admin`
@@ -82,7 +92,18 @@ No se añade a `GET /api/config/publica` porque esa ruta no exige sesión.
 - Si el movimiento ya tiene justificación vigente, la nueva la **sustituye** (`sustituye_a`); nunca se edita.
 - 404 si el movimiento no existe; 422 `MOTIVO_INCOMPATIBLE` si `DEVOLUCION_CLIENTE` va con `unidades < 0` o
   `CADUCADO`/`ROTURA`/`ROBO_PERDIDA`/`DEVOLUCION_PROVEEDOR` con `unidades > 0`.
+- 409 `CONFLICTO` si el vínculo no es una de las candidatas (mismo código nacional, mismo día y mismo sentido).
 - Auditoría `movimiento_justificar`.
+
+### `GET /api/movimientos-siweb/:id/candidatos` — nuevo · `operativa` + `admin`
+
+```json
+{ "candidatos": [{ "tipo": "VINCULO_RECEPCION | VINCULO_DISPENSACION", "id": "uuid", "fecha": "ISO",
+                   "nombre": "…", "lote": "…" | null, "unidades": 3 }] }
+```
+
+- Entradas → líneas de recepciones finalizadas; salidas → dispensaciones vigentes. Mismo código nacional y día
+  (Madrid). 404 si el movimiento no existe.
 
 ## Siweb360 (consumido)
 

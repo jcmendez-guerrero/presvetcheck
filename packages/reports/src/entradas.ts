@@ -85,7 +85,7 @@ export function tablaEntradas(entradas: Entrada[]): Tabla {
  */
 export interface MovimientoPsicotropo {
   fecha: string | Date;
-  tipo: 'ENTRADA' | 'SALIDA' | 'ANULACIÓN SALIDA' | 'BAJA' | 'ANULACIÓN BAJA';
+  tipo: 'ENTRADA' | 'SALIDA' | 'ANULACIÓN SALIDA' | 'BAJA' | 'ANULACIÓN BAJA' | 'ALTA' | 'ANULACIÓN ALTA';
   cn: string;
   nombre: string;
   lote: string;
@@ -118,7 +118,7 @@ export function tablaPsicotropos(movs: MovimientoPsicotropo[]): Tabla {
     ],
     filas: orden.map((m) => {
       const k = `${m.cn}|${m.lote}`;
-      const resta = m.tipo === 'SALIDA' || m.tipo === 'BAJA';
+      const resta = m.tipo === 'SALIDA' || m.tipo === 'BAJA' || m.tipo === 'ANULACIÓN ALTA';
       const delta = resta ? -m.unidades : m.unidades;
       saldo.set(k, (saldo.get(k) ?? 0) + delta);
       return [

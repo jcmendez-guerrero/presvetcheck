@@ -193,6 +193,19 @@ describe('entradas y psicótropos', () => {
     expect(t.columnas.at(-1)).toBe('FECHA RECEPCIÓN');
     expect(t.columnas).toContain('PRECIO NETO COMPRA (sin IVA ni RE)');
   });
+  it('altas de psicótropos (specs/011, FR-009e): suman al saldo y su anulación lo resta', () => {
+    const base = { cn: '570681', nombre: 'DOLETHAL', lote: 'L1', unidades: 2 };
+    const t = tablaPsicotropos([
+      { ...base, fecha: '2026-10-01T10:00:00Z', tipo: 'ENTRADA', unidades: 5, referencia: 'REC-1' },
+      { ...base, fecha: '2026-10-02T10:00:00Z', tipo: 'ALTA', referencia: 'J-1' },
+      { ...base, fecha: '2026-10-02T10:00:01Z', tipo: 'ANULACIÓN ALTA', referencia: 'J-1' },
+    ]);
+    expect(t.filas.map((f) => [f[4], f[5], f[6], f[7]])).toEqual([
+      ['ENTRADA', 5, '', 5],
+      ['ALTA', 2, '', 7],
+      ['ANULACIÓN ALTA', '', 2, 5],
+    ]);
+  });
   it('bajas de stock (specs/011): restan del saldo y su anulación lo devuelve; tabla de bajas', () => {
     const mov = (o: Partial<Parameters<typeof tablaPsicotropos>[0][number]>) => ({
       fecha: '2026-10-01T10:00:00Z',

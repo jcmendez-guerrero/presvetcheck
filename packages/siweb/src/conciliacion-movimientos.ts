@@ -4,11 +4,14 @@ import {
   cimavetPresentacion,
   conciliacion,
   dispensacion,
+  dispensacionVigente,
   movimientoJustificacion,
+  recepcion,
   recepcionLinea,
   siwebMovimiento,
   siwebVariantMap,
   type Db,
+  type DbOrTx,
 } from '@mmx/db';
 import { conciliarMovimientos, exigirMotivoCompatible, type MovimientoSiweb } from '@mmx/domain';
 import { DomainError, diaMadrid, horaMadridAUtc, type JustificarMovimientoBody } from '@mmx/shared';
@@ -263,19 +266,16 @@ export async function justificarMovimiento(
       .for('update');
     if (!m) throw new DomainError('NO_ENCONTRADO', 'Movimiento de Siweb360 no encontrado');
     if (body.tipo === 'MOTIVO') exigirMotivoCompatible(body.motivo, m.quantity);
-    if (body.tipo === 'VINCULO_RECEPCION') {
-      const [l] = await tx
-        .select({ id: recepcionLinea.id })
-        .from(recepcionLinea)
-        .where(eq(recepcionLinea.id, body.recepcionLineaId));
-      if (!l) throw new DomainError('NO_ENCONTRADO', 'Línea de recepción no encontrada');
-    }
-    if (body.tipo === 'VINCULO_DISPENSACION') {
-      const [d] = await tx
-        .select({ id: dispensacion.id })
-        .from(dispensacion)
-        .where(eq(dispensacion.id, body.dispensacionId));
-      if (!d) throw new DomainError('NO_ENCONTRADO', 'Dispensación no encontrada');
+    if (body.tipo !== 'MOTIVO') {
+      // FR-009b: solo se vincula a un registro del mismo código nacional, día y sentido (lo mismo que se ofrece).
+      const id = body.tipo === 'VINCULO_RECEPCION' ? body.recepcionLineaId : body.dispensacionId;
+      const candidatos = await candidatosVinculo(tx, movimientoId);
+      if (!candidatos.some((c) => c.tipo === body.tipo && c.id === id)) {
+        throw new DomainError(
+          'CONFLICTO',
+          'Solo se puede vincular a una recepción o venta del mismo medicamento y del mismo día',
+        );
+      }
     }
     const todas = await tx
       .select()
@@ -307,4 +307,68 @@ export async function justificarMovimiento(
     });
     return nueva;
   });
+}
+
+/** Registro de la app al que se puede vincular a mano un movimiento (T052). Sin datos personales. */
+export interface CandidatoVinculo {
+  tipo: 'VINCULO_RECEPCION' | 'VINCULO_DISPENSACION';
+  id: string;
+  fecha: string | Date;
+  nombre: string;
+  lote: string | null;
+  unidades: number;
+}
+
+/**
+ * Candidatas para vincular a mano un movimiento (specs/011, FR-009b): mismo código nacional y mismo día (Madrid)
+ * que el movimiento. Entradas → líneas de recepciones finalizadas; salidas → dispensaciones vigentes.
+ */
+export async function candidatosVinculo(db: DbOrTx, movimientoId: number): Promise<CandidatoVinculo[]> {
+  const [m] = await db.select().from(siwebMovimiento).where(eq(siwebMovimiento.id, movimientoId));
+  if (!m) throw new DomainError('NO_ENCONTRADO', 'Movimiento de Siweb360 no encontrado');
+  if (!m.cn) return [];
+  const dia = diaMadrid(m.createdAtSiweb);
+  if (m.quantity > 0) {
+    const filas = await db
+      .select({ l: recepcionLinea, r: recepcion })
+      .from(recepcionLinea)
+      .innerJoin(recepcion, eq(recepcion.id, recepcionLinea.recepcionId))
+      .where(
+        and(
+          eq(recepcionLinea.cn, m.cn),
+          sql`coalesce(${recepcion.fechaRecepcion}, ${recepcion.fechaCompra}) = ${dia}`,
+          sql`${recepcion.estado} not in ('ABIERTA', 'DESCARTADA')`,
+        ),
+      )
+      .orderBy(recepcionLinea.numero);
+    return filas.map(({ l, r }) => ({
+      tipo: 'VINCULO_RECEPCION',
+      id: l.id,
+      fecha: r.fechaRecepcion ?? r.fechaCompra,
+      nombre: l.nombreFarmaco,
+      lote: l.lote,
+      unidades: l.unidades,
+    }));
+  }
+  const siguiente = new Date(Date.parse(`${dia}T00:00:00Z`) + DIA_MS).toISOString().slice(0, 10);
+  const filas = await db
+    .select()
+    .from(dispensacion)
+    .where(
+      and(
+        eq(dispensacion.cn, m.cn),
+        gte(dispensacion.fechaVenta, horaMadridAUtc(dia)),
+        lt(dispensacion.fechaVenta, horaMadridAUtc(siguiente)),
+        dispensacionVigente,
+      ),
+    )
+    .orderBy(dispensacion.fechaVenta);
+  return filas.map((x) => ({
+    tipo: 'VINCULO_DISPENSACION',
+    id: x.id,
+    fecha: x.fechaVenta,
+    nombre: x.nombreFarmaco,
+    lote: x.lote,
+    unidades: x.unidades,
+  }));
 }

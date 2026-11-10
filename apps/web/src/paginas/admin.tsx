@@ -476,6 +476,14 @@ function StockSiweb() {
   );
 }
 
+const TEXTO_ENVIO: Record<string, string> = {
+  pending: 'Pendiente de enviar',
+  sent: 'Enviado',
+  failed: 'Fallido',
+  needs_reconciliation: 'En revisión: no se sabe si llegó',
+  resolved_manually: 'Resuelto a mano en Siweb360',
+};
+
 function Outbox() {
   const q = useQuery({
     queryKey: ['outbox'],
@@ -486,7 +494,7 @@ function Outbox() {
           idempotencyKey: string;
           status: string;
           lastError: string | null;
-          stockActual: unknown;
+          stockActual: { total_on_hand?: number } | null;
           proximaComprobacion: string | null;
         }>
       >('/api/admin/outbox'),
@@ -500,7 +508,8 @@ function Outbox() {
         {q.data?.map((o) => (
           <li key={o.id} className="py-2">
             <p>
-              {o.idempotencyKey} · <strong>{o.status}</strong> {o.lastError && `· ${o.lastError}`}
+              {o.idempotencyKey} · <strong>{TEXTO_ENVIO[o.status] ?? o.status}</strong>{' '}
+              {o.lastError && `· ${o.lastError}`}
             </p>
             {o.status === 'needs_reconciliation' && (
               <>
@@ -509,7 +518,11 @@ function Outbox() {
                     ? `Se volverá a comprobar en Siweb360 el ${fecha(o.proximaComprobacion)}.`
                     : 'Ya no se comprueba solo: decide tú.'}
                 </p>
-                <pre className="text-xs">Stock actual: {JSON.stringify(o.stockActual)}</pre>
+                <p className="text-sm">
+                  {typeof o.stockActual?.total_on_hand === 'number'
+                    ? `Stock que tiene ahora Siweb360: ${o.stockActual.total_on_hand}`
+                    : 'No se ha podido leer el stock actual en Siweb360.'}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <Boton
                     onClick={() =>

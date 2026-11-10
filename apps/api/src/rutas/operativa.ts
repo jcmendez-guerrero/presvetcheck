@@ -8,7 +8,7 @@ import {
   JustificarMovimientoBody,
   MovimientosSiwebQuery,
 } from '@mmx/shared';
-import { OPERACION_ENTRADA, justificarMovimiento, listarMovimientos } from '@mmx/siweb';
+import { OPERACION_ENTRADA, candidatosVinculo, justificarMovimiento, listarMovimientos } from '@mmx/siweb';
 import { ahoraDe, type AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import {
@@ -433,6 +433,19 @@ export async function rutasOperativa(app: App, d: AppDeps) {
         movimientos: await listarMovimientos(d.db, { corte, ...req.query }),
       };
     },
+  );
+  app.get(
+    '/api/movimientos-siweb/:id/candidatos',
+    {
+      preHandler: operativaYAdmin,
+      schema: {
+        tags: ['recepciones'],
+        summary:
+          'Recepciones o dispensaciones del mismo código nacional y día a las que vincular un movimiento',
+        params: z.object({ id: z.coerce.number().int().positive() }),
+      },
+    },
+    async (req) => ({ candidatos: await candidatosVinculo(d.db, req.params.id) }),
   );
   app.post(
     '/api/movimientos-siweb/:id/justificar',

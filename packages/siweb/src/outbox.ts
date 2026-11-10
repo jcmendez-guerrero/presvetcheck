@@ -84,7 +84,11 @@ export class OutboxService {
    * Encola los ajustes de una recepción recién finalizada (llamar dentro de la transacción de
    * finalización). Las líneas sin variante mapeada quedan en PENDIENTE_ALTA_SIWEB.
    */
-  async encolarRecepcion(tx: DbOrTx, recepcionId: string): Promise<ResultadoEncolado> {
+  async encolarRecepcion(
+    tx: DbOrTx,
+    recepcionId: string,
+    o: { sinPrecios?: boolean } = {},
+  ): Promise<ResultadoEncolado> {
     const lineas = await tx
       .select()
       .from(recepcionLinea)
@@ -102,7 +106,12 @@ export class OutboxService {
     let encoladas = 0;
     let pendientesAlta = 0;
     for (const l of meds) {
-      if (l.siwebVariantId !== null && l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
+      if (
+        !o.sinPrecios &&
+        l.siwebVariantId !== null &&
+        l.actualizarPrecio &&
+        (l.precioCoste || l.precioNetoCompra)
+      ) {
         await this.encolarActualizarPrecio(tx, l);
       }
       // La persona puede decidir no dar entrada de stock de una línea («Actualizar stock» desmarcado).
@@ -455,6 +464,36 @@ export class OutboxService {
       }
     }
     return r;
+  }
+
+  /**
+   * Envía a petición expresa de administración una recepción finalizada con la escritura apagada
+   * (specs/011, FR-013 y casos límite). Solo stock: el precio de entonces podría pisar uno más reciente.
+   * Sigue sujeta a la prueba de escritura al despachar; nunca se hace sola.
+   */
+  async enviarRecepcionDesactivada(
+    recepcionId: string,
+    actor: string,
+    nota: string,
+  ): Promise<ResultadoEncolado> {
+    if (this.cfg.modo === 'off') throw new DomainError('SIWEB_ESCRITURA_DESACTIVADA');
+    return this.db.transaction(async (tx) => {
+      const [r] = await tx.select().from(recepcion).where(eq(recepcion.id, recepcionId)).for('update');
+      if (!r) throw new DomainError('NO_ENCONTRADO', 'Recepción no encontrada');
+      if (r.syncEstado !== 'ESCRITURA_DESACTIVADA' || r.estado === 'ABIERTA' || r.estado === 'DESCARTADA') {
+        throw new DomainError('CONFLICTO', 'Solo se envían recepciones finalizadas con la escritura apagada');
+      }
+      const res = await this.encolarRecepcion(tx, recepcionId, { sinPrecios: true });
+      await appendAudit(tx, {
+        actor,
+        accion: 'recepcion_enviar_siweb_manual',
+        entidad: 'recepcion',
+        entidadId: recepcionId,
+        antes: { syncEstado: r.syncEstado },
+        despues: { encoladas: res.encoladas, pendientesAlta: res.pendientesAlta, nota },
+      });
+      return res;
+    });
   }
 
   /**

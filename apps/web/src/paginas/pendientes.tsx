@@ -500,7 +500,8 @@ function MovimientosSinJustificar() {
     queryKey: ['movimientos-siweb'],
     queryFn: () => get<{ corte: string | null; movimientos: MovimientoSiweb[] }>('/api/movimientos-siweb'),
   });
-  const [motivos, setMotivos] = useState<Record<number, MotivoJustificacion | ''>>({});
+  const [motivos, setMotivos] = useState<Record<number, MotivoJustificacion | 'VINCULO' | ''>>({});
+  const [vinculos, setVinculos] = useState<Record<number, CandidatoVinculo | undefined>>({});
   const [notas, setNotas] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   if (!q.data?.corte) return null;
@@ -508,11 +509,16 @@ function MovimientosSinJustificar() {
   const justificar = async (m: MovimientoSiweb) => {
     setError(null);
     try {
-      await post(`/api/movimientos-siweb/${m.id}/justificar`, {
-        tipo: 'MOTIVO',
-        motivo: motivos[m.id],
-        nota: notas[m.id] ?? '',
-      });
+      const nota = notas[m.id] ?? '';
+      const v = vinculos[m.id];
+      await post(
+        `/api/movimientos-siweb/${m.id}/justificar`,
+        motivos[m.id] !== 'VINCULO'
+          ? { tipo: 'MOTIVO', motivo: motivos[m.id], nota }
+          : v?.tipo === 'VINCULO_RECEPCION'
+            ? { tipo: v.tipo, recepcionLineaId: v.id, nota }
+            : { tipo: 'VINCULO_DISPENSACION', dispensacionId: v?.id, nota },
+      );
       await qc.invalidateQueries({ queryKey: ['movimientos-siweb'] });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se ha podido guardar');
@@ -553,12 +559,24 @@ function MovimientosSinJustificar() {
                 onChange={(ev) => setMotivos({ ...motivos, [m.id]: ev.target.value as MotivoJustificacion })}
               >
                 <option value="">Elige un motivo</option>
+                <option value="VINCULO">
+                  {m.unidades > 0
+                    ? 'Vincular a una recepción del mismo día'
+                    : 'Vincular a una venta del mismo día'}
+                </option>
                 {opciones.map((x) => (
                   <option key={x} value={x}>
                     {TEXTO_MOTIVO[x]}
                   </option>
                 ))}
               </select>
+              {motivos[m.id] === 'VINCULO' && (
+                <Candidatos
+                  movimientoId={m.id}
+                  elegido={vinculos[m.id]?.id}
+                  onElegir={(c) => setVinculos({ ...vinculos, [m.id]: c })}
+                />
+              )}
               <Campo
                 etiqueta="Nota"
                 value={notas[m.id] ?? ''}
@@ -566,7 +584,11 @@ function MovimientosSinJustificar() {
               />
               <Boton
                 variante="texto"
-                disabled={!motivos[m.id] || (notas[m.id] ?? '').trim().length < 5}
+                disabled={
+                  !motivos[m.id] ||
+                  (motivos[m.id] === 'VINCULO' && !vinculos[m.id]) ||
+                  (notas[m.id] ?? '').trim().length < 5
+                }
                 onClick={() => void justificar(m)}
               >
                 Guardar justificación
@@ -577,5 +599,56 @@ function MovimientosSinJustificar() {
       </ul>
       {error && <Mensaje tipo="error">{error}</Mensaje>}
     </Tarjeta>
+  );
+}
+
+interface CandidatoVinculo {
+  tipo: 'VINCULO_RECEPCION' | 'VINCULO_DISPENSACION';
+  id: string;
+  fecha: string;
+  nombre: string;
+  lote: string | null;
+  unidades: number;
+}
+
+/** Recepciones o ventas del mismo código nacional y día que el movimiento (specs/011, T052). */
+function Candidatos({
+  movimientoId,
+  elegido,
+  onElegir,
+}: {
+  movimientoId: number;
+  elegido: string | undefined;
+  onElegir: (c: CandidatoVinculo | undefined) => void;
+}) {
+  const q = useQuery({
+    queryKey: ['movimientos-siweb', movimientoId, 'candidatos'],
+    queryFn: () =>
+      get<{ candidatos: CandidatoVinculo[] }>(`/api/movimientos-siweb/${movimientoId}/candidatos`),
+  });
+  if (q.isLoading) return <Cargando />;
+  const candidatos = q.data?.candidatos ?? [];
+  if (!candidatos.length)
+    return <p className="text-sm">No hay nada del mismo medicamento ese día. Elige un motivo.</p>;
+  const id = `candidato-mov-${movimientoId}`;
+  return (
+    <>
+      <label htmlFor={id} className="text-sm font-medium">
+        {candidatos[0]?.tipo === 'VINCULO_RECEPCION' ? 'Recepción' : 'Venta'}
+      </label>
+      <select
+        id={id}
+        className="rounded border px-2 py-1"
+        value={elegido ?? ''}
+        onChange={(ev) => onElegir(candidatos.find((c) => c.id === ev.target.value))}
+      >
+        <option value="">Elige una</option>
+        {candidatos.map((c) => (
+          <option key={c.id} value={c.id}>
+            {fecha(c.fecha)} · {c.nombre} · {c.unidades} ud.{c.lote ? ` · lote ${c.lote}` : ''}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
