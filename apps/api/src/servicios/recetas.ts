@@ -27,6 +27,7 @@ import {
   prescripcionVirtual,
   resumenReceta,
   validarEleccionSoloPA,
+  comoAvisosAltaManual,
   validarForzado,
   type ForzadoAceptado,
   type Incidencia,
@@ -811,7 +812,7 @@ export class RecetasService {
       : r.origen === 'manual'
         ? (fechaReferencia ?? conf.fechaOriginal)
         : null;
-    const ev = evaluarReceta({
+    const ev0 = evaluarReceta({
       receta: receta2,
       lineas,
       yaDispensada,
@@ -823,6 +824,17 @@ export class RecetasService {
       politica: pol,
       rules: this.d.rules.bundle,
     });
+    // Alta manual: se registra lo que ya pasó; los defectos son avisos para revisar, no bloqueos.
+    const ev =
+      r.origen === 'manual'
+        ? {
+            ...ev0,
+            incidencias: comoAvisosAltaManual(ev0.incidencias),
+            porLinea: Object.fromEntries(
+              Object.entries(ev0.porLinea).map(([k, v]) => [k, comoAvisosAltaManual(v)]),
+            ),
+          }
+        : ev0;
     return { r, conf, pol, especieId, receta2, lineas, ev };
   }
 

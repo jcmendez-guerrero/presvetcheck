@@ -383,5 +383,10 @@
     "titulo": "Lote no encontrado en las recepciones registradas",
     "donde": "Alta manual de receta",
     "accion": "Comprueba el lote con el envase o el albarán. Si la mercancía llegó antes de usar la aplicación, es normal"
+  },
+  "DNI_RETIRA_NO_INDICADO": {
+    "titulo": "Falta el DNI o NIE de quien retiró el psicótropo",
+    "donde": "Alta manual de receta",
+    "accion": "Búscalo en la receta en papel o en el libro de psicótropos y anótalo en la revisión"
   }
 }

@@ -88,8 +88,8 @@ de alta manual, y pendiente de conciliar.
    fecha original 2026-10-25, **Then** la validez se calcula a 2026-10-25, la línea es conforme y la salida queda en el
    registro con esa fecha.
 2. **Given** una receta manual con un antimicrobiano emitida el 2026-10-20, **When** se registra la dispensación con
-   fecha original 2026-10-28, **Then** el motor indica que la receta estaba caducada en esa fecha (plazo de 5 días) y
-   la dispensación solo puede guardarse por la vía de forzado con motivo.
+   fecha original 2026-10-28, **Then** el motor indica como aviso que la receta estaba caducada en esa fecha (plazo de
+   5 días); la dispensación se guarda sin forzar y queda marcada para revisar en el reporte semanal.
 3. **Given** una fecha original posterior a hoy o anterior a la fecha de emisión, **When** intenta guardar, **Then** el
    sistema lo rechaza con un mensaje claro.
 4. **Given** una dispensación manual guardada, **When** se consulta el registro de salidas, **Then** la fila muestra la
@@ -134,10 +134,12 @@ contramovimiento.
   esta vía; se aplica la regla existente (`MEDICAMENTO_USO_HUMANO_REVISION_GARANTE`, revisión del garante).
 - **Receta duplicada**: si ya existe en la app (o en los registros importados) una receta con el mismo número y número de
   colegiado, el alta se rechaza como `RECETA_YA_DISPENSADA` (bloqueo que no se puede forzar).
-- **Bloqueos que no se pueden forzar** (`BLOQUEANTE_DURO`, p. ej. estupefacientes): la dispensación no se puede
-  registrar por esta vía; el sistema lo explica y la deja fuera.
-- **Psicótropos**: se exige el DNI/NIE de quien retiró, como en la dispensación normal, y el tope de un envase por
-  receta.
+- **Bloqueos que no se pueden forzar** (`BLOQUEANTE_DURO`, p. ej. estupefacientes): la entrega ya ocurrió, así que se
+  registra con el defecto como aviso y queda marcada para revisar (excepción de la constitución III, 1.1.0). Solo la
+  receta duplicada sigue bloqueando.
+- **Stock**: no se consulta el stock actual ni las ventas del día en Siweb360; la entrega ya descontó el stock en el TPV.
+- **Psicótropos**: se pide el DNI/NIE de quien retiró y el tope de un envase por receta; si falta o se supera, se
+  registra con aviso para revisar.
 - **Receta electrónica**: en lugar de ubicación del papel se exige plataforma e identificador; si la plataforma no está
   reconocida, aviso como en el flujo normal.
 - **Lote que no consta en ninguna recepción**: se permite (las recepciones anteriores a la app pueden no estar), con
@@ -189,8 +191,10 @@ contramovimiento.
 - **FR-013**: Para cada dispensación ya realizada, el sistema MUST pedir la fecha original y evaluar la validez de la
   receta en esa fecha; la evaluación usa la versión de reglas activa al registrar y la deja guardada.
 - **FR-014**: El sistema MUST rechazar fechas originales futuras o anteriores a la fecha de emisión.
-- **FR-015**: Los defectos `BLOQUEANTE_FORMA` MUST poder registrarse solo por la vía de forzado existente (casilla de
-  responsabilidad y motivo); los `BLOQUEANTE_DURO` MUST impedir el registro de la dispensación.
+- **FR-015**: Todo defecto (de forma o no forzable) MUST registrarse como aviso, sin forzado, y la entrega MUST quedar
+  marcada para revisar (hoja «8 Altas manuales» del reporte semanal, columna de avisos). Solo `RECETA_YA_DISPENSADA`
+  MUST impedir el registro. El stock actual y las ventas del día en Siweb360 MUST NOT consultarse ni limitar el registro.
+  (Cambio del 2026-11-10 a petición de la responsable; constitución III, 1.1.0.)
 - **FR-016**: La dispensación MUST guardarse como retrospectiva (con fecha original), marcada como de alta manual, y
   quedar pendiente de conciliar con el ticket del TPV como cualquier otra salida.
 - **FR-017**: El sistema MUST NOT escribir movimientos de stock de salida en Siweb360 por esta vía.
@@ -233,7 +237,8 @@ contramovimiento.
 - **SC-004**: Ninguna alta manual genera movimientos de stock de salida en Siweb360.
 - **SC-005**: El 100 % de las altas manuales tienen autor, fecha, motivo y ubicación del papel o identificador
   electrónico consultables por la veterinaria responsable.
-- **SC-006**: Ninguna receta duplicada ni dispensación con un bloqueo no forzable se puede registrar por esta vía.
+- **SC-006**: Ninguna receta duplicada se puede registrar por esta vía; toda entrega registrada con defectos aparece en
+  el reporte semanal con sus avisos.
 
 ## Assumptions
 

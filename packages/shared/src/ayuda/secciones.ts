@@ -376,7 +376,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
       },
       {
         p: [
-          'Los defectos se tratan igual que en una receta escaneada: los que se pueden forzar exigen motivo y los bloqueos que no se pueden forzar impiden registrarla (por ejemplo, una receta ya registrada). En Registros aparece en su fecha de entrega con «ALTA MANUAL = S»; un error se corrige ',
+          'Como la entrega ya se hizo, no se mira el stock y los defectos no impiden registrarla: quedan como avisos y la receta sale en el reporte semanal para revisarla con el papel. Solo una receta ya registrada impide darla de alta. En Registros aparece en su fecha de entrega con «ALTA MANUAL = S»; un error se corrige ',
           { b: 'anulando' },
           ' la entrega y registrándola de nuevo. Guarda siempre el papel original; si lo tienes, puedes adjuntar su imagen después.',
         ],

@@ -22,7 +22,7 @@ This repository implements the prescription verification, dispensing, and stock 
 ## Do not
 
 - **Do not invent** external data structures. The Nomenclátor XML schema comes from `fixtures/nomenclator/`; CIMAVet and Siweb360 responses come from `docs/ref/` and `fixtures/`. If a sample is missing, leave a skeleton and an `it.todo` explaining which file is needed.
-- Validate defect overrides (bypasses) in the API, not only in the UI. A `BLOQUEANTE_DURO` must never be overridden.
+- Validate defect overrides (bypasses) in the API, not only in the UI. A `BLOQUEANTE_DURO` must never be overridden. Only exception: manual prescription entry of a past dispensing (specs/011), where every defect except `RECETA_YA_DISPENSADA` is recorded as a warning flagged for review.
 - Do not put legal rules in AI prompts or UI components. They belong in `packages/domain` and `config/rules/*.yaml`.
 - Do not write stock to Siweb360 except for inbound receipts through the outbox and in accordance with `SIWEB_STOCK_WRITE_MODE` (default `off`). **Never write outbound stock movements**; the POS ticket decrements stock.
 - Do not `UPDATE` or `DELETE` `dispensacion`, finalized `recepcion_linea`, or `audit_event`. Corrections must be counter-movements.

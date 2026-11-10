@@ -34,6 +34,7 @@ import {
   validarUnidadesFraccion,
   validarEnvase,
   validarForzado,
+  comoAvisosAltaManual,
   validarPropietario,
   validarVentaSinReceta,
   fechaEs,
@@ -409,12 +410,13 @@ export class DispensacionesService {
         });
     }
 
-    // 2c. Psicótropos: identidad de quien retira con DNI/NIE válido (se anota cifrado).
-    if (med.psicotropo && !dniNieValido(s.dniRetira))
+    // 2c. Psicótropos: identidad de quien retira con DNI/NIE válido (se anota cifrado). En alta manual, aviso.
+    const dniValido = dniNieValido(s.dniRetira);
+    if (med.psicotropo && !dniValido && !manual)
       throw new DomainError('DNI_RETIRA_OBLIGATORIO', 'Psicótropo: falta el DNI/NIE válido de quien retira');
 
     // 3. Escaneo y forzado combinado (receta + envase).
-    const escaneo = await this.validarEnvases({
+    const escaneoVivo = await this.validarEnvases({
       cn: cnPermitido,
       envases: s.envases,
       // Alta manual: el lote es el que se entregó; no hay lote recomendado que seguir.
@@ -426,8 +428,12 @@ export class DispensacionesService {
       linea: s.lineaOrden,
       ...(fechaRef ? { hoy: fechaRef } : {}),
     });
-    const retro = await this.retrospectivoDe(s, cnPermitido, escaneo);
+    // Alta manual: sin consulta de ventas en Siweb360 (el stock no cuenta) y todo defecto del envase es aviso.
+    const escaneo = manual ? comoAvisosAltaManual(escaneoVivo) : escaneoVivo;
+    const retro = manual ? null : await this.retrospectivoDe(s, cnPermitido, escaneo);
     if (manual) {
+      if (med.psicotropo && !dniValido)
+        escaneo.push(incidencia('DNI_RETIRA_NO_INDICADO', politica(this.d), { linea: s.lineaOrden }));
       // Aviso, nunca bloqueo: las recepciones anteriores a la aplicación pueden no estar registradas.
       const recibidos = new Set(
         (
@@ -513,7 +519,10 @@ export class DispensacionesService {
                   unidad: parseFraccion(pres.fracciones)?.unidad ?? pres.unidadContenido ?? 'unidad',
                 })
               : textoUnidadesDispensadas(pres, { envases: e.unidades }),
-            dniRetiraEnc: med.psicotropo ? this.d.cipher.encrypt(normalizarDni(s.dniRetira as string)) : null,
+            dniRetiraEnc:
+              med.psicotropo && dniValido
+                ? this.d.cipher.encrypt(normalizarDni(s.dniRetira as string))
+                : null,
             gtin: e.gtin,
             serial: e.serie,
             metodoCaptura: e.metodoCaptura,
