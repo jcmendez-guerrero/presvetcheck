@@ -4,11 +4,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CodigoIncidencia, RespuestaCompararMedicamentos } from '@mmx/shared';
 import { ApiError, get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useBusquedaMedicamentos } from '../lib/busqueda';
 import { guardarForzado } from '../lib/flujo';
 import { CN, fecha } from '../lib/textos';
 import type { Evaluacion, LineaEvaluada } from '../lib/tipos';
 import { EstadoDecision, ListaMotivos } from '../componentes/estado';
 import { ModalForzado } from '../componentes/forzado';
+import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
 import { Pagina } from '../componentes/layout';
 import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { ConReceta } from '../componentes/visor-receta';
@@ -392,30 +394,15 @@ export function BuscadorSustitutoLinea({
 }) {
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
-  const [candidatos, setCandidatos] = useState<ResultadoBusquedaItem[]>([]);
-  const [buscando, setBuscando] = useState(false);
   const [candidatoElegido, setCandidatoElegido] = useState<ResultadoBusquedaItem | null>(null);
   const [comparando, setComparando] = useState(false);
   const [comparacion, setComparacion] = useState<RespuestaCompararMedicamentos | null>(null);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [errorComp, setErrorComp] = useState<string | null>(null);
 
-  const buscar = async (q: string) => {
-    setBusqueda(q);
-    if (q.trim().length < 2) {
-      setCandidatos([]);
-      return;
-    }
-    setBuscando(true);
-    try {
-      const items = await get<ResultadoBusquedaItem[]>(`/api/medicamentos/buscar?q=${encodeURIComponent(q)}`);
-      setCandidatos(items.slice(0, 8));
-    } catch {
-      setCandidatos([]);
-    } finally {
-      setBuscando(false);
-    }
-  };
+  const cand = useBusquedaMedicamentos<ResultadoBusquedaItem>(busqueda, {
+    activo: abierto && !candidatoElegido,
+  });
 
   const seleccionarCandidato = async (c: ResultadoBusquedaItem) => {
     setCandidatoElegido(c);
@@ -495,33 +482,42 @@ export function BuscadorSustitutoLinea({
               placeholder="Buscar por nombre, principio activo o Código nacional..."
               className="w-full rounded-lg border border-slate-300 p-2 text-sm"
               value={busqueda}
-              onChange={(e) => void buscar(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value)}
               data-testid={`input-busqueda-sust-${linea.orden}`}
             />
-            {buscando && <p className="text-xs text-slate-500 mt-1">Buscando en CIMAVet...</p>}
+            {!candidatoElegido && (
+              <EstadoBusqueda
+                estado={cand.estado}
+                texto={busqueda}
+                resultados={cand.resultados.length}
+                onReintentar={cand.reintentar}
+              />
+            )}
           </div>
 
-          {candidatos.length > 0 && !candidatoElegido && (
-            <ul className="divide-y divide-slate-100 max-h-48 overflow-y-auto border rounded-lg text-sm">
-              {candidatos.map((c) => (
-                <li key={c.cn} className="p-2 hover:bg-slate-50 flex items-center justify-between gap-2">
-                  <div>
-                    <strong className="block text-slate-800">{c.nombre}</strong>
-                    <span className="text-xs text-slate-500">
-                      CN {c.cn} · {c.labtitular ?? '—'}
-                    </span>
-                  </div>
-                  <Boton
-                    variante="secundario"
-                    className="text-xs px-2 py-1"
-                    onClick={() => void seleccionarCandidato(c)}
-                    data-testid={`btn-seleccionar-${c.cn}`}
-                  >
-                    Evaluar
-                  </Boton>
-                </li>
-              ))}
-            </ul>
+          {cand.resultados.length > 0 && !candidatoElegido && (
+            <ListaResultados desfasada={cand.desfasada}>
+              <ul className="divide-y divide-slate-100 max-h-48 overflow-y-auto border rounded-lg text-sm">
+                {cand.resultados.slice(0, 8).map((c) => (
+                  <li key={c.cn} className="p-2 hover:bg-slate-50 flex items-center justify-between gap-2">
+                    <div>
+                      <strong className="block text-slate-800">{c.nombre}</strong>
+                      <span className="text-xs text-slate-500">
+                        CN {c.cn} · {c.labtitular ?? '—'}
+                      </span>
+                    </div>
+                    <Boton
+                      variante="secundario"
+                      className="text-xs px-2 py-1"
+                      onClick={() => void seleccionarCandidato(c)}
+                      data-testid={`btn-seleccionar-${c.cn}`}
+                    >
+                      Evaluar
+                    </Boton>
+                  </li>
+                ))}
+              </ul>
+            </ListaResultados>
           )}
 
           {comparando && (

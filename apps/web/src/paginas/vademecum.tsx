@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { RespuestaCompararMedicamentos } from '@mmx/shared';
-import { ApiError, get, post } from '../lib/api';
+import { ApiError, post } from '../lib/api';
+import { useBusquedaMedicamentos } from '../lib/busqueda';
+import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
 import { Pagina } from '../componentes/layout';
 import { Boton, Mensaje, Tarjeta } from '../componentes/ui';
 import { TablaComparativaCriterios } from '../componentes/asistente';
@@ -28,43 +30,15 @@ const ESPECIES_COMUNES = [
 export function Vademecum() {
   const [qA, setQA] = useState('');
   const [qB, setQB] = useState('');
-  const [itemsA, setItemsA] = useState<BusquedaItem[]>([]);
-  const [itemsB, setItemsB] = useState<BusquedaItem[]>([]);
   const [medA, setMedA] = useState<BusquedaItem | null>(null);
   const [medB, setMedB] = useState<BusquedaItem | null>(null);
+  const busA = useBusquedaMedicamentos<BusquedaItem>(qA, { activo: !medA });
+  const busB = useBusquedaMedicamentos<BusquedaItem>(qB, { activo: !medB });
   const [especie, setEspecie] = useState('Perro');
   const [indicacion, setIndicacion] = useState('');
   const [comparando, setComparando] = useState(false);
   const [resultado, setResultado] = useState<RespuestaCompararMedicamentos | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const buscarA = async (txt: string) => {
-    setQA(txt);
-    if (txt.trim().length < 2) {
-      setItemsA([]);
-      return;
-    }
-    try {
-      const res = await get<BusquedaItem[]>(`/api/medicamentos/buscar?q=${encodeURIComponent(txt)}`);
-      setItemsA(res.slice(0, 6));
-    } catch {
-      setItemsA([]);
-    }
-  };
-
-  const buscarB = async (txt: string) => {
-    setQB(txt);
-    if (txt.trim().length < 2) {
-      setItemsB([]);
-      return;
-    }
-    try {
-      const res = await get<BusquedaItem[]>(`/api/medicamentos/buscar?q=${encodeURIComponent(txt)}`);
-      setItemsB(res.slice(0, 6));
-    } catch {
-      setItemsB([]);
-    }
-  };
 
   const comparar = async () => {
     if (!medA || !medB) {
@@ -110,31 +84,38 @@ export function Vademecum() {
                 className="w-full rounded-lg border border-slate-300 p-2 text-sm"
                 placeholder="Nombre, principio activo o Código nacional..."
                 value={qA}
-                onChange={(e) => void buscarA(e.target.value)}
+                onChange={(e) => setQA(e.target.value)}
                 data-testid="input-med-a"
               />
-              {itemsA.length > 0 && (
-                <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
-                  {itemsA.map((it) => (
-                    <li
-                      key={it.cn}
-                      className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
-                      onClick={() => {
-                        setMedA(it);
-                        setItemsA([]);
-                        setQA(it.nombre);
-                      }}
-                    >
-                      <div>
-                        <strong className="block text-texto">{it.nombre}</strong>
-                        <span className="text-xs text-texto-muted dark:text-slate-400">
-                          CN {it.cn} · {it.labtitular ?? '—'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-marca font-medium">Elegir</span>
-                    </li>
-                  ))}
-                </ul>
+              <EstadoBusqueda
+                estado={busA.estado}
+                texto={qA}
+                resultados={Math.min(busA.resultados.length, 6)}
+                onReintentar={busA.reintentar}
+              />
+              {busA.resultados.length > 0 && (
+                <ListaResultados desfasada={busA.desfasada}>
+                  <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
+                    {busA.resultados.slice(0, 6).map((it) => (
+                      <li
+                        key={it.cn}
+                        className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
+                        onClick={() => {
+                          setMedA(it);
+                          setQA(it.nombre);
+                        }}
+                      >
+                        <div>
+                          <strong className="block text-texto">{it.nombre}</strong>
+                          <span className="text-xs text-texto-muted dark:text-slate-400">
+                            CN {it.cn} · {it.labtitular ?? '—'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-marca font-medium">Elegir</span>
+                      </li>
+                    ))}
+                  </ul>
+                </ListaResultados>
               )}
             </div>
           ) : (
@@ -172,31 +153,38 @@ export function Vademecum() {
                 className="w-full rounded-lg border border-slate-300 p-2 text-sm"
                 placeholder="Nombre, principio activo o Código nacional..."
                 value={qB}
-                onChange={(e) => void buscarB(e.target.value)}
+                onChange={(e) => setQB(e.target.value)}
                 data-testid="input-med-b"
               />
-              {itemsB.length > 0 && (
-                <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
-                  {itemsB.map((it) => (
-                    <li
-                      key={it.cn}
-                      className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
-                      onClick={() => {
-                        setMedB(it);
-                        setItemsB([]);
-                        setQB(it.nombre);
-                      }}
-                    >
-                      <div>
-                        <strong className="block text-texto">{it.nombre}</strong>
-                        <span className="text-xs text-texto-muted dark:text-slate-400">
-                          CN {it.cn} · {it.labtitular ?? '—'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-marca dark:text-acento font-medium">Elegir</span>
-                    </li>
-                  ))}
-                </ul>
+              <EstadoBusqueda
+                estado={busB.estado}
+                texto={qB}
+                resultados={Math.min(busB.resultados.length, 6)}
+                onReintentar={busB.reintentar}
+              />
+              {busB.resultados.length > 0 && (
+                <ListaResultados desfasada={busB.desfasada}>
+                  <ul className="divide-y divide-borde border border-borde rounded-lg max-h-48 overflow-y-auto text-sm bg-superficie text-texto">
+                    {busB.resultados.slice(0, 6).map((it) => (
+                      <li
+                        key={it.cn}
+                        className="p-2 hover:bg-fondo-secundario cursor-pointer flex justify-between items-center"
+                        onClick={() => {
+                          setMedB(it);
+                          setQB(it.nombre);
+                        }}
+                      >
+                        <div>
+                          <strong className="block text-texto">{it.nombre}</strong>
+                          <span className="text-xs text-texto-muted dark:text-slate-400">
+                            CN {it.cn} · {it.labtitular ?? '—'}
+                          </span>
+                        </div>
+                        <span className="text-xs text-marca dark:text-acento font-medium">Elegir</span>
+                      </li>
+                    ))}
+                  </ul>
+                </ListaResultados>
               )}
             </div>
           ) : (
