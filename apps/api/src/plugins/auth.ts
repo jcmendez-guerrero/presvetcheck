@@ -25,10 +25,19 @@ export const USUARIOS_DEV: Record<string, { nombre: string; roles: Rol[] }> = {
 };
 
 // `/api/movil/m`: el móvil emparejado; cada ruta exige el token del QR (servicios/movil.ts).
-const PUBLICAS = ['/api/health', '/api/ready', '/api/openapi.json', '/api/docs', '/api/config/publica', '/api/movil/m'];
+const PUBLICAS = [
+  '/api/health',
+  '/api/ready',
+  '/api/openapi.json',
+  '/api/docs',
+  '/api/config/publica',
+  '/api/movil/m',
+];
 
 export interface OpcionesAuth {
-  config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'> & { AUTH_EASYAUTH?: boolean };
+  config: Pick<AppConfig, 'AUTH_MODE' | 'NODE_ENV' | 'ENTRA_TENANT_ID' | 'ENTRA_CLIENT_ID'> & {
+    AUTH_EASYAUTH?: boolean;
+  };
   /** Verificador inyectable (tests). Por defecto, JWKS de Entra. */
   verificar?: (token: string) => Promise<JWTPayload>;
 }
@@ -100,7 +109,9 @@ export async function registrarAuth(app: FastifyInstance, o: OpcionesAuth) {
  */
 export function usuarioDesdePrincipal(b64: string): Usuario {
   try {
-    const p = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')) as { claims?: { typ: string; val: string }[] };
+    const p = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')) as {
+      claims?: { typ: string; val: string }[];
+    };
     const claims = p.claims ?? [];
     const val = (...t: string[]) => claims.filter((c) => t.includes(c.typ)).map((c) => c.val);
     return usuarioDesdeClaims({
@@ -119,13 +130,15 @@ export function requiereRol(...roles: Rol[]) {
   return async (req: FastifyRequest) => {
     const u = req.usuario;
     if (!u) throw new DomainError('NO_AUTORIZADO');
-    if (!u.roles.some((r) => roles.includes(r))) throw new DomainError('PROHIBIDO', `Requiere rol: ${roles.join(' o ')}`);
+    if (!u.roles.some((r) => roles.includes(r)))
+      throw new DomainError('PROHIBIDO', `Requiere rol: ${roles.join(' o ')}`);
   };
 }
 
 /** Acciones que exigen MFA (aprobar reglas, ver el DNI completo). */
 export function exigirMfa(req: FastifyRequest) {
-  if (!req.usuario?.mfa) throw new DomainError('PROHIBIDO', 'Esta acción exige autenticación multifactor (MFA)');
+  if (!req.usuario?.mfa)
+    throw new DomainError('PROHIBIDO', 'Esta acción exige autenticación multifactor (MFA)');
 }
 
 export function usuario(req: FastifyRequest): Usuario {
