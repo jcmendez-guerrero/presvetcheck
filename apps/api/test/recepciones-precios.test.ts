@@ -20,7 +20,11 @@ describe('Encolado de actualización de precios en el outbox tras finalizar rece
     const outboxSvc = new OutboxService(
       h.db,
       client,
-      { modo: 'entries_only', almacenId: async () => 1 },
+      {
+        modo: 'entries_only',
+        almacenId: async () => 1,
+        pruebaVigente: async () => new Date('2026-10-14T09:00:00Z'),
+      },
       { now: () => new Date('2026-10-14T10:00:00Z') },
     );
 

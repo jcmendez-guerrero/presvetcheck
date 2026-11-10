@@ -20,6 +20,7 @@ export * from './venta';
 export * from './parcial';
 export * from './precio';
 export * from './conciliacion';
+export * from './conciliacion-movimientos';
 export * from './sku';
 export * from './recepcion';
 export * from './puertos';

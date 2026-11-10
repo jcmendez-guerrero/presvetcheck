@@ -134,6 +134,13 @@
       "when": 1794105000000,
       "tag": "0018_reconciliar_vias_oral_rectal",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794200000000,
+      "tag": "0019_conciliacion_movimientos",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { reportRun } from '@mmx/db';
 import { hoy } from '@mmx/domain';
 import { empaquetarReporte, generarReporteSemanal, semanaAnterior } from '@mmx/reports';
+import { movimientosSinJustificar } from '@mmx/siweb';
 import { DomainError, IsoDate } from '@mmx/shared';
 import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
@@ -32,7 +33,18 @@ export async function rutasReportes(app: App, d: AppDeps) {
     async (req, reply) => {
       const hoyIso = hoy(d.clock);
       const p = req.body?.desde && req.body.hasta ? { desde: req.body.desde, hasta: req.body.hasta, etiqueta: `${req.body.desde}_${req.body.hasta}` } : semanaAnterior(hoyIso);
-      const tablas = await generarReporteSemanal({ db: d.db, cipher: d.cipher, lotesProximos: null, producto_no_valido: d.rules.bundle.recetaCampos.producto_no_valido }, p, hoyIso);
+      const corte = d.config.ENTRY_CUTOVER_DATE;
+      const tablas = await generarReporteSemanal(
+        {
+          db: d.db,
+          cipher: d.cipher,
+          lotesProximos: null,
+          producto_no_valido: d.rules.bundle.recetaCampos.producto_no_valido,
+          movimientosSinJustificar: corte ? () => movimientosSinJustificar(d.db, { corte }) : null,
+        },
+        p,
+        hoyIso,
+      );
       const { xlsx } = await empaquetarReporte(tablas);
       const ruta = await d.blob.put('reportes', `bajo-demanda/${p.etiqueta}-${Date.now()}.xlsx`, xlsx, XLSX);
       await d.db.insert(reportRun).values({ tipo: req.params.tipo, periodo: p.etiqueta, blobPath: ruta, formato: 'xlsx', generadoAt: new Date(d.clock.now().epochMilliseconds), enviadoA: [] });

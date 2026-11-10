@@ -5,8 +5,11 @@ import {
   importacion,
   salidaImportada,
   conciliacion,
+  cimavetPresentacion,
   discrepancia,
   dispensacion,
+  movimientoJustificacion,
+  siwebMovimiento,
   distribuidor,
   maskDni,
   plataformaRecetaElectronica,
@@ -18,8 +21,8 @@ import {
   veterinario,
 } from '@mmx/db';
 import type { ColumnCipher, Db } from '@mmx/db';
-import { fechaEntrada, type Entrada, type MovimientoPsicotropo } from './entradas';
-import { rangoMadrid } from '@mmx/shared';
+import { fechaEntrada, type Baja, type Entrada, type MovimientoPsicotropo } from './entradas';
+import { TEXTO_MOTIVO, rangoMadrid, type MotivoJustificacion } from '@mmx/shared';
 
 /**
  * Fecha con la que cuenta una entrada en los registros: la de recepción (cuando llega el producto), no la de
@@ -301,6 +304,60 @@ export class RegistrosService {
     return [...propias, ...otras].sort((a, b) => fechaEntrada(a).localeCompare(fechaEntrada(b)));
   }
 
+  /**
+   * Bajas: salidas de medicamentos en Siweb360 justificadas con un motivo (specs/011, FR-009d), por fecha del
+   * movimiento. Una justificación sustituida aparece como baja y como anulación; la vigente, como baja.
+   * TODO(decision DUDA-30): ¿las justificaciones de entradas (devolución de cliente, recuento al alza) van al registro?
+   */
+  async bajas(desde: string, hasta: string): Promise<Baja[]> {
+    const [ini, fin] = rangoMadrid(desde, hasta);
+    const filas = await this.d.db
+      .select({ j: movimientoJustificacion, m: siwebMovimiento, p: cimavetPresentacion })
+      .from(movimientoJustificacion)
+      .innerJoin(siwebMovimiento, eq(siwebMovimiento.id, movimientoJustificacion.movimientoId))
+      .leftJoin(cimavetPresentacion, eq(cimavetPresentacion.cn, siwebMovimiento.cn))
+      .where(
+        and(
+          eq(movimientoJustificacion.tipo, 'MOTIVO'),
+          lt(siwebMovimiento.quantity, 0),
+          gte(siwebMovimiento.createdAtSiweb, ini),
+          lt(siwebMovimiento.createdAtSiweb, fin),
+        ),
+      );
+    // Todas las justificaciones de esos movimientos (también vínculos), para saber cuáles se sustituyeron y en qué
+    // orden.
+    const movs = [...new Set(filas.map((f) => f.m.id))];
+    const cadena = movs.length
+      ? await this.d.db
+          .select({ id: movimientoJustificacion.id, sustituyeA: movimientoJustificacion.sustituyeA })
+          .from(movimientoJustificacion)
+          .where(inArray(movimientoJustificacion.movimientoId, movs))
+      : [];
+    const anterior = new Map(cadena.map((c) => [c.id, c.sustituyeA]));
+    const sustituidas = new Set(cadena.map((c) => c.sustituyeA).filter(Boolean));
+    const orden = (id: string): number => {
+      let n = 0;
+      for (let a = anterior.get(id); a; a = anterior.get(a)) n++;
+      return n;
+    };
+    return filas.flatMap(({ j, m, p }) => {
+      const baja: Baja = {
+        fecha: m.createdAtSiweb,
+        tipo: 'BAJA',
+        cn: m.cn ?? '',
+        nombre: p?.nombre ?? '',
+        nregistro: p?.nregistro ?? null,
+        lote: m.batchNumber ?? '',
+        unidades: -m.quantity,
+        motivo: TEXTO_MOTIVO[j.motivo as MotivoJustificacion] ?? j.motivo ?? '',
+        nota: j.nota,
+        referencia: j.id,
+        orden: orden(j.id),
+      };
+      return sustituidas.has(j.id) ? [baja, { ...baja, tipo: 'ANULACIÓN BAJA' as const }] : [baja];
+    });
+  }
+
   /** Movimientos de psicótropos (entradas, salidas, anulaciones) para el registro del garante. TODO(decision D-06b) */
   async psicotropos(desde: string, hasta: string): Promise<MovimientoPsicotropo[]> {
     const [ini, fin] = rangoMadrid(desde, hasta);
@@ -333,7 +390,17 @@ export class RegistrosService {
           sql`${recepcion.estado} <> 'ABIERTA'`,
         ),
       );
+    const bajas = (await this.bajas(desde, hasta)).filter((b) => b.nregistro && psico.includes(b.nregistro));
     return [
+      ...bajas.map((b) => ({
+        fecha: b.fecha,
+        tipo: b.tipo,
+        cn: b.cn,
+        nombre: b.nombre,
+        lote: b.lote,
+        unidades: b.unidades,
+        referencia: b.referencia,
+      })),
       ...entradas.map(({ l, r }) => ({
         fecha: r.fechaRecepcion ?? r.fechaCompra,
         tipo: 'ENTRADA' as const,

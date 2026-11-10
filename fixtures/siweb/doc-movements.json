@@ -1,0 +1,36 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 77120,
+      "created_at": "2026-10-28T09:41:12.000",
+      "variant_id": 8812,
+      "sku": "CAM-AZ-M",
+      "variant_name": "Azul / M",
+      "product_id": 3120,
+      "product_name": "Camiseta básica",
+      "product_code": "CAM-001",
+      "warehouse_id": 14,
+      "warehouse_name": "Almacén central",
+      "warehouse_code": "CEN",
+      "location_id": null,
+      "location_code": null,
+      "quantity": -2,
+      "movement_type": "out",
+      "reason": "sale_shipment",
+      "reference_type": "budget",
+      "reference_id": "45120",
+      "reference_number": "FAC-0231",
+      "batch_number": "L-2026-09",
+      "expiry_date": "2027-03-31",
+      "unit_cost_cents": 712,
+      "notes": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "pages": 1
+  }
+}

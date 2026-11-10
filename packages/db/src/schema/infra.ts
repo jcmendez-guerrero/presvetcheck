@@ -1,4 +1,5 @@
 import {
+  bigint,
   bigserial,
   boolean,
   date,
@@ -22,8 +23,10 @@ export const outbox = pgTable(
     payload: jsonb().notNull(),
     /** `MMX-{entidad}-{id}-{n}`; viaja en `notes` del ajuste. */
     idempotencyKey: text().notNull(),
-    status: text().notNull().default('pending'), // pending | sent | failed | needs_reconciliation
+    status: text().notNull().default('pending'), // pending | sent | failed | needs_reconciliation | resolved_manually
     attempts: integer().notNull().default(0),
+    /** Comprobaciones contra el historial de Siweb360 de un envío dudoso (specs/011). */
+    verificaciones: integer().notNull().default(0),
     lastError: text(),
     response: jsonb(),
     entidad: text(),
@@ -37,6 +40,56 @@ export const outbox = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex().on(t.idempotencyKey), index().on(t.status)],
+);
+
+/**
+ * Copia de lectura del historial de movimientos de Siweb360 (specs/011). Solo inserción: un movimiento leído
+ * dos veces no se duplica (`id` es el de Siweb360).
+ */
+export const siwebMovimiento = pgTable(
+  'siweb_movimiento',
+  {
+    id: bigint({ mode: 'number' }).primaryKey(),
+    variantId: bigint({ mode: 'number' }).notNull(),
+    /** CN del mapeo al leerlo; null → no es un medicamento mapeado y no se concilia. */
+    cn: text(),
+    warehouseId: bigint({ mode: 'number' }),
+    quantity: integer().notNull(),
+    reason: text().notNull(),
+    referenceType: text(),
+    referenceId: text(),
+    referenceNumber: text(),
+    batchNumber: text(),
+    expiryDate: date(),
+    notes: text(),
+    createdAtSiweb: timestamp({ withTimezone: true }).notNull(),
+    leidoAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (t) => [index().on(t.createdAtSiweb), index().on(t.cn)],
+);
+
+/**
+ * Vínculo o justificación de un movimiento de Siweb360 (specs/011). Solo inserción: una corrección es una fila
+ * nueva con `sustituyeA`. La vigente es la que nadie sustituye.
+ */
+export const movimientoJustificacion = pgTable(
+  'movimiento_justificacion',
+  {
+    id: pk(),
+    movimientoId: bigint({ mode: 'number' })
+      .notNull()
+      .references(() => siwebMovimiento.id),
+    /** AUTO_RECEPCION | AUTO_VENTA | VINCULO_RECEPCION | VINCULO_DISPENSACION | MOTIVO */
+    tipo: text().notNull(),
+    recepcionLineaId: uuid(),
+    dispensacionId: uuid(),
+    motivo: text(),
+    nota: text(),
+    sustituyeA: uuid(),
+    actor: text().notNull(),
+    at: timestamp({ withTimezone: true }).notNull(),
+  },
+  (t) => [index().on(t.movimientoId)],
 );
 
 /** Auditoría append-only con cadena de hashes (SPEC §9.4). */

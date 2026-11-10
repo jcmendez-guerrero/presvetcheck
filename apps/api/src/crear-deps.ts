@@ -29,6 +29,7 @@ import {
   VariantResolver,
   crearCatalogWriter,
   resolverAlmacen,
+  ultimaPruebaEscritura,
 } from '@mmx/siweb';
 import { politica, type AppDeps } from './deps';
 import {
@@ -104,7 +105,11 @@ export async function crearDeps(
       resolver,
       bandeja: new BandejaSiweb(db, sc, resolver),
       catalogo: crearCatalogWriter({ catalogWrite: config.SIWEB_CATALOG_WRITE }, db, reservas),
-      outbox: new OutboxService(db, sc, { modo: config.SIWEB_STOCK_WRITE_MODE, almacenId }),
+      outbox: new OutboxService(db, sc, {
+        modo: config.SIWEB_STOCK_WRITE_MODE,
+        almacenId,
+        pruebaVigente: () => ultimaPruebaEscritura(db),
+      }),
       stockActual: (id) => sc.stock(id),
       proveedores: async () =>
         (await sc.proveedores()).map((c) => c.nombre_empresa?.trim() ?? '').filter(Boolean),

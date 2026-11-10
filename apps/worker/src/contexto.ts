@@ -6,7 +6,7 @@ import { AcsMailer, AzureBlobStore, ConsoleMailer, MemoryBlobStore, SmtpMailer, 
 import type { AppConfig, RulesBundle } from '@mmx/shared';
 import { loadRules, secretoKeyVault, tokenPostgresEntra } from '@mmx/shared/node';
 import { NotConfiguredSalesMovementsSource,
-  TicketsSalesMovementsSource, OutboxService, SiwebClient, StockService, VariantResolver, resolverAlmacen, type SalesMovementsSource } from '@mmx/siweb';
+  TicketsSalesMovementsSource, OutboxService, SiwebClient, StockService, VariantResolver, resolverAlmacen, ultimaPruebaEscritura, type SalesMovementsSource } from '@mmx/siweb';
 
 export type Log = (mensaje: string, datos?: Record<string, unknown>) => void;
 
@@ -18,7 +18,13 @@ export interface Contexto {
   rules: RulesBundle;
   cipher: ColumnCipher;
   cimavet: { client: CimavetClient; repo: CimavetRepository };
-  siweb: { client: SiwebClient; outbox: OutboxService; resolver: VariantResolver; stock: StockService } | null;
+  siweb: {
+    client: SiwebClient;
+    outbox: OutboxService;
+    resolver: VariantResolver;
+    stock: StockService;
+    almacenId: () => Promise<number>;
+  } | null;
   ventas: SalesMovementsSource;
   blob: BlobStore;
   mailer: Mailer;
@@ -43,9 +49,15 @@ export async function crearContexto(config: AppConfig, log: Log = logJson): Prom
     const almacenId = async () => (almacen ??= (await resolverAlmacen(client, { nombre: config.SIWEB_WAREHOUSE_NAME, id: config.SIWEB_WAREHOUSE_ID })).id);
     siweb = {
       client,
-      outbox: new OutboxService(handle.db, client, { modo: config.SIWEB_STOCK_WRITE_MODE, almacenId }, { log: (m, d) => log(m, d) }),
+      outbox: new OutboxService(
+        handle.db,
+        client,
+        { modo: config.SIWEB_STOCK_WRITE_MODE, almacenId, pruebaVigente: () => ultimaPruebaEscritura(handle.db) },
+        { log: (m, d) => log(m, d) },
+      ),
       resolver: new VariantResolver(handle.db, client, config.SIWEB_SKU_CN_REGEX),
       stock: new StockService(client, almacenId),
+      almacenId,
     };
   }
   let mailer: Mailer = new ConsoleMailer((m) => log(m));

@@ -183,6 +183,15 @@ function AvisoDuplicados({ duplicados }: { duplicados: Duplicado[] }) {
   );
 }
 
+/** Estado del envío de la recepción a Siweb360, en palabras del personal (specs/011). */
+const TEXTO_SYNC: Record<string, string> = {
+  ESCRITURA_DESACTIVADA: 'no se envía (da de alta el stock a mano en Siweb360)',
+  ENCOLADA: 'pendiente de envío',
+  PENDIENTE_ALTA_SIWEB: 'falta dar de alta algún producto',
+  SINCRONIZADA: 'enviado',
+  ERROR: 'error al enviar (revisa Pendientes)',
+  SIN_MEDICAMENTOS: 'nada que enviar',
+};
 export function Recepciones() {
   const nav = useNavigate();
   const { config } = useAuth();
@@ -1161,6 +1170,17 @@ function FilaLinea({
         {x.estado === 'PENDIENTE_ALTA_SIWEB' && (
           <span className="block text-xs text-sustituir">Pendiente de alta en Siweb360</span>
         )}
+        {x.estado === 'ENCOLADA' && (
+          <span className="block text-xs text-texto-muted">Pendiente de envío a Siweb360</span>
+        )}
+        {x.estado === 'SINCRONIZADA' && (
+          <span className="block text-xs text-dispensar">Enviado a Siweb360</span>
+        )}
+        {x.estado === 'ERROR' && (
+          <span className="block text-xs text-noconforme">
+            No se ha podido enviar a Siweb360: revísalo en Pendientes, «Envíos a Siweb360 en revisión»
+          </span>
+        )}
         {msg && <span className="block text-xs text-noconforme">{msg}</span>}
       </td>
       <td className="whitespace-nowrap px-1">
@@ -1358,7 +1378,11 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
             <dt className="text-slate-600">Estado</dt>
             <dd className="font-semibold">
               {r.estado}
-              {r.syncEstado && <span className="block text-xs font-normal">Siweb360: {r.syncEstado}</span>}
+              {r.syncEstado && (
+                <span className="block text-xs font-normal">
+                  Siweb360: {TEXTO_SYNC[r.syncEstado] ?? r.syncEstado}
+                </span>
+              )}
             </dd>
           </div>
         </dl>

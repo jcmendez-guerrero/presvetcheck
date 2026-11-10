@@ -11,5 +11,6 @@ export * from './i18n';
 export * from './concurrencia';
 export * from './schemas/asistente';
 export * from './schemas/conciliacion';
+export * from './schemas/stock-siweb';
 export * from './ayuda/preguntas-ejemplo';
 export * from './ayuda/secciones';

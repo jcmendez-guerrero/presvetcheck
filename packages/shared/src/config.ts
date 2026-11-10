@@ -190,6 +190,10 @@ export const envSchema = z
         message: 'ASSISTANT=fake no se admite en producción',
       });
     }
+    // Sin fecha de corte, el personal seguiría dando entradas a mano y el stock se duplicaría (specs/011).
+    if (env.SIWEB_STOCK_WRITE_MODE === 'entries_only' && env.NODE_ENV === 'production') {
+      req('ENTRY_CUTOVER_DATE', 'para escribir stock en Siweb360 (SIWEB_STOCK_WRITE_MODE=entries_only)');
+    }
     if (env.MAILER === 'acs') {
       req('ACS_ENDPOINT', 'con MAILER=acs');
       req('ACS_SENDER', 'con MAILER=acs');

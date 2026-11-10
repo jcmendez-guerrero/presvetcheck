@@ -1,8 +1,15 @@
 import { z } from 'zod';
-import { and, desc, eq } from 'drizzle-orm';
-import { appendAudit, pedidoPendiente } from '@mmx/db';
-import { DomainError, ConsultaStockRetrospectivoBody } from '@mmx/shared';
-import type { AppDeps } from '../deps';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { appendAudit, outbox, pedidoPendiente, recepcionLinea } from '@mmx/db';
+import {
+  CerrarOutboxBody,
+  ConsultaStockRetrospectivoBody,
+  DomainError,
+  JustificarMovimientoBody,
+  MovimientosSiwebQuery,
+} from '@mmx/shared';
+import { OPERACION_ENTRADA, justificarMovimiento, listarMovimientos } from '@mmx/siweb';
+import { ahoraDe, type AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import {
   AnularDto,
@@ -343,5 +350,102 @@ export async function rutasOperativa(app: App, d: AppDeps) {
       );
       return { id: p.id, estado: p.estado };
     },
+  );
+
+  // ── Envíos a Siweb360 en revisión (specs/011): cualquier usuario puede cerrarlos ────────────
+  const operativaYAdmin = requiereRol(...ROLES.operativa, 'admin');
+  app.get(
+    '/api/outbox/revision',
+    {
+      preHandler: operativaYAdmin,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Entradas de stock en revisión o fallidas, con la evidencia',
+      },
+    },
+    async () => {
+      const filas = await d.db
+        .select({ o: outbox, l: recepcionLinea })
+        .from(outbox)
+        .leftJoin(recepcionLinea, eq(recepcionLinea.id, outbox.entidadId))
+        .where(
+          and(
+            eq(outbox.operation, OPERACION_ENTRADA),
+            inArray(outbox.status, ['needs_reconciliation', 'failed']),
+          ),
+        )
+        .orderBy(asc(outbox.createdAt));
+      return Promise.all(
+        filas.map(async ({ o, l }) => ({
+          id: o.id,
+          estado: o.status,
+          evidencia: o.lastError,
+          proximaComprobacion: o.nextAttemptAt,
+          creado: o.createdAt,
+          recepcionId: l?.recepcionId ?? null,
+          cn: l?.cn ?? null,
+          nombre: l?.nombreFarmaco ?? null,
+          lote: l?.lote ?? null,
+          unidades: l?.unidades ?? null,
+          stockActual:
+            d.siweb && o.status === 'needs_reconciliation'
+              ? await d.siweb.stockActual((o.payload as { variant_id: number }).variant_id).catch(() => null)
+              : null,
+        })),
+      );
+    },
+  );
+  app.post(
+    '/api/outbox/:id/cerrar',
+    {
+      preHandler: operativaYAdmin,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Cierra un envío en revisión: «Revisado» o «Resuelto a mano en Siweb360»',
+        params: IdParam,
+        body: CerrarOutboxBody,
+      },
+    },
+    async (req) => {
+      if (!d.siweb) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado');
+      await d.siweb.outbox.cerrar(req.params.id, req.body.accion, ctx(req).usuario.id, req.body.nota);
+      return { ok: true };
+    },
+  );
+
+  // ── Movimientos de Siweb360 sin justificar (specs/011, US3) ─────────────────────────────
+  app.get(
+    '/api/movimientos-siweb',
+    {
+      preHandler: operativaYAdmin,
+      schema: {
+        tags: ['recepciones'],
+        summary:
+          'Movimientos de medicamentos de Siweb360 desde la fecha de corte, sin justificar o justificados',
+        querystring: MovimientosSiwebQuery,
+      },
+    },
+    async (req) => {
+      const corte = d.config.ENTRY_CUTOVER_DATE;
+      if (!corte) return { corte: null, movimientos: [] };
+      return {
+        corte,
+        movimientos: await listarMovimientos(d.db, { corte, ...req.query }),
+      };
+    },
+  );
+  app.post(
+    '/api/movimientos-siweb/:id/justificar',
+    {
+      preHandler: operativaYAdmin,
+      schema: {
+        tags: ['recepciones'],
+        summary:
+          'Vincula o justifica un movimiento de Siweb360 (sustituye la justificación vigente, nunca la edita)',
+        params: z.object({ id: z.coerce.number().int().positive() }),
+        body: JustificarMovimientoBody,
+      },
+    },
+    async (req) => justificarMovimiento(d.db, req.params.id, req.body, ctx(req).usuario.id, ahoraDe(d)),
   );
 }

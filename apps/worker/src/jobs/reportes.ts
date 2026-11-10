@@ -4,6 +4,7 @@ import { costeEstimado, estadoConsumo } from '@mmx/assistant';
 import { mesMadrid } from '@mmx/shared';
 import { hoy } from '@mmx/domain';
 import { empaquetarReporte, generarReporteSemanal, semanaAnterior, type LoteProximo } from '@mmx/reports';
+import { movimientosSinJustificar } from '@mmx/siweb';
 import type { Contexto } from '../contexto';
 
 /**
@@ -22,6 +23,9 @@ export async function weeklyReports(ctx: Contexto, args: Record<string, string>)
       cipher: ctx.cipher,
       lotesProximos: ctx.siweb ? (hasta) => lotesProximos(ctx, hasta) : null,
       producto_no_valido: ctx.rules.recetaCampos.producto_no_valido,
+      movimientosSinJustificar: ctx.config.ENTRY_CUTOVER_DATE
+        ? () => movimientosSinJustificar(ctx.db, { corte: ctx.config.ENTRY_CUTOVER_DATE as string })
+        : null,
     },
     periodo,
     hoyIso,

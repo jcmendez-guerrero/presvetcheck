@@ -9,7 +9,7 @@ import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { loadConfigFromProcess } from '@mmx/shared/node';
 import { SiwebClient } from '@mmx/siweb';
-import { ejecutarSpike } from './spike-siweb';
+import { ejecutarSpike } from '@mmx/siweb';
 
 const args = process.argv.slice(2);
 const sku = args[args.indexOf('--sku') + 1] ?? '';

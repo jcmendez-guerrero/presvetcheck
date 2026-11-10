@@ -179,8 +179,17 @@ export const StockMovementSchema = z.looseObject({
   quantity: z.number(),
   reason: z.string(),
   reference_type: z.string().nullish(),
-  reference_id: z.number().nullish(),
+  // La especificación 1.3.0 lo devuelve como cadena ("45120"); se admite también número.
+  reference_id: z
+    .union([z.number(), z.string()])
+    .nullish()
+    .transform((v) => (v === null || v === undefined || v === '' ? null : String(v))),
+  reference_number: z.string().nullish(),
+  movement_type: z.string().nullish(),
+  batch_number: z.string().nullish(),
+  expiry_date: z.string().nullish(),
   notes: z.string().nullish(),
+  /** Hora local de la empresa, sin zona horaria (p. ej. "2026-10-28T09:41:12.000"). */
   created_at: z.string().nullish(),
 });
 export type StockMovement = z.infer<typeof StockMovementSchema>;
