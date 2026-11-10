@@ -4,6 +4,8 @@ test.describe('Navegación por Teclado y Foco Visible (AC 2.3)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto('/');
+    // La cabecera y el menú solo aparecen con la sesión activa.
+    await expect(page.getByRole('heading', { name: /Hola, Empleada/ })).toBeVisible();
   });
 
   test('el anillo :focus-visible es visible en elementos interactivos', async ({ page }) => {
