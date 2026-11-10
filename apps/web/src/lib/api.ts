@@ -72,11 +72,17 @@ export function configurarNoAutorizado(f: NoAutorizado | null) {
 // La API nunca redirige: una redirección es la plataforma mandando a Microsoft (sesión perdida).
 const rechazada = (r: Response) => r.status === 401 || r.type === 'opaqueredirect';
 
-export async function api<T = unknown>(metodo: string, url: string, cuerpo?: unknown): Promise<T> {
+export async function api<T = unknown>(
+  metodo: string,
+  url: string,
+  cuerpo?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const esForm = cuerpo instanceof FormData;
   const pedir = async () =>
     fetch(url, {
       method: metodo,
+      ...(signal ? { signal } : {}),
       headers: {
         ...(await cabeceras()),
         // Así la autenticación de la plataforma responde 401 en lugar de redirigir a Microsoft.
@@ -115,6 +121,6 @@ export async function descargar(url: string, nombre: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }
 
-export const get = <T>(u: string) => api<T>('GET', u);
+export const get = <T>(u: string, signal?: AbortSignal) => api<T>('GET', u, undefined, signal);
 export const post = <T>(u: string, b?: unknown) => api<T>('POST', u, b ?? {});
 export const put = <T>(u: string, b: unknown) => api<T>('PUT', u, b);
