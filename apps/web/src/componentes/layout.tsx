@@ -3,6 +3,8 @@ import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useAuth } from '../lib/auth';
 import { ProveedorMovil } from '../lib/movil';
 import { AvisosMovil } from './movil-pc';
+import { PaginaAcceso } from './pagina-acceso';
+import { SesionCaducada } from './sesion-caducada';
 import { ProveedorAsistente } from './asistente';
 import { Sidebar } from './sidebar';
 import { Topbar, type ModoTema } from './topbar';
@@ -10,7 +12,7 @@ import { Topbar, type ModoTema } from './topbar';
 export type { ModoTema };
 
 export function Layout() {
-  const { config, usuario } = useAuth();
+  const { config, estado } = useAuth();
   const anchoCompleto = useRouterState({
     select: (s) => s.matches.some((m) => m.staticData?.anchoCompleto),
   });
@@ -49,6 +51,9 @@ export function Layout() {
     return () => mediaQuery.removeEventListener('change', cambioSistema);
   }, [tema]);
 
+  // Sin sesión activa no se muestra nada de la aplicación (ni cabecera ni menú).
+  if (estado !== 'activa' && estado !== 'caducada') return <PaginaAcceso estado={estado} />;
+
   return (
     <ProveedorMovil>
       <div className="min-h-screen flex bg-fondo text-texto dark:bg-fondo dark:text-texto transition-colors duration-150 w-full max-w-full overflow-x-clip">
@@ -71,16 +76,11 @@ export function Layout() {
           <main
             className={`flex-1 px-4 py-6 ${anchoCompleto ? 'w-full max-w-none xl:px-6' : 'mx-auto w-full max-w-6xl'}`}
           >
-            {usuario ? (
-              <ProveedorAsistente>
-                <Outlet />
-              </ProveedorAsistente>
-            ) : (
-              <p className="animate-pulse text-slate-600 dark:text-slate-300">
-                {config ? 'Iniciando sesión…' : 'Conectando con el servidor…'}
-              </p>
-            )}
+            <ProveedorAsistente>
+              <Outlet />
+            </ProveedorAsistente>
           </main>
+          {estado === 'caducada' && <SesionCaducada />}
         </div>
 
         {/* Barra lateral por 4 secciones + drawer móvil (posicionada a la izquierda en pantalla con order-1) */}

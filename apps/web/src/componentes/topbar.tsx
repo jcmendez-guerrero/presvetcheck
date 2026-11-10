@@ -14,7 +14,7 @@ interface PropsTopbar {
 }
 
 export function Topbar({ alAbrirMenuMovil, tema, alCambiarTema }: PropsTopbar) {
-  const { config, usuario, cambiarUsuarioDev, mfaDev, cambiarMfaDev, tiene } = useAuth();
+  const { config, usuario, cambiarUsuarioDev, mfaDev, cambiarMfaDev, tiene, cerrarSesion } = useAuth();
   const movil = useMovil();
   const [comandoAbierto, setComandoAbierto] = useState(false);
 
@@ -32,11 +32,7 @@ export function Topbar({ alAbrirMenuMovil, tema, alCambiarTema }: PropsTopbar) {
 
   const salir = async () => {
     await movil?.cerrar().catch(() => {});
-    if (config?.authMode === 'entra') {
-      window.location.href = `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent('/')}`;
-    } else {
-      window.location.reload();
-    }
+    cerrarSesion();
   };
 
   return (
