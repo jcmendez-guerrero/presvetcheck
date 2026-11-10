@@ -151,3 +151,10 @@ Any time:            T015 (apps/api) ‖ the US1/US2 work (packages/reports)
 2. Add US2 (T010–T013): psicótropos book.
 3. Add US3 (T014–T016): CI guard and better error logging.
 4. Polish (T017–T020) and deploy.
+
+---
+
+## Phase 7: Convergence
+
+- [x] T021 Add to `packages/reports/test/registros.int.test.ts` a case for the cancellation of a manual-entry psychotropic sale (`fecha_original` in the past, cancellation `fecha_venta` on another day): `reg.psicotropos` must list the cancellation on its own day, not on the original date, per spec edge case "Anulación de una salida de alta manual" (partial)
+- [x] T022 Add to `packages/reports/test/registros.int.test.ts` a case with a manual-entry sale (`fecha_original` = day D) and a normal sale on day D at a different hour, asserting `reg.salidas(D, D, …)` returns both in `fechaRegistro` order (12:00 UTC for the manual one), per spec edge case "alta manual y salida normal el mismo día" (partial) — Hecho: el orden real es «alta manual primero» (solo tiene día; el orden final es por fecha mostrada), no 12:00 UTC.

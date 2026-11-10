@@ -58,6 +58,19 @@ beforeAll(async () => {
   const psi = await salida({ lote: 'PSI', venta: '2026-11-03T10:00:00Z', nregistro: 'PSI1' });
   await salida({ lote: 'PSI-ANULA', venta: '2026-11-12T10:00:00Z', nregistro: 'PSI1', anula: psi });
   await salida({ lote: 'PSI-MANUAL', venta: '2026-11-04T10:00:00Z', original: '2026-10-20', nregistro: 'PSI1' });
+  // Alta manual de psicótropo anulada otro día: la anulación cuenta el día en que se anula, no la fecha original.
+  const psiManual = await salida({
+    lote: 'PSI-MANUAL2',
+    venta: '2026-11-07T10:00:00Z',
+    original: '2026-10-21',
+    nregistro: 'PSI1',
+  });
+  await salida({ lote: 'PSI-MANUAL2-ANULA', venta: '2026-11-13T10:00:00Z', nregistro: 'PSI1', anula: psiManual });
+
+  // Mismo día (20/11): una salida normal antes y otra después de las 12:00 UTC con la de alta manual entre ambas.
+  await salida({ lote: 'ORDEN-1-NORMAL', venta: '2026-11-20T08:00:00Z' });
+  await salida({ lote: 'ORDEN-2-MANUAL', venta: '2026-11-25T10:00:00Z', original: '2026-11-20' });
+  await salida({ lote: 'ORDEN-3-NORMAL', venta: '2026-11-20T15:00:00Z' });
 });
 afterAll(async () => {
   await h?.close();
@@ -78,6 +91,11 @@ describe('RegistrosService.salidas en PostgreSQL 16', () => {
     const res = await reg.salidas(desde, hasta, OPCS);
     expect(sinPsi(lotes(res))).toEqual([...esperado].sort());
   });
+
+  it('el mismo día aparecen todas, ordenadas por fecha de registro (la de alta manual solo tiene día: va primero)', async () => {
+    const res = await reg.salidas('2026-11-20', '2026-11-20', OPCS);
+    expect(res.map((s) => s.lote)).toEqual(['ORDEN-2-MANUAL', 'ORDEN-1-NORMAL', 'ORDEN-3-NORMAL']);
+  });
 });
 
 describe('RegistrosService.psicotropos en PostgreSQL 16', () => {
@@ -91,5 +109,10 @@ describe('RegistrosService.psicotropos en PostgreSQL 16', () => {
 
   it('la anulación cuenta el día en que se anula', async () => {
     expect(await tipos('2026-11-12', '2026-11-12')).toEqual(['ANULACIÓN SALIDA:PSI-ANULA']);
+  });
+
+  it('la anulación de una alta manual cuenta el día en que se anula, no la fecha original', async () => {
+    expect(await tipos('2026-11-13', '2026-11-13')).toEqual(['ANULACIÓN SALIDA:PSI-MANUAL2-ANULA']);
+    expect(await tipos('2026-10-21', '2026-10-21')).toEqual(['SALIDA:PSI-MANUAL2']);
   });
 });
