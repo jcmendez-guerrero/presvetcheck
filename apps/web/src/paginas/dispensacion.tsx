@@ -330,9 +330,19 @@ export function Dispensacion() {
       <Pagina titulo="Dispensación registrada">
         <ConReceta recetaId={id}>
           <RecordatorioTpv items={res.recordatorioTpv} />
-          {res.avisos.includes('LOTE_NO_RECIBIDO') && (
+          {manual && res.avisos.length > 0 && (
             <Mensaje tipo="aviso">
-              {textoDefecto('LOTE_NO_RECIBIDO').titulo}. {textoDefecto('LOTE_NO_RECIBIDO').accion}.
+              <span data-testid="avisos-alta-manual">
+                Registrada con avisos. Queda marcada para revisar en el reporte semanal:
+              </span>
+              <ul className="mt-1 list-disc pl-5">
+                {res.avisos.map((a) => (
+                  <li key={a}>
+                    {textoDefecto(a as CodigoIncidencia).titulo}. {textoDefecto(a as CodigoIncidencia).accion}
+                    .
+                  </li>
+                ))}
+              </ul>
             </Mensaje>
           )}
           {res.apartarReceta && <Mensaje tipo="aviso">{res.apartarReceta.motivo}</Mensaje>}
@@ -636,7 +646,7 @@ export function Dispensacion() {
               disabled={
                 !envases.length ||
                 enviando ||
-                (evd.psicotropo && !dniRetira.trim()) ||
+                (evd.psicotropo && !manual && !dniRetira.trim()) ||
                 (modoRetrospectivo && !fechaOriginal)
               }
               onClick={() => void enviar(forzado)}

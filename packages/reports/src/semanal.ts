@@ -302,7 +302,12 @@ export async function generarReporteSemanal(
       createdAt: receta.createdAt,
       motivo: receta.motivoAlta,
       custodia: receta.custodiaPapel,
-      entregas: sql<number>`(select count(*)::int from ${dispensacion} where ${dispensacion.recetaId} = ${receta.id} and ${dispensacion.anulaDispensacionId} is null)`,
+      // Nombres cualificados a mano: dentro de un select de una sola tabla, Drizzle no cualifica las columnas.
+      entregas: sql<number>`(select count(*)::int from dispensacion d where d.receta_id = receta.id and d.anula_dispensacion_id is null)`,
+      // Defectos que en el alta manual quedaron como aviso: lo que hay que revisar con el papel.
+      avisos: sql<
+        string | null
+      >`(select string_agg(distinct a, ', ' order by a) from dispensacion d, jsonb_array_elements_text(coalesce(d.avisos, '[]'::jsonb)) a where d.receta_id = receta.id and d.anula_dispensacion_id is null)`,
     })
     .from(receta)
     .where(and(eq(receta.origen, 'manual'), gte(receta.createdAt, ini), lt(receta.createdAt, fin)))
@@ -317,6 +322,7 @@ export async function generarReporteSemanal(
       'MOTIVO',
       'DÓNDE ESTÁ EL PAPEL',
       'ENTREGAS',
+      'AVISOS PARA REVISAR',
     ],
     filas: manuales.map((m) => [
       m.id,
@@ -326,6 +332,7 @@ export async function generarReporteSemanal(
       m.motivo ?? '',
       m.custodia ?? '',
       m.entregas,
+      m.avisos ?? '',
     ]),
   });
   return tablas;

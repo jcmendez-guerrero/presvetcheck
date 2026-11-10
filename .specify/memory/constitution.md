@@ -1,17 +1,15 @@
 <!--
 Sync Impact Report
-Version: 1.0.0 → 1.0.1
-Change type: PATCH (translation/wording only — no principle added, removed, or redefined;
-  no rule changed in substance)
-Modified principles: none renamed or redefined; all 5 principles translated from Spanish to
-  English (content/rules unchanged, including Principle V's requirement that UI, documentation,
-  and development artifacts remain in Spanish)
+Version: 1.0.1 → 1.1.0
+Change type: MINOR (narrow, explicit exception added to Principle III; the rule is unchanged for every
+  dispensing decision)
+Modified principles: III. Security and data protection — a `BLOQUEANTE_DURO` still can never be forced or
+  bypassed when dispensing; recording a dispensing that already happened outside the app (manual prescription
+  entry, specs/011, responsible veterinarian only) records every defect as a warning flagged for review instead,
+  except a duplicate prescription (`RECETA_YA_DISPENSADA`), which still blocks.
 Added sections: none
 Removed sections: none
-Templates dependent on this constitution:
-  - .specify/templates/plan-template.md — pending manual review (not modified by this command)
-  - .specify/templates/spec-template.md — pending manual review (not modified by this command)
-  - .specify/templates/tasks-template.md — pending manual review (not modified by this command)
+Dependent documents: AGENTS.md updated; specs/011-manual-prescription-entry/spec.md updated.
 Follow-up TODOs:
   - TODO(RATIFICATION_DATE): still carried over from v1.0.0 — 2026-10-15 was used as the
     ratification date because no earlier documented adoption date exists in the repository.
@@ -58,7 +56,9 @@ us trust a change without re-verifying the whole flow by hand.
 Personal data about the pet owner (name, phone, ID number, address) is never logged, surfaced in
 error messages, or sent to telemetry, under any circumstance. A defect classified as
 `BLOQUEANTE_DURO` (hard blocker) can NEVER be forced/bypassed, and that rule is enforced in the
-API — not only in the UI. No `UPDATE`/`DELETE` is performed on finalized records
+API — not only in the UI. The only exception is recording a dispensing that already happened outside the app
+(manual prescription entry, responsible veterinarian only): nothing is dispensed, so every defect is recorded
+as a warning and flagged for review, except a duplicate prescription, which still blocks. No `UPDATE`/`DELETE` is performed on finalized records
 (`dispensacion`, finalized `recepcion_linea`, `audit_event`); any correction is expressed as a
 counter-movement, preserving full traceability. Legal/regulatory rules are never embedded in AI
 prompts or UI components: they live in `packages/domain` and in `config/rules/*.yaml`, versioned
@@ -148,4 +148,4 @@ Every PR and code review MUST verify compliance with the principles above; any a
 (a new dependency, an exception to a rule in this constitution) must be explicitly justified in
 the PR description.
 
-**Version**: 1.0.1 | **Ratified**: 2026-10-15 | **Last Amended**: 2026-10-15
+**Version**: 1.1.0 | **Ratified**: 2026-10-15 | **Last Amended**: 2026-11-10

@@ -18,8 +18,8 @@ import { ACTIVA, altaManual, api, datosManuales, entorno, multipart } from './en
 
 const SIN_VENTA = 'SIN_MOVIMIENTO_STOCK_RETROSPECTIVO';
 
-/** Entrega de 1 envase de CLAVUBAY (CN 570016) de la línea 1. Sin Siweb360 en los tests no hay venta del día. */
-const entrega = (recetaId: string, fechaOriginal: string, forzar: string[] = [SIN_VENTA]) => ({
+/** Entrega de CLAVUBAY (CN 570016) de la línea 1. En alta manual no se fuerza nada: los defectos son avisos. */
+const entrega = (recetaId: string, fechaOriginal: string, forzar: string[] = [], unidades = 1) => ({
   conReceta: true,
   recetaId,
   lineaOrden: 1,
@@ -28,7 +28,7 @@ const entrega = (recetaId: string, fechaOriginal: string, forzar: string[] = [SI
     {
       lote: 'LOTE-MANUAL',
       caducidad: '2026-10-10',
-      unidades: 1,
+      unidades,
       metodoCaptura: 'manual',
       cnEscaneado: '570016',
     },
@@ -64,22 +64,13 @@ describe('Dispensación de una receta de alta manual en su fecha original', () =
   it('evalúa la validez en la fecha de entrega, no hoy (antimicrobiano, 5 días)', async () => {
     // Emitida el 01/10. Hoy (reloj de pruebas) es el 14/10: estaría caducada; el 04/10 no lo estaba.
     const { app, h, id } = await recetaManualConfirmada('RM-VALIDA');
-    const sinForzar = await api(
-      app,
-      'dev-veterinaria',
-      'POST',
-      '/api/dispensaciones',
-      entrega(id, '2026-10-04', []),
-    );
-    expect(sinForzar.json.error).toMatchObject({
-      code: 'DISPENSACION_BLOQUEADA',
-      detalles: { forzables: [SIN_VENTA] },
-    });
-
+    // Sin venta del día en Siweb360 (no hay Siweb360 en los tests): no se consulta stock ni ventas, no bloquea.
     const ok = await api(app, 'dev-veterinaria', 'POST', '/api/dispensaciones', entrega(id, '2026-10-04'));
     expect(ok.status).toBe(201);
     const [d] = await h.db.select().from(dispensacion).where(eq(dispensacion.recetaId, id));
     expect(d).toMatchObject({ modo: 'retrospectivo', fechaOriginal: '2026-10-04', lote: 'LOTE-MANUAL' });
+    expect(d).toMatchObject({ forzado: false, defectosForzados: [] });
+    expect(d!.avisos ?? []).not.toContain(SIN_VENTA);
     const [r] = await h.db.select().from(receta).where(eq(receta.id, id));
     const dia = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(
       r!.primeraDispensacionAt!,
@@ -91,21 +82,30 @@ describe('Dispensación de una receta de alta manual en su fecha original', () =
     expect(await h.db.select().from(outbox)).toHaveLength(0);
   });
 
-  it('fuera de plazo en la fecha de entrega solo se registra forzando con motivo', async () => {
-    const { app, id } = await recetaManualConfirmada('RM-CADUC');
+  it('fuera de plazo en la fecha de entrega se registra sin forzar, con el aviso para revisar', async () => {
+    const { app, h, id } = await recetaManualConfirmada('RM-CADUC');
+    const ev = await api(app, 'dev-veterinaria', 'POST', `/api/recetas/${id}/evaluar`, {
+      fechaReferencia: '2026-10-08',
+    });
+    expect(ev.json.lineas[0].resultado.decision).toBe('DISPENSAR');
     const r = await api(app, 'dev-veterinaria', 'POST', '/api/dispensaciones', entrega(id, '2026-10-08'));
-    // Forzar solo la falta de venta no basta: la caducidad en esa fecha también hay que asumirla.
-    expect(r.status).toBe(422);
-    expect(r.json.error.code).toBe('FORZADO_CODIGOS_NO_COINCIDEN');
-    expect(r.json.error.detalles.esperados).toContain('RECETA_CADUCADA');
-    const forzada = await api(
+    expect(r.status).toBe(201);
+    expect(r.json.avisos).toContain('RECETA_CADUCADA');
+    const [d] = await h.db.select().from(dispensacion).where(eq(dispensacion.recetaId, id));
+    expect(d).toMatchObject({ forzado: false });
+  });
+
+  it('un bloqueo duro (más envases que los prescritos) queda como aviso y se registra', async () => {
+    const { app, id } = await recetaManualConfirmada('RM-DURO');
+    const r = await api(
       app,
       'dev-veterinaria',
       'POST',
       '/api/dispensaciones',
-      entrega(id, '2026-10-08', ['RECETA_CADUCADA', SIN_VENTA]),
+      entrega(id, '2026-10-04', [], 2),
     );
-    expect(forzada.status).toBe(201);
+    expect(r.status).toBe(201);
+    expect(r.json.avisos).toContain('UNIDADES_SUPERAN_PRESCRITAS');
   });
 
   it.each([
@@ -395,21 +395,21 @@ describe('Lote entregado que no consta en ninguna recepción', () => {
 });
 
 describe('Fechas de entrega en Pendientes y en el reporte semanal (decisión T043)', () => {
-  it('las hojas de dispensaciones forzadas muestran la fecha de entrega (filas de la semana en que se registró)', async () => {
+  it('la hoja de altas manuales lista los avisos para revisar (filas de la semana en que se dio de alta)', async () => {
     const { app, h, deps, id } = await recetaManualConfirmada('RM-SEM');
-    // Forzada (sin venta en Siweb360 ese día): entregada el 06/10, registrada el 14/10.
+    // Entregada el 08/10 (receta ya caducada ese día), registrada el 14/10.
     expect(
-      (await api(app, 'dev-veterinaria', 'POST', '/api/dispensaciones', entrega(id, '2026-10-06'))).status,
+      (await api(app, 'dev-veterinaria', 'POST', '/api/dispensaciones', entrega(id, '2026-10-08'))).status,
     ).toBe(201);
     const hojas = await generarReporteSemanal(
       { db: h.db, cipher: deps.cipher, lotesProximos: null, producto_no_valido: [] },
       { desde: '2026-10-12', hasta: '2026-10-18' },
       '2026-10-19',
     );
-    const forzadas = hojas.find((t) => t.nombre === '4b Dispensaciones forzadas')!;
-    const [d] = await h.db.select().from(dispensacion).where(eq(dispensacion.recetaId, id));
-    const fila = forzadas.filas.find((f) => f[0] === d!.id);
-    expect(fila?.[forzadas.columnas.indexOf('FECHA')]).toBe('06/10/2026');
+    const manuales = hojas.find((t) => t.nombre === '8 Altas manuales')!;
+    const fila = manuales.filas.find((f) => f[0] === id);
+    expect(fila?.[manuales.columnas.indexOf('ENTREGAS')]).toBe(1);
+    expect(String(fila?.[manuales.columnas.indexOf('AVISOS PARA REVISAR')])).toContain('RECETA_CADUCADA');
   });
 
   it('«Pendientes de conciliar» muestra el día de la entrega, no el del registro', async () => {

@@ -213,3 +213,11 @@ alone can be demoed but does not record the dispensing.
 
 - [X] T050 In `pendientes()` (apps/api/src/servicios/conciliacion.ts, ~L109), return the handover date as `fecha` (`fechaOriginal` when set, else the Madrid day of `fechaVenta`) while still selecting and ordering by `fechaVenta`, so a manual sale waiting for its till ticket shows the day it was handed over; add an assertion in apps/api/test/dispensacion-alta-manual.test.ts per US2/AC4, FR-016, decision T043 (partial)
 - [X] T051 In the weekly report sheets «4b Dispensaciones forzadas» and «4c Producto no valido forzado» (packages/reports/src/semanal.ts, ~L165), show `fechaEs(d.fechaOriginal ?? d.fechaVenta)` in the FECHA column, keeping rows selected by the week they were recorded; extend apps/worker/test/jobs.test.ts or add a reports test with a forced past-dated sale per FR-022, decision T043 (partial)
+
+## Phase 10: Cambio de alcance — avisos en lugar de bloqueos (2026-11-10)
+
+- [X] T052 Add `comoAvisosAltaManual` to packages/domain/src/severidad.ts and apply it in `evaluacionDocumental` (apps/api/src/servicios/recetas.ts) so every defect of a manual receta is an AVISO except `RECETA_YA_DISPENSADA` per FR-015, constitución III 1.1.0
+- [X] T053 In `dispensarConReceta` (apps/api/src/servicios/dispensaciones.ts), skip the Siweb360 same-day sales check for manual recetas, turn scan defects into avisos and record a missing DNI/NIE as `DNI_RETIRA_NO_INDICADO` per FR-015
+- [X] T054 Add the «AVISOS PARA REVISAR» column to the weekly sheet «8 Altas manuales» and fix its subqueries (ENTREGAS was always 0) in packages/reports/src/semanal.ts per FR-015, SC-006
+- [X] T055 Show every warning after saving a manual dispensing, and do not require the DNI field, in apps/web/src/paginas/dispensacion.tsx per FR-015
+- [X] T056 Update the tests in apps/api/test/dispensacion-alta-manual.test.ts, the help text, AGENTS.md and the constitution (1.1.0)
