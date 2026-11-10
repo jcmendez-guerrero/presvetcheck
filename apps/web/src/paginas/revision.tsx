@@ -7,12 +7,14 @@ import { ApiError, get, post, put } from '../lib/api';
 import { CN, type Motivo } from '../lib/textos';
 import { ListaMotivos } from '../componentes/estado';
 import { Pagina } from '../componentes/layout';
+import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
 import { RelacionarSiweb } from '../componentes/relacionar-siweb';
 import { TextoReconocido, VisorReceta } from '../componentes/visor-receta';
 
 export { TextoReconocido };
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
 import { AYUDA } from '../lib/ayudas';
+import { useBusquedaMedicamentos } from '../lib/busqueda';
 import { dniNieValido } from '@mmx/domain';
 
 type Linea = NonNullable<RecetaConfirmadaInput['lineas']>[number];
@@ -837,14 +839,7 @@ function LineaForm({
   };
   const [busqueda, setBusqueda] = useState(l.medicamentoTexto ?? l.principioActivoTexto ?? '');
   const [buscar, setBuscar] = useState(!l.cn);
-  const cand = useQuery({
-    queryKey: ['buscar', busqueda, especie],
-    queryFn: () =>
-      get<Candidato[]>(
-        `/api/medicamentos/buscar?q=${encodeURIComponent(busqueda)}${especie ? `&especie=${especie}` : ''}`,
-      ),
-    enabled: buscar && busqueda.trim().length >= 3,
-  });
+  const cand = useBusquedaMedicamentos<Candidato>(busqueda, { especie, activo: buscar });
   const k = (c: string) => dud(`lineas.${i}.${c}`);
   const txt = (s: string) => (s.trim() === '' ? null : s);
   // Nombre y búsqueda en CIMAVet van juntos mientras no se separen: se escribe una sola vez (en cualquiera de
@@ -929,39 +924,41 @@ function LineaForm({
               Elige el medicamento y la presentación exactos. Nunca se elige solo.
             </p>
             <EstadoBusqueda
+              estado={cand.estado}
               texto={busqueda}
-              buscando={cand.isFetching}
-              error={cand.isError}
-              resultados={cand.data?.length ?? null}
+              resultados={cand.resultados.length}
+              onReintentar={cand.reintentar}
             />
-            <ul className="mt-2 flex flex-col gap-2">
-              {cand.data?.map((c, j) => (
-                <li
-                  key={c.cn}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-lg bg-superficie p-2.5 ring-1 text-texto ${j === 0 ? 'ring-marca dark:ring-acento' : 'ring-slate-200 dark:ring-white/10'}`}
-                >
-                  <span className="text-sm">
-                    {c.nombre}
-                    <br />
-                    <span className="text-texto-muted dark:text-slate-400">
-                      {CN} {c.cn} · {c.labtitular ?? '—'} {c.comerc === false && '· no comercializado'}
-                    </span>
-                    {c.autorizadoEspecie === false && (
-                      <span className="mt-1 block font-semibold text-sustituir">
-                        No autorizado para esta especie (uso excepcional por cascada)
-                      </span>
-                    )}
-                  </span>
-                  <Boton
-                    data-testid={`elegir-${c.cn}`}
-                    variante={j === 0 ? 'principal' : 'secundario'}
-                    onClick={() => void elegir(c)}
+            <ListaResultados desfasada={cand.desfasada}>
+              <ul className="mt-2 flex flex-col gap-2">
+                {cand.resultados.map((c, j) => (
+                  <li
+                    key={c.cn}
+                    className={`flex flex-wrap items-center justify-between gap-2 rounded-lg bg-superficie p-2.5 ring-1 text-texto ${j === 0 ? 'ring-marca dark:ring-acento' : 'ring-slate-200 dark:ring-white/10'}`}
                   >
-                    Elegir
-                  </Boton>
-                </li>
-              ))}
-            </ul>
+                    <span className="text-sm">
+                      {c.nombre}
+                      <br />
+                      <span className="text-texto-muted dark:text-slate-400">
+                        {CN} {c.cn} · {c.labtitular ?? '—'} {c.comerc === false && '· no comercializado'}
+                      </span>
+                      {c.autorizadoEspecie === false && (
+                        <span className="mt-1 block font-semibold text-sustituir">
+                          No autorizado para esta especie (uso excepcional por cascada)
+                        </span>
+                      )}
+                    </span>
+                    <Boton
+                      data-testid={`elegir-${c.cn}`}
+                      variante={j === 0 ? 'principal' : 'secundario'}
+                      onClick={() => void elegir(c)}
+                    >
+                      Elegir
+                    </Boton>
+                  </li>
+                ))}
+              </ul>
+            </ListaResultados>
           </>
         )}
       </div>
@@ -1009,46 +1006,6 @@ function LineaForm({
       </label>
     </Tarjeta>
   );
-}
-
-/** Estado de la búsqueda en CIMAVet: que se vea que está buscando (puede tardar) o que no ha encontrado nada. */
-function EstadoBusqueda({
-  texto,
-  buscando,
-  error,
-  resultados,
-}: {
-  texto: string;
-  buscando: boolean;
-  error: boolean;
-  resultados: number | null;
-}) {
-  if (texto.trim().length < 3)
-    return (
-      <p className="mt-2 text-sm text-slate-600">
-        Escribe al menos 3 letras del nombre o del principio activo.
-      </p>
-    );
-  if (buscando)
-    return (
-      <p role="status" className="mt-2 animate-pulse text-sm font-semibold text-marca">
-        Buscando «{texto.trim()}» en CIMAVet…
-      </p>
-    );
-  if (error)
-    return (
-      <p role="status" className="mt-2 text-sm font-semibold text-red-800">
-        No se ha podido consultar CIMAVet ahora. Vuelve a intentarlo en unos segundos.
-      </p>
-    );
-  if (resultados === 0)
-    return (
-      <p role="status" className="mt-2 text-sm font-semibold text-sustituir">
-        No se ha encontrado ningún medicamento con «{texto.trim()}» en CIMAVet. Prueba con otra parte del
-        nombre o con el principio activo.
-      </p>
-    );
-  return null;
 }
 
 /** Stock en la farmacia del medicamento elegido, comparado con los envases que pide la receta. */
