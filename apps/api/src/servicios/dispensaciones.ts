@@ -9,6 +9,7 @@ import {
   pedidoPendiente,
   propietario,
   receta,
+  recepcionLinea,
   recetaLinea,
   siwebVariantMap,
   sustitucion,
@@ -48,7 +49,7 @@ import {
   type ConsultaStockRetrospectivoBody,
 } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
-import { RecetasService, type ContextoPeticion } from './recetas';
+import { RecetasService, exigirAltaManual, type ContextoPeticion } from './recetas';
 import { estadoSustitucion } from './sustituciones';
 
 export interface EnvaseDispensado {
@@ -100,6 +101,16 @@ export interface SolicitudSinReceta {
   referenciaPedido: string | null;
   modo?: 'en_vivo' | 'retrospectivo' | null | undefined;
   fechaOriginal?: string | null | undefined;
+}
+
+/**
+ * Primera dispensación de la receta (referencia de la validez). En alta manual es la fecha de entrega más
+ * antigua; las 12:00 UTC caen siempre en el mismo día en Madrid, también en los cambios de hora.
+ */
+export function primeraDispensacion(actual: Date | null, ahora: Date, fechaOriginal: string | null): Date {
+  if (!fechaOriginal) return actual ?? ahora;
+  const f = new Date(`${fechaOriginal}T12:00:00Z`);
+  return actual && actual < f ? actual : f;
 }
 
 const codigos = (incs: Incidencia[], sev: Incidencia['severidad']) => [
@@ -173,6 +184,8 @@ export class DispensacionesService {
     max: number;
     psicotropo: boolean;
     linea?: number;
+    /** Fecha con la que se comprueba la caducidad del envase (alta manual: la de la entrega). */
+    hoy?: string;
   }): Promise<Incidencia[]> {
     const series = await this.seriesDispensadas(p.cn);
     const out: Incidencia[] = [];
@@ -189,7 +202,7 @@ export class DispensacionesService {
         unidadesMax: p.max,
         seriesYaDispensadas: series,
         psicotropo: p.psicotropo,
-        hoy: hoyDe(this.d),
+        hoy: p.hoy ?? hoyDe(this.d),
         politica: politica(this.d),
       });
       acumuladas += e.unidades;
@@ -224,9 +237,32 @@ export class DispensacionesService {
     return validarForzado([...lineaIncs, ...escaneoIncs], forzado).codigos;
   }
 
+  /**
+   * Alta manual (specs/011): solo la veterinaria responsable, con la receta ya confirmada; la entrega se registra
+   * siempre como retrospectiva, con fecha original entre la emisión y hoy (aunque el modo formación esté apagado).
+   */
+  private async prepararManual(s: SolicitudConReceta, c: ContextoPeticion): Promise<boolean> {
+    const [rec] = await this.d.db
+      .select({ origen: receta.origen, confirmacion: receta.confirmacion, fechaEmision: receta.fechaEmision })
+      .from(receta)
+      .where(eq(receta.id, s.recetaId));
+    if (rec?.origen !== 'manual') return false;
+    exigirAltaManual(this.d, c.usuario);
+    // Solo "comprobado" pasa por la comprobación estricta de CIMAVet; evaluar no la sustituye (el estado sí cambia).
+    if ((rec.confirmacion as { comprobadoConOriginal?: boolean } | null)?.comprobadoConOriginal !== true)
+      throw new DomainError('VALIDACION', 'Confirma los datos de la receta antes de registrar la entrega');
+    const f = s.fechaOriginal ?? null;
+    if (!f || f > hoyDe(this.d) || (rec.fechaEmision !== null && f < rec.fechaEmision))
+      throw new DomainError('FECHA_ORIGINAL_INVALIDA');
+    s.modo = 'retrospectivo';
+    return true;
+  }
+
   async dispensarConReceta(s: SolicitudConReceta, c: ContextoPeticion) {
     if (!s.envases.length) throw new DomainError('VALIDACION', 'Indica al menos un envase');
-    if (s.modo === 'retrospectivo') {
+    const manual = await this.prepararManual(s, c);
+    const fechaRef = manual ? (s.fechaOriginal ?? null) : null;
+    if (s.modo === 'retrospectivo' && !manual) {
       if (this.d.config.RETROSPECTIVE_DISPENSATION_MODE !== 'enabled') {
         throw new DomainError('MODO_RETROSPECTIVO_DESHABILITADO');
       }
@@ -235,7 +271,7 @@ export class DispensacionesService {
       }
     }
     // 1. Evaluación sin forzado para conocer los defectos de la línea; con forzado si procede.
-    const ev0 = await this.recetas.evaluar(s.recetaId, c, {}, false);
+    const ev0 = await this.recetas.evaluar(s.recetaId, c, {}, false, fechaRef);
     const l0 = ev0.lineas.find((x) => x.orden === s.lineaOrden);
     if (!l0) throw new DomainError('NO_ENCONTRADO', 'Línea de receta no encontrada');
     // Pedir forzar con un bloqueo duro presente se rechaza explícitamente (nunca se fuerza un BLOQUEANTE_DURO).
@@ -254,6 +290,7 @@ export class DispensacionesService {
               },
             },
             false,
+            fechaRef,
           )
         : ev0;
     const linea = ev.lineas.find((x) => x.orden === s.lineaOrden)!;
@@ -380,14 +417,29 @@ export class DispensacionesService {
     const escaneo = await this.validarEnvases({
       cn: cnPermitido,
       envases: s.envases,
-      loteRecomendado,
+      // Alta manual: el lote es el que se entregó; no hay lote recomendado que seguir.
+      loteRecomendado: manual ? null : loteRecomendado,
       motivo: s.motivoLoteDistinto,
       yaDispensadas: ya,
       max,
       psicotropo: med.psicotropo,
       linea: s.lineaOrden,
+      ...(fechaRef ? { hoy: fechaRef } : {}),
     });
     const retro = await this.retrospectivoDe(s, cnPermitido, escaneo);
+    if (manual) {
+      // Aviso, nunca bloqueo: las recepciones anteriores a la aplicación pueden no estar registradas.
+      const recibidos = new Set(
+        (
+          await this.d.db
+            .select({ lote: recepcionLinea.lote })
+            .from(recepcionLinea)
+            .where(eq(recepcionLinea.cn, cnPermitido))
+        ).map((x) => x.lote),
+      );
+      if (s.envases.some((e) => !recibidos.has(e.lote)))
+        escaneo.push(incidencia('LOTE_NO_RECIBIDO', politica(this.d), { linea: s.lineaOrden }));
+    }
     const forzados = this.comprobarBloqueos(linea.incidencias, escaneo, s.forzado);
     if (s.propietario) validarPropietario('presencial', s.propietario);
     if (s.pendientes?.lineas.length) {
@@ -544,7 +596,7 @@ export class DispensacionesService {
         .update(receta)
         .set({
           estado: await this.estadoRecetaSegunLineas(tx, s.recetaId),
-          primeraDispensacionAt: rec?.primeraDispensacionAt ?? ahora,
+          primeraDispensacionAt: primeraDispensacion(rec?.primeraDispensacionAt ?? null, ahora, fechaRef),
         })
         .where(eq(receta.id, s.recetaId));
       if (sust) {
@@ -788,6 +840,7 @@ export class DispensacionesService {
     if (motivo.trim().length < 10) throw new DomainError('VALIDACION', 'Indica el motivo de la anulación');
     const [o] = await this.d.db.select().from(dispensacion).where(eq(dispensacion.id, id));
     if (!o || o.anulaDispensacionId) throw new DomainError('NO_ENCONTRADO');
+    if (o.recetaId) await this.recetas.exigirAccesoManual(o.recetaId, c.usuario);
     const ahora = ahoraDe(this.d);
     try {
       return await this.d.db.transaction(async (tx) => {

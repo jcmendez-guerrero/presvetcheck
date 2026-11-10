@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import {
   conciliacion,
   discrepancia,
@@ -40,8 +40,15 @@ export async function conciliarDia(
     .from(dispensacion)
     .where(
       and(
-        gte(dispensacion.fechaVenta, ini),
-        lt(dispensacion.fechaVenta, fin),
+        // Una entrega pasada (alta manual, modo retrospectivo) se concilia con los tickets de su fecha original.
+        or(
+          eq(dispensacion.fechaOriginal, dia),
+          and(
+            isNull(dispensacion.fechaOriginal),
+            gte(dispensacion.fechaVenta, ini),
+            lt(dispensacion.fechaVenta, fin),
+          ),
+        ),
         dispensacionVigente,
         sql`not exists (select 1 from conciliacion c where c.dispensacion_id = ${dispensacion.id})`,
       ),

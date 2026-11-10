@@ -29,6 +29,14 @@ export const fechaEntradaRecepcion = sql<string>`coalesce(${recepcion.fechaRecep
 const fechaEntradaImportada = sql<string>`coalesce(${entradaImportada.fechaRecepcion}, ${entradaImportada.fecha})`;
 import type { Salida } from './salidas';
 
+/**
+ * Fecha con la que una salida cuenta en el registro: la original si la entrega fue en el pasado (12:00 UTC cae
+ * siempre en ese mismo día en Madrid); si no, la de la venta.
+ */
+const fechaRegistro = sql`coalesce((${dispensacion.fechaOriginal} + time '12:00') at time zone 'UTC', ${dispensacion.fechaVenta})`;
+/** Libro de psicótropos: la salida cuenta en su fecha de registro; una anulación, el día en que se anula. */
+const fechaMovimiento = sql`case when ${dispensacion.anulaDispensacionId} is null then ${fechaRegistro} else ${dispensacion.fechaVenta} end`;
+
 // Se mantiene la exportación desde @mmx/reports (la usan el worker y la API).
 export { rangoMadrid };
 
@@ -80,12 +88,12 @@ export class RegistrosService {
       .leftJoin(conciliacion, eq(conciliacion.dispensacionId, dispensacion.id))
       .where(
         and(
-          gte(dispensacion.fechaVenta, ini),
-          lt(dispensacion.fechaVenta, fin),
+          gte(fechaRegistro, ini),
+          lt(fechaRegistro, fin),
           sql`${dispensacion.anulaDispensacionId} is null`,
         ),
       )
-      .orderBy(asc(dispensacion.fechaVenta));
+      .orderBy(asc(fechaRegistro));
     const anuladas = new Set(
       (
         await this.d.db
@@ -116,7 +124,8 @@ export class RegistrosService {
         principioActivo: d.principioActivoTxt,
         forma: d.formaTxt,
         especie: d.especieTxt,
-        fechaVenta: d.fechaVenta,
+        // Entregas pasadas (alta manual, modo retrospectivo): cuentan en su fecha original.
+        fechaVenta: d.fechaOriginal ?? d.fechaVenta,
         caducidad: d.caducidad,
         lote: d.lote,
         cn: d.cn,
@@ -142,6 +151,11 @@ export class RegistrosService {
         plataforma: pl?.nombre ?? null,
         esSustitucion: d.esSustitucion,
         forzado: d.forzado,
+        altaManual: r?.origen === 'manual',
+        altaManualDetalle:
+          r?.origen === 'manual'
+            ? { fecha: r.createdAt, motivo: r.motivoAlta, custodia: r.custodiaPapel }
+            : null,
         defectosForzados: d.defectosForzados ?? [],
         medicamentoPrescrito: d.nombrePrescrito ?? d.cnPrescrito,
         autorizadoPor: firma,
@@ -210,6 +224,7 @@ export class RegistrosService {
         clinica: s.clinica,
         direccionVeterinario: s.direccionVeterinario,
         propietario: opts.incluirPropietario && Object.values(prop).some(Boolean) ? prop : null,
+        altaManual: false,
         tipoReceta: null,
         plataforma: null,
         esSustitucion: false,
@@ -315,11 +330,7 @@ export class RegistrosService {
       .select()
       .from(dispensacion)
       .where(
-        and(
-          inArray(dispensacion.nregistro, psico),
-          gte(dispensacion.fechaVenta, ini),
-          lt(dispensacion.fechaVenta, fin),
-        ),
+        and(inArray(dispensacion.nregistro, psico), gte(fechaMovimiento, ini), lt(fechaMovimiento, fin)),
       );
     const entradas = await this.d.db
       .select({ l: recepcionLinea, r: recepcion })
@@ -344,7 +355,7 @@ export class RegistrosService {
         referencia: `MMX-REC-${r.id}-L${l.numero}`,
       })),
       ...salidas.map((s) => ({
-        fecha: s.fechaVenta,
+        fecha: s.anulaDispensacionId ? s.fechaVenta : (s.fechaOriginal ?? s.fechaVenta),
         tipo: (s.anulaDispensacionId ? 'ANULACIÓN SALIDA' : 'SALIDA') as MovimientoPsicotropo['tipo'],
         cn: s.cn,
         nombre: s.nombreFarmaco,

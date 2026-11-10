@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Printer, Trash2 } from 'lucide-react';
-import type { CodigoIncidencia } from '@mmx/shared';
+import { textoDefecto, type CodigoIncidencia } from '@mmx/shared';
 import { ApiError, get, post } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { leerForzado } from '../lib/flujo';
@@ -208,6 +208,7 @@ export function Dispensacion() {
     queryKey: ['receta-disp', id],
     queryFn: () =>
       get<{
+        origen?: string;
         confirmacion: {
           lineas: { orden: number; cantidadEnvases: number | null }[];
           modo?: 'en_vivo' | 'retrospectivo';
@@ -227,9 +228,11 @@ export function Dispensacion() {
   const [modoRetrospectivo, setModoRetrospectivo] = useState(false);
   const [fechaOriginal, setFechaOriginal] = useState('');
 
+  // Alta manual (specs/011): siempre una entrega pasada, con la fecha que se indicó en la revisión.
+  const manual = receta.data?.origen === 'manual';
   useEffect(() => {
     if (receta.data?.confirmacion) {
-      if (receta.data.confirmacion.modo === 'retrospectivo') {
+      if (receta.data.confirmacion.modo === 'retrospectivo' || receta.data.origen === 'manual') {
         setModoRetrospectivo(true);
       }
       if (receta.data.confirmacion.fechaOriginal) {
@@ -327,6 +330,11 @@ export function Dispensacion() {
       <Pagina titulo="Dispensación registrada">
         <ConReceta recetaId={id}>
           <RecordatorioTpv items={res.recordatorioTpv} />
+          {res.avisos.includes('LOTE_NO_RECIBIDO') && (
+            <Mensaje tipo="aviso">
+              {textoDefecto('LOTE_NO_RECIBIDO').titulo}. {textoDefecto('LOTE_NO_RECIBIDO').accion}.
+            </Mensaje>
+          )}
           {res.apartarReceta && <Mensaje tipo="aviso">{res.apartarReceta.motivo}</Mensaje>}
           {res.apartarReceta?.etiqueta && (
             <Imprimible titulo="Etiqueta para el dorso de la receta" texto={res.apartarReceta.etiqueta} />
@@ -382,41 +390,44 @@ export function Dispensacion() {
           {l.lineaId && (
             <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />
           )}
-          <Tarjeta
-            titulo="Lote recomendado FEFO (caduca antes)"
-            destacada={!!objetivo.lote}
-            className="border-2 border-marca/30 dark:border-acento/40"
-          >
-            {objetivo.lote ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-baseline justify-between gap-3">
-                  <p
-                    data-testid="lote-recomendado"
-                    className="font-mono text-4xl font-extrabold tracking-wide text-marca dark:text-acento"
-                  >
-                    {objetivo.lote}
+          {/* Alta manual: el lote es el que se entregó; no hay lote recomendado que seguir. */}
+          {!manual && (
+            <Tarjeta
+              titulo="Lote recomendado FEFO (caduca antes)"
+              destacada={!!objetivo.lote}
+              className="border-2 border-marca/30 dark:border-acento/40"
+            >
+              {objetivo.lote ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <p
+                      data-testid="lote-recomendado"
+                      className="font-mono text-4xl font-extrabold tracking-wide text-marca dark:text-acento"
+                    >
+                      {objetivo.lote}
+                    </p>
+                    {'caducidad' in objetivo && objetivo.caducidad && (
+                      <span className="inline-flex items-center rounded-lg bg-dispensar-bg px-2.5 py-1 text-sm font-bold text-dispensar">
+                        Caduca: {fecha(objetivo.caducidad as string)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-texto dark:text-slate-300">
+                    {CN} <span className="font-semibold text-marca dark:text-acento">{objetivo.cn}</span>
                   </p>
-                  {'caducidad' in objetivo && objetivo.caducidad && (
-                    <span className="inline-flex items-center rounded-lg bg-dispensar-bg px-2.5 py-1 text-sm font-bold text-dispensar">
-                      Caduca: {fecha(objetivo.caducidad as string)}
-                    </span>
-                  )}
                 </div>
-                <p className="text-sm text-texto dark:text-slate-300">
-                  {CN} <span className="font-semibold text-marca dark:text-acento">{objetivo.cn}</span>
+              ) : (
+                <p className="text-slate-600 dark:text-slate-400">
+                  Sin propuesta automática de lote: consulta las existencias en mostrador.
                 </p>
-              </div>
-            ) : (
-              <p className="text-slate-600 dark:text-slate-400">
-                Sin propuesta automática de lote: consulta las existencias en mostrador.
-              </p>
-            )}
-            {evd.lotes?.alternativaQueCubre && (
-              <p className="mt-2 text-sm font-semibold text-sustituir">
-                Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}
-              </p>
-            )}
-          </Tarjeta>
+              )}
+              {evd.lotes?.alternativaQueCubre && (
+                <p className="mt-2 text-sm font-semibold text-sustituir">
+                  Lote que cubre todo el tratamiento: {evd.lotes.alternativaQueCubre.lote}
+                </p>
+              )}
+            </Tarjeta>
+          )}
 
           <Tarjeta titulo="Escanea el envase">
             <ComparaEnvases
@@ -573,30 +584,47 @@ export function Dispensacion() {
             </Tarjeta>
           )}
 
-          <Tarjeta titulo="Modo formación (retrospectivo)">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                className="h-6 w-6"
-                checked={modoRetrospectivo}
-                onChange={(e) => setModoRetrospectivo(e.target.checked)}
-              />
-              <span>
-                Activar modo formación con transacciones del pasado
-                <span className="block text-xs text-slate-600">
-                  Valida contra los movimientos de stock históricos en lugar del stock actual de la farmacia.
-                </span>
-              </span>
-            </label>
-            {modoRetrospectivo && (
+          {manual ? (
+            <Tarjeta titulo="Receta de alta manual: entrega ya realizada">
+              <p className="mb-2 text-sm text-slate-600">
+                Indica el lote y la caducidad del envase que se entregó. No se descuenta stock: ya lo hizo el
+                ticket del TPV.
+              </p>
               <Campo
-                etiqueta="Fecha original de la dispensación (AAAA-MM-DD)"
+                data-testid="fecha-entrega-dispensacion"
+                etiqueta="Fecha en que se entregó"
                 type="date"
                 value={fechaOriginal}
                 onChange={(e) => setFechaOriginal(e.target.value)}
               />
-            )}
-          </Tarjeta>
+            </Tarjeta>
+          ) : (
+            <Tarjeta titulo="Modo formación (retrospectivo)">
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="h-6 w-6"
+                  checked={modoRetrospectivo}
+                  onChange={(e) => setModoRetrospectivo(e.target.checked)}
+                />
+                <span>
+                  Activar modo formación con transacciones del pasado
+                  <span className="block text-xs text-slate-600">
+                    Valida contra los movimientos de stock históricos en lugar del stock actual de la
+                    farmacia.
+                  </span>
+                </span>
+              </label>
+              {modoRetrospectivo && (
+                <Campo
+                  etiqueta="Fecha original de la dispensación (AAAA-MM-DD)"
+                  type="date"
+                  value={fechaOriginal}
+                  onChange={(e) => setFechaOriginal(e.target.value)}
+                />
+              )}
+            </Tarjeta>
+          )}
 
           {msg && <Mensaje tipo="error">{msg}</Mensaje>}
           <div className="pt-2">

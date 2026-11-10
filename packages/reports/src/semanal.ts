@@ -161,9 +161,10 @@ export async function generarReporteSemanal(
         lt(dispensacion.fechaVenta, fin),
       ),
     );
+  // Filas: las registradas esta semana; fecha: la de la entrega (las pasadas cuentan en su fecha original).
   const fila = ({ d }: (typeof forzadas)[number]) => [
     d.id,
-    fechaEs(d.fechaVenta),
+    fechaEs(d.fechaOriginal ?? d.fechaVenta),
     d.nombreFarmaco,
     d.cn,
     d.lote,
@@ -290,6 +291,42 @@ export async function generarReporteSemanal(
       'VARIACIÓN %',
     ],
     filas: filas7,
+  });
+
+  // 8. Altas manuales de recetas (sin imagen) de la semana: para revisarlas con el papel (specs/011).
+  const manuales = await ctx.db
+    .select({
+      id: receta.id,
+      numero: receta.numero,
+      creadaPor: receta.creadaPor,
+      createdAt: receta.createdAt,
+      motivo: receta.motivoAlta,
+      custodia: receta.custodiaPapel,
+      entregas: sql<number>`(select count(*)::int from ${dispensacion} where ${dispensacion.recetaId} = ${receta.id} and ${dispensacion.anulaDispensacionId} is null)`,
+    })
+    .from(receta)
+    .where(and(eq(receta.origen, 'manual'), gte(receta.createdAt, ini), lt(receta.createdAt, fin)))
+    .orderBy(asc(receta.createdAt));
+  tablas.push({
+    nombre: '8 Altas manuales',
+    columnas: [
+      'ID RECETA',
+      'Nº RECETA',
+      'FECHA DE ALTA',
+      'DADA DE ALTA POR',
+      'MOTIVO',
+      'DÓNDE ESTÁ EL PAPEL',
+      'ENTREGAS',
+    ],
+    filas: manuales.map((m) => [
+      m.id,
+      m.numero ?? '',
+      fechaEs(m.createdAt),
+      m.creadaPor,
+      m.motivo ?? '',
+      m.custodia ?? '',
+      m.entregas,
+    ]),
   });
   return tablas;
 }

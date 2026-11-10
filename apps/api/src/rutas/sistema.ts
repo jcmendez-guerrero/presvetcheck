@@ -40,6 +40,7 @@ export async function rutasSistema(app: App, d: AppDeps) {
       ventas: !d.ventas.configurado ? 'off' : 'demo' in d.ventas ? 'demo' : 'siweb',
       escrituraStock: d.config.SIWEB_STOCK_WRITE_MODE,
       modoRetrospectivoHabilitado: d.config.RETROSPECTIVE_DISPENSATION_MODE === 'enabled',
+      altaManualHabilitada: d.config.MANUAL_PRESCRIPTION_ENTRY === 'enabled',
       fechaCorteEntradas: d.config.ENTRY_CUTOVER_DATE ?? null,
       telefonoFarmacia: d.telefonoFarmacia,
     }),

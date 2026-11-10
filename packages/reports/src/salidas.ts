@@ -37,6 +37,11 @@ export const COLUMNAS_INTERNAS = [
   'EMPLEADO',
   'MÉTODO CAPTURA',
   'ANULADA (S/N)',
+  'ALTA MANUAL (S/N)',
+  'CONCILIACIÓN TPV',
+  'FECHA ALTA MANUAL',
+  'MOTIVO ALTA MANUAL',
+  'CUSTODIA DEL PAPEL',
 ] as const;
 
 /** Fila de salida ya resuelta (la construye la API desde `v_dispensacion` + receta + veterinario + propietario). */
@@ -70,6 +75,8 @@ export interface Salida {
   tipoReceta: string | null;
   plataforma: string | null;
   esSustitucion: boolean;
+  /** Receta de alta manual, sin imagen (specs/011). */
+  altaManual?: boolean;
   forzado: boolean;
   defectosForzados: string[];
   medicamentoPrescrito: string | null;
@@ -81,6 +88,8 @@ export interface Salida {
   registro?: 'completo' | 'pendiente' | 'no aplica';
   /** Conciliación con el ticket del TPV. */
   conciliacion?: 'conciliada' | 'pendiente' | 'discrepancia' | 'no aplica';
+  /** Alta manual (specs/011): cuándo se dio de alta, por qué y dónde está el papel (sin datos personales). */
+  altaManualDetalle?: { fecha: Date | string; motivo: string | null; custodia: string | null } | null;
 }
 
 const sn = (b: boolean) => (b ? 'S' : 'N');
@@ -140,6 +149,11 @@ export function tablasSalidas(salidas: Salida[], plantilla: PlantillaSalidas, o:
     s.empleado,
     s.metodoCaptura,
     sn(s.anulada),
+    sn(s.altaManual ?? false),
+    s.conciliacion ?? '',
+    s.altaManualDetalle ? fechaEs(s.altaManualDetalle.fecha) : '',
+    s.altaManualDetalle?.motivo ?? '',
+    s.altaManualDetalle?.custodia ?? '',
   ];
 
   let columnas: string[];

@@ -3,6 +3,8 @@ import {
   appendAudit,
   dispensacion,
   dispensacionVigente,
+  importacion,
+  salidaImportada,
   plataformaRecetaElectronica,
   receta,
   recetaImagen,
@@ -39,6 +41,7 @@ import type { ExtractionResult } from '@mmx/shared';
 import {
   DomainError,
   PeticionSobreescribirSustitucion,
+  type PeticionAltaManual,
   RecetaConfirmada,
   enParalelo,
   type RecetaConfirmadaInput,
@@ -48,6 +51,19 @@ import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
 import { MedicamentosService } from './medicamentos';
 import { procedimientoVigente } from './sustituciones';
+
+/**
+ * Alta manual de recetas (specs/011): solo con `MANUAL_PRESCRIPTION_ENTRY=enabled` y para la veterinaria
+ * responsable. Se comprueba en la API en cada operación, no solo en la interfaz.
+ */
+export function exigirAltaManual(d: AppDeps, u: Usuario) {
+  if (d.config.MANUAL_PRESCRIPTION_ENTRY !== 'enabled') throw new DomainError('ALTA_MANUAL_DESHABILITADA');
+  if (!u.roles.includes('veterinaria_responsable'))
+    throw new DomainError(
+      'PROHIBIDO',
+      'Las recetas de alta manual solo las gestiona la veterinaria responsable',
+    );
+}
 
 export interface ContextoPeticion {
   usuario: Usuario;
@@ -182,12 +198,136 @@ export class RecetasService {
   }
 
   /**
+   * Alta manual sin imagen (specs/011): crea la receta en borrador, sin extracción. Los datos se rellenan en la
+   * revisión, con medicamento y especie elegidos de CIMAVet.
+   */
+  async crearManual(p: PeticionAltaManual, c: ContextoPeticion) {
+    exigirAltaManual(this.d, c.usuario);
+    const electronica = p.tipo === 'electronica';
+    return this.d.db.transaction(async (tx) => {
+      const [r] = await tx
+        .insert(receta)
+        .values({
+          tipo: p.tipo,
+          origen: 'manual',
+          // Hora inyectada (no la de la base de datos): es la "fecha de alta" que ven el registro y el reporte.
+          createdAt: ahoraDe(this.d),
+          motivoAlta: p.motivo,
+          custodiaPapel: electronica ? null : p.custodiaPapel,
+          plataformaId: electronica ? p.plataformaId : null,
+          idPlataforma: electronica ? p.idPlataforma : null,
+          estado: 'BORRADOR',
+          creadaPor: c.usuario.id,
+        })
+        .returning({ id: receta.id });
+      const id = r!.id;
+      await audit(tx, c, 'receta_alta_manual', 'receta', id, null, {
+        tipo: p.tipo,
+        motivoAlta: p.motivo,
+        custodiaPapel: electronica ? null : p.custodiaPapel,
+        idPlataforma: electronica ? p.idPlataforma : null,
+      });
+      return { id };
+    });
+  }
+
+  /**
+   * Adjunta después la imagen de una receta de alta manual (FR-024): se guarda sin lanzar la extracción y la
+   * receta sigue siendo de origen manual.
+   */
+  async adjuntarImagen(id: string, paginas: { bytes: Uint8Array; mime: string }[], c: ContextoPeticion) {
+    if (!paginas.length) throw new DomainError('VALIDACION', 'Sube al menos una página');
+    const [r] = await this.d.db.select({ origen: receta.origen }).from(receta).where(eq(receta.id, id));
+    if (!r) throw new DomainError('NO_ENCONTRADO');
+    if (r.origen !== 'manual')
+      throw new DomainError('CONFLICTO', 'Solo se adjunta imagen a recetas de alta manual');
+    exigirAltaManual(this.d, c.usuario);
+    const existentes = await this.d.db
+      .select({ pagina: recetaImagen.pagina })
+      .from(recetaImagen)
+      .where(eq(recetaImagen.recetaId, id));
+    let pagina = Math.max(0, ...existentes.map((x) => x.pagina));
+    const nuevas: number[] = [];
+    for (const p of paginas) {
+      pagina += 1;
+      const ext = p.mime === 'application/pdf' ? 'pdf' : p.mime === 'image/jpeg' ? 'jpg' : 'png';
+      const path = `${id}/pagina-${pagina}.${ext}`;
+      await this.d.blob.put('recetas', path, p.bytes, p.mime);
+      const hash = sha256(p.bytes);
+      await this.d.db.transaction(async (tx) => {
+        await tx
+          .insert(recetaImagen)
+          .values({ recetaId: id, pagina, blobPath: path, mime: p.mime, sha256: hash });
+        await audit(tx, c, 'receta_imagen_adjunta', 'receta', id, null, { pagina, sha256: hash });
+      });
+      nuevas.push(pagina);
+    }
+    return { paginas: nuevas };
+  }
+
+  /**
+   * Receta manual: medicamento, presentación y especie salen de CIMAVet, no del texto escrito. Forma, principios
+   * activos y concentración se sustituyen siempre por los de CIMAVet; el tipo y la plataforma son los del alta.
+   * Los borradores (guardado automático) pueden ir incompletos; al confirmar ("comprobado"), todo es obligatorio.
+   */
+  private async datosManuales(
+    r: { tipo: string; plataformaId: string | null; idPlataforma: string | null },
+    input: RecetaConfirmada,
+  ): Promise<RecetaConfirmada> {
+    const estricto = input.comprobadoConOriginal;
+    const especieId = input.especie.especieId;
+    if (estricto && (especieId === null || (await this.med.nombresEspecies([especieId])).length === 0))
+      throw new DomainError('ESPECIE_NO_SELECCIONADA');
+    // Fecha de entrega: entre la emisión y hoy (la validez se calcula en esa fecha).
+    const f = input.fechaOriginal;
+    if (estricto && (!f || f > hoyDe(this.d) || (input.fechaEmision !== null && f < input.fechaEmision)))
+      throw new DomainError('FECHA_ORIGINAL_INVALIDA');
+    const lineas = [];
+    for (const l of input.lineas) {
+      const f = l.cn ? await this.med.resumen(l.cn, especieId) : null;
+      if (!f) {
+        if (estricto)
+          throw new DomainError(
+            'MEDICAMENTO_NO_SELECCIONADO',
+            `Línea ${l.orden}: elige el medicamento de CIMAVet`,
+          );
+        lineas.push({
+          ...l,
+          cn: null,
+          nregistro: null,
+          formaTexto: null,
+          principioActivoTexto: null,
+          concentracionTexto: null,
+        });
+        continue;
+      }
+      lineas.push({
+        ...l,
+        nregistro: f.nregistro,
+        medicamentoTexto: f.medicamento,
+        formaTexto: f.forma,
+        principioActivoTexto: f.principiosActivos,
+        concentracionTexto: f.concentracion,
+      });
+    }
+    return RecetaConfirmada.parse({
+      ...input,
+      tipo: r.tipo,
+      plataformaId: r.plataformaId,
+      idPlataforma: r.idPlataforma,
+      lineas,
+      registroDiferido: false,
+      modo: 'retrospectivo',
+    });
+  }
+
+  /**
    * Validez de la receta con los datos del formulario (aviso inmediato en la revisión, SPEC §4.1.3). Las
    * mismas reglas del dominio que la evaluación; la fecha de referencia es la de la 1.ª dispensación si la hay.
    */
   async validez(id: string, borrador: RecetaConfirmadaInput) {
     const [r] = await this.d.db
-      .select({ primera: receta.primeraDispensacionAt })
+      .select({ primera: receta.primeraDispensacionAt, origen: receta.origen })
       .from(receta)
       .where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
@@ -217,7 +357,9 @@ export class RecetasService {
     });
     const primera = r.primera
       ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(r.primera)
-      : null;
+      : r.origen === 'manual'
+        ? conf.fechaOriginal
+        : null;
     const referencia = fechaReferenciaValidez(primera, hoyDe(this.d));
     return {
       validaHasta: v.efectiva,
@@ -346,6 +488,14 @@ export class RecetasService {
     }
   }
 
+  /** Si la receta es de alta manual, exige el permiso de alta manual. Devuelve si es manual. */
+  async exigirAccesoManual(id: string, u: Usuario): Promise<boolean> {
+    const [r] = await this.d.db.select({ origen: receta.origen }).from(receta).where(eq(receta.id, id));
+    if (r?.origen !== 'manual') return false;
+    exigirAltaManual(this.d, u);
+    return true;
+  }
+
   async obtener(id: string) {
     const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
@@ -364,6 +514,9 @@ export class RecetasService {
       id: r.id,
       estado: r.estado,
       tipo: r.tipo,
+      origen: r.origen,
+      motivoAlta: r.motivoAlta,
+      custodiaPapel: r.custodiaPapel,
       creadaPor: r.creadaPor,
       createdAt: r.createdAt,
       primeraDispensacionAt: r.primeraDispensacionAt,
@@ -400,10 +553,11 @@ export class RecetasService {
    * Guarda los datos confirmados por la persona (borrador en servidor). Registra la traza valor
    * extraído → corregido, quién y cuándo (corrección manual ≠ forzado, SPEC §4.1.6 punto 2).
    */
-  async confirmar(id: string, input: RecetaConfirmada, c: ContextoPeticion) {
+  async confirmar(id: string, entrada: RecetaConfirmada, c: ContextoPeticion) {
     const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     if (r.estado === 'DISPENSADA') throw new DomainError('CONFLICTO', 'La receta ya está dispensada');
+    const input = r.origen === 'manual' ? await this.datosManuales(r, entrada) : entrada;
     const anterior = this.descifrarConfirmacion(r.confirmacion);
     const extraido = this.extraccion(r.extraccion)?.borrador ?? null;
     const base = aplanar(anterior ?? extraido ?? {});
@@ -571,7 +725,11 @@ export class RecetasService {
    * reglas puras del dominio, sin stock ni decisiones. La usa la evaluación completa y la revisión para avisar
    * antes de «Ver qué dispensar».
    */
-  private async evaluacionDocumental(id: string) {
+  /**
+   * `fechaReferencia`: en recetas de alta manual, fecha en que se entregó (validez en esa fecha, no hoy) mientras
+   * no conste ninguna dispensación; después manda la primera dispensación guardada (specs/011).
+   */
+  private async evaluacionDocumental(id: string, fechaReferencia: string | null = null) {
     const [r] = await this.d.db.select().from(receta).where(eq(receta.id, id));
     if (!r) throw new DomainError('NO_ENCONTRADO');
     const conf = this.descifrarConfirmacion(r.confirmacion);
@@ -593,7 +751,7 @@ export class RecetasService {
       lineas.push({ orden: l.orden, medicamento, presentacion });
     }
 
-    const yaDispensada =
+    const yaDispensadaApp =
       conf.tipo === 'papel' && conf.numero && conf.veterinario.numColegiado
         ? (
             await this.d.db
@@ -612,6 +770,25 @@ export class RecetasService {
               .limit(1)
           ).length > 0
         : false;
+    // Alta manual: la receta puede estar ya en las salidas importadas de los registros anteriores (Excel).
+    const yaImportada =
+      r.origen === 'manual' && conf.numero && conf.veterinario.numColegiado
+        ? (
+            await this.d.db
+              .select({ id: salidaImportada.id })
+              .from(salidaImportada)
+              .innerJoin(importacion, eq(importacion.id, salidaImportada.importacionId))
+              .where(
+                and(
+                  eq(salidaImportada.numeroReceta, conf.numero),
+                  eq(salidaImportada.numColegiado, conf.veterinario.numColegiado),
+                  isNull(importacion.anuladaAt),
+                ),
+              )
+              .limit(1)
+          ).length > 0
+        : false;
+    const yaDispensada = yaDispensadaApp || yaImportada;
     const [similar] = r.phash
       ? await this.d.db
           .select({ id: receta.id })
@@ -631,7 +808,9 @@ export class RecetasService {
     }
     const primera = r.primeraDispensacionAt
       ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(r.primeraDispensacionAt)
-      : null;
+      : r.origen === 'manual'
+        ? (fechaReferencia ?? conf.fechaOriginal)
+        : null;
     const ev = evaluarReceta({
       receta: receta2,
       lineas,
@@ -658,8 +837,13 @@ export class RecetasService {
     c: ContextoPeticion,
     forzados: Record<number, SolicitudForzado> = {},
     persistir = true,
+    fechaReferencia: string | null = null,
   ): Promise<EvaluacionReceta> {
-    const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(id);
+    const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(
+      id,
+      fechaReferencia,
+    );
+    const manual = r.origen === 'manual';
 
     const resultado: LineaEvaluada[] = [];
     const idsLinea = new Map(
@@ -683,11 +867,27 @@ export class RecetasService {
       let res: ResultadoDecision;
       if (ctxL.medicamento && ctxL.presentacion) {
         const candidatos = await this.med.candidatos(ctxL.medicamento.nregistro, ctxL.presentacion.cn);
-        const stock = await this.leerStock(
-          ctxL.presentacion.cn,
-          ctxL.medicamento,
-          candidatos.map((x) => x.presentacion.cn),
-        );
+        // Alta manual: la entrega ya ocurrió y el TPV ya descontó el stock; el stock de hoy no cuenta.
+        const stock = manual
+          ? {
+              stock: {
+                [ctxL.presentacion.cn]: [
+                  {
+                    lote: '(entregado)',
+                    caducidad: null,
+                    disponible: l.cantidadEnvases ?? 1,
+                    creadoAt: null,
+                    variantId: 0,
+                  },
+                ],
+              },
+              avisos: [],
+            }
+          : await this.leerStock(
+              ctxL.presentacion.cn,
+              ctxL.medicamento,
+              candidatos.map((x) => x.presentacion.cn),
+            );
         res = decidirLinea({
           linea: l.orden,
           incidencias: incs,

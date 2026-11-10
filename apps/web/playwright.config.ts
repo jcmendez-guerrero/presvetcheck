@@ -33,6 +33,8 @@ export default defineConfig({
         AUTH_MODE: 'dev',
         EXTRACTOR: 'fake',
         ASSISTANT: 'fake',
+        // Alta manual de recetas activada para su prueba (specs/011); por defecto está desactivada.
+        MANUAL_PRESCRIPTION_ENTRY: 'enabled',
         PORT: '3101',
         LOG_LEVEL: 'warn',
         NODE_ENV: 'development',

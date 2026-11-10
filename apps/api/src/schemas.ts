@@ -15,6 +15,8 @@ export const EvaluarBody = z
   .object({
     /** Vista previa de forzados por línea (se validan igual que al dispensar). */
     forzados: z.record(z.string().regex(/^\d+$/), SolicitudForzadoDto).optional(),
+    /** Alta manual (specs/011): fecha de entrega prevista para calcular la validez en esa fecha. */
+    fechaReferencia: IsoDate.nullable().optional(),
   })
   .default({});
 
@@ -225,6 +227,8 @@ export const RegistrosQuery = z.object({
   internas: z.enum(['final', 'hoja', 'ninguna']).default('final'),
   /** Solo administración con MFA (auditado): DNI sin enmascarar. */
   dniCompleto: z.enum(['0', '1']).default('0'),
+  /** `manual`: solo salidas de recetas de alta manual (specs/011). */
+  origen: z.enum(['manual']).optional(),
 });
 
 export const BuscarQuery = z.object({

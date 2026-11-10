@@ -17,7 +17,10 @@ import { RecetasService, type ContextoPeticion } from './recetas';
 
 /** Reconstruye el estado de la máquina a partir de la fila. */
 export function estadoSustitucion(s: typeof sustitucion.$inferSelect): EstadoSustitucionCompleto {
-  const aut = s.autorizacion as { previa?: EstadoSustitucionCompleto['autorizacionPrevia']; firma?: EstadoSustitucionCompleto['firma'] } | null;
+  const aut = s.autorizacion as {
+    previa?: EstadoSustitucionCompleto['autorizacionPrevia'];
+    firma?: EstadoSustitucionCompleto['firma'];
+  } | null;
   return {
     estado: s.estado as EstadoSustitucionCompleto['estado'],
     modo: s.modo as ModoSustitucion,
@@ -27,17 +30,27 @@ export function estadoSustitucion(s: typeof sustitucion.$inferSelect): EstadoSus
     autorizacionPrevia: aut?.previa ?? null,
     firma: aut?.firma ?? null,
     rechazo: s.rechazo as EstadoSustitucionCompleto['rechazo'],
-    indicacionProbable: (s.equivalencia as { equivalencia?: { indicacion?: string } }).equivalencia?.indicacion === 'PROBABLE',
+    indicacionProbable:
+      (s.equivalencia as { equivalencia?: { indicacion?: string } }).equivalencia?.indicacion === 'PROBABLE',
   };
 }
 
 /** Procedimiento de sustitución vigente (evidencia de la instrucción del garante, D-01). */
 export async function procedimientoVigente(d: Pick<AppDeps, 'db'>) {
-  const [p] = await d.db.select().from(procedimientoAprobado).where(and(eq(procedimientoAprobado.codigo, 'SUSTITUCION'), eq(procedimientoAprobado.vigente, true)));
+  const [p] = await d.db
+    .select()
+    .from(procedimientoAprobado)
+    .where(and(eq(procedimientoAprobado.codigo, 'SUSTITUCION'), eq(procedimientoAprobado.vigente, true)));
   return p ?? null;
 }
 
-export type AccionSustitucion = 'consentimiento' | 'aviso-veterinario' | 'autorizacion-garante' | 'anotacion' | 'firma-garante' | 'rechazar';
+export type AccionSustitucion =
+  | 'consentimiento'
+  | 'aviso-veterinario'
+  | 'autorizacion-garante'
+  | 'anotacion'
+  | 'firma-garante'
+  | 'rechazar';
 
 export class SustitucionesService {
   private readonly recetas: RecetasService;
@@ -47,14 +60,23 @@ export class SustitucionesService {
 
   /** Inicia la sustitución con uno de los sustitutos que propone el motor (solo si la línea está en SUSTITUIR). */
   async crear(recetaId: string, lineaOrden: number, cn: string, c: ContextoPeticion) {
+    await this.recetas.exigirAccesoManual(recetaId, c.usuario);
     const ev = await this.recetas.evaluar(recetaId, c, {}, false);
     const l = ev.lineas.find((x) => x.orden === lineaOrden);
-    if (!l || l.resultado.decision !== 'SUSTITUIR') throw new DomainError('CONFLICTO', 'La línea no está en SUSTITUIR: el prescrito está disponible o la sustitución no procede');
+    if (!l || l.resultado.decision !== 'SUSTITUIR')
+      throw new DomainError(
+        'CONFLICTO',
+        'La línea no está en SUSTITUIR: el prescrito está disponible o la sustitución no procede',
+      );
     const sustituto = l.resultado.evidencias.sustitutos.find((s: Sustituto) => s.cn === cn);
-    if (!sustituto) throw new DomainError('VALIDACION', 'El medicamento elegido no es un sustituto propuesto');
+    if (!sustituto)
+      throw new DomainError('VALIDACION', 'El medicamento elegido no es un sustituto propuesto');
     const proc = await procedimientoVigente(this.d);
     if (!proc && sustituto.modo === 'POST') throw new DomainError('PROCEDIMIENTO_NO_APROBADO');
-    const [linea] = await this.d.db.select().from(recetaLinea).where(and(eq(recetaLinea.recetaId, recetaId), eq(recetaLinea.orden, lineaOrden)));
+    const [linea] = await this.d.db
+      .select()
+      .from(recetaLinea)
+      .where(and(eq(recetaLinea.recetaId, recetaId), eq(recetaLinea.orden, lineaOrden)));
     const st = nuevaSustitucion(sustituto.modo, sustituto.equivalencia.indicacion === 'PROBABLE');
     const ahora = ahoraDe(this.d);
     return this.d.db.transaction(async (tx) => {
@@ -72,7 +94,15 @@ export class SustitucionesService {
           historial: [{ estado: st.estado, por: c.usuario.id, at: ahora.toISOString() }] as never,
         })
         .returning();
-      await appendAudit(tx, { actor: c.usuario.id, accion: 'sustitucion_crear', entidad: 'sustitucion', entidadId: row!.id, despues: { cn, modo: st.modo, estado: st.estado }, ip: c.ip, userAgent: c.userAgent });
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: 'sustitucion_crear',
+        entidad: 'sustitucion',
+        entidadId: row!.id,
+        despues: { cn, modo: st.modo, estado: st.estado },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
       return row!;
     });
   }
@@ -90,16 +120,27 @@ export class SustitucionesService {
       ...s,
       puedeDispensar: puedeDispensarSustitucion(st),
       prescrito: prescrito ? { cn: prescrito.cn, nombre: prescrito.nombre } : null,
-      sustituto: sustituto ? { cn: sustituto.cn, nombre: sustituto.nombre, laboratorio: eq2.labtitular } : null,
+      sustituto: sustituto
+        ? { cn: sustituto.cn, nombre: sustituto.nombre, laboratorio: eq2.labtitular }
+        : null,
       plantillaAvisoVeterinario: plantillaAvisoVeterinario({
         prescrito: { nombre: prescrito?.nombre ?? '(prescrito)', cn: s.cnPrescrito ?? '' },
-        sustituto: { nombre: sustituto?.nombre ?? eq2.nombre, cn: s.cnPropuesto, laboratorio: eq2.labtitular },
+        sustituto: {
+          nombre: sustituto?.nombre ?? eq2.nombre,
+          cn: s.cnPropuesto,
+          laboratorio: eq2.labtitular,
+        },
         lote: null,
         motivo: 'el medicamento prescrito no está disponible en la farmacia',
         numeroReceta: r?.numero ?? null,
         farmacia: this.d.nombreFarmacia,
       }),
-      etiqueta: textoAnotacionDorso({ nombre: sustituto?.nombre ?? eq2.nombre, cn: s.cnPropuesto, lote: '__________', fecha: fechaEs(hoyDe(this.d)) }),
+      etiqueta: textoAnotacionDorso({
+        nombre: sustituto?.nombre ?? eq2.nombre,
+        cn: s.cnPropuesto,
+        lote: '__________',
+        fecha: fechaEs(hoyDe(this.d)),
+      }),
       recetaId: l?.recetaId ?? null,
       lineaOrden: l?.orden ?? null,
     };
@@ -118,12 +159,29 @@ export class SustitucionesService {
     let evento: EventoSustitucion;
     switch (accion) {
       case 'consentimiento':
-        evento = { tipo: 'CONSENTIMIENTO', consiente: body.consiente === true, medio: str('medio') || 'presencial', fechaHora: ahora, empleado: c.usuario.id };
+        evento = {
+          tipo: 'CONSENTIMIENTO',
+          consiente: body.consiente === true,
+          medio: str('medio') || 'presencial',
+          fechaHora: ahora,
+          empleado: c.usuario.id,
+        };
         break;
       case 'aviso-veterinario':
         evento = body.urgencia
-          ? { tipo: 'URGENCIA', justificacion: str('justificacion'), fechaHora: ahora, empleado: c.usuario.id }
-          : { tipo: 'AVISO_VETERINARIO', medio: str('medio') || 'teléfono', resultado: str('resultado') || 'avisado', fechaHora: ahora, empleado: c.usuario.id };
+          ? {
+              tipo: 'URGENCIA',
+              justificacion: str('justificacion'),
+              fechaHora: ahora,
+              empleado: c.usuario.id,
+            }
+          : {
+              tipo: 'AVISO_VETERINARIO',
+              medio: str('medio') || 'teléfono',
+              resultado: str('resultado') || 'avisado',
+              fechaHora: ahora,
+              empleado: c.usuario.id,
+            };
         break;
       case 'autorizacion-garante':
         evento = {
@@ -142,7 +200,8 @@ export class SustitucionesService {
         evento = { tipo: 'FIRMAR', garante: str('garante'), fechaHora: ahora, empleado: c.usuario.id };
         break;
       case 'rechazar':
-        if (str('motivo').trim().length < 5) throw new DomainError('VALIDACION', 'Indica el motivo del rechazo');
+        if (str('motivo').trim().length < 5)
+          throw new DomainError('VALIDACION', 'Indica el motivo del rechazo');
         evento = { tipo: 'RECHAZAR', actor: c.usuario.id, motivo: str('motivo'), fechaHora: ahora };
         break;
     }
@@ -158,11 +217,24 @@ export class SustitucionesService {
           urgencia: nuevo.urgencia as never,
           autorizacion: { previa: nuevo.autorizacionPrevia, firma: nuevo.firma } as never,
           rechazo: nuevo.rechazo as never,
-          anotacion: accion === 'anotacion' ? ({ apartadaPor: c.usuario.id, at: ahora } as never) : s.anotacion,
-          historial: [...((s.historial as unknown[]) ?? []), { estado: nuevo.estado, accion, por: c.usuario.id, at: ahora }] as never,
+          anotacion:
+            accion === 'anotacion' ? ({ apartadaPor: c.usuario.id, at: ahora } as never) : s.anotacion,
+          historial: [
+            ...((s.historial as unknown[]) ?? []),
+            { estado: nuevo.estado, accion, por: c.usuario.id, at: ahora },
+          ] as never,
         })
         .where(eq(sustitucion.id, id));
-      await appendAudit(tx, { actor: c.usuario.id, accion: `sustitucion_${accion}`, entidad: 'sustitucion', entidadId: id, antes: { estado: s.estado }, despues: { estado: nuevo.estado }, ip: c.ip, userAgent: c.userAgent });
+      await appendAudit(tx, {
+        actor: c.usuario.id,
+        accion: `sustitucion_${accion}`,
+        entidad: 'sustitucion',
+        entidadId: id,
+        antes: { estado: s.estado },
+        despues: { estado: nuevo.estado },
+        ip: c.ip,
+        userAgent: c.userAgent,
+      });
     });
     return this.detalle(id);
   }
