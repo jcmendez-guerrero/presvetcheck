@@ -67,6 +67,33 @@ describe('loadConfig', () => {
     ).toThrow(/DOCINTEL_ENDPOINT/);
   });
 
+  it('en producción, escribir stock exige fecha de corte (specs/011)', () => {
+    const prod = {
+      DATABASE_URL: 'x',
+      NODE_ENV: 'production',
+      AUTH_MODE: 'entra',
+      ENTRA_TENANT_ID: 't',
+      ENTRA_CLIENT_ID: 'c',
+      BLOB_ACCOUNT_URL: 'https://b',
+      KEY_VAULT_URL: 'https://k',
+      EXTRACTOR: 'azure',
+      DOCINTEL_ENDPOINT: 'https://d',
+      DOCINTEL_MODEL_ID: 'prebuilt-layout',
+    };
+    expect(() => loadConfig({ ...prod, SIWEB_STOCK_WRITE_MODE: 'entries_only' })).toThrow(
+      /ENTRY_CUTOVER_DATE/,
+    );
+    expect(
+      loadConfig({ ...prod, SIWEB_STOCK_WRITE_MODE: 'entries_only', ENTRY_CUTOVER_DATE: '2026-12-01' })
+        .SIWEB_STOCK_WRITE_MODE,
+    ).toBe('entries_only');
+    expect(loadConfig({ ...prod, SIWEB_STOCK_WRITE_MODE: 'off' }).ENTRY_CUTOVER_DATE).toBeUndefined();
+    // Fuera de producción no se exige.
+    expect(loadConfig({ ...base, SIWEB_STOCK_WRITE_MODE: 'entries_only' }).SIWEB_STOCK_WRITE_MODE).toBe(
+      'entries_only',
+    );
+  });
+
   it('valida la clave de cifrado, el regex y el sustituto de GS', () => {
     expect(() => loadConfig({ ...base, COLUMN_ENCRYPTION_KEY: 'corta' })).toThrow(/32 bytes/);
     expect(() => loadConfig({ ...base, SIWEB_SKU_CN_REGEX: '(' })).toThrow(/Expresión regular/);

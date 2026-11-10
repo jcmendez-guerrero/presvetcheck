@@ -139,10 +139,14 @@ describe('worker', () => {
       '4c Producto no valido forzado',
       '5 Caducidades proximas',
       '5b Psicotropos',
+      '5c Bajas',
       '6 Discrepancias',
+      '6b Movimientos sin justificar',
       '7 Precios de coste',
       '8 Altas manuales',
     ]);
+    // Sin fecha de corte, la hoja de movimientos lo indica en lugar de quedar vacía sin explicación.
+    expect(r.hojas.find((x) => x.nombre === '6b Movimientos sin justificar')?.filas).toBe(1);
     expect(r.hojas.find((x) => x.nombre === '2B Salidas B')?.filas).toBe(3);
     expect(r.hojas.find((x) => x.nombre === '4b Dispensaciones forzadas')?.filas).toBe(1);
     expect(r.hojas.find((x) => x.nombre === '4c Producto no valido forzado')?.filas).toBe(1);
@@ -150,7 +154,7 @@ describe('worker', () => {
     const x = await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/reporte-semanal.xlsx');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(Buffer.from(x!.bytes) as never);
-    expect(wb.worksheets).toHaveLength(13);
+    expect(wb.worksheets).toHaveLength(15);
     expect(await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/2b-salidas-b.csv')).not.toBeNull();
     expect(mailer.enviados[0]).toMatchObject({ para: ['garante@example.org', 'jc@example.org'] });
     expect(mailer.enviados[0]!.adjuntos![0]!.nombre).toMatch(/\.xlsx$/);
@@ -187,6 +191,7 @@ describe('worker', () => {
       conciliadas: 0,
       loteSinVerificar: 0,
       discrepancias: 1,
+      movimientos: { inactivo: 'Siweb360 no configurado' },
     });
     expect((await h.db.select().from(discrepancia))[0]?.tipo).toBe('LOTE_DISTINTO');
     // Repetir el cierre no duplica la discrepancia.
@@ -194,6 +199,7 @@ describe('worker', () => {
       conciliadas: 0,
       loteSinVerificar: 0,
       discrepancias: 0,
+      movimientos: { inactivo: 'Siweb360 no configurado' },
     });
     expect(await h.db.select().from(discrepancia)).toHaveLength(1);
   });

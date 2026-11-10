@@ -946,7 +946,7 @@ export class DispensacionesService {
           variant_id: m.variant_id,
           quantity: m.quantity,
           reason: m.reason,
-          reference_number: m.reference_id ? String(m.reference_id) : null,
+          reference_number: m.reference_number ?? m.reference_id,
         }));
       } catch {
         // Sin respuesta no se sabe si hubo venta: no se presenta como «sin movimientos».

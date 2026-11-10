@@ -12,7 +12,7 @@ import {
 } from '@mmx/db';
 import { RegistrosService, fechaEntradaRecepcion, rangoMadrid } from './datos';
 import { aCsv, aXlsx, fechaEs, type Tabla } from './formato';
-import { tablaEntradas, tablaPsicotropos } from './entradas';
+import { tablaBajas, tablaEntradas, tablaPsicotropos } from './entradas';
 import { tablasSalidas } from './salidas';
 
 /** Lote con caducidad próxima (lo aporta la integración de Siweb360). */
@@ -31,6 +31,21 @@ export interface ContextoReporte {
   /** null si Siweb360 no está configurado. */
   lotesProximos: ((hasta: string) => Promise<LoteProximo[]>) | null;
   producto_no_valido: readonly string[];
+  /**
+   * Movimientos de medicamentos de Siweb360 sin vínculo ni justificación desde la fecha de corte (specs/011).
+   * null si no hay fecha de corte o Siweb360 no está configurado.
+   */
+  movimientosSinJustificar?: (() => Promise<MovimientoSinJustificar[]>) | null;
+}
+
+export interface MovimientoSinJustificar {
+  fecha: Date;
+  cn: string | null;
+  nombre: string | null;
+  lote: string | null;
+  unidades: number;
+  motivoSiweb: string;
+  referencia: string | null;
 }
 
 /** Lunes–domingo de la semana anterior a `hoy` (Europe/Madrid). */
@@ -217,6 +232,9 @@ export async function generarReporteSemanal(
     nombre: '5b Psicotropos',
   });
 
+  // 5c. Bajas justificadas de la semana (specs/011)
+  tablas.push({ ...tablaBajas(await reg.bajas(periodo.desde, periodo.hasta)), nombre: '5c Bajas' });
+
   // 6. Discrepancias (outbox con error o en reconciliación + conciliación de ventas)
   const ob = await ctx.db
     .select()
@@ -242,6 +260,33 @@ export async function generarReporteSemanal(
         JSON.stringify(x.datos),
       ]),
     ],
+  });
+
+  // 6b. Movimientos de Siweb360 sin justificar (todos los pendientes, no solo los de la semana)
+  const sinJustificar = ctx.movimientosSinJustificar ? await ctx.movimientosSinJustificar() : null;
+  tablas.push({
+    nombre: '6b Movimientos sin justificar',
+    columnas: [
+      'FECHA',
+      'CÓDIGO NACIONAL',
+      'MEDICAMENTO',
+      'LOTE',
+      'UNIDADES',
+      'MOTIVO EN SIWEB360',
+      'REFERENCIA',
+    ],
+    filas:
+      sinJustificar === null
+        ? [['Conciliación de movimientos sin fecha de corte', '', '', '', '', '', '']]
+        : sinJustificar.map((m) => [
+            fechaEs(m.fecha),
+            m.cn ?? '',
+            m.nombre ?? '',
+            m.lote ?? '',
+            m.unidades,
+            m.motivoSiweb,
+            m.referencia ?? '',
+          ]),
   });
 
   // 7. Precios de coste de la semana con variación respecto al coste anterior. Solo las líneas marcadas

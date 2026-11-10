@@ -10,6 +10,7 @@ import {
   aXlsx,
   tablaEntradas,
   tablaMovimientos,
+  tablaBajas,
   tablaPsicotropos,
   tablaTodasSalidas,
   tablasSalidas,
@@ -188,6 +189,37 @@ export async function rutasRegistros(app: App, d: AppDeps) {
         return enviarFichero(
           reply,
           `psicotropos-${req.query.desde}_${req.query.hasta}.csv`,
+          'text/csv; charset=utf-8',
+          aCsv(t),
+        );
+      return { tablas: [t] };
+    },
+  );
+
+  app.get(
+    '/api/registros/bajas',
+    {
+      preHandler: lectura,
+      schema: {
+        tags: ['registros'],
+        summary:
+          'Bajas de stock justificadas (rotura, caducado, robo…) de los movimientos de Siweb360 (specs/011)',
+        querystring: RegistrosQuery,
+      },
+    },
+    async (req, reply) => {
+      const t = tablaBajas(await reg.bajas(req.query.desde, req.query.hasta));
+      if (req.query.formato === 'xlsx')
+        return enviarFichero(
+          reply,
+          `bajas-${req.query.desde}_${req.query.hasta}.xlsx`,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          await aXlsx([t]),
+        );
+      if (req.query.formato === 'csv')
+        return enviarFichero(
+          reply,
+          `bajas-${req.query.desde}_${req.query.hasta}.csv`,
           'text/csv; charset=utf-8',
           aCsv(t),
         );

@@ -14,6 +14,7 @@ const PESTANAS = [
   'Plataformas',
   'Exclusiones',
   'Siweb360',
+  'Stock en Siweb360',
   'Outbox',
   'CIMAVet',
   'Asistente',
@@ -43,6 +44,7 @@ export function Admin() {
       {p === 'Plataformas' && <Plataformas />}
       {p === 'Exclusiones' && <Exclusiones />}
       {p === 'Siweb360' && <Siweb />}
+      {p === 'Stock en Siweb360' && <StockSiweb />}
       {p === 'Outbox' && <Outbox />}
       {p === 'CIMAVet' && <Cimavet />}
       {p === 'Asistente' && <ConsumoAsistente />}
@@ -367,6 +369,121 @@ function Siweb() {
   );
 }
 
+interface EstadoStockDto {
+  escrituraStock: 'off' | 'entries_only';
+  fechaCorte: string | null;
+  almacenStock: string;
+  ultimaPruebaEscritura: string | null;
+  pruebaEscrituraVigente: boolean;
+  outbox: { pendientes: number; fallidos: number; enRevision: number };
+  movimientosSinJustificar: number;
+}
+
+/** Escritura de stock en Siweb360 (specs/011): estado y prueba de escritura previa a encenderla. */
+function StockSiweb() {
+  const q = useQuery({
+    queryKey: ['estado-stock'],
+    queryFn: () => get<EstadoStockDto>('/api/admin/estado-stock'),
+    retry: false,
+  });
+  const [sku, setSku] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
+  const [resultado, setResultado] = useState<{
+    ok: boolean;
+    coherente?: boolean;
+    historialOk?: boolean;
+  } | null>(null);
+  const { run, aviso } = useAccion();
+  if (q.error) return <Mensaje tipo="info">{(q.error as Error).message}</Mensaje>;
+  const e = q.data;
+  const superada = resultado?.ok && resultado.coherente && resultado.historialOk;
+  return (
+    <div className="space-y-4">
+      <Tarjeta titulo="Estado de la escritura de stock">
+        {e && (
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+            <dt className="font-medium">Escritura de entradas</dt>
+            <dd>
+              {e.escrituraStock === 'entries_only'
+                ? `Activa desde el ${fecha(e.fechaCorte)}`
+                : 'Apagada: las entradas se dan de alta a mano en Siweb360'}
+            </dd>
+            <dt className="font-medium">Almacén</dt>
+            <dd>{e.almacenStock}</dd>
+            <dt className="font-medium">Última prueba de escritura superada</dt>
+            <dd>{e.ultimaPruebaEscritura ? fecha(e.ultimaPruebaEscritura) : 'Ninguna'}</dd>
+            <dt className="font-medium">Envíos pendientes / fallidos / en revisión</dt>
+            <dd>
+              {e.outbox.pendientes} / {e.outbox.fallidos} / {e.outbox.enRevision}
+            </dd>
+            <dt className="font-medium">Movimientos de Siweb360 sin justificar</dt>
+            <dd>{e.fechaCorte ? e.movimientosSinJustificar : 'Sin fecha de corte'}</dd>
+          </dl>
+        )}
+        {e && e.escrituraStock === 'entries_only' && !e.pruebaEscrituraVigente && (
+          <Mensaje tipo="aviso">
+            Falta la prueba de escritura (o tiene más de 30 días). Hasta hacerla no se envía stock a Siweb360.
+          </Mensaje>
+        )}
+      </Tarjeta>
+      <Tarjeta
+        titulo="Prueba de escritura"
+        subtitulo="Suma 1 unidad a un producto de prueba en Siweb360, la resta después y comprueba que todo se ve bien. Hazla antes de encender la escritura y repítela cada 30 días."
+      >
+        <form
+          className="space-y-3"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            void run(async () => {
+              setResultado(
+                await post('/api/admin/siweb/prueba-escritura', { sku: sku.trim(), confirmacion }),
+              );
+              setConfirmacion('');
+            }, 'Prueba terminada');
+          }}
+        >
+          <Campo
+            etiqueta="SKU del producto de prueba"
+            ayuda="Debe empezar por TEST- y no estar publicado en el TPV ni en la web."
+            value={sku}
+            onChange={(ev) => setSku(ev.target.value)}
+            required
+          />
+          <Campo
+            etiqueta="Escribe SI para confirmar que se va a escribir en Siweb360"
+            value={confirmacion}
+            onChange={(ev) => setConfirmacion(ev.target.value)}
+            required
+          />
+          <Boton type="submit" disabled={!sku.trim().startsWith('TEST-') || confirmacion !== 'SI'}>
+            Hacer la prueba
+          </Boton>
+        </form>
+        {resultado && (
+          <Mensaje tipo={superada ? 'ok' : 'error'}>
+            {superada
+              ? 'Prueba superada: se puede enviar stock a Siweb360 durante 30 días.'
+              : !resultado.ok
+                ? 'La prueba no se ha hecho. Revisa que el producto exista, que su SKU sea exacto y que no tenga stock ilimitado.'
+                : !resultado.historialOk
+                  ? 'Siweb360 no devuelve la nota de los ajustes en su historial: no se puede activar la escritura. Avisa a soporte.'
+                  : 'No se ve el lote o la caducidad tras el ajuste: revisa el producto en Siweb360.'}
+          </Mensaje>
+        )}
+        {aviso}
+      </Tarjeta>
+    </div>
+  );
+}
+
+const TEXTO_ENVIO: Record<string, string> = {
+  pending: 'Pendiente de enviar',
+  sent: 'Enviado',
+  failed: 'Fallido',
+  needs_reconciliation: 'En revisión: no se sabe si llegó',
+  resolved_manually: 'Resuelto a mano en Siweb360',
+};
+
 function Outbox() {
   const q = useQuery({
     queryKey: ['outbox'],
@@ -377,7 +494,8 @@ function Outbox() {
           idempotencyKey: string;
           status: string;
           lastError: string | null;
-          stockActual: unknown;
+          stockActual: { total_on_hand?: number } | null;
+          proximaComprobacion: string | null;
         }>
       >('/api/admin/outbox'),
     retry: false,
@@ -390,11 +508,21 @@ function Outbox() {
         {q.data?.map((o) => (
           <li key={o.id} className="py-2">
             <p>
-              {o.idempotencyKey} · <strong>{o.status}</strong> {o.lastError && `· ${o.lastError}`}
+              {o.idempotencyKey} · <strong>{TEXTO_ENVIO[o.status] ?? o.status}</strong>{' '}
+              {o.lastError && `· ${o.lastError}`}
             </p>
             {o.status === 'needs_reconciliation' && (
               <>
-                <pre className="text-xs">Stock actual: {JSON.stringify(o.stockActual)}</pre>
+                <p className="text-sm text-texto-muted">
+                  {o.proximaComprobacion
+                    ? `Se volverá a comprobar en Siweb360 el ${fecha(o.proximaComprobacion)}.`
+                    : 'Ya no se comprueba solo: decide tú.'}
+                </p>
+                <p className="text-sm">
+                  {typeof o.stockActual?.total_on_hand === 'number'
+                    ? `Stock que tiene ahora Siweb360: ${o.stockActual.total_on_hand}`
+                    : 'No se ha podido leer el stock actual en Siweb360.'}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <Boton
                     onClick={() =>

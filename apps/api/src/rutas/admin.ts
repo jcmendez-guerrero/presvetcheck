@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   appendAudit,
+  outbox,
   distribuidor,
   plataformaRecetaElectronica,
   reglaVersion,
@@ -9,7 +10,14 @@ import {
   siwebVariantMap,
   sustitucionExclusion,
 } from '@mmx/db';
-import { DomainError, LimiteConsumoBody } from '@mmx/shared';
+import { DomainError, LimiteConsumoBody, PruebaEscrituraBody } from '@mmx/shared';
+import {
+  ACCION_PRUEBA_ESCRITURA,
+  ejecutarSpike,
+  esPruebaVigente,
+  movimientosSinJustificar,
+  ultimaPruebaEscritura,
+} from '@mmx/siweb';
 import { ahoraDe, type AppDeps } from '../deps';
 import { ROLES, exigirMfa, requiereRol } from '../plugins/auth';
 import { IdParam } from '../schemas';
@@ -435,6 +443,8 @@ export async function rutasAdmin(app: App, d: AppDeps) {
             f.status === 'needs_reconciliation'
               ? await s.stockActual((f.payload as { variant_id: number }).variant_id).catch(() => null)
               : null,
+          proximaComprobacion: f.nextAttemptAt,
+          evidencia: f.status === 'needs_reconciliation' ? f.lastError : null,
         })),
       );
     },
@@ -455,6 +465,106 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     async (req) => {
       await siweb().outbox.resolver(req.params.id, req.body.accion, ctx(req).usuario.id, req.body.nota);
       return { ok: true };
+    },
+  );
+
+  app.post(
+    '/api/admin/recepciones/:id/enviar-siweb',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['admin'],
+        summary:
+          'Envía a Siweb360 el stock de una recepción finalizada con la escritura apagada (a petición expresa)',
+        params: IdParam,
+        body: z.object({ nota: z.string().trim().min(5) }),
+      },
+    },
+    async (req) =>
+      siweb().outbox.enviarRecepcionDesactivada(req.params.id, ctx(req).usuario.id, req.body.nota),
+  );
+
+  // ── Escritura de stock en Siweb360: estado y prueba de escritura (specs/011) ─────────────
+  app.get(
+    '/api/admin/estado-stock',
+    {
+      preHandler: admin,
+      schema: { tags: ['admin'], summary: 'Estado de la escritura de stock en Siweb360' },
+    },
+    async () => {
+      const ultima = await ultimaPruebaEscritura(d.db);
+      const cuenta = await d.db
+        .select({ status: outbox.status, n: sql<number>`count(*)::int` })
+        .from(outbox)
+        .where(inArray(outbox.status, ['pending', 'failed', 'needs_reconciliation']))
+        .groupBy(outbox.status);
+      const n = (st: string) => cuenta.find((c) => c.status === st)?.n ?? 0;
+      return {
+        escrituraStock: d.config.SIWEB_STOCK_WRITE_MODE,
+        fechaCorte: d.config.ENTRY_CUTOVER_DATE ?? null,
+        almacenStock: d.config.SIWEB_WAREHOUSE_NAME,
+        ultimaPruebaEscritura: ultima,
+        pruebaEscrituraVigente: esPruebaVigente(ultima, ahoraDe(d)),
+        outbox: { pendientes: n('pending'), fallidos: n('failed'), enRevision: n('needs_reconciliation') },
+        movimientosSinJustificar: d.config.ENTRY_CUTOVER_DATE
+          ? (await movimientosSinJustificar(d.db, { corte: d.config.ENTRY_CUTOVER_DATE })).length
+          : 0,
+      };
+    },
+  );
+  app.post(
+    '/api/admin/siweb/prueba-escritura',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['admin'],
+        summary: 'Prueba de escritura en una variante TEST- (SPEC §12.3): +1 y −1, y comprueba el historial',
+        body: PruebaEscrituraBody,
+      },
+    },
+    async (req) => {
+      const client = siweb().client;
+      if (!client) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado');
+      const { sku } = req.body;
+      const registrar = (despues: Record<string, unknown>) =>
+        d.db.transaction((tx) =>
+          appendAudit(tx, {
+            actor: ctx(req).usuario.id,
+            accion: ACCION_PRUEBA_ESCRITURA,
+            entidad: 'siweb',
+            entidadId: sku,
+            despues,
+          }),
+        );
+      // Se comprueba aquí además de en ejecutarSpike: nunca se escribe en un producto real.
+      if (!sku.startsWith('TEST-')) {
+        await registrar({ ok: false, motivo: 'SKU_NO_TEST', sku });
+        throw new DomainError('SKU_NO_TEST', 'El SKU de la prueba debe empezar por TEST-');
+      }
+      const r = await conSiweb(() =>
+        ejecutarSpike({
+          client,
+          sku,
+          almacen: { nombre: d.config.SIWEB_WAREHOUSE_NAME, id: d.config.SIWEB_WAREHOUSE_ID },
+          // La confirmación es el «SI» escrito en el formulario (PruebaEscrituraBody).
+          preguntar: async () => 'SI',
+          log: (m) => req.log.info({ prueba: m }, 'prueba de escritura'),
+          hoy: ahoraDe(d),
+        }),
+      );
+      const resumen = r.ok
+        ? {
+            ok: true,
+            coherente: r.coherente,
+            historialOk: r.historialOk,
+            sku,
+            variantId: r.variantId,
+            lote: r.lote,
+            movimientos: r.movimientos,
+          }
+        : { ok: false, motivo: r.motivo, sku };
+      await registrar(resumen);
+      return resumen;
     },
   );
 

@@ -19,3 +19,4 @@ Una ADR por fichero, a partir de la tabla de SPEC §1.
 - [ADR-15 · Corrección de la unidad «µg» del Nomenclátor y corrección de importaciones con CIMAVet](./0015-correccion-unidad-microgramos-nomenclator.md)
 - [ADR-16 · Dependencias vulnerables: política de corrección y tabla de excepciones](./0016-dependencias-vulnerables-y-excepciones.md)
 - [ADR-17 · Asistente de consultas con herramientas deterministas](./0017-asistente-de-consultas-con-herramientas-deterministas.md)
+- [ADR-18 · Activar la escritura de entradas con el historial de movimientos de Siweb360](./0018-conciliacion-movimientos-siweb.md)

@@ -14,6 +14,8 @@ import {
   recepcionLinea,
   reglaVersion,
   MAESTRA,
+  movimientoJustificacion,
+  siwebMovimiento,
 } from '../src/schema';
 
 let h: DbHandle;
@@ -255,5 +257,71 @@ describe('cifrado de columnas', () => {
     expect(maskDni('12345678Z')).toBe('****5678Z');
     expect(maskDni(null)).toBeNull();
     expect(() => new ColumnCipher('corta')).toThrow();
+  });
+});
+
+describe('conciliación de movimientos de Siweb360 (specs/011)', () => {
+  const mov = {
+    id: 990001,
+    variantId: 9001,
+    cn: '570016',
+    warehouseId: 21,
+    quantity: -1,
+    reason: 'damage',
+    createdAtSiweb: new Date('2026-11-04T08:00:00Z'),
+    leidoAt: new Date('2026-11-04T20:00:00Z'),
+  };
+  it('un movimiento leído dos veces no se duplica y no se puede editar ni borrar', async () => {
+    await h.db.insert(siwebMovimiento).values(mov).onConflictDoNothing();
+    await h.db
+      .insert(siwebMovimiento)
+      .values({ ...mov, quantity: -9 })
+      .onConflictDoNothing();
+    const filas = await h.db.select().from(siwebMovimiento).where(eq(siwebMovimiento.id, mov.id));
+    expect(filas).toHaveLength(1);
+    expect(filas[0]?.quantity).toBe(-1);
+    await expectPgError(
+      h.db.update(siwebMovimiento).set({ quantity: 0 }).where(eq(siwebMovimiento.id, mov.id)),
+      /solo inserción/,
+    );
+    await expectPgError(h.db.delete(siwebMovimiento).where(eq(siwebMovimiento.id, mov.id)), /solo inserción/);
+  });
+
+  it('las justificaciones son append-only, exigen sus campos y solo se sustituyen una vez', async () => {
+    const base = { movimientoId: mov.id, actor: 'empleado-1', at: new Date('2026-11-05T09:00:00Z') };
+    const [j1] = await h.db
+      .insert(movimientoJustificacion)
+      .values({ ...base, tipo: 'MOTIVO', motivo: 'ROTURA', nota: 'Caja rota' })
+      .returning();
+    if (!j1) throw new Error('sin fila');
+    await expectPgError(
+      h.db
+        .update(movimientoJustificacion)
+        .set({ motivo: 'CADUCADO' })
+        .where(eq(movimientoJustificacion.id, j1.id)),
+      /solo inserción/,
+    );
+    await expectPgError(
+      h.db.delete(movimientoJustificacion).where(eq(movimientoJustificacion.id, j1.id)),
+      /solo inserción/,
+    );
+    // MOTIVO sin motivo, o justificación manual sin nota → CHECK.
+    await expectPgError(
+      h.db.insert(movimientoJustificacion).values({ ...base, tipo: 'MOTIVO', nota: 'sin motivo' }),
+      /check/i,
+    );
+    await expectPgError(
+      h.db.insert(movimientoJustificacion).values({ ...base, tipo: 'MOTIVO', motivo: 'ROTURA', nota: 'x' }),
+      /check/i,
+    );
+    await h.db
+      .insert(movimientoJustificacion)
+      .values({ ...base, tipo: 'MOTIVO', motivo: 'CADUCADO', nota: 'Era caducado', sustituyeA: j1.id });
+    await expectPgError(
+      h.db
+        .insert(movimientoJustificacion)
+        .values({ ...base, tipo: 'MOTIVO', motivo: 'OTRO', nota: 'Otra vez', sustituyeA: j1.id }),
+      /unique|duplicate/i,
+    );
   });
 });

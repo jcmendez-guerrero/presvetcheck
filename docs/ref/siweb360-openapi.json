@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Siweb360 / Sygna Public API",
-    "version": "1.2.0",
-    "description": "API de integración de Siweb360 (misma API que Sygna): accede a los datos de tu empresa desde aplicaciones externas.\n\nDocumento OpenAPI generado a partir de la documentación pública en https://sygna.es/developers y https://sygna.es/developers/auctions (revisado el 3 de noviembre de 2026). Los esquemas de respuesta se infieren de los ejemplos publicados.\n\n**Autenticación:** todas las solicitudes requieren `Authorization: Bearer YOUR_API_TOKEN`. Obtén el token en Sygna → Configuración → API → selecciona tu empresa → Generar API Key. Excepción: `/api/verifactu-external/quick-ticket` usa el header `x-verifactu-api-key`.\n\n**Límites de uso:** 1.000 requests por hora. Disponibilidad 24/7.\n\n**Formato:** `application/json`. Respuesta estándar `{ \"success\": true, \"data\": ... }`.\n\n**Seguridad:** TLS 1.3, tokens JWT firmados con expiración, rate limiting, auditoría y backups cifrados. Cumplimiento RGPD, LOPD-GDD, LSSI-CE, ISO 27001. Responsable del tratamiento: SIWEB PLANIFICACION INTEGRAL WEB S.L. (B27862648), privacy@sygna.es.",
+    "version": "1.3.0",
+    "description": "API de integración de Siweb360 (misma API que Sygna): accede a los datos de tu empresa desde aplicaciones externas.\n\nDocumento OpenAPI generado a partir de la documentación pública en https://sygna.es/developers y https://sygna.es/developers/auctions (revisado el 9 de noviembre de 2026). Los esquemas de respuesta se infieren de los ejemplos publicados.\n\n**Autenticación:** todas las solicitudes requieren `Authorization: Bearer YOUR_API_TOKEN`. Obtén el token en Sygna → Configuración → API → selecciona tu empresa → Generar API Key. Excepción: `/api/verifactu-external/quick-ticket` usa el header `x-verifactu-api-key`.\n\n**Límites de uso:** 1.000 requests por hora. Disponibilidad 24/7.\n\n**Formato:** `application/json`. Respuesta estándar `{ \"success\": true, \"data\": ... }`.\n\n**Seguridad:** TLS 1.3, tokens JWT firmados con expiración, rate limiting, auditoría y backups cifrados. Cumplimiento RGPD, LOPD-GDD, LSSI-CE, ISO 27001. Responsable del tratamiento: SIWEB PLANIFICACION INTEGRAL WEB S.L. (B27862648), privacy@sygna.es.",
     "contact": {
       "name": "Soporte Siweb360",
       "email": "soporte@sygna.es",
@@ -22,9 +22,7 @@
   ],
   "security": [
     {
-      "bearerAuth": [
-
-      ]
+      "bearerAuth": []
     }
   ],
   "tags": [
@@ -575,8 +573,7 @@
                         },
                         "tareas_pendientes": {
                           "type": "array",
-                          "items": {
-                          }
+                          "items": {}
                         }
                       }
                     }
@@ -617,9 +614,7 @@
                         "estado": "pagada"
                       }
                     ],
-                    "tareas_pendientes": [
-
-                    ]
+                    "tareas_pendientes": []
                   }
                 }
               }
@@ -6703,7 +6698,7 @@
           "Inventario"
         ],
         "summary": "Obtener una variante",
-        "description": "Variante con sus totales y el desglose de stock por almacén, ubicación y lote.",
+        "description": "Variante con sus totales y el desglose de stock por almacén, ubicación y lote. Incluye también el coste (cost_cents) y si el precio y el coste llevan el IVA incluido (price_tax_included / cost_tax_included) con su tipo (price_tax_rate / cost_tax_rate, en %).",
         "operationId": "getInventoryVariantsById",
         "parameters": [
           {
@@ -6792,6 +6787,21 @@
                         "is_infinite_stock": {
                           "type": "boolean"
                         },
+                        "cost_cents": {
+                          "type": "number"
+                        },
+                        "price_tax_included": {
+                          "type": "boolean"
+                        },
+                        "price_tax_rate": {
+                          "type": "number"
+                        },
+                        "cost_tax_included": {
+                          "type": "boolean"
+                        },
+                        "cost_tax_rate": {
+                          "type": "number"
+                        },
                         "stock_levels": {
                           "type": "array",
                           "items": {
@@ -6865,6 +6875,11 @@
                     "total_allocated": 0,
                     "total_available": 40,
                     "is_infinite_stock": false,
+                    "cost_cents": 712,
+                    "price_tax_included": true,
+                    "price_tax_rate": 21,
+                    "cost_tax_included": false,
+                    "cost_tax_rate": 21,
                     "stock_levels": [
                       {
                         "warehouse_id": 14,
@@ -10493,9 +10508,7 @@
         },
         "security": [
           {
-            "verifactuApiKey": [
-
-            ]
+            "verifactuApiKey": []
           }
         ]
       }
@@ -11401,7 +11414,7 @@
                         "id": 90211,
                         "fecha": "2026-09-04",
                         "hora_entrada": "2026-09-04T07:02:00.000Z",
-                        "hora_entrada_local": 32520,
+                        "hora_entrada_local": "09:02",
                         "es_manual": false
                       },
                       "hoy": {
@@ -11411,7 +11424,7 @@
                         "horas_comida": 0,
                         "fichajes": 1,
                         "primera_entrada": "2026-09-04T07:02:00.000Z",
-                        "primera_entrada_local": 32520,
+                        "primera_entrada_local": "09:02",
                         "ultima_salida": null,
                         "ultima_salida_local": null
                       },
@@ -11639,7 +11652,7 @@
                       "empleado": "Lucía Ferrer Blanco",
                       "fecha": "2026-09-03",
                       "hora_entrada": "2026-09-03T07:01:00.000Z",
-                      "hora_entrada_local": 32460,
+                      "hora_entrada_local": "09:01",
                       "hora_salida": "2026-09-03T16:04:00.000Z",
                       "hora_salida_local": "18:04",
                       "total_horas": 8.05,
@@ -11796,7 +11809,7 @@
                     "empleado": "Lucía Ferrer Blanco",
                     "fecha": "2026-09-03",
                     "hora_entrada": "2026-09-03T07:01:00.000Z",
-                    "hora_entrada_local": 32460,
+                    "hora_entrada_local": "09:01",
                     "hora_salida": "2026-09-03T16:04:00.000Z",
                     "hora_salida_local": "18:04",
                     "total_horas": 8.05,
@@ -13734,8 +13747,7 @@
                     },
                     "errors": {
                       "type": "array",
-                      "items": {
-                      }
+                      "items": {}
                     }
                   }
                 },
@@ -13748,9 +13760,7 @@
                   "participants_created": 2,
                   "participants_updated": 0,
                   "contacts_failed": 0,
-                  "errors": [
-
-                  ]
+                  "errors": []
                 }
               }
             }
@@ -15199,8 +15209,7 @@
                     },
                     "skipped_details": {
                       "type": "array",
-                      "items": {
-                      }
+                      "items": {}
                     }
                   }
                 },
@@ -15232,9 +15241,7 @@
                       "estado": "borrador"
                     }
                   ],
-                  "skipped_details": [
-
-                  ]
+                  "skipped_details": []
                 }
               }
             }
@@ -16053,8 +16060,7 @@
                         },
                         "lots_skipped": {
                           "type": "array",
-                          "items": {
-                          }
+                          "items": {}
                         }
                       }
                     }
@@ -16093,9 +16099,7 @@
                       882,
                       883
                     ],
-                    "lots_skipped": [
-
-                    ]
+                    "lots_skipped": []
                   }
                 }
               }
@@ -16864,16 +16868,14 @@
                               },
                               "avisos": {
                                 "type": "array",
-                                "items": {
-                                }
+                                "items": {}
                               }
                             }
                           }
                         },
                         "errores": {
                           "type": "array",
-                          "items": {
-                          }
+                          "items": {}
                         }
                       }
                     }
@@ -16892,14 +16894,10 @@
                         "total_suplidos": 1000,
                         "ingreso_fiscal": 220,
                         "total_verifactu": 266.2,
-                        "avisos": [
-
-                        ]
+                        "avisos": []
                       }
                     ],
-                    "errores": [
-
-                    ]
+                    "errores": []
                   }
                 }
               }

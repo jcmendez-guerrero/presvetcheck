@@ -44,3 +44,4 @@ Para una duda nueva: crear la tarea en Jira (hija de KAN-1, etiqueta `dudas`) y 
 | DUDA-27 | [KAN-29](https://mundomascotix.atlassian.net/browse/KAN-29) | Resuelta | OCR: modelo para leer las recetas |
 | DUDA-28 | [KAN-30](https://mundomascotix.atlassian.net/browse/KAN-30) | Resuelta | El garante no usa la app |
 | DUDA-29 | [KAN-31](https://mundomascotix.atlassian.net/browse/KAN-31) | Parcial | Asistente de consultas: modelo, precios y banco de evaluación |
+| DUDA-30 | Pendiente de crear en Jira | Resuelta 2026-11-10: solo psicótropos, como ALTA (specs/011 FR-009e) | ¿Las justificaciones de entradas (devolución de cliente, recuento al alza) van al registro de movimientos? (specs/011) |

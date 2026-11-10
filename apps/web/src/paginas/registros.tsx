@@ -108,6 +108,15 @@ export function Registros() {
           <Boton variante="secundario" onClick={() => void ver('psicotropos')}>
             Registro de psicótropos
           </Boton>
+          <Boton variante="secundario" onClick={() => void ver('bajas')}>
+            Registro de bajas
+          </Boton>
+          <Boton
+            variante="secundario"
+            onClick={() => void descargar(qs('xlsx', 'bajas'), `bajas-${f.desde}_${f.hasta}.xlsx`)}
+          >
+            Bajas XLSX
+          </Boton>
         </div>
       </Tarjeta>
       <Tarjeta titulo="Informes de conjunto">

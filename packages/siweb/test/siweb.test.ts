@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { http, HttpResponse, delay } from 'msw';
 import { setupServer } from 'msw/node';
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import {
+  auditEvent,
   distribuidor,
   outbox,
   recepcion,
@@ -21,7 +22,7 @@ import { StockService } from '../src/stock';
 import { VariantResolver, similitudNombre } from '../src/mapeo';
 import { IndiceCatalogo } from '../src/indice';
 import { BandejaSiweb, ManualTaskCatalogWriter, SkuReservas, crearCatalogWriter } from '../src/tareas';
-import { OutboxService, claveEntrada, exigirEntrada } from '../src/outbox';
+import { MAX_VERIFICACIONES, OutboxService, claveEntrada, exigirEntrada } from '../src/outbox';
 import {
   LecturaTicketsIncompleta,
   NotConfiguredSalesMovementsSource,
@@ -150,6 +151,44 @@ describe('SiwebClient (SPEC §5.2.1) con los ejemplos de la documentación', () 
       quantity: 10,
       type: 'IN',
     });
+  });
+
+  it('movements (API 1.3.0): reference_id cadena o número, campos nuevos y desconocidos', async () => {
+    const doc = fx('doc-movements.json');
+    const fila = doc.data[0];
+    server.use(
+      http.get(`${BASE}inventory/movements`, () =>
+        HttpResponse.json({
+          ...doc,
+          data: [
+            { ...fila, campo_nuevo: { x: 1 } },
+            { ...fila, id: 2, reference_id: 45121, NOTES: 'mayúsculas' },
+            { ...fila, id: 3, reference_id: null },
+          ],
+        }),
+      ),
+    );
+    const movs = await client().movements({ variant_id: 8812 });
+    expect(movs.map((m) => m.reference_id)).toEqual(['45120', '45121', null]);
+    expect(movs[0]).toMatchObject({
+      batch_number: 'L-2026-09',
+      expiry_date: '2027-03-31',
+      reference_number: 'FAC-0231',
+    });
+  });
+
+  it.each([
+    ['5xx', () => HttpResponse.json({ success: false }, { status: 503 })],
+    [
+      'timeout',
+      async () => {
+        await delay(200);
+        return HttpResponse.json(fx('doc-movements.json'));
+      },
+    ],
+  ])('movements lanza error con %s', async (_n, h) => {
+    server.use(http.get(`${BASE}inventory/movements`, h));
+    await expect(client({ timeoutMs: 30, maxRetries: 0 }).movements({})).rejects.toBeTruthy();
   });
 
   it('pagina según pagination.pages (documentado)', async () => {
@@ -636,13 +675,22 @@ describe('outbox de entradas (SPEC §5.2.4–5.2.5)', () => {
     await h.db.update(recepcion).set({ estado: 'FINALIZADA' }).where(eq(recepcion.id, r!.id));
     return r!.id;
   }
-  const svc = (modo: 'off' | 'entries_only') =>
+  const svc = (modo: 'off' | 'entries_only', o: { prueba?: Date | null; now?: () => Date } = {}) =>
     new OutboxService(
       h.db,
       client({ timeoutMs: 30 }),
-      { modo, almacenId: async () => 21 },
-      { log: () => {} },
+      {
+        modo,
+        almacenId: async () => 21,
+        pruebaVigente: async () => (o.prueba === undefined ? new Date() : o.prueba),
+      },
+      { log: () => {}, ...(o.now ? { now: o.now } : {}) },
     );
+  const filasDe = (recepcionId: string) =>
+    h.db
+      .select()
+      .from(outbox)
+      .where(like(outbox.idempotencyKey, `MMX-REC-${recepcionId}-%`));
 
   it('con SIWEB_STOCK_WRITE_MODE=off no se encola ni se envía nada', async () => {
     const id = await recepcionFinalizada([{ variant: 9001 }]);
@@ -760,7 +808,7 @@ describe('outbox de entradas (SPEC §5.2.4–5.2.5)', () => {
     expect(await svc('entries_only').despachar()).toEqual({ sent: 0, failed: 2, needs_reconciliation: 1 });
     const fallidas = await svc('entries_only').listar(['failed']);
     expect(fallidas.map((f) => f.lastError)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/stock ilimitado/), expect.stringMatching(/HTTP 404/)]),
+      expect.arrayContaining(['SIWEB_STOCK_ILIMITADO', expect.stringMatching(/HTTP 404/)]),
     );
     const [rec] = await svc('entries_only').listar(['needs_reconciliation']);
     await svc('entries_only').resolver(rec!.id, 'confirmar_aplicada', 'dev-admin', 'Visto en Siweb360');
@@ -781,6 +829,163 @@ describe('outbox de entradas (SPEC §5.2.4–5.2.5)', () => {
       .insert(outbox)
       .values({ operation: 'stock_adjustment_sale', payload: { quantity: -1 }, idempotencyKey: 'MMX-X-1-1' });
     expect(await svc('entries_only').despachar()).toMatchObject({ failed: 1 });
+  });
+
+  describe('prueba de escritura vigente (specs/011, FR-010b)', () => {
+    const DIA = 24 * 3600_000;
+    it.each([
+      ['sin prueba', null, false],
+      ['prueba de hace 31 días', new Date(Date.now() - 31 * DIA), false],
+      ['prueba de hace 29 días', new Date(Date.now() - 29 * DIA), true],
+    ])('%s → se envía: %s', async (_n, prueba, enviadas) => {
+      server.use(
+        http.post(`${BASE}inventory/stock/adjustments`, () => HttpResponse.json(fx('doc-adjustment.json'))),
+      );
+      const id = await recepcionFinalizada([{ variant: 9001 }]);
+      await h.db.transaction((tx) => svc('entries_only').encolarRecepcion(tx, id));
+      const r = await svc('entries_only', { prueba }).despachar();
+      if (!enviadas) expect(r).toEqual({ sent: 0, failed: 0, needs_reconciliation: 0 });
+      const [f] = await filasDe(id);
+      expect(f?.status).toBe(enviadas ? 'sent' : 'pending');
+    });
+
+    it('apagar la escritura conserva los pendientes y al volver a encenderla se envían (FR-012)', async () => {
+      server.use(
+        http.post(`${BASE}inventory/stock/adjustments`, () => HttpResponse.json(fx('doc-adjustment.json'))),
+      );
+      const id = await recepcionFinalizada([{ variant: 9001 }]);
+      await h.db.transaction((tx) => svc('entries_only').encolarRecepcion(tx, id));
+      expect(await svc('off').despachar()).toEqual({ sent: 0, failed: 0, needs_reconciliation: 0 });
+      expect((await filasDe(id))[0]?.status).toBe('pending');
+      expect(await svc('entries_only').despachar()).toMatchObject({ sent: 1 });
+    });
+  });
+
+  describe('verificación de envíos dudosos contra el historial (specs/011, US2)', () => {
+    let ajustes = 0;
+    /** Recepción con un envío que acabó en 5xx (dudoso), creado en el instante `t0`. */
+    async function envioDudoso(t0: Date) {
+      ajustes = 0;
+      server.use(
+        http.post(`${BASE}inventory/stock/adjustments`, () => {
+          ajustes++;
+          return new HttpResponse(null, { status: 502 });
+        }),
+      );
+      const id = await recepcionFinalizada([{ variant: 9001 }]);
+      await h.db.transaction((tx) => svc('entries_only').encolarRecepcion(tx, id));
+      expect(await svc('entries_only', { now: () => t0 }).despachar()).toMatchObject({
+        needs_reconciliation: 1,
+      });
+      const [f] = await filasDe(id);
+      return { id, fila: f! };
+    }
+    const historial = (notas: Array<string | null>) =>
+      http.get(`${BASE}inventory/movements`, ({ request }) => {
+        const u = new URL(request.url);
+        expect(u.searchParams.get('variant_id')).toBe('9001');
+        expect(u.searchParams.get('reason')).toBe('purchase_receipt');
+        return HttpResponse.json({
+          success: true,
+          data: notas.map((n, i) => ({
+            id: 70000 + i,
+            variant_id: 9001,
+            quantity: 3,
+            reason: 'purchase_receipt',
+            notes: n,
+          })),
+        });
+      });
+    const despues = (t0: Date, min: number) => () => new Date(t0.getTime() + min * 60_000);
+
+    it('aparece una vez → enviado, línea sincronizada y auditado; no se comprueba antes de 10 min', async () => {
+      const t0 = new Date();
+      const { id, fila } = await envioDudoso(t0);
+      expect(fila.nextAttemptAt?.getTime()).toBe(t0.getTime() + 10 * 60_000);
+      server.use(historial(['otra cosa', fila.idempotencyKey]));
+      expect(await svc('entries_only', { now: despues(t0, 5) }).verificarDudosos()).toEqual({
+        verificadas: 0,
+        noConsta: 0,
+        duplicadas: 0,
+      });
+      expect(await svc('entries_only', { now: despues(t0, 11) }).verificarDudosos()).toMatchObject({
+        verificadas: 1,
+      });
+      const [f] = await filasDe(id);
+      expect(f).toMatchObject({ status: 'sent', resolvedBy: 'outbox-verificador', nextAttemptAt: null });
+      expect((f?.response as { movimiento: { id: number } }).movimiento.id).toBe(70001);
+      const [rec] = await h.db.select().from(recepcion).where(eq(recepcion.id, id));
+      expect(rec?.estado).toBe('SINCRONIZADA');
+      const audit = await h.db.select().from(auditEvent).where(eq(auditEvent.entidadId, fila.id));
+      expect(audit.map((a) => a.accion)).toContain('outbox_verificado_auto');
+      expect(ajustes).toBe(1);
+    });
+
+    it('no aparece (o la nota no es exacta) → sigue en revisión, cada 15 min, y deja de comprobar a las 96', async () => {
+      const t0 = new Date();
+      const { id, fila } = await envioDudoso(t0);
+      server.use(historial([`${fila.idempotencyKey} `, null]));
+      expect(await svc('entries_only', { now: despues(t0, 11) }).verificarDudosos()).toMatchObject({
+        noConsta: 1,
+      });
+      let [f] = await filasDe(id);
+      expect(f).toMatchObject({ status: 'needs_reconciliation', verificaciones: 1 });
+      expect(f?.lastError).toMatch(/^No consta en Siweb360/);
+      expect(f?.nextAttemptAt?.getTime()).toBe(t0.getTime() + 26 * 60_000);
+      await h.db
+        .update(outbox)
+        .set({ verificaciones: MAX_VERIFICACIONES - 1 })
+        .where(eq(outbox.id, fila.id));
+      await svc('entries_only', { now: despues(t0, 30) }).verificarDudosos();
+      [f] = await filasDe(id);
+      expect(f?.nextAttemptAt).toBeNull();
+      expect(f?.status).toBe('needs_reconciliation');
+      expect(ajustes).toBe(1);
+    });
+
+    it('aparece dos veces → posible duplicado, sin más comprobaciones', async () => {
+      const t0 = new Date();
+      const { id, fila } = await envioDudoso(t0);
+      server.use(historial([fila.idempotencyKey, fila.idempotencyKey]));
+      expect(await svc('entries_only', { now: despues(t0, 11) }).verificarDudosos()).toMatchObject({
+        duplicadas: 1,
+      });
+      const [f] = await filasDe(id);
+      expect(f).toMatchObject({ status: 'needs_reconciliation', nextAttemptAt: null });
+      expect(f?.lastError).toMatch(/Posible duplicado en Siweb360 \(2 movimientos\)/);
+    });
+
+    it('el historial no responde → no cambia nada', async () => {
+      const t0 = new Date();
+      const { id, fila } = await envioDudoso(t0);
+      server.use(http.get(`${BASE}inventory/movements`, () => new HttpResponse(null, { status: 503 })));
+      expect(await svc('entries_only', { now: despues(t0, 11) }).verificarDudosos()).toEqual({
+        verificadas: 0,
+        noConsta: 0,
+        duplicadas: 0,
+      });
+      const [f] = await filasDe(id);
+      expect(f).toMatchObject({
+        status: 'needs_reconciliation',
+        verificaciones: 0,
+        lastError: fila.lastError,
+      });
+    });
+
+    it('cualquier usuario cierra: revisado → sent, resuelto a mano → resolved_manually; no se cierra dos veces', async () => {
+      const t0 = new Date();
+      const a = await envioDudoso(t0);
+      const b = await envioDudoso(t0);
+      await svc('entries_only').cerrar(a.fila.id, 'revisado', 'dev-empleado', 'Visto en Siweb360');
+      await svc('entries_only').cerrar(b.fila.id, 'resuelto_a_mano', 'dev-empleado', 'Dado de alta a mano');
+      expect((await filasDe(a.id))[0]).toMatchObject({ status: 'sent', resolvedBy: 'dev-empleado' });
+      expect((await filasDe(b.id))[0]).toMatchObject({ status: 'resolved_manually' });
+      const [rec] = await h.db.select().from(recepcion).where(eq(recepcion.id, b.id));
+      expect(rec?.estado).toBe('SINCRONIZADA');
+      await expect(
+        svc('entries_only').cerrar(a.fila.id, 'revisado', 'dev-empleado', 'Otra vez'),
+      ).rejects.toThrow(/Solo se cierran/);
+    });
   });
 });
 

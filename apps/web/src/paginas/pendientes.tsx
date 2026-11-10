@@ -6,6 +6,14 @@ import { CN, fecha } from '../lib/textos';
 import { Pagina } from '../componentes/layout';
 import { Boton, Cargando, Campo, Mensaje, Tarjeta } from '../componentes/ui';
 import { TicketMultiRxModal } from '../componentes/ticket-multi-rx';
+import {
+  MOTIVOS_JUSTIFICACION,
+  TEXTO_MOTIVO,
+  motivoEncaja,
+  textoError,
+  type CodigoError,
+  type MotivoJustificacion,
+} from '@mmx/shared';
 
 interface Pendientes {
   registros: Array<{ id: string; numero: string | null; fecha: string | null; estado: string }>;
@@ -364,6 +372,8 @@ export function PaginaPendientes() {
           ))}
         </ul>
       </Tarjeta>
+      <EnviosSiwebEnRevision />
+      <MovimientosSinJustificar />
       {verTicketId && (
         <TicketMultiRxModal
           ticketId={verTicketId}
@@ -372,5 +382,273 @@ export function PaginaPendientes() {
         />
       )}
     </Pagina>
+  );
+}
+
+interface EnvioEnRevision {
+  id: string;
+  estado: string;
+  evidencia: string | null;
+  proximaComprobacion: string | null;
+  cn: string | null;
+  nombre: string | null;
+  lote: string | null;
+  unidades: number | null;
+  stockActual: { total_on_hand?: number } | null;
+}
+
+/** Texto de la evidencia de un envío: los códigos estables se traducen; el resto se muestra tal cual. */
+function textoEvidencia(e: string | null): string {
+  if (!e) return '';
+  if (/^[A-Z_]+$/.test(e)) return textoError(e as CodigoError);
+  return e;
+}
+
+/** Entradas de stock que no se sabe si llegaron a Siweb360 (specs/011, US2). Cualquier usuario las cierra. */
+function EnviosSiwebEnRevision() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ['outbox-revision'],
+    queryFn: () => get<EnvioEnRevision[]>('/api/outbox/revision'),
+  });
+  const [notas, setNotas] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const envios = q.data ?? [];
+  const cerrar = async (id: string, accion: 'revisado' | 'resuelto_a_mano') => {
+    setError(null);
+    try {
+      await post(`/api/outbox/${id}/cerrar`, { accion, nota: notas[id] ?? '' });
+      await qc.invalidateQueries({ queryKey: ['outbox-revision'] });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se ha podido guardar');
+    }
+  };
+  if (envios.length === 0) return null;
+  return (
+    <Tarjeta titulo={`Envíos a Siweb360 en revisión (${envios.length})`}>
+      <p className="text-sm text-texto-muted">
+        No sabemos si estas entradas de stock llegaron a Siweb360. Mira el producto en Siweb360 y elige qué ha
+        pasado. Nunca se reenvían solas.
+      </p>
+      <ul className="divide-y">
+        {envios.map((e) => (
+          <li key={e.id} className="grid gap-2 py-3">
+            <span>
+              <strong>{e.nombre ?? 'Producto'}</strong>
+              {e.cn && ` · ${CN} ${e.cn}`}
+              {e.lote && ` · lote ${e.lote}`}
+              {e.unidades !== null && ` · ${e.unidades} unidades`}
+            </span>
+            <span className="text-sm">{textoEvidencia(e.evidencia)}</span>
+            {typeof e.stockActual?.total_on_hand === 'number' && (
+              <span className="text-sm text-texto-muted">
+                Stock que tiene ahora Siweb360: {e.stockActual.total_on_hand}
+              </span>
+            )}
+            {e.proximaComprobacion && (
+              <span className="text-sm text-texto-muted">
+                Se vuelve a comprobar solo el {fecha(e.proximaComprobacion)}.
+              </span>
+            )}
+            <Campo
+              etiqueta="Qué has comprobado"
+              value={notas[e.id] ?? ''}
+              onChange={(ev) => setNotas({ ...notas, [e.id]: ev.target.value })}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Boton
+                disabled={(notas[e.id] ?? '').trim().length < 5}
+                onClick={() => void cerrar(e.id, 'revisado')}
+              >
+                Revisado: el stock está bien en Siweb360
+              </Boton>
+              <Boton
+                variante="secundario"
+                disabled={(notas[e.id] ?? '').trim().length < 5}
+                onClick={() => void cerrar(e.id, 'resuelto_a_mano')}
+              >
+                Lo he dado de alta a mano en Siweb360
+              </Boton>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {error && <Mensaje tipo="error">{error}</Mensaje>}
+    </Tarjeta>
+  );
+}
+
+interface MovimientoSiweb {
+  id: number;
+  fecha: string;
+  cn: string | null;
+  nombre: string | null;
+  lote: string | null;
+  caducidad: string | null;
+  unidades: number;
+  motivoSiweb: string;
+  referencia: string | null;
+}
+
+/**
+ * Movimientos de medicamentos en Siweb360 sin pareja en la app desde la fecha de corte (specs/011, US3).
+ * La API valida el motivo; aquí solo se ofrecen los que encajan con el sentido del movimiento.
+ */
+function MovimientosSinJustificar() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ['movimientos-siweb'],
+    queryFn: () => get<{ corte: string | null; movimientos: MovimientoSiweb[] }>('/api/movimientos-siweb'),
+  });
+  const [motivos, setMotivos] = useState<Record<number, MotivoJustificacion | 'VINCULO' | ''>>({});
+  const [vinculos, setVinculos] = useState<Record<number, CandidatoVinculo | undefined>>({});
+  const [notas, setNotas] = useState<Record<number, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  if (!q.data?.corte) return null;
+  const movs = q.data.movimientos;
+  const justificar = async (m: MovimientoSiweb) => {
+    setError(null);
+    try {
+      const nota = notas[m.id] ?? '';
+      const v = vinculos[m.id];
+      await post(
+        `/api/movimientos-siweb/${m.id}/justificar`,
+        motivos[m.id] !== 'VINCULO'
+          ? { tipo: 'MOTIVO', motivo: motivos[m.id], nota }
+          : v?.tipo === 'VINCULO_RECEPCION'
+            ? { tipo: v.tipo, recepcionLineaId: v.id, nota }
+            : { tipo: 'VINCULO_DISPENSACION', dispensacionId: v?.id, nota },
+      );
+      await qc.invalidateQueries({ queryKey: ['movimientos-siweb'] });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se ha podido guardar');
+    }
+  };
+  return (
+    <Tarjeta titulo={`Movimientos de Siweb360 sin justificar (${movs.length})`}>
+      <p className="text-sm text-texto-muted">
+        Desde el {fecha(q.data.corte)}, cada entrada o salida de un medicamento en Siweb360 tiene que estar en
+        la app o explicada. Estos movimientos no se han podido emparejar solos.
+      </p>
+      {movs.length === 0 && <p>No hay movimientos por justificar.</p>}
+      <ul className="divide-y">
+        {movs.map((m) => {
+          const opciones = MOTIVOS_JUSTIFICACION.filter((x) => motivoEncaja(x, m.unidades));
+          const idMotivo = `motivo-mov-${m.id}`;
+          return (
+            <li key={m.id} className="grid gap-2 py-3">
+              <span>
+                <strong>{m.unidades > 0 ? `Entrada de ${m.unidades}` : `Salida de ${-m.unidades}`}</strong>
+                {' · '}
+                {m.nombre ?? 'Medicamento'}
+                {m.cn && ` · ${CN} ${m.cn}`}
+                {m.lote && ` · lote ${m.lote}`}
+                {m.caducidad && ` · caduca ${fecha(m.caducidad)}`}
+              </span>
+              <span className="text-sm text-texto-muted">
+                {fecha(m.fecha)} · en Siweb360: {m.motivoSiweb}
+                {m.referencia && ` · ${m.referencia}`}
+              </span>
+              <label htmlFor={idMotivo} className="text-sm font-medium">
+                Motivo
+              </label>
+              <select
+                id={idMotivo}
+                className="rounded border px-2 py-1"
+                value={motivos[m.id] ?? ''}
+                onChange={(ev) => setMotivos({ ...motivos, [m.id]: ev.target.value as MotivoJustificacion })}
+              >
+                <option value="">Elige un motivo</option>
+                <option value="VINCULO">
+                  {m.unidades > 0
+                    ? 'Vincular a una recepción del mismo día'
+                    : 'Vincular a una venta del mismo día'}
+                </option>
+                {opciones.map((x) => (
+                  <option key={x} value={x}>
+                    {TEXTO_MOTIVO[x]}
+                  </option>
+                ))}
+              </select>
+              {motivos[m.id] === 'VINCULO' && (
+                <Candidatos
+                  movimientoId={m.id}
+                  elegido={vinculos[m.id]?.id}
+                  onElegir={(c) => setVinculos({ ...vinculos, [m.id]: c })}
+                />
+              )}
+              <Campo
+                etiqueta="Nota"
+                value={notas[m.id] ?? ''}
+                onChange={(ev) => setNotas({ ...notas, [m.id]: ev.target.value })}
+              />
+              <Boton
+                variante="texto"
+                disabled={
+                  !motivos[m.id] ||
+                  (motivos[m.id] === 'VINCULO' && !vinculos[m.id]) ||
+                  (notas[m.id] ?? '').trim().length < 5
+                }
+                onClick={() => void justificar(m)}
+              >
+                Guardar justificación
+              </Boton>
+            </li>
+          );
+        })}
+      </ul>
+      {error && <Mensaje tipo="error">{error}</Mensaje>}
+    </Tarjeta>
+  );
+}
+
+interface CandidatoVinculo {
+  tipo: 'VINCULO_RECEPCION' | 'VINCULO_DISPENSACION';
+  id: string;
+  fecha: string;
+  nombre: string;
+  lote: string | null;
+  unidades: number;
+}
+
+/** Recepciones o ventas del mismo código nacional y día que el movimiento (specs/011, T052). */
+function Candidatos({
+  movimientoId,
+  elegido,
+  onElegir,
+}: {
+  movimientoId: number;
+  elegido: string | undefined;
+  onElegir: (c: CandidatoVinculo | undefined) => void;
+}) {
+  const q = useQuery({
+    queryKey: ['movimientos-siweb', movimientoId, 'candidatos'],
+    queryFn: () =>
+      get<{ candidatos: CandidatoVinculo[] }>(`/api/movimientos-siweb/${movimientoId}/candidatos`),
+  });
+  if (q.isLoading) return <Cargando />;
+  const candidatos = q.data?.candidatos ?? [];
+  if (!candidatos.length)
+    return <p className="text-sm">No hay nada del mismo medicamento ese día. Elige un motivo.</p>;
+  const id = `candidato-mov-${movimientoId}`;
+  return (
+    <>
+      <label htmlFor={id} className="text-sm font-medium">
+        {candidatos[0]?.tipo === 'VINCULO_RECEPCION' ? 'Recepción' : 'Venta'}
+      </label>
+      <select
+        id={id}
+        className="rounded border px-2 py-1"
+        value={elegido ?? ''}
+        onChange={(ev) => onElegir(candidatos.find((c) => c.id === ev.target.value))}
+      >
+        <option value="">Elige una</option>
+        {candidatos.map((c) => (
+          <option key={c.id} value={c.id}>
+            {fecha(c.fecha)} · {c.nombre} · {c.unidades} ud.{c.lote ? ` · lote ${c.lote}` : ''}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }

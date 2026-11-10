@@ -85,7 +85,7 @@ export function tablaEntradas(entradas: Entrada[]): Tabla {
  */
 export interface MovimientoPsicotropo {
   fecha: string | Date;
-  tipo: 'ENTRADA' | 'SALIDA' | 'ANULACIÓN SALIDA';
+  tipo: 'ENTRADA' | 'SALIDA' | 'ANULACIÓN SALIDA' | 'BAJA' | 'ANULACIÓN BAJA' | 'ALTA' | 'ANULACIÓN ALTA';
   cn: string;
   nombre: string;
   lote: string;
@@ -118,7 +118,8 @@ export function tablaPsicotropos(movs: MovimientoPsicotropo[]): Tabla {
     ],
     filas: orden.map((m) => {
       const k = `${m.cn}|${m.lote}`;
-      const delta = m.tipo === 'SALIDA' ? -m.unidades : m.unidades;
+      const resta = m.tipo === 'SALIDA' || m.tipo === 'BAJA' || m.tipo === 'ANULACIÓN ALTA';
+      const delta = resta ? -m.unidades : m.unidades;
       saldo.set(k, (saldo.get(k) ?? 0) + delta);
       return [
         m.cn,
@@ -126,11 +127,65 @@ export function tablaPsicotropos(movs: MovimientoPsicotropo[]): Tabla {
         m.lote,
         fechaEs(m.fecha),
         m.tipo,
-        m.tipo === 'SALIDA' ? '' : m.unidades,
-        m.tipo === 'SALIDA' ? (m.unidades === 0 && m.unidadesTexto ? m.unidadesTexto : m.unidades) : '',
+        resta ? '' : m.unidades,
+        resta ? (m.unidades === 0 && m.unidadesTexto ? m.unidadesTexto : m.unidades) : '',
         saldo.get(k) as number,
         m.referencia,
       ];
     }),
+  };
+}
+
+/**
+ * Baja de stock: salida de un medicamento en Siweb360 que no es una venta, justificada en la app con un motivo
+ * (rotura, caducado, robo…; specs/011, FR-009d). Si la justificación se sustituye, el registro conserva la baja y
+ * añade su anulación; nunca se edita.
+ */
+export interface Baja {
+  fecha: string | Date;
+  tipo: 'BAJA' | 'ANULACIÓN BAJA';
+  cn: string;
+  nombre: string;
+  nregistro: string | null;
+  lote: string;
+  /** Envases (en positivo). */
+  unidades: number;
+  motivo: string;
+  nota: string | null;
+  /** Identificador de la justificación. */
+  referencia: string;
+  /** Posición de la justificación en su cadena de sustituciones (0 = la primera). */
+  orden: number;
+}
+
+export function tablaBajas(bajas: Baja[]): Tabla {
+  // Por fecha del movimiento; de una misma justificación, la baja antes que su anulación.
+  const clave = (x: Baja) =>
+    `${new Date(x.fecha).toISOString()}|${String(x.orden).padStart(4, '0')}|${x.tipo === 'BAJA' ? 0 : 1}|${x.referencia}`;
+  const orden = [...bajas].sort((a, b) => clave(a).localeCompare(clave(b)));
+  return {
+    nombre: 'Bajas',
+    columnas: [
+      'FECHA',
+      'MOVIMIENTO',
+      'CÓDIGO NACIONAL',
+      'MEDICAMENTO',
+      'LOTE',
+      'UNIDADES',
+      'MOTIVO',
+      'NOTA',
+      'REFERENCIA',
+    ],
+    filas: orden.map((b) => [
+      fechaEs(b.fecha),
+      b.tipo,
+      b.cn,
+      b.nombre,
+      b.lote,
+      b.unidades,
+      b.motivo,
+      b.nota ?? '',
+      b.referencia,
+    ]),
   };
 }
