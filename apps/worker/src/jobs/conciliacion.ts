@@ -16,7 +16,11 @@ export async function salesReconciliation(ctx: Contexto, args: Record<string, st
     return { inactivo: true };
   }
   const dia = args.fecha ?? hoy(ctx.clock);
-  const r = await conciliarDia(ctx.db, ctx.ventas, dia, { ahora: new Date(ctx.clock.now().epochMilliseconds), origen: 'sales-reconciliation', cierre: true });
+  const r = await conciliarDia(ctx.db, ctx.ventas, dia, {
+    ahora: new Date(ctx.clock.now().epochMilliseconds),
+    origen: 'sales-reconciliation',
+    cierre: true,
+  });
   const { pendientes, fraccionadasSinConciliar, ...resto } = r;
   void pendientes;
   // Después, todos los movimientos de medicamentos de Siweb360 desde la fecha de corte (specs/011).

@@ -152,7 +152,7 @@ describe('envíos a Siweb360 en revisión (US2)', () => {
       .values({
         operation: 'stock_adjustment_entry',
         payload: { variant_id: 9001, warehouse_id: 21, quantity: 1, reason: 'purchase_receipt' },
-        idempotencyKey: 'MMX-REC-api-test-L1',
+        idempotencyKey: 'MMX-REC-api-test-L1', // gitleaks:allow (clave de prueba, no es un secreto)
         status: 'needs_reconciliation',
         lastError: 'No consta en Siweb360 a 2026-10-14T10:00:00.000Z',
       })

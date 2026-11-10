@@ -6,7 +6,7 @@ documentación pública de https://app.siweb360.com/developers, octubre 2026). L
 de prueba.
 
 | Fichero | Endpoint |
-|---|---|
+| --- | --- |
 | `doc-products.json` | `GET inventory/products` (con `pagination {page, limit, total, pages}`) |
 | `doc-variant.json` | `GET inventory/variants/{id}` (con `stock_levels[]`: almacén, ubicación, `batch_number`, `expiry_date`, `on_hand`, `reserved`, `allocated`, `available`) |
 | `doc-stock.json` | `GET inventory/variants/{id}/stock` (`levels[]`, mismos campos) |

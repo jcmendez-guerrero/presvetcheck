@@ -19,6 +19,7 @@ export async function outboxDispatcher(ctx: Contexto) {
     if (r.sent + r.failed + r.needs_reconciliation === 0) break;
   }
   // Alerta (SPEC §11): needs_reconciliation > 0.
-  if (total.needs_reconciliation) ctx.log('ALERTA: operaciones del outbox en reconciliación', { n: total.needs_reconciliation });
+  if (total.needs_reconciliation)
+    ctx.log('ALERTA: operaciones del outbox en reconciliación', { n: total.needs_reconciliation });
   return { ...total, verificacion };
 }

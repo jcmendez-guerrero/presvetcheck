@@ -16,22 +16,22 @@ la **nota libre** donde la app guarda su referencia (`MMX-REC-{recepción}-L{lí
 
 ## Decisión
 
-1. **Verificación de envíos dudosos.** El job `outbox-dispatcher` busca la referencia exacta en el historial. Si
-   aparece una vez, el envío se da por hecho (lo audita el sistema); si no aparece o aparece varias veces, queda en
-   revisión con esa evidencia. **Nunca se reenvía solo.** Se comprueba a los 10 minutos y cada 15 minutos durante
-   24 horas.
-2. **Cierre por cualquier usuario.** «Revisado» o «Resuelto a mano en Siweb360», con nota. Reenviar y descartar
-   siguen siendo de administración.
-3. **Prueba de escritura dentro de la app.** Se lanza desde Administración, comprueba también que el historial
-   devuelve la nota y queda en la auditoría. Sin una superada en los últimos 30 días, el outbox no envía nada.
-4. **Conciliación de todos los movimientos de medicamentos.** Cada noche (con la conciliación de ventas) se lee el
-   historial desde `ENTRY_CUTOVER_DATE`, se guarda en `siweb_movimiento` (solo inserción) y se vincula solo lo que
-   tiene pareja: entradas por su referencia y ventas por su ticket ya conciliado. El resto va a la bandeja
-   «Movimientos sin justificar», donde una persona lo vincula o lo justifica con un motivo. Las justificaciones son
-   de solo inserción (`movimiento_justificacion`): una corrección sustituye a la anterior, nunca la edita.
-5. **Registro de bajas.** Toda salida justificada con motivo aparece como `BAJA` en el registro (y en el de
-   psicótropos si lo es); si la justificación se sustituye, se añade su anulación.
-6. En producción, `SIWEB_STOCK_WRITE_MODE=entries_only` exige `ENTRY_CUTOVER_DATE`.
+- **Verificación de envíos dudosos.** El job `outbox-dispatcher` busca la referencia exacta en el historial. Si
+  aparece una vez, el envío se da por hecho (lo audita el sistema); si no aparece o aparece varias veces, queda en
+  revisión con esa evidencia. **Nunca se reenvía solo.** Se comprueba a los 10 minutos y cada 15 minutos durante
+  24 horas.
+- **Cierre por cualquier usuario.** «Revisado» o «Resuelto a mano en Siweb360», con nota. Reenviar y descartar
+  siguen siendo de administración.
+- **Prueba de escritura dentro de la app.** Se lanza desde Administración, comprueba también que el historial
+  devuelve la nota y queda en la auditoría. Sin una superada en los últimos 30 días, el outbox no envía nada.
+- **Conciliación de todos los movimientos de medicamentos.** Cada noche (con la conciliación de ventas) se lee el
+  historial desde `ENTRY_CUTOVER_DATE`, se guarda en `siweb_movimiento` (solo inserción) y se vincula solo lo que
+  tiene pareja: entradas por su referencia y ventas por su ticket ya conciliado. El resto va a la bandeja
+  «Movimientos sin justificar», donde una persona lo vincula o lo justifica con un motivo. Las justificaciones son
+  de solo inserción (`movimiento_justificacion`): una corrección sustituye a la anterior, nunca la edita.
+- **Registro de bajas.** Toda salida justificada con motivo aparece como `BAJA` en el registro (y en el de
+  psicótropos si lo es); si la justificación se sustituye, se añade su anulación.
+- En producción, `SIWEB_STOCK_WRITE_MODE=entries_only` exige `ENTRY_CUTOVER_DATE`.
 
 ## Consecuencias
 

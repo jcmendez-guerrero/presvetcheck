@@ -583,7 +583,12 @@ Lectura en vivo al evaluar una línea (no se cachea stock más de 60 s). Si Siwe
   - **Bloqueado por documentación:** la API de movimientos/tickets de Siweb360 no está en la documentación aportada (solo Inventario). Codex implementa el puerto `SalesMovementsSource`, el algoritmo de conciliación en `domain` con tests, y un adaptador `NotConfiguredSalesMovementsSource` que deja el
     job inactivo con un aviso. Cuando JC aporte la doc en `docs/ref/`, se implementa el adaptador real. **TODO(decision D-02b)**.
 - **Entradas (D-03, resuelta):** hoy el stock entra **a mano** en Inventario de Siweb360, añadiendo lote y caducidad al producto; no se usa el módulo de Compras. Por tanto **esta app pasa a ser la única vía de entrada de stock de medicamentos**: al finalizar una recepción, el outbox crea un ajuste `purchase_receipt` por línea con `batch_number` y `expiry_date`.
-  - **Corte operativo:** desde la fecha de puesta en marcha, el personal deja de dar entradas manuales de medicamentos en Siweb360 (si no, se duplican). La app muestra la fecha de corte en la pantalla de recepción y **concilia cada noche todos los movimientos de medicamentos de Siweb360** desde esa fecha (`GET inventory/movements`, specs/011, ADR-18): las entradas con la marca `MMX-REC-` en `notes` y las ventas con ticket conciliado se vinculan solas; el resto va a la bandeja «Movimientos sin justificar» y al reporte semanal, donde una persona lo vincula o lo justifica con un motivo. Las salidas justificadas van al registro de bajas.
+  - **Corte operativo:** desde la fecha de puesta en marcha, el personal deja de dar entradas manuales de
+    medicamentos en Siweb360 (si no, se duplican). La app muestra la fecha de corte en la pantalla de recepción y
+    **concilia cada noche todos los movimientos de medicamentos de Siweb360** desde esa fecha (`GET
+    inventory/movements`, specs/011, ADR-18): las entradas con la marca `MMX-REC-` en `notes` y las ventas con
+    ticket conciliado se vinculan solas; el resto va a la bandeja «Movimientos sin justificar» y al reporte semanal,
+    donde una persona lo vincula o lo justifica con un motivo. Las salidas justificadas van al registro de bajas.
   - Productos que no son medicamento (accesorios, alimentación) siguen entrando como hasta ahora en Siweb360, salvo que se registren en la app como `tipo = producto`.
 
 `SIWEB_STOCK_WRITE_MODE ∈ { off, entries_only }`: `off` en local y `dev`; `entries_only` en `prod` **solo tras pasar la prueba de escritura** de la sección 12.3, que la app exige: sin una superada en los últimos 30 días el outbox no envía nada. En producción, `entries_only` exige `ENTRY_CUTOVER_DATE`. El valor `entries_and_sales` se elimina.
@@ -591,7 +596,12 @@ Lectura en vivo al evaluar una línea (no se cachea stock más de 60 s). Si Siwe
 #### 5.2.5 Outbox e idempotencia
 
 - Tabla `outbox` con `operation`, `payload`, `idempotency_key` (`MMX-{entidad}-{id}-{n}`), `status ∈ {pending, sent, failed, needs_reconciliation}`, intentos y último error.
-- La clave de idempotencia viaja en `notes` del ajuste. Ante un **timeout o respuesta ambigua** la operación pasa a `needs_reconciliation` y **nunca se reintenta sola**. El dispatcher la busca en el historial de movimientos (`GET inventory/movements`, igualdad exacta de `notes`) a los 10 minutos y cada 15 durante 24 h: si aparece una vez se da por enviada (auditado como resolución del sistema); si no aparece o aparece varias veces, queda en la bandeja con esa evidencia y el stock actual. Cualquier usuario la cierra («Revisado» o «Resuelto a mano en Siweb360»); reenviar o descartar es de administración (specs/011). Errores 4xx deterministas → `failed` con motivo.
+- La clave de idempotencia viaja en `notes` del ajuste. Ante un **timeout o respuesta ambigua** la operación pasa a
+  `needs_reconciliation` y **nunca se reintenta sola**. El dispatcher la busca en el historial de movimientos (`GET
+  inventory/movements`, igualdad exacta de `notes`) a los 10 minutos y cada 15 durante 24 h: si aparece una vez se da
+  por enviada (auditado como resolución del sistema); si no aparece o aparece varias veces, queda en la bandeja con
+  esa evidencia y el stock actual. Cualquier usuario la cierra («Revisado» o «Resuelto a mano en Siweb360»); reenviar
+  o descartar es de administración (specs/011). Errores 4xx deterministas → `failed` con motivo.
 - Dispatcher: job cada 5 minutos en horario comercial y disparo inmediato tras finalizar una recepción.
 
 ### 5.3 Extracción de recetas (`packages/extraction`)
