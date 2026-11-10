@@ -20,6 +20,7 @@ describe('loadConfig', () => {
     expect(c.SIWEB_SKU_CN_REGEX).toBe('CN(\\d{6,7})$');
     expect(c.EXTRACTOR).toBe('fake');
     expect(c.CIMAVET_RPS).toBe(3);
+    expect(c.MANUAL_PRESCRIPTION_ENTRY).toBe('disabled');
   });
 
   it('prohíbe AUTH_MODE=dev en producción', () => {

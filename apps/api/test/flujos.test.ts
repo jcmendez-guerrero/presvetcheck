@@ -761,7 +761,7 @@ describe('registros, exportaciones y anulación', () => {
       '/api/registros/salidas?desde=2026-10-14&hasta=2026-10-14&plantilla=A',
     );
     const fila = json.json.tablas[0].filas.find((f: string[]) => f[15] === d!.id);
-    expect(fila.at(-1)).toBe('S');
+    expect(fila[json.json.tablas[0].columnas.indexOf('ANULADA (S/N)')]).toBe('S');
   });
 
   it('reporte semanal bajo demanda y listado de reportes', async () => {

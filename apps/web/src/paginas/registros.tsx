@@ -20,11 +20,12 @@ export function Registros() {
     hasta: hoyIso(),
     plantilla: 'A',
     incluirPropietario: false,
+    soloAltaManual: false,
   });
   const [tabla, setTabla] = useState<Tabla | null>(null);
   const [error, setError] = useState<string | null>(null);
   const qs = (formato: string, tipo = 'salidas') =>
-    `/api/registros/${tipo}?desde=${f.desde}&hasta=${f.hasta}&plantilla=${f.plantilla}&formato=${formato}&incluirPropietario=${f.incluirPropietario ? 1 : 0}`;
+    `/api/registros/${tipo}?desde=${f.desde}&hasta=${f.hasta}&plantilla=${f.plantilla}&formato=${formato}&incluirPropietario=${f.incluirPropietario ? 1 : 0}${tipo === 'salidas' && f.soloAltaManual ? '&origen=manual' : ''}`;
   const ver = async (tipo: string) => {
     setError(null);
     try {
@@ -69,6 +70,16 @@ export function Registros() {
               onChange={(e) => setF({ ...f, incluirPropietario: e.target.checked })}
             />
             Incluir datos del propietario (en todas las exportaciones de salidas; DNI enmascarado)
+          </label>
+          <label className="flex items-center gap-2 self-end">
+            <input
+              type="checkbox"
+              data-testid="solo-alta-manual"
+              className="h-6 w-6"
+              checked={f.soloAltaManual}
+              onChange={(e) => setF({ ...f, soloAltaManual: e.target.checked })}
+            />
+            Solo recetas de alta manual (sin imagen)
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">

@@ -7,6 +7,7 @@ import { ProveedorAuth } from './lib/auth';
 import { Layout } from './componentes/layout';
 import { Inicio } from './paginas/inicio';
 import { NuevaReceta } from './paginas/nueva-receta';
+import { AltaManual } from './paginas/alta-manual';
 import { Revision } from './paginas/revision';
 import { Registro } from './paginas/registro';
 import { Resultado } from './paginas/resultado';
@@ -25,6 +26,11 @@ import { Vademecum } from './paginas/vademecum';
 const raiz = createRootRoute({ component: Layout });
 const r0 = createRoute({ getParentRoute: () => raiz, path: '/', component: Inicio });
 const r1 = createRoute({ getParentRoute: () => raiz, path: '/recetas/nueva', component: NuevaReceta });
+const rAltaManual = createRoute({
+  getParentRoute: () => raiz,
+  path: '/recetas/manual/nueva',
+  component: AltaManual,
+});
 const r2 = createRoute({
   getParentRoute: () => raiz,
   path: '/recetas/$id/revision',
@@ -95,6 +101,7 @@ const rVademecum = createRoute({
 const rutas = [
   r0,
   r1,
+  rAltaManual,
   r2,
   rRegistro,
   r3,

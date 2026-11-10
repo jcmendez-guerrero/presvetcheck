@@ -56,3 +56,13 @@ export function peorSeveridad(incs: Incidencia[]): Severidad | null {
 
 export const bloqueantes = (incs: Incidencia[]) => incs.filter((i) => i.severidad !== 'AVISO');
 export const avisos = (incs: Incidencia[]) => incs.filter((i) => i.severidad === 'AVISO');
+
+/**
+ * Alta manual (specs/011): la entrega ya ocurrió y solo se registra. Todo defecto queda como aviso para la revisión,
+ * salvo la receta ya dispensada, que bloquea para no registrar dos veces la misma entrega (constitución III).
+ */
+export function comoAvisosAltaManual(incs: Incidencia[]): Incidencia[] {
+  return incs.map((i) =>
+    i.severidad === 'AVISO' || i.code === 'RECETA_YA_DISPENSADA' ? i : { ...i, severidad: 'AVISO' },
+  );
+}

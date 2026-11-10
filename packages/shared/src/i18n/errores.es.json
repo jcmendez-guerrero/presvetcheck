@@ -44,5 +44,9 @@
   "TICKET_CANTIDAD_INSUFICIENTE": "La cantidad dispensada supera las unidades del ticket. No se puede confirmar.",
   "MODO_RETROSPECTIVO_DESHABILITADO": "El modo retrospectivo no está habilitado en la configuración del sistema.",
   "RECETA_YA_VINCULADA": "Esta receta ya está vinculada a otro ticket.",
-  "SUSTITUCION_BLOQUEO_DURO": "La sustitución está bloqueada por ley (medicamento biológico, inmunológico o prescripción en cascada)."
+  "SUSTITUCION_BLOQUEO_DURO": "La sustitución está bloqueada por ley (medicamento biológico, inmunológico o prescripción en cascada).",
+  "ALTA_MANUAL_DESHABILITADA": "El alta manual de recetas no está activada en la configuración del sistema.",
+  "MEDICAMENTO_NO_SELECCIONADO": "Elige el medicamento de la lista de CIMAVet en cada línea.",
+  "ESPECIE_NO_SELECCIONADA": "Elige la especie de la lista de CIMAVet.",
+  "FECHA_ORIGINAL_INVALIDA": "La fecha de entrega no puede ser posterior a hoy ni anterior a la fecha de emisión de la receta."
 }

@@ -63,10 +63,11 @@ export async function rutasRegistros(app: App, d: AppDeps) {
           }),
         );
       }
-      const salidas = await reg.salidas(q.desde, q.hasta, {
+      const todas = await reg.salidas(q.desde, q.hasta, {
         incluirPropietario: q.incluirPropietario === '1',
         dniCompleto,
       });
+      const salidas = q.origen === 'manual' ? todas.filter((s) => s.altaManual) : todas;
       const tablas = tablasSalidas(salidas, q.plantilla, {
         incluirPropietario: q.incluirPropietario === '1',
         internas: q.internas,

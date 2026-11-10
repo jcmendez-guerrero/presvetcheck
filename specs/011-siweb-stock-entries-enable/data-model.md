@@ -1,6 +1,6 @@
 # Data Model: Activar la escritura de entradas de stock en Siweb360
 
-Migración nueva `packages/db/migrations/0019_conciliacion_movimientos.sql` (+ esquema drizzle en
+Migración nueva `packages/db/migrations/0020_conciliacion_movimientos.sql` (+ esquema drizzle en
 `packages/db/src/schema/infra.ts`).
 
 ## Cambios en tablas existentes

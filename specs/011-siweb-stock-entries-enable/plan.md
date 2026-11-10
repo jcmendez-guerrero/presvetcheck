@@ -31,7 +31,7 @@ Detalle de decisiones en [research.md](research.md).
 **Primary Dependencies**: Fastify + zod (API), drizzle-orm (PostgreSQL), React (web), MSW (tests). Sin dependencias
 nuevas.
 
-**Storage**: PostgreSQL 16; migración `0019_conciliacion_movimientos.sql` (2 tablas append-only, 1 columna)
+**Storage**: PostgreSQL 16; migración `0020_conciliacion_movimientos.sql` (2 tablas append-only, 1 columna)
 
 **Testing**: Vitest (`it.each` en dominio), MSW con `fixtures/siweb/`, Testcontainers (`pnpm test:int`), sin Playwright
 nuevo (los flujos nuevos son de administración/bandeja)
@@ -97,7 +97,7 @@ packages/shared/src/config.ts                         # superRefine FR-010
 packages/shared/src/                                  # zod: CerrarOutboxBody, JustificarMovimientoBody, PruebaEscrituraBody
 packages/shared/src/i18n/                             # textos de códigos nuevos y motivos
 packages/db/src/schema/infra.ts                       # siwebMovimiento, movimientoJustificacion, outbox.verificaciones
-packages/db/migrations/0019_conciliacion_movimientos.sql
+packages/db/migrations/0020_conciliacion_movimientos.sql
 packages/siweb/src/schemas.ts                         # reference_id número|cadena
 packages/siweb/src/outbox.ts                          # verificarDudosos, cerrar, puerta pruebaVigente, next_attempt_at
 packages/siweb/src/prueba-escritura.ts                # MOVIDO desde apps/worker/src/spikes/spike-siweb.ts (+ notas e historialOk)
@@ -126,7 +126,7 @@ infraestructura: la verificación va en `outbox-dispatcher` y la conciliación e
 
 ## Orden sugerido (para `/speckit-tasks`)
 
-1. Base: copia API 1.3.0, `reference_id`, migración 0019, zod, config FR-010.
+1. Base: copia API 1.3.0, `reference_id`, migración 0020, zod, config FR-010.
 2. US4 + puerta: mover prueba de escritura, ruta admin, `pruebaVigente`, estado del stock (sin esto no se debe
    encender nada).
 3. US1/US2: `verificarDudosos`, `cerrar`, bandeja de envíos en revisión.

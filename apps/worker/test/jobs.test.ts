@@ -143,6 +143,7 @@ describe('worker', () => {
       '6 Discrepancias',
       '6b Movimientos sin justificar',
       '7 Precios de coste',
+      '8 Altas manuales',
     ]);
     // Sin fecha de corte, la hoja de movimientos lo indica en lugar de quedar vacía sin explicación.
     expect(r.hojas.find((x) => x.nombre === '6b Movimientos sin justificar')?.filas).toBe(1);
@@ -153,7 +154,7 @@ describe('worker', () => {
     const x = await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/reporte-semanal.xlsx');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(Buffer.from(x!.bytes) as never);
-    expect(wb.worksheets).toHaveLength(14);
+    expect(wb.worksheets).toHaveLength(15);
     expect(await blob.get('reportes', 'semanal/2026-10-12_2026-10-18/2b-salidas-b.csv')).not.toBeNull();
     expect(mailer.enviados[0]).toMatchObject({ para: ['garante@example.org', 'jc@example.org'] });
     expect(mailer.enviados[0]!.adjuntos![0]!.nombre).toMatch(/\.xlsx$/);

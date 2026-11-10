@@ -10,7 +10,7 @@ import {
 } from '@mmx/shared';
 import { OPERACION_ENTRADA, candidatosVinculo, justificarMovimiento, listarMovimientos } from '@mmx/siweb';
 import { ahoraDe, type AppDeps } from '../deps';
-import { ROLES, requiereRol } from '../plugins/auth';
+import { ROLES, requiereRol, usuario } from '../plugins/auth';
 import {
   AnularDto,
   DispensacionDto,
@@ -25,7 +25,9 @@ import {
   EditarRecepcionDto,
   CorregirRecepcionDto,
 } from '../schemas';
+import { ConciliacionService } from '../servicios/conciliacion';
 import { DispensacionesService } from '../servicios/dispensaciones';
+import { RecetasService } from '../servicios/recetas';
 import { RecepcionesService } from '../servicios/recepciones';
 import { SustitucionesService } from '../servicios/sustituciones';
 import { ctx, type App } from './comun';
@@ -34,6 +36,8 @@ export async function rutasOperativa(app: App, d: AppDeps) {
   const disp = new DispensacionesService(d);
   const sust = new SustitucionesService(d);
   const rec = new RecepcionesService(d);
+  const recetas = new RecetasService(d);
+  const conc = new ConciliacionService(d);
   const pre = requiereRol(...ROLES.operativa);
 
   // ── Dispensaciones ─────────────────────────────────────────────────────────────
@@ -52,6 +56,17 @@ export async function rutasOperativa(app: App, d: AppDeps) {
       const r = b.conReceta
         ? await disp.dispensarConReceta(b, ctx(req))
         : await disp.dispensarSinReceta(b, ctx(req));
+      // Alta manual: el cierre nocturno solo mira el día anterior, así que se concilia ya el día de la entrega.
+      // La entrega ya está guardada: un fallo aquí no debe devolver error (se repetiría); queda para «Conciliar ahora».
+      if (b.conReceta && (await recetas.exigirAccesoManual(b.recetaId, usuario(req))))
+        await conc
+          .conciliarReceta(b.recetaId, ctx(req))
+          .catch((e: Error) =>
+            req.log.warn(
+              { code: 'CONCILIACION_ALTA_MANUAL', error: e.message.slice(0, 200) },
+              'conciliación pendiente',
+            ),
+          );
       return reply.status(201).send(r);
     },
   );

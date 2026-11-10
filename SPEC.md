@@ -712,6 +712,7 @@ Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9
 8. **Recepción:** cabecera (distribuidor, albarán, fecha) + lista de líneas; buscador con autocompletado; escaneo; panel de datos faltantes; resumen y "Finalizar".
 9. **Bandeja del garante:** pendientes por tipo, con aprobación/rechazo y comentario; MFA obligatorio.
 10. **Registros y reportes:** filtros por fechas, plantilla, exportación.
+10b. **Alta manual de receta** (solo veterinaria responsable, `specs/011`): motivo y dónde está el papel → revisión sin imagen con medicamento y especie de CIMAVet y «Fecha en que se entregó» → resultado (validez en esa fecha) → entrega retrospectiva con lote y caducidad, sin stock. En Registros, columna interna `ALTA MANUAL (S/N)` y filtro; hoja «8 Altas manuales» en el reporte semanal.
 11. **Administración:** mapeo CN↔Siweb360, distribuidores, reglas (solo lectura del YAML activo y su aprobación), exclusiones de sustitución, outbox y reconciliación, estado de sincronización CIMAVet y consumo mensual del asistente.
 12. **Asistente de consultas:** botón «Preguntar» y panel lateral en cualquier pantalla (y «Preguntar sobre esta línea» en Resultado y Dispensación, sin quitar el foco del campo de escaneo al cerrarse); respuestas con fuentes citadas y su versión, tarjetas «Simulación» y «Resultado de la aplicación»
     pintadas desde el motor, valoración útil/incorrecta y página «Consultas al asistente» (cada persona ve las suyas; veterinaria responsable y administración, las de todos).
@@ -726,7 +727,7 @@ Requisitos transversales: textos en español y comprensibles para personal no t�
 
 - `empleado`: captura, revisión, dispensación, recepciones.
 - `farmaceutico_garante`: autorizaciones de sustitución, bandeja de no conformes, anulaciones, exportaciones, aprobación de versiones de reglas.
-- `veterinaria_responsable`: lo mismo que empleado + lectura de registros e informes.
+- `veterinaria_responsable`: lo mismo que empleado + lectura de registros e informes + **alta manual de recetas sin imagen** ya dispensadas fuera de la app, con `MANUAL_PRESCRIPTION_ENTRY=enabled` (por defecto `disabled`; `specs/011-manual-prescription-entry`). Solo ella abre, confirma, dispensa o anula esas recetas.
 - `admin`: configuración técnica, mapeos, outbox. No puede autorizar sustituciones.
   MFA obligatorio para `farmaceutico_garante` y `admin` (acceso condicional o, si no hay licencia, _security defaults_).
 

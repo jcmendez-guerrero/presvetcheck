@@ -1,7 +1,12 @@
 import { z } from 'zod';
-import { RecetaConfirmada, DomainError, PeticionSobreescribirSustitucion } from '@mmx/shared';
+import {
+  RecetaConfirmada,
+  DomainError,
+  PeticionAltaManual,
+  PeticionSobreescribirSustitucion,
+} from '@mmx/shared';
 import type { AppDeps } from '../deps';
-import { ROLES, requiereRol } from '../plugins/auth';
+import { ROLES, requiereRol, usuario } from '../plugins/auth';
 import { EvaluarBody, IdParam } from '../schemas';
 import { RecetasService } from '../servicios/recetas';
 import { ConciliacionService } from '../servicios/conciliacion';
@@ -32,12 +37,19 @@ export async function leerPaginas(req: FastifyRequest, d: AppDeps) {
 
 export async function rutasRecetas(app: App, d: AppDeps) {
   const svc = new RecetasService(d);
-  const pre = requiereRol(...ROLES.operativa);
+  const operativa = requiereRol(...ROLES.operativa);
+  // Rutas de una receta concreta: además, las de alta manual solo para la veterinaria responsable (specs/011).
+  const pre = [
+    operativa,
+    async (req: FastifyRequest) => {
+      await svc.exigirAccesoManual((req.params as { id: string }).id, usuario(req));
+    },
+  ];
 
   app.post(
     '/api/recetas',
     {
-      preHandler: pre,
+      preHandler: operativa,
       schema: {
         tags: ['recetas'],
         summary: 'Crea una receta, sube sus páginas y lanza la extracción (multipart)',
@@ -51,10 +63,40 @@ export async function rutasRecetas(app: App, d: AppDeps) {
     },
   );
 
+  app.post(
+    '/api/recetas/manual',
+    {
+      preHandler: requiereRol(...ROLES.altaManual),
+      schema: {
+        tags: ['recetas'],
+        summary: 'Alta manual de una receta sin imagen (solo veterinaria responsable)',
+        body: PeticionAltaManual,
+      },
+    },
+    async (req, reply) => reply.status(201).send(await svc.crearManual(req.body, ctx(req))),
+  );
+
   app.get(
     '/api/recetas/:id',
     { preHandler: pre, schema: { tags: ['recetas'], params: IdParam } },
     async (req) => svc.obtener(req.params.id),
+  );
+
+  app.post(
+    '/api/recetas/:id/imagenes',
+    {
+      preHandler: requiereRol(...ROLES.altaManual),
+      schema: {
+        tags: ['recetas'],
+        summary: 'Adjunta la imagen de una receta de alta manual, sin extracción (multipart)',
+        consumes: ['multipart/form-data'],
+        params: IdParam,
+      },
+    },
+    async (req, reply) => {
+      const { paginas } = await leerPaginas(req, d);
+      return reply.status(201).send(await svc.adjuntarImagen(req.params.id, paginas, ctx(req)));
+    },
   );
 
   app.get(
@@ -153,7 +195,7 @@ export async function rutasRecetas(app: App, d: AppDeps) {
       const forzados = Object.fromEntries(
         Object.entries(req.body?.forzados ?? {}).map(([k, v]) => [Number(k), v]),
       );
-      return svc.evaluar(req.params.id, ctx(req), forzados);
+      return svc.evaluar(req.params.id, ctx(req), forzados, true, req.body?.fechaReferencia ?? null);
     },
   );
 

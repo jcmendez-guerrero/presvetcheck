@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { ratioContraste } from '../estilos.test';
+import { EstadoBusqueda } from './estado-busqueda';
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from './ui';
 
 describe('Primitivas de UI (apps/web/src/componentes/ui.tsx)', () => {
@@ -227,6 +228,34 @@ describe('Primitivas de UI (apps/web/src/componentes/ui.tsx)', () => {
       expect(html).toContain('role="status"');
       expect(html).toContain('animate-spin');
       expect(html).toContain('Verificando receta…');
+    });
+  });
+
+  describe('EstadoBusqueda (buscadores de medicamentos)', () => {
+    const html = (estado: Parameters<typeof EstadoBusqueda>[0]['estado'], resultados = 0) =>
+      renderToString(
+        <EstadoBusqueda estado={estado} texto=" amoxi " resultados={resultados} onReintentar={() => {}} />,
+      ).replaceAll('<!-- -->', ''); // marcas de React entre trozos de texto
+
+    it('buscando: zona de estado anunciada, icono decorativo y texto «Buscando»', () => {
+      const h = html('buscando');
+      expect(h).toContain('role="status"');
+      expect(h).toContain('aria-live="polite"');
+      expect(h).toContain('animate-spin');
+      expect(h).toContain('aria-hidden="true"');
+      expect(h).toContain('Buscando «amoxi»…');
+    });
+
+    it('error ofrece «Volver a intentar» y vacío no se confunde con error', () => {
+      expect(html('error')).toContain('Volver a intentar');
+      expect(html('vacio')).toContain('No se ha encontrado ningún medicamento con «amoxi»');
+      expect(html('vacio')).not.toContain('No se ha podido consultar');
+    });
+
+    it('resultados: el número solo se anuncia al lector de pantalla', () => {
+      const h = html('resultados', 4);
+      expect(h).toContain('sr-only');
+      expect(h).toContain('resultados');
     });
   });
 });

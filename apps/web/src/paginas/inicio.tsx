@@ -52,7 +52,7 @@ function obtenerFechaMadrid(): string {
 }
 
 export function Inicio() {
-  const { usuario, tiene } = useAuth();
+  const { usuario, tiene, config } = useAuth();
   const q = useQuery({
     queryKey: ['inicio', usuario?.id],
     queryFn: () => get<Contadores>('/api/inicio'),
@@ -148,6 +148,26 @@ export function Inicio() {
           <CheckCircle2 className="h-4 w-4 text-dispensar shrink-0" aria-hidden />
           <span>Sin alertas prioritarias de mostrador · Todos los registros y entregas al día</span>
         </div>
+      )}
+
+      {/* Alta manual de recetas dispensadas fuera de la app (specs/011): solo la veterinaria responsable. */}
+      {config?.altaManualHabilitada && tiene('veterinaria_responsable') && (
+        <Link
+          to="/recetas/manual/nueva"
+          data-testid="boton-alta-manual"
+          className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 text-sm shadow-xs hover:border-marca/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorado dark:border-white/10 dark:bg-superficie"
+        >
+          <span className="flex items-center gap-3">
+            <FileText className="h-5 w-5 shrink-0 text-marca dark:text-acento" aria-hidden />
+            <span>
+              <span className="block font-bold text-marca dark:text-acento">Alta manual de receta</span>
+              <span className="text-xs text-texto-muted dark:text-slate-300">
+                Recetas ya dispensadas fuera de la aplicación, sin imagen
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 text-marca dark:text-acento" aria-hidden />
+        </Link>
       )}
 
       {/* ── 4 Tarjetas Operativas Hero de Mostrador (Feature 12) ── */}

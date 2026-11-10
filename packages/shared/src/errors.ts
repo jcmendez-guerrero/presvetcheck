@@ -49,6 +49,11 @@ export const CODIGOS_ERROR = [
   'MODO_RETROSPECTIVO_DESHABILITADO',
   'RECETA_YA_VINCULADA',
   'SUSTITUCION_BLOQUEO_DURO',
+  // Alta manual de recetas (specs/011-manual-prescription-entry)
+  'ALTA_MANUAL_DESHABILITADA',
+  'MEDICAMENTO_NO_SELECCIONADO',
+  'ESPECIE_NO_SELECCIONADA',
+  'FECHA_ORIGINAL_INVALIDA',
 ] as const;
 export type CodigoError = (typeof CODIGOS_ERROR)[number];
 

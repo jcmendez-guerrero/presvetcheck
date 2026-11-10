@@ -7,7 +7,7 @@ hace una persona.
 
 ```bash
 pnpm lint && pnpm typecheck && pnpm test
-pnpm test:int   # migración 0019, triggers append-only y permisos de mmx_app
+pnpm test:int   # migración 0020, triggers append-only y permisos de mmx_app
 ```
 
 Deben cubrir (ver [data-model.md](data-model.md) y [contracts/api-stock-siweb.md](contracts/api-stock-siweb.md)):

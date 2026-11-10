@@ -118,6 +118,34 @@ export const RecetaConfirmada = z.object({
 export type RecetaConfirmada = z.output<typeof RecetaConfirmada>;
 export type RecetaConfirmadaInput = z.input<typeof RecetaConfirmada>;
 
+/**
+ * Alta manual de una receta sin imagen (specs/011). Papel: dónde se guarda el original. Electrónica: plataforma e
+ * identificador. Motivo y custodia no deben llevar datos personales.
+ */
+export const PeticionAltaManual = z
+  .object({
+    tipo: TipoReceta,
+    motivo: z.string().trim().min(15, 'Explica el motivo (al menos 15 caracteres)'),
+    custodiaPapel: z.string().trim().nullable().default(null),
+    plataformaId: z.string().nullable().default(null),
+    idPlataforma: z.string().trim().nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    if (v.tipo === 'papel' && !v.custodiaPapel)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['custodiaPapel'],
+        message: 'Indica dónde se guarda la receta en papel',
+      });
+    if (v.tipo === 'electronica' && (!v.plataformaId || !v.idPlataforma))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['idPlataforma'],
+        message: 'Indica la plataforma y el identificador de la receta electrónica',
+      });
+  });
+export type PeticionAltaManual = z.output<typeof PeticionAltaManual>;
+
 /** Petición para sobreescribir la sustitución de una línea de receta (FR-017). */
 export const PeticionSobreescribirSustitucion = z.object({
   cn: z.string().regex(/^\d{6}$/, 'El Código nacional debe tener 6 dígitos'),

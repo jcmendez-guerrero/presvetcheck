@@ -4,10 +4,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, FileText, Loader2, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { ApiError, api, get, post, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useBusquedaMedicamentos } from '../lib/busqueda';
 import { AYUDA_RECEPCION as AY } from '../lib/ayudas';
 import { CN, fecha, hoyIso, textoMotivo, type Motivo } from '../lib/textos';
 import { CampoEscaneo } from '../componentes/escaner';
 import { prepararPagina } from '../lib/imagen';
+import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
 import { Pagina } from '../componentes/layout';
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
 
@@ -515,13 +517,8 @@ export function RecepcionDetalle() {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<{ t: 'ok' | 'error' | 'aviso'; m: string } | null>(null);
   const [usadas, setUsadas] = useState<Set<number>>(new Set());
-  const cand = useQuery({
-    queryKey: ['buscar', busqueda],
-    queryFn: () =>
-      get<Array<{ cn: string; nombre: string; labtitular: string | null }>>(
-        `/api/medicamentos/buscar?q=${encodeURIComponent(busqueda)}`,
-      ),
-    enabled: busqueda.trim().length >= 3 && !sel,
+  const cand = useBusquedaMedicamentos<{ cn: string; nombre: string; labtitular: string | null }>(busqueda, {
+    activo: !sel,
   });
   if (!q.data) return <Cargando />;
   const r = q.data;
@@ -596,8 +593,7 @@ export function RecepcionDetalle() {
     });
   };
 
-  const sinResultados =
-    l.tipo === 'medicamento' && !sel && busqueda.trim().length >= 3 && cand.data && cand.data.length === 0;
+  const sinResultados = l.tipo === 'medicamento' && !sel && cand.estado === 'vacio';
 
   return (
     <Pagina titulo={`Recepción · ${r.distribuidor ?? ''}`}>
@@ -668,25 +664,32 @@ export function RecepcionDetalle() {
                       error={errores.cn}
                       onChange={(e) => setBusqueda(e.target.value)}
                     />
+                    <EstadoBusqueda
+                      estado={cand.estado}
+                      texto={busqueda}
+                      resultados={cand.resultados.length}
+                      onReintentar={cand.reintentar}
+                    />
                     {sinResultados && (
                       <Mensaje tipo="aviso">
-                        No se ha encontrado ningún medicamento con «{busqueda.trim()}» en CIMAVet. Prueba con
-                        otra parte del nombre, escanea el envase o regístralo como «Otro producto».
+                        Si no aparece, escanea el envase o regístralo como «Otro producto».
                       </Mensaje>
                     )}
-                    <ul className="mt-2 flex flex-col gap-1">
-                      {cand.data?.map((c) => (
-                        <li key={c.cn}>
-                          <button
-                            type="button"
-                            className="w-full rounded-lg bg-fondo p-2 text-left hover:bg-pedir-bg"
-                            onClick={() => setSel({ cn: c.cn, nombre: c.nombre })}
-                          >
-                            {c.nombre} · {CN} {c.cn} · {c.labtitular}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    <ListaResultados desfasada={cand.desfasada}>
+                      <ul className="mt-2 flex flex-col gap-1">
+                        {cand.resultados.map((c) => (
+                          <li key={c.cn}>
+                            <button
+                              type="button"
+                              className="w-full rounded-lg bg-fondo p-2 text-left hover:bg-pedir-bg"
+                              onClick={() => setSel({ cn: c.cn, nombre: c.nombre })}
+                            >
+                              {c.nombre} · {CN} {c.cn} · {c.labtitular}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </ListaResultados>
                   </>
                 )
               ) : (
