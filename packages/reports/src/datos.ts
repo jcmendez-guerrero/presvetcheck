@@ -91,8 +91,9 @@ export class RegistrosService {
       .leftJoin(conciliacion, eq(conciliacion.dispensacionId, dispensacion.id))
       .where(
         and(
-          gte(fechaRegistro, ini),
-          lt(fechaRegistro, fin),
+          // ISO y no Date: la expresión no tiene tipo y postgres-js no serializa un Date sin él (specs/012).
+          gte(fechaRegistro, ini.toISOString()),
+          lt(fechaRegistro, fin.toISOString()),
           sql`${dispensacion.anulaDispensacionId} is null`,
         ),
       )
@@ -400,7 +401,11 @@ export class RegistrosService {
       .select()
       .from(dispensacion)
       .where(
-        and(inArray(dispensacion.nregistro, psico), gte(fechaMovimiento, ini), lt(fechaMovimiento, fin)),
+        and(
+          inArray(dispensacion.nregistro, psico),
+          gte(fechaMovimiento, ini.toISOString()),
+          lt(fechaMovimiento, fin.toISOString()),
+        ),
       );
     const entradas = await this.d.db
       .select({ l: recepcionLinea, r: recepcion })

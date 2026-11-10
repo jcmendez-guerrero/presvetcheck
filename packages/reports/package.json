@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:int": "vitest run --config vitest.int.config.ts"
   },
   "dependencies": {
     "@mmx/shared": "workspace:*",
@@ -20,6 +21,8 @@
     "nodemailer": "^10.3.1"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^11.14.0",
+    "testcontainers": "^11.14.0",
     "@types/nodemailer": "^8.0.2"
   }
 }

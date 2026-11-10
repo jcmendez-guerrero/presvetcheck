@@ -63,7 +63,23 @@ export function registrarErrores(app: FastifyInstance) {
         .status(fe.statusCode)
         .send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
     }
-    req.log.error({ err: { name: err.name, message: err.message, stack: err.stack } }, 'error no controlado');
+    // Drizzle añade «params: …» al mensaje (y por tanto a la pila) y los parámetros pueden ser datos personales:
+    // se cortan. La causa original (código y mensaje de la base de datos) se conserva, sin `detail`, que puede
+    // llevar valores de filas.
+    const mensajeSinParams = err.message.split('\nparams:')[0] ?? '';
+    const causa = (err as { cause?: { name?: string; code?: string; message?: string } }).cause;
+    req.log.error(
+      {
+        err: {
+          name: err.name,
+          message: mensajeSinParams,
+          stack: err.stack?.replace(err.message, mensajeSinParams),
+        },
+        // Fuera de `err`: el serializador de pino trata `err.cause` por su cuenta y perdería el código.
+        ...(causa && { causa: { name: causa.name, code: causa.code, message: causa.message } }),
+      },
+      'error no controlado',
+    );
     return reply.status(500).send({
       error: {
         code: 'ERROR_INTERNO',
