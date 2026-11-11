@@ -385,9 +385,15 @@ importers:
         specifier: ^10.3.1
         version: 10.3.1
     devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^11.14.0
+        version: 11.14.0
       '@types/nodemailer':
         specifier: ^8.0.2
         version: 8.0.2
+      testcontainers:
+        specifier: ^11.14.0
+        version: 11.14.0
 
   packages/shared:
     dependencies:
