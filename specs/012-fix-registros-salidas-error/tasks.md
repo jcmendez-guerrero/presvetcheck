@@ -158,3 +158,10 @@ Any time:            T015 (apps/api) ‖ the US1/US2 work (packages/reports)
 
 - [x] T021 Add to `packages/reports/test/registros.int.test.ts` a case for the cancellation of a manual-entry psychotropic sale (`fecha_original` in the past, cancellation `fecha_venta` on another day): `reg.psicotropos` must list the cancellation on its own day, not on the original date, per spec edge case "Anulación de una salida de alta manual" (partial)
 - [x] T022 Add to `packages/reports/test/registros.int.test.ts` a case with a manual-entry sale (`fecha_original` = day D) and a normal sale on day D at a different hour, asserting `reg.salidas(D, D, …)` returns both in `fechaRegistro` order (12:00 UTC for the manual one), per spec edge case "alta manual y salida normal el mismo día" (partial) — Hecho: el orden real es «alta manual primero» (solo tiene día; el orden final es por fecha mostrada), no 12:00 UTC.
+
+---
+
+## Phase 8: Convergence
+
+- [x] T023 CRITICAL: in `apps/api/src/plugins/errores.ts` stop logging `causa.message` when the cause is a Postgres error (postgres-js errors carry `severity`), because Postgres messages can include the offending value; log `name` and `code` always and `message` only for non-Postgres causes (e.g. `ERR_INVALID_ARG_TYPE`); add a case to `apps/api/test/errores.test.ts` where the cause is a Postgres-style error whose message contains a value (`severity: 'ERROR'`, message `invalid input syntax for type uuid: "Ana Pérez"`) and assert the value is not in the log while `code` is, per FR-006 and Constitution III (contradicts)
+- [x] T024 In `apps/api/src/plugins/errores.ts` change `err.stack?.replace(err.message, mensajeSinParams)` to `err.stack?.replace(err.message, () => mensajeSinParams)` so `$&`, `` $` `` and `$'` in a message are not interpreted as replacement patterns, per plan: research decision 3 (partial) — Hecho: con el reemplazo en cadena, `$&` volvía a pegar los parámetros en la pila (comprobado con un test que fallaba antes).

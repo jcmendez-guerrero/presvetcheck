@@ -64,19 +64,28 @@ export function registrarErrores(app: FastifyInstance) {
         .send({ error: { code: 'VALIDACION', mensaje: textoError('VALIDACION'), detalles: null } });
     }
     // Drizzle añade «params: …» al mensaje (y por tanto a la pila) y los parámetros pueden ser datos personales:
-    // se cortan. La causa original (código y mensaje de la base de datos) se conserva, sin `detail`, que puede
-    // llevar valores de filas.
+    // se cortan. De la causa original se conserva el código; el mensaje, salvo en errores de Postgres (llevan
+    // `severity`), porque ahí puede incluir el valor rechazado («invalid input syntax for type uuid: "…"»). Nunca
+    // `detail`, que lleva valores de filas.
     const mensajeSinParams = err.message.split('\nparams:')[0] ?? '';
-    const causa = (err as { cause?: { name?: string; code?: string; message?: string } }).cause;
+    const causa = (err as { cause?: { name?: string; code?: string; message?: string; severity?: string } })
+      .cause;
     req.log.error(
       {
         err: {
           name: err.name,
           message: mensajeSinParams,
-          stack: err.stack?.replace(err.message, mensajeSinParams),
+          // Con función: en una cadena de reemplazo `$&` o `$'` se interpretarían y volverían a pegar los parámetros.
+          stack: err.stack?.replace(err.message, () => mensajeSinParams),
         },
         // Fuera de `err`: el serializador de pino trata `err.cause` por su cuenta y perdería el código.
-        ...(causa && { causa: { name: causa.name, code: causa.code, message: causa.message } }),
+        ...(causa && {
+          causa: {
+            name: causa.name,
+            code: causa.code,
+            ...(!causa.severity && { message: causa.message }),
+          },
+        }),
       },
       'error no controlado',
     );
