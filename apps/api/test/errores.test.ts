@@ -25,7 +25,11 @@ describe('error no controlado', () => {
 
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({
-      error: { code: 'ERROR_INTERNO', mensaje: 'Se ha producido un error. Inténtalo de nuevo.', detalles: null },
+      error: {
+        code: 'ERROR_INTERNO',
+        mensaje: 'Se ha producido un error. Inténtalo de nuevo.',
+        detalles: null,
+      },
     });
     expect(log).toContain('Failed query: select 1');
     expect(log).toContain('ERR_X');

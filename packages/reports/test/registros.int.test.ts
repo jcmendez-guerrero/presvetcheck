@@ -53,11 +53,17 @@ beforeAll(async () => {
   await salida({ lote: 'CAMBIO-DESPUES', venta: '2026-10-25T23:30:00Z' }); // 00:30 CET del 26
 
   // Psicótropo: salida, anulación otro día y salida de alta manual.
-  await h.db.execute(sql`insert into cimavet_medicamento (nregistro, nombre, nombre_norm, psicotropo, source, fetched_at)
+  await h.db
+    .execute(sql`insert into cimavet_medicamento (nregistro, nombre, nombre_norm, psicotropo, source, fetched_at)
     values ('PSI1', 'PSICO', 'psico', true, 'test', now())`);
   const psi = await salida({ lote: 'PSI', venta: '2026-11-03T10:00:00Z', nregistro: 'PSI1' });
   await salida({ lote: 'PSI-ANULA', venta: '2026-11-12T10:00:00Z', nregistro: 'PSI1', anula: psi });
-  await salida({ lote: 'PSI-MANUAL', venta: '2026-11-04T10:00:00Z', original: '2026-10-20', nregistro: 'PSI1' });
+  await salida({
+    lote: 'PSI-MANUAL',
+    venta: '2026-11-04T10:00:00Z',
+    original: '2026-10-20',
+    nregistro: 'PSI1',
+  });
   // Alta manual de psicótropo anulada otro día: la anulación cuenta el día en que se anula, no la fecha original.
   const psiManual = await salida({
     lote: 'PSI-MANUAL2',
@@ -65,7 +71,12 @@ beforeAll(async () => {
     original: '2026-10-21',
     nregistro: 'PSI1',
   });
-  await salida({ lote: 'PSI-MANUAL2-ANULA', venta: '2026-11-13T10:00:00Z', nregistro: 'PSI1', anula: psiManual });
+  await salida({
+    lote: 'PSI-MANUAL2-ANULA',
+    venta: '2026-11-13T10:00:00Z',
+    nregistro: 'PSI1',
+    anula: psiManual,
+  });
 
   // Mismo día (20/11): una salida normal antes y otra después de las 12:00 UTC con la de alta manual entre ambas.
   await salida({ lote: 'ORDEN-1-NORMAL', venta: '2026-11-20T08:00:00Z' });
@@ -83,7 +94,12 @@ const sinPsi = (xs: string[]) => xs.filter((l) => !l.startsWith('PSI'));
 
 describe('RegistrosService.salidas en PostgreSQL 16', () => {
   it.each([
-    ['periodo de noviembre', '2026-11-01', '2026-11-10', ['MANUAL-DESDE', 'MANUAL-HASTA', 'NORMAL', 'ULTIMA-HORA']],
+    [
+      'periodo de noviembre',
+      '2026-11-01',
+      '2026-11-10',
+      ['MANUAL-DESDE', 'MANUAL-HASTA', 'NORMAL', 'ULTIMA-HORA'],
+    ],
     ['la fecha original manda en el alta manual', '2026-10-20', '2026-10-20', ['MANUAL']],
     ['cambio de hora de invierno', '2026-10-25', '2026-10-25', ['CAMBIO-DENTRO']],
     ['periodo sin salidas', '2026-01-01', '2026-01-31', []],
