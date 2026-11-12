@@ -94,8 +94,88 @@
         }
       }
     },
+    "/api/recetas/manual": {
+      "post": {
+        "summary": "Alta manual de una receta sin imagen (solo veterinaria responsable)",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "papel",
+                      "electronica"
+                    ]
+                  },
+                  "motivo": {
+                    "type": "string",
+                    "minLength": 15
+                  },
+                  "custodiaPapel": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "plataformaId": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "idPlataforma": {
+                    "default": null,
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "tipo",
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/recetas/{id}": {
       "get": {
+        "tags": [
+          "recetas"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/imagenes": {
+      "post": {
+        "summary": "Adjunta la imagen de una receta de alta manual, sin extracción (multipart)",
         "tags": [
           "recetas"
         ],
@@ -1618,7 +1698,9 @@
                               "CADUCIDAD_PROXIMA_ENTRADA",
                               "REGISTRO_PENDIENTE",
                               "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
-                              "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
+                              "AVISO_FECHA_RETROSPECTIVA_ANTIGUA",
+                              "LOTE_NO_RECIBIDO",
+                              "DNI_RETIRA_NO_INDICADO"
                             ]
                           }
                         },
@@ -1636,6 +1718,11 @@
                         "aceptaRiesgos"
                       ]
                     }
+                  },
+                  "fechaReferencia": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
                   }
                 }
               }
@@ -1651,6 +1738,70 @@
             },
             "in": "path",
             "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recetas/{id}/lineas/{orden}/sustituir-manual": {
+      "post": {
+        "summary": "Sobreescribe la sustitución de una línea de receta con motivo obligatorio (FR-017)",
+        "tags": [
+          "recetas"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cn": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "nregistro": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "motivo": {
+                    "type": "string",
+                    "minLength": 5
+                  }
+                },
+                "required": [
+                  "cn",
+                  "motivo"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "path",
+            "name": "orden",
             "required": true
           }
         ],
@@ -1946,6 +2097,51 @@
         }
       }
     },
+    "/api/medicamentos/comparar": {
+      "post": {
+        "summary": "Compara reglamentariamente dos medicamentos en el vademécum (FR-018)",
+        "tags": [
+          "medicamentos"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prescritoNregistro": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "candidatoNregistro": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "especie": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "indicacion": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "prescritoNregistro",
+                  "candidatoNregistro",
+                  "especie"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/dispensaciones": {
       "post": {
         "summary": "Confirma una dispensación (con o sin receta). El forzado se valida aquí.",
@@ -2130,7 +2326,9 @@
                                 "CADUCIDAD_PROXIMA_ENTRADA",
                                 "REGISTRO_PENDIENTE",
                                 "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
-                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
+                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA",
+                                "LOTE_NO_RECIBIDO",
+                                "DNI_RETIRA_NO_INDICADO"
                               ]
                             }
                           },
@@ -2436,7 +2634,9 @@
                                 "CADUCIDAD_PROXIMA_ENTRADA",
                                 "REGISTRO_PENDIENTE",
                                 "SIN_MOVIMIENTO_STOCK_RETROSPECTIVO",
-                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA"
+                                "AVISO_FECHA_RETROSPECTIVA_ANTIGUA",
+                                "LOTE_NO_RECIBIDO",
+                                "DNI_RETIRA_NO_INDICADO"
                               ]
                             }
                           },
@@ -2869,13 +3069,49 @@
         }
       }
     },
-    "/api/recepciones/{id}/documento": {
+    "/api/recepciones/albaranes/{documentoId}": {
       "get": {
-        "summary": "Foto o PDF del albarán de la recepción",
+        "summary": "Lo leído de un albarán que aún no tiene recepción (por ejemplo, el enviado desde el móvil): igual que la lectura al subirlo",
         "tags": [
           "recepciones"
         ],
         "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "documentoId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/recepciones/{id}/documento": {
+      "get": {
+        "summary": "Foto o PDF del albarán de la recepción (`pagina`: la página, por defecto la 1)",
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "pagina",
+            "required": false
+          },
           {
             "schema": {
               "type": "string",
@@ -3517,6 +3753,264 @@
         }
       }
     },
+    "/api/outbox/revision": {
+      "get": {
+        "summary": "Entradas de stock en revisión o fallidas, con la evidencia",
+        "tags": [
+          "recepciones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/outbox/{id}/cerrar": {
+      "post": {
+        "summary": "Cierra un envío en revisión: «Revisado» o «Resuelto a mano en Siweb360»",
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "accion": {
+                    "type": "string",
+                    "enum": [
+                      "revisado",
+                      "resuelto_a_mano"
+                    ]
+                  },
+                  "nota": {
+                    "type": "string",
+                    "minLength": 5
+                  }
+                },
+                "required": [
+                  "accion",
+                  "nota"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movimientos-siweb": {
+      "get": {
+        "summary": "Movimientos de medicamentos de Siweb360 desde la fecha de corte, sin justificar o justificados",
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": "sin_justificar",
+              "type": "string",
+              "enum": [
+                "sin_justificar",
+                "justificados"
+              ]
+            },
+            "in": "query",
+            "name": "estado",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movimientos-siweb/{id}/candidatos": {
+      "get": {
+        "summary": "Recepciones o dispensaciones del mismo código nacional y día a las que vincular un movimiento",
+        "tags": [
+          "recepciones"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movimientos-siweb/{id}/justificar": {
+      "post": {
+        "summary": "Vincula o justifica un movimiento de Siweb360 (sustituye la justificación vigente, nunca la edita)",
+        "tags": [
+          "recepciones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tipo": {
+                        "type": "string",
+                        "enum": [
+                          "VINCULO_RECEPCION"
+                        ]
+                      },
+                      "recepcionLineaId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "nota": {
+                        "type": "string",
+                        "minLength": 5
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "recepcionLineaId",
+                      "nota"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tipo": {
+                        "type": "string",
+                        "enum": [
+                          "VINCULO_DISPENSACION"
+                        ]
+                      },
+                      "dispensacionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "nota": {
+                        "type": "string",
+                        "minLength": 5
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "dispensacionId",
+                      "nota"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tipo": {
+                        "type": "string",
+                        "enum": [
+                          "MOTIVO"
+                        ]
+                      },
+                      "motivo": {
+                        "type": "string",
+                        "enum": [
+                          "REVISION_INVENTARIO",
+                          "REVISION_LOTE",
+                          "REVISION_CADUCIDAD",
+                          "CADUCADO",
+                          "ROTURA",
+                          "DEVOLUCION_CLIENTE",
+                          "DEVOLUCION_PROVEEDOR",
+                          "ROBO_PERDIDA",
+                          "OTRO"
+                        ]
+                      },
+                      "nota": {
+                        "type": "string",
+                        "minLength": 5
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "motivo",
+                      "nota"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "maximum": 9007199254740991,
+              "minimum": 0
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/registros/salidas": {
       "get": {
         "summary": "Exportación de salidas (plantillas A/B/C de SPEC §4.8)",
@@ -3608,6 +4102,17 @@
             },
             "in": "query",
             "name": "dniCompleto",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
             "required": false
           }
         ],
@@ -3708,6 +4213,17 @@
             },
             "in": "query",
             "name": "dniCompleto",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
             "required": false
           }
         ],
@@ -3810,6 +4326,17 @@
             "in": "query",
             "name": "dniCompleto",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
+            "required": false
           }
         ],
         "responses": {
@@ -3911,6 +4438,17 @@
             "in": "query",
             "name": "dniCompleto",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
+            "required": false
           }
         ],
         "responses": {
@@ -4011,6 +4549,129 @@
             },
             "in": "query",
             "name": "dniCompleto",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/registros/bajas": {
+      "get": {
+        "summary": "Bajas de stock justificadas (rotura, caducado, robo…) de los movimientos de Siweb360 (specs/011)",
+        "tags": [
+          "registros"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "desde",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "hasta",
+            "required": true
+          },
+          {
+            "schema": {
+              "default": "A",
+              "type": "string",
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "in": "query",
+            "name": "plantilla",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "json",
+              "type": "string",
+              "enum": [
+                "xlsx",
+                "csv",
+                "json"
+              ]
+            },
+            "in": "query",
+            "name": "formato",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "incluirPropietario",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "final",
+              "type": "string",
+              "enum": [
+                "final",
+                "hoja",
+                "ninguna"
+              ]
+            },
+            "in": "query",
+            "name": "internas",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": "0",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "in": "query",
+            "name": "dniCompleto",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual"
+              ]
+            },
+            "in": "query",
+            "name": "origen",
             "required": false
           }
         ],
@@ -5098,6 +5759,102 @@
         }
       }
     },
+    "/api/admin/recepciones/{id}/enviar-siweb": {
+      "post": {
+        "summary": "Envía a Siweb360 el stock de una recepción finalizada con la escritura apagada (a petición expresa)",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nota": {
+                    "type": "string",
+                    "minLength": 5
+                  }
+                },
+                "required": [
+                  "nota"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/estado-stock": {
+      "get": {
+        "summary": "Estado de la escritura de stock en Siweb360",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/admin/siweb/prueba-escritura": {
+      "post": {
+        "summary": "Prueba de escritura en una variante TEST- (SPEC §12.3): +1 y −1, y comprueba el historial",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "confirmacion": {
+                    "type": "string",
+                    "enum": [
+                      "SI"
+                    ]
+                  }
+                },
+                "required": [
+                  "sku",
+                  "confirmacion"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/admin/cimavet": {
       "get": {
         "tags": [
@@ -5282,6 +6039,19 @@
     "/api/movil/m/sesion": {
       "get": {
         "summary": "Comprueba el emparejamiento (cabecera x-movil-token)",
+        "tags": [
+          "movil"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/movil/m/albaranes": {
+      "post": {
+        "summary": "Sube las fotos (o el PDF) de un albarán o factura; el PC recibe el aviso y lo leído",
         "tags": [
           "movil"
         ],
