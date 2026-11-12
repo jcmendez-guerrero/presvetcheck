@@ -207,6 +207,27 @@ export function albaranDesdeFactura(r: AnalyzeResult): LecturaAlbaran {
   };
 }
 
+/**
+ * Une las lecturas de las páginas de un mismo albarán (una foto por página) en una sola. Pura y determinista:
+ * cabecera = primer valor no nulo en orden de página; líneas = todas, en orden de página; totales = los de la
+ * última página que traiga alguno (el resumen suele estar al final); modelo = el de la primera lectura.
+ */
+export function unirLecturas(lecturas: LecturaAlbaran[]): LecturaAlbaran {
+  const [primera] = lecturas;
+  if (!primera) throw new Error('unirLecturas necesita al menos una lectura');
+  const primero = <K extends 'proveedor' | 'numero' | 'fecha'>(k: K) =>
+    lecturas.find((l) => l[k] !== null)?.[k] ?? null;
+  const conTotales = lecturas.findLast((l) => Object.values(l.totales).some((t) => t !== null));
+  return {
+    proveedor: primero('proveedor'),
+    numero: primero('numero'),
+    fecha: primero('fecha'),
+    totales: conTotales?.totales ?? { base: null, impuestos: null, total: null },
+    lineas: lecturas.flatMap((l) => l.lineas),
+    modelo: primera.modelo,
+  };
+}
+
 export class LectorAlbaranes {
   constructor(private readonly di: DocumentIntelligenceClient) {}
   async leer(bytes: Uint8Array, mime: string): Promise<LecturaAlbaran> {

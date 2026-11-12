@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Camera, Check, Image as ImageIcon, Loader2, ScanLine, Send } from 'lucide-react';
-import { textoError, type CodigoError } from '@mmx/shared';
+import { MAX_PAGINAS_DOCUMENTO, textoError, type CodigoError } from '@mmx/shared';
 import { EscanerCamara } from '../componentes/escaner';
 import { Boton, Mensaje, Tarjeta } from '../componentes/ui';
 import { prepararPagina, type PaginaPreparada } from '../lib/imagen';
@@ -50,11 +50,16 @@ export function PaginaMovil() {
   const [usuario, setUsuario] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  // Si no hay lector de albaranes configurado en la API, la tarjeta del albarán no se puede usar.
+  const [albaranes, setAlbaranes] = useState(true);
 
   useEffect(() => {
     if (!token) return;
     llamar(token, 'GET', '/api/movil/m/sesion').then(
-      (s: { usuario: string }) => setUsuario(s.usuario),
+      (s: { usuario: string; albaranes?: boolean }) => {
+        setUsuario(s.usuario);
+        setAlbaranes(s.albaranes !== false);
+      },
       (e: Error) => setError(e.message),
     );
     fetch('/api/config/publica')
@@ -86,6 +91,15 @@ export function PaginaMovil() {
         {token && usuario && (
           <>
             <EnviarReceta token={token} demo={demo} />
+            {albaranes ? (
+              <EnviarAlbaran token={token} />
+            ) : (
+              <Tarjeta titulo="Albarán o factura">
+                <p className="text-slate-700">
+                  La lectura de albaranes no está configurada: regístralo en el ordenador.
+                </p>
+              </Tarjeta>
+            )}
             <EnviarCodigo token={token} />
           </>
         )}
@@ -95,11 +109,74 @@ export function PaginaMovil() {
 }
 
 function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
+  return (
+    <EnviarPaginas
+      token={token}
+      titulo="Receta"
+      explicacion="Fotografía la receta entera, sobre fondo liso y con buena luz. Si tiene varias páginas, añádelas todas."
+      ruta="/api/movil/m/recetas"
+      textoEnviando="Enviando y leyendo la receta… puede tardar hasta un minuto. No la envíes de nuevo."
+      textoBoton="Leyendo la receta… (hasta un minuto)"
+      textoEnviada="Receta enviada. Revisa los datos en el ordenador."
+      extras={(fd, paginas) => {
+        if (demo) fd.append('fixture', 'demo-compania-papel');
+        paginas.forEach((p) => fd.append('phash', p.phash ?? ''));
+      }}
+    />
+  );
+}
+
+/** Albarán o factura del proveedor (spec 013): de 1 a 10 páginas, fotos o PDF; el PC recibe lo leído. */
+function EnviarAlbaran({ token }: { token: string }) {
+  return (
+    <EnviarPaginas
+      token={token}
+      titulo="Albarán o factura"
+      explicacion="Fotografía el albarán o la factura del proveedor, sobre fondo liso y con buena luz. Si tiene varias páginas, añádelas todas, o elige el PDF."
+      ruta="/api/movil/m/albaranes"
+      textoEnviando="Enviando y leyendo el albarán… puede tardar hasta un minuto. No lo envíes de nuevo."
+      textoBoton="Leyendo el albarán… (hasta un minuto)"
+      textoEnviada="Enviado al ordenador."
+      maxPaginas={MAX_PAGINAS_DOCUMENTO}
+      textoMaximo={`Un albarán admite hasta ${MAX_PAGINAS_DOCUMENTO} páginas`}
+    />
+  );
+}
+
+interface PropsPaginas {
+  token: string;
+  titulo: string;
+  explicacion: string;
+  /** Ruta de la API del móvil que recibe las páginas (campo `pagina`). */
+  ruta: string;
+  textoEnviando: string;
+  textoBoton: string;
+  textoEnviada: string;
+  maxPaginas?: number;
+  textoMaximo?: string;
+  /** Campos extra del formulario (solo la receta: huella de la foto y la fixture de la demo). */
+  extras?: (fd: FormData, paginas: PaginaPreparada[]) => void;
+}
+
+function EnviarPaginas({
+  token,
+  titulo,
+  explicacion,
+  ruta,
+  textoEnviando,
+  textoBoton,
+  textoEnviada,
+  maxPaginas = Infinity,
+  textoMaximo = '',
+  extras,
+}: PropsPaginas) {
   const [paginas, setPaginas] = useState<PaginaPreparada[]>([]);
   const [estado, setEstado] = useState<'listo' | 'enviando' | 'enviada'>('listo');
   const [preparando, setPreparando] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ocupado = preparando > 0 || estado === 'enviando';
+  // Con el máximo de páginas ya no se puede añadir otra (pero sí enviar o quitar).
+  const sinSitio = ocupado || paginas.length >= maxPaginas;
 
   // Preparar la foto (girarla, reducirla y comprimirla) tarda unos segundos en el móvil: se muestra
   // «Procesando la foto…» y se bloquean los botones para que no se añada ni se envíe dos veces.
@@ -109,8 +186,10 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
     if (!files.length) return;
     setEstado('listo');
     setError(null);
-    setPreparando(files.length);
-    for (const f of files) {
+    const aceptadas = files.slice(0, Math.max(0, maxPaginas - paginas.length));
+    if (aceptadas.length < files.length) setError(textoMaximo);
+    setPreparando(aceptadas.length);
+    for (const f of aceptadas) {
       try {
         const p = await prepararPagina(f);
         setPaginas((x) => [...x, p]);
@@ -127,8 +206,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
     setEstado('enviando');
     setError(null);
     const fd = new FormData();
-    if (demo) fd.append('fixture', 'demo-compania-papel');
-    paginas.forEach((p) => fd.append('phash', p.phash ?? ''));
+    extras?.(fd, paginas);
     paginas.forEach((p, i) =>
       fd.append(
         'pagina',
@@ -137,7 +215,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
       ),
     );
     try {
-      await llamar(token, 'POST', '/api/movil/m/recetas', fd);
+      await llamar(token, 'POST', ruta, fd);
       setPaginas([]);
       setEstado('enviada');
     } catch (e) {
@@ -147,14 +225,11 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
   };
 
   return (
-    <Tarjeta titulo="Receta">
-      <p className="mb-3 text-slate-700">
-        Fotografía la receta entera, sobre fondo liso y con buena luz. Si tiene varias páginas, añádelas
-        todas.
-      </p>
+    <Tarjeta titulo={titulo}>
+      <p className="mb-3 text-slate-700">{explicacion}</p>
       <div className="flex flex-wrap gap-3">
         <label
-          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-marca px-5 py-4 font-semibold text-white ${ocupado ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}
+          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-marca px-5 py-4 font-semibold text-white ${sinSitio ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}
         >
           <Camera aria-hidden className="h-5 w-5" /> {paginas.length ? 'Otra página' : 'Hacer foto'}
           <input
@@ -162,12 +237,12 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
             accept="image/*"
             capture="environment"
             className="sr-only"
-            disabled={ocupado}
+            disabled={sinSitio}
             onChange={(e) => void anadir(e.currentTarget)}
           />
         </label>
         <label
-          className={`inline-flex items-center gap-2 rounded-xl border-2 border-marca px-4 py-4 font-semibold text-marca ${ocupado ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}
+          className={`inline-flex items-center gap-2 rounded-xl border-2 border-marca px-4 py-4 font-semibold text-marca ${sinSitio ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}
         >
           <ImageIcon aria-hidden className="h-5 w-5" /> Galería
           <input
@@ -175,7 +250,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
             accept="image/*,application/pdf"
             multiple
             className="sr-only"
-            disabled={ocupado}
+            disabled={sinSitio}
             onChange={(e) => void anadir(e.currentTarget)}
           />
         </label>
@@ -201,8 +276,7 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
           role="status"
           className="mt-3 flex items-center gap-2 rounded-xl bg-pedir-bg px-3 py-3 font-semibold text-pedir"
         >
-          <Loader2 aria-hidden className="h-5 w-5 animate-spin" /> Enviando y leyendo la receta… puede tardar
-          hasta un minuto. No la envíes de nuevo.
+          <Loader2 aria-hidden className="h-5 w-5 animate-spin" /> {textoEnviando}
         </p>
       )}
       {paginas.length > 0 && (
@@ -234,13 +308,13 @@ function EnviarReceta({ token, demo }: { token: string; demo: boolean }) {
       {error && <Mensaje tipo="error">{error}</Mensaje>}
       {estado === 'enviada' && (
         <Mensaje tipo="ok">
-          <Check aria-hidden className="inline h-4 w-4" /> Receta enviada. Revisa los datos en el ordenador.
+          <Check aria-hidden className="inline h-4 w-4" /> {textoEnviada}
         </Mensaje>
       )}
       <div className="mt-3">
         <Boton className="w-full" disabled={!paginas.length || ocupado} onClick={() => void enviar()}>
           <Send aria-hidden className="h-5 w-5" />{' '}
-          {estado === 'enviando' ? 'Leyendo la receta… (hasta un minuto)' : 'Enviar al ordenador'}
+          {estado === 'enviando' ? textoBoton : 'Enviar al ordenador'}
         </Boton>
       </div>
     </Tarjeta>
@@ -294,8 +368,8 @@ function EnviarCodigo({ token }: { token: string }) {
   return (
     <Tarjeta titulo="Código del envase">
       <p className="mb-3 text-slate-700">
-        Lee el código del envase (DataMatrix o código de barras). Llega a la pantalla de escaneo abierta en el
-        ordenador.
+        Lee el código del envase (DataMatrix, código QR o código de barras). Llega a la pantalla de escaneo
+        abierta en el ordenador.
       </p>
       <div className="flex flex-wrap gap-3">
         {enVivo && (

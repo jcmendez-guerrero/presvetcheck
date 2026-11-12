@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { ApiError, get, post } from './api';
+import { BuzonAlbaranes } from './albaran-movil';
 
 /**
  * Lado del PC del emparejamiento con el móvil. Se guarda la sesión de esta pestaña (sessionStorage) y se
@@ -13,7 +14,13 @@ export interface SesionMovil {
   urlBase: string | null;
   expiraAt: string;
 }
-type Evento = { seq: number } & ({ tipo: 'leyendo' } | { tipo: 'receta'; recetaId: string; aviso: string | null } | { tipo: 'codigo'; raw: string });
+type Evento = { seq: number } & (
+  | { tipo: 'leyendo' }
+  | { tipo: 'receta'; recetaId: string; aviso: string | null }
+  | { tipo: 'codigo'; raw: string }
+  // Albarán o factura enviado desde el móvil: el id de la lectura (nulo si no se pudo leer).
+  | { tipo: 'albaran'; documentoId: string | null }
+);
 
 interface Ctx {
   sesion: SesionMovil | null;
@@ -21,9 +28,15 @@ interface Ctx {
   leyendo: boolean;
   /** Código recibido sin ningún campo de escaneo abierto. */
   codigoSinDestino: string | null;
+  /** Albarán recibido del móvil sin la pantalla de nueva recepción abierta (id de la lectura). */
+  albaranSinDestino: string | null;
+  /** El último albarán enviado desde el móvil no se pudo leer. */
+  errorAlbaran: boolean;
+  descartarAvisoAlbaran: () => void;
   abrir: () => Promise<SesionMovil>;
   cerrar: () => Promise<void>;
   suscribir: (fn: (raw: string) => void) => () => void;
+  suscribirAlbaran: (fn: (documentoId: string) => void) => () => void;
 }
 const MovilCtx = createContext<Ctx | null>(null);
 const CLAVE = 'mmx.movil';
@@ -56,6 +69,10 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
   const [conectado, setConectado] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
   const [codigoSinDestino, setCodigoSinDestino] = useState<string | null>(null);
+  const [albaranSinDestino, setAlbaranSinDestino] = useState<string | null>(null);
+  // Reparte los albaranes del móvil; guarda el pendiente para la primera pantalla de recepción que se abra.
+  const [buzon] = useState(() => new BuzonAlbaranes());
+  const [errorAlbaran, setErrorAlbaran] = useState(false);
   const oyentes = useRef(new Set<(raw: string) => void>());
   const cursor = useRef(0);
 
@@ -79,6 +96,10 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
           else if (e.tipo === 'receta') {
             setLeyendo(false);
             void nav.current({ to: '/recetas/$id/revision', params: { id: e.recetaId } });
+          } else if (e.tipo === 'albaran') {
+            setLeyendo(false);
+            if (!e.documentoId) setErrorAlbaran(true);
+            else if (buzon.recibir(e.documentoId) === 'pendiente') setAlbaranSinDestino(e.documentoId);
           } else if (oyentes.current.size) oyentes.current.forEach((f) => f(e.raw));
           else setCodigoSinDestino(e.raw);
         }
@@ -121,7 +142,26 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
     return () => void oyentes.current.delete(fn);
   }, []);
 
-  return <MovilCtx.Provider value={{ sesion, conectado, leyendo, codigoSinDestino, abrir, cerrar, suscribir }}>{children}</MovilCtx.Provider>;
+  const suscribirAlbaran = useCallback((fn: (documentoId: string) => void) => {
+    // Si había un albarán esperando, el buzón se lo entrega a esta pantalla (no se pierde si la persona llega
+    // por el menú en vez de por el botón del aviso).
+    const baja = buzon.suscribir(fn);
+    setAlbaranSinDestino(null);
+    return baja;
+  }, [buzon]);
+  const descartarAvisoAlbaran = useCallback(() => {
+    buzon.descartar();
+    setAlbaranSinDestino(null);
+    setErrorAlbaran(false);
+  }, [buzon]);
+
+  return (
+    <MovilCtx.Provider
+      value={{ sesion, conectado, leyendo, codigoSinDestino, albaranSinDestino, errorAlbaran, descartarAvisoAlbaran, abrir, cerrar, suscribir, suscribirAlbaran }}
+    >
+      {children}
+    </MovilCtx.Provider>
+  );
 }
 
 export const useMovil = () => useContext(MovilCtx);
@@ -133,4 +173,13 @@ export function useCodigosMovil(fn: (raw: string) => void) {
   ref.current = fn;
   const suscribir = m?.suscribir;
   useEffect(() => (suscribir ? suscribir((raw) => ref.current(raw)) : undefined), [suscribir]);
+}
+
+/** Recibe el id de lo leído de un albarán enviado desde el móvil mientras el componente esté montado. */
+export function useAlbaranesMovil(fn: (documentoId: string) => void) {
+  const m = useMovil();
+  const ref = useRef(fn);
+  ref.current = fn;
+  const suscribir = m?.suscribirAlbaran;
+  useEffect(() => (suscribir ? suscribir((id) => ref.current(id)) : undefined), [suscribir]);
 }

@@ -66,7 +66,9 @@ export interface Gs1Error {
     | 'LONGITUD'
     | 'GTIN_CONTROL'
     | 'FECHA_INVALIDA'
-    | 'GS_AUSENTE';
+    | 'GS_AUSENTE'
+    /** Dirección web (QR) sin el código del producto (GS1 Digital Link sin `01/<GTIN>`). */
+    | 'QR_SIN_PRODUCTO';
   detalle: string;
 }
 
@@ -134,17 +136,61 @@ function leerAi(s: string, i: number): string | null {
   return null;
 }
 
+/**
+ * Enlace GS1 (GS1 Digital Link, sintaxis sin comprimir) → la misma cadena GS1 que lleva un DataMatrix, para que
+ * pase por el mismo análisis. Solo lee el texto: la dirección nunca se abre ni se consulta. Devuelve `null` si no
+ * es una dirección válida o no trae `01/<GTIN>`.
+ *  - Ruta: pares `AI/valor` desde la clave `01` (p. ej. `/01/{gtin}/10/{lote}/21/{serie}`); el dominio y el
+ *    prefijo de la ruta son libres (los laboratorios pueden usar el suyo).
+ *  - Consulta: atributos con nombre de AI conocido (`?17=AAMMDD`); el resto se ignora.
+ */
+export function digitalLinkAGs1(url: string): string | null {
+  let u: URL;
+  let segmentos: string[];
+  try {
+    u = new URL(url);
+    segmentos = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null;
+  }
+  const ini = segmentos.findIndex((x, i) => x === '01' && /^\d{8,14}$/.test(segmentos[i + 1] ?? ''));
+  if (ini === -1) return null;
+  const ais = new Map<string, string>();
+  for (let i = ini; i + 1 < segmentos.length; i += 2) {
+    const [ai, v] = [segmentos[i] as string, segmentos[i + 1] as string];
+    if ((ai in FIJOS || ai in VARIABLES) && !ais.has(ai)) ais.set(ai, v);
+  }
+  for (const [ai, v] of u.searchParams) if ((ai in FIJOS || ai in VARIABLES) && !ais.has(ai)) ais.set(ai, v);
+  ais.set('01', (ais.get('01') as string).padStart(14, '0'));
+  // Un valor con GS (p. ej. `%1D`) rompería la cadena y colaría otro identificador.
+  if ([...ais.values()].some((v) => !v || v.includes(GS))) return null;
+  return [...ais].map(([ai, v]) => `${ai}${v}${ai in VARIABLES ? GS : ''}`).join('');
+}
+
 export function parseGs1(raw: string, opts: OpcionesGs1 = {}): Gs1Resultado {
   // Saltos de línea finales del lector: recorte manual (`/[\r\n]+$/` reintentaba desde cada posición).
   let fin = raw.length;
   while (fin > 0 && (raw[fin - 1] === '\r' || raw[fin - 1] === '\n')) fin--;
   let input = raw.slice(0, fin);
-  if (opts.gsSubstitute) input = input.split(opts.gsSubstitute).join(GS);
+  // En una dirección web el `~` (u otro sustituto de GS) es un carácter normal: no se sustituye.
+  const esEnlace = /^https?:\/\//i.test(quitarPrefijo(input.trim()).s);
+  if (opts.gsSubstitute && !esEnlace) input = input.split(opts.gsSubstitute).join(GS);
   input = input.trim();
   if (!input) return { ok: false, error: 'VACIO', detalle: 'Código vacío' };
   const { s: sinPrefijo, simbologia: simb } = quitarPrefijo(input);
   let s = sinPrefijo;
   let simbologia = simb;
+  if (esEnlace) {
+    const g = digitalLinkAGs1(s);
+    if (!g)
+      return {
+        ok: false,
+        error: 'QR_SIN_PRODUCTO',
+        detalle: 'El código QR no contiene el código del producto',
+      };
+    s = g;
+    simbologia = 'qr';
+  }
 
   // EAN-13 lineal: sin lote ni caducidad (se piden a mano).
   if (/^\d{13}$/.test(s) && (simbologia === 'ean13' || simbologia === 'desconocida')) {

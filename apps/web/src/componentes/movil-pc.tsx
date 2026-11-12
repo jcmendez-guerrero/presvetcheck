@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from '@tanstack/react-router';
 import { Smartphone } from 'lucide-react';
 import { enlaceMovil, useMovil } from '../lib/movil';
 import { qrSvg } from '../lib/zxing';
@@ -102,10 +103,35 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
 /** Avisos en el PC de lo que llega del móvil. */
 export function AvisosMovil() {
   const m = useMovil();
+  const navegar = useNavigate();
   if (!m) return null;
   return (
     <>
-      {m.leyendo && <p className="animate-pulse bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">Leyendo la receta enviada desde el móvil…</p>}
+      {m.leyendo && <p className="animate-pulse bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">Leyendo lo enviado desde el móvil…</p>}
+      {m.albaranSinDestino && (
+        <p className="bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">
+          Ha llegado un albarán desde el móvil.{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              const albaran = m.albaranSinDestino as string;
+              m.descartarAvisoAlbaran();
+              void navegar({ to: '/recepciones', search: { albaran } });
+            }}
+          >
+            Abrir la recepción
+          </button>
+        </p>
+      )}
+      {m.errorAlbaran && (
+        <p role="alert" className="bg-red-100 px-4 py-1 text-center text-sm font-semibold text-red-900">
+          No se ha podido leer el documento enviado desde el móvil. Vuelve a enviarlo o registra la recepción a mano.{' '}
+          <button type="button" className="underline" onClick={m.descartarAvisoAlbaran}>
+            Cerrar
+          </button>
+        </p>
+      )}
       {m.codigoSinDestino && (
         <p className="bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">
           Código recibido del móvil ({m.codigoSinDestino.slice(0, 30)}): abre una dispensación o una recepción para usarlo

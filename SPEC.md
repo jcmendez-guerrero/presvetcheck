@@ -405,6 +405,7 @@ Algoritmo (`packages/domain/fefo.ts`):
 - El código del envase es normalmente un **DataMatrix GS1** (el requisito dice "QR"; el lector debe leer códigos 2D). Paquete `packages/gs1`:
   - Identificadores de aplicación: `(01)` GTIN-14, `(17)` caducidad AAMMDD (día `00` = último día del mes), `(10)` lote (longitud variable, termina en separador GS, ASCII 29), `(21)` número de serie, `(240)`/`(710)` si aparecen.
   - Acepta el prefijo de simbología `]d2`, `]C1`, `]Q3`.
+  - **QR con enlace GS1 (GS1 Digital Link, spec 013):** una dirección `https://<dominio>/…/01/<GTIN>[/10/<lote>][/21/<serie>][?17=AAMMDD]` se convierte a la misma cadena GS1 y pasa por el mismo análisis (simbología `qr`). Sin `01/<GTIN>` se rechaza con `QR_SIN_PRODUCTO`; la dirección nunca se abre.
   - **Separador GS:** muchos lectores HID no transmiten el ASCII 29. Configuración `SCANNER_GS_SUBSTITUTE` (p. ej. `~` o `|`) que el lector debe programarse para emitir; documentar en `docs/scanner.md`.
   - Si solo hay EAN-13 lineal (sin lote ni caducidad), esos campos se piden a mano.
 - **Sin lector físico al arranque (D-13):** la cámara de la tablet/móvil con `zxing-wasm` es la vía principal hasta que se compre el lector. La pantalla de escaneo abre la cámara trasera con un recuadro guía, enfoque continuo, linterna conmutable y lectura de DataMatrix, QR, EAN-13 y Code 128; tras
@@ -452,6 +453,7 @@ Flujo de captura (los dos caminos acaban en la misma validación):
 - **Camino A (definido por JC):** el empleado escribe el nombre → autocompletado de presentaciones desde la caché CIMAVet (nombre + CN + laboratorio) → selecciona → escanea el envase → se rellenan lote/caducidad/CN desde el código → si el CN escaneado no coincide con el seleccionado → bloqueo con explicación → los campos que falten se piden.
 - **Camino B (escaneo primero):** si el código trae un GTIN que resuelve a CN conocido, se preselecciona el medicamento y se pide confirmación.
 - Principio activo y forma farmacéutica **siempre** salen de CIMAVet (no se teclean salvo producto no encontrado, que se marca `origen_datos = manual` y queda para revisión).
+- **Albarán desde el móvil (spec 013):** el móvil emparejado también puede enviar el albarán o la factura (1–10 páginas, foto o PDF); se lee con la misma lectura y llega al PC como propuesta para revisar. El móvil solo envía y no ve lo leído.
 - Escanear varias veces el mismo lote suma unidades (deduplicando por nº de serie si existe). Caducidad < hoy + `ENTRY_MIN_SHELF_LIFE_DAYS` (por defecto 90) → AVISO.
 - Se aceptan productos no medicamento (material de farmacia) con `tipo = producto`, sin validación CIMAVet.
 

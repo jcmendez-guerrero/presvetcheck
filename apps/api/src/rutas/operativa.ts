@@ -32,6 +32,9 @@ import { RecepcionesService } from '../servicios/recepciones';
 import { SustitucionesService } from '../servicios/sustituciones';
 import { ctx, type App } from './comun';
 
+/** Tipos de fichero que admite un albarán o una factura (también desde el móvil). */
+export const MIMES_ALBARAN = ['image/png', 'image/jpeg', 'image/heic', 'image/webp', 'application/pdf'];
+
 export async function rutasOperativa(app: App, d: AppDeps) {
   const disp = new DispensacionesService(d);
   const sust = new SustitucionesService(d);
@@ -147,7 +150,6 @@ export async function rutasOperativa(app: App, d: AppDeps) {
     },
     async () => rec.proveedores(),
   );
-  const MIMES_ALBARAN = ['image/png', 'image/jpeg', 'image/heic', 'image/webp', 'application/pdf'];
   app.post(
     '/api/recepciones/albaranes',
     {
@@ -167,18 +169,36 @@ export async function rutasOperativa(app: App, d: AppDeps) {
       return reply
         .status(201)
         .send(
-          await rec.leerAlbaran({ bytes: new Uint8Array(await f.toBuffer()), mime: f.mimetype }, ctx(req)),
+          await rec.leerAlbaran([{ bytes: new Uint8Array(await f.toBuffer()), mime: f.mimetype }], ctx(req)),
         );
     },
+  );
+  app.get(
+    '/api/recepciones/albaranes/:documentoId',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary:
+          'Lo leído de un albarán que aún no tiene recepción (por ejemplo, el enviado desde el móvil): igual que la lectura al subirlo',
+        params: z.object({ documentoId: z.uuid() }),
+      },
+    },
+    async (req) => rec.lectura(req.params.documentoId),
   );
   app.get(
     '/api/recepciones/:id/documento',
     {
       preHandler: pre,
-      schema: { tags: ['recepciones'], summary: 'Foto o PDF del albarán de la recepción', params: IdParam },
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Foto o PDF del albarán de la recepción (`pagina`: la página, por defecto la 1)',
+        params: IdParam,
+        querystring: z.object({ pagina: z.coerce.number().int().min(1).default(1) }),
+      },
     },
     async (req, reply) => {
-      const b = await rec.documento(req.params.id);
+      const b = await rec.documento(req.params.id, req.query.pagina);
       return reply
         .header('Content-Type', b.mime)
         .header('Cache-Control', 'private, max-age=300')

@@ -36,7 +36,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
       {
         p: [
           { b: 'Móvil' },
-          ' (barra azul): enseña un código QR. Léelo con la cámara del móvil y desde él podrás fotografiar recetas y leer los códigos de los envases; todo llega a la pantalla del ordenador. El emparejamiento caduca solo y no debe compartirse.',
+          ' (barra azul): enseña un código QR. Léelo con la cámara del móvil y desde él podrás fotografiar recetas y albaranes o facturas, y leer los códigos de los envases; todo llega a la pantalla del ordenador. El emparejamiento caduca solo y no debe compartirse.',
         ],
       },
     ],
@@ -156,7 +156,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
         lista: [
           [
             { b: 'Escanea el envase' },
-            ' (DataMatrix o código de barras), con el lector o con el móvil, o escribe el código a mano. La app comprueba que es el medicamento correcto y toma lote y caducidad.',
+            ' (DataMatrix, código QR o código de barras), con el lector o con el móvil, o escribe el código a mano. La app comprueba que es el medicamento correcto y toma lote y caducidad.',
           ],
           [
             'Según el caso aparecen: dispensación parcial o fraccionada, cambio de formato, nota de administración para el tutor, identidad de quien retira un psicótropo y la etiqueta para el dorso de la receta.',
@@ -227,7 +227,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
         lista: [
           [
             { b: 'Leer el albarán o la factura' },
-            ' (foto o PDF): la app lee el número, el proveedor, la fecha y las líneas con su lote y caducidad, y rellena la cabecera. Guarda la foto y lo leído (se pueden ver dentro de la recepción).',
+            ' (foto o PDF, de hasta 10 páginas): la app lee el número, el proveedor, la fecha y las líneas con su lote y caducidad, y rellena la cabecera. Guarda las fotos y lo leído (se pueden ver dentro de la recepción). También puedes fotografiarlo con el móvil emparejado («Albarán o factura»): llega a esta pantalla para que lo revises.',
           ],
           [{ b: 'Registrar a mano' }, ': distribuidor, nº de albarán, fecha de compra y fecha de recepción.'],
         ],

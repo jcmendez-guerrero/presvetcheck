@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Camera, FileText, Loader2, Pencil, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { ApiError, api, get, post, put } from '../lib/api';
@@ -7,6 +7,8 @@ import { useAuth } from '../lib/auth';
 import { useBusquedaMedicamentos } from '../lib/busqueda';
 import { AYUDA_RECEPCION as AY } from '../lib/ayudas';
 import { CN, fecha, hoyIso, textoMotivo, type Motivo } from '../lib/textos';
+import { preguntaAlSustituir } from '../lib/albaran-movil';
+import { useAlbaranesMovil } from '../lib/movil';
 import { CampoEscaneo } from '../componentes/escaner';
 import { prepararPagina } from '../lib/imagen';
 import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
@@ -256,22 +258,56 @@ export function Recepciones() {
       const fd = new FormData();
       const p = f.type.startsWith('image/') ? await prepararPagina(f) : null;
       fd.append('documento', p?.blob ?? f, p ? 'albaran.jpg' : f.name);
-      const r = await post<AlbaranLeido>('/api/recepciones/albaranes', fd);
-      setLeido(r);
-      setDuplicados(r.duplicados);
-      setD({
-        distribuidor: r.distribuidorSugerido ?? r.lectura.proveedor ?? '',
-        albaran: r.lectura.numero ?? '',
-        fechaCompra: r.lectura.fecha && r.lectura.fecha <= hoyIso() ? r.lectura.fecha : hoyIso(),
-        fechaRecepcion: hoyIso(),
-      });
-      setErrores({});
+      aplicarLectura(await post<AlbaranLeido>('/api/recepciones/albaranes', fd));
     } catch (e) {
       setMsg(e instanceof ApiError ? e.message : 'No se ha podido leer el documento');
     } finally {
       setLeyendo(false);
     }
   };
+
+  /** Rellena la cabecera con lo leído y enseña los posibles duplicados (subida del PC o albarán del móvil). */
+  const aplicarLectura = (r: AlbaranLeido) => {
+    setLeido(r);
+    setDuplicados(r.duplicados);
+    setD({
+      distribuidor: r.distribuidorSugerido ?? r.lectura.proveedor ?? '',
+      albaran: r.lectura.numero ?? '',
+      fechaCompra: r.lectura.fecha && r.lectura.fecha <= hoyIso() ? r.lectura.fecha : hoyIso(),
+      fechaRecepcion: hoyIso(),
+    });
+    setErrores({});
+    setConfirmar(false);
+  };
+
+  /** Albarán enviado desde el móvil: se carga lo leído; si ya hay uno a la vista sin guardar, se pregunta antes. */
+  const cargarDelMovil = async (documentoId: string) => {
+    if (leido?.documentoId === documentoId) return;
+    const pregunta = preguntaAlSustituir({
+      hayLectura: !!leido,
+      modo,
+      distribuidor: d.distribuidor,
+      albaran: d.albaran,
+    });
+    if (pregunta && !window.confirm(pregunta)) return;
+    setMsg(null);
+    try {
+      const r = await get<AlbaranLeido>(`/api/recepciones/albaranes/${documentoId}`);
+      setModo('albaran');
+      aplicarLectura(r);
+    } catch (e) {
+      setMsg(e instanceof ApiError ? e.message : 'No se ha podido cargar el albarán enviado desde el móvil');
+    }
+  };
+  useAlbaranesMovil((id) => void cargarDelMovil(id));
+  // Llegó con el botón «Abrir la recepción» del aviso (?albaran=): se carga y se limpia la dirección.
+  const { albaran: albaranDeLaUrl } = useSearch({ from: '/recepciones' });
+  useEffect(() => {
+    if (!albaranDeLaUrl) return;
+    void cargarDelMovil(albaranDeLaUrl);
+    void nav({ to: '/recepciones', search: {}, replace: true });
+    // Solo al llegar con `?albaran=`: no depende de nada más.
+  }, [albaranDeLaUrl]);
 
   const crear = async () => {
     setMsg(null);
@@ -710,6 +746,7 @@ export function RecepcionDetalle() {
                   onLectura={async (raw) => {
                     const s = await post<{
                       ok: boolean;
+                      error?: string;
                       cn: string | null;
                       lote: string | null;
                       caducidad: string | null;
@@ -717,7 +754,14 @@ export function RecepcionDetalle() {
                       gtin: string | null;
                       presentacion: { cn: string; nombre: string } | null;
                     }>('/api/scan/parse', { raw });
-                    if (!s.ok) return setMsg({ t: 'error', m: 'No se ha podido leer el código' });
+                    if (!s.ok)
+                      return setMsg({
+                        t: 'error',
+                        m:
+                          s.error === 'QR_SIN_PRODUCTO'
+                            ? 'Este código QR no identifica el medicamento: lee el DataMatrix del envase o escribe los datos'
+                            : 'No se ha podido leer el código',
+                      });
                     if (s.cn && !s.presentacion)
                       setMsg({
                         t: 'aviso',
@@ -1686,11 +1730,18 @@ function LeerDocumento({
 }
 
 /** Foto o PDF del albarán, a la izquierda de los datos, con zoom (se carga con la sesión, como las recetas). */
-function VisorDocumento({ documento }: { documento: { url: string; pdf: boolean } }) {
+function VisorDocumento({ documento }: { documento: { url: string; pdf: boolean; paginas?: number } }) {
   const [zoom, setZoom] = useState(100);
+  const [pagina, setPagina] = useState(1);
+  const total = documento.paginas ?? 1;
+  const url = pagina > 1 ? `${documento.url}?pagina=${pagina}` : documento.url;
   const q = useQuery({
-    queryKey: ['albaran-doc', documento.url],
-    queryFn: async () => URL.createObjectURL(await get<Blob>(documento.url)),
+    queryKey: ['albaran-doc', url],
+    queryFn: async () => {
+      // El tipo sale del propio fichero: un albarán puede mezclar fotos y un PDF.
+      const b = await get<Blob>(url);
+      return { src: URL.createObjectURL(b), pdf: b.type === 'application/pdf' };
+    },
     staleTime: Infinity,
   });
   const cambiar = (d: number) => setZoom((z) => Math.min(300, Math.max(50, z + d)));
@@ -1709,17 +1760,35 @@ function VisorDocumento({ documento }: { documento: { url: string; pdf: boolean 
           <ZoomIn aria-hidden className="h-4 w-4" />
         </Boton>
       </div>
+      {total > 1 && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Páginas del documento">
+          {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
+            <Boton
+              key={n}
+              variante={n === pagina ? 'principal' : 'secundario'}
+              aria-pressed={n === pagina}
+              onClick={() => setPagina(n)}
+            >
+              Página {n}
+            </Boton>
+          ))}
+        </div>
+      )}
       {q.data ? (
-        documento.pdf ? (
+        q.data.pdf ? (
           <iframe
             key={zoom}
             title="Albarán"
-            src={`${q.data}#zoom=${zoom}`}
+            src={`${q.data.src}#zoom=${zoom}`}
             className="h-[75vh] lg:h-[calc(100vh-6rem)] w-full rounded-lg border"
           />
         ) : (
           <div className="h-[75vh] lg:h-[calc(100vh-6rem)] overflow-auto rounded-lg border">
-            <img src={q.data} alt="Albarán" style={{ width: `${zoom}%`, maxWidth: 'none' }} />
+            <img
+              src={q.data.src}
+              alt={total > 1 ? `Albarán, página ${pagina}` : 'Albarán'}
+              style={{ width: `${zoom}%`, maxWidth: 'none' }}
+            />
           </div>
         )
       ) : (

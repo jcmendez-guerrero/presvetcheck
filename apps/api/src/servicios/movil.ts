@@ -13,7 +13,14 @@ import type { ContextoPeticion } from './recetas';
  * eventos. El móvil actúa en nombre de quien abrió la sesión (auditoría con su id) y nunca ve datos: solo
  * envía. El token vale mientras la sesión no caduque ni se cierre; en base de datos solo está su hash.
  */
-export type EventoMovil = { tipo: 'leyendo' } | { tipo: 'receta'; recetaId: string; aviso: string | null } | { tipo: 'codigo'; raw: string };
+export type EventoMovil =
+  | { tipo: 'leyendo' }
+  | { tipo: 'receta'; recetaId: string; aviso: string | null }
+  | { tipo: 'codigo'; raw: string }
+  /** Albarán o factura leído; solo lleva el id (lo leído lo pide el PC con sesión). Nulo = la lectura falló. */
+  | { tipo: 'albaran'; documentoId: string | null };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 const MAX_CODIGO = 512;
@@ -81,6 +88,7 @@ export class MovilService {
 
   async publicar(sesionId: string, e: EventoMovil) {
     if (e.tipo === 'codigo' && (!e.raw.trim() || e.raw.length > MAX_CODIGO)) throw new DomainError('VALIDACION', 'Código no válido');
+    if (e.tipo === 'albaran' && e.documentoId !== null && !UUID.test(e.documentoId)) throw new DomainError('VALIDACION', 'Documento no válido');
     await this.d.db.insert(sesionMovilEvento).values({ sesionId, tipo: e.tipo, datos: e });
   }
 }

@@ -148,6 +148,13 @@
       "when": 1794300000000,
       "tag": "0020_conciliacion_movimientos",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794502443219,
+      "tag": "0021_albaran_paginas",
+      "breakpoints": true
     }
   ]
 }
