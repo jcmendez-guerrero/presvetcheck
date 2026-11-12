@@ -15,7 +15,7 @@ Solo cambia una tabla; lo demás son tipos de eventos y resultados que ya existe
 Migración: `ALTER TABLE albaran_documento ADD COLUMN paginas jsonb` (sin valor por defecto, sin relleno).
 `albaran_documento` no es un registro finalizado: la regla append-only no le afecta.
 
-**Validación**: de 1 a 10 páginas por envío; cada una `image/png|jpeg|heic|webp` o `application/pdf` (los tipos que
+**Validación**: de 1 a 10 páginas por envío (`MAX_PAGINAS_DOCUMENTO`, compartida por la subida, el servicio y el móvil) y como máximo 25 MB entre todas; cada una `image/png|jpeg|heic|webp` o `application/pdf` (los tipos que
 ya admite la ruta del PC).
 
 ## `EventoMovil` (cambio de tipo, sin migración)
