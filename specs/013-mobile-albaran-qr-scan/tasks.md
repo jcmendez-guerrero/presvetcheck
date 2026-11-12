@@ -112,7 +112,7 @@ DataMatrix equivalente; un QR sin producto se rechaza con un mensaje claro y nun
 - [X] T029 [P] Actualizar en packages/shared/src/ayuda/secciones.ts los textos de ayuda que describan el móvil o la lectura de albaranes, si hablan solo de receta y DataMatrix
 - [X] T030 Comprobar que ninguna línea de log ni error nuevo de apps/api/src/rutas/movil.ts o apps/api/src/servicios/recepciones.ts incluye contenido del documento (constitución III)
 - [ ] T031 Ejecutar `pnpm lint && pnpm typecheck && pnpm test` y después `pnpm test:int` (la migración y las rutas de recepciones están cubiertas con Testcontainers); corregir lo que falle. **Estado:** lint, typecheck y test pasan (12 de 12 paquetes); `pnpm test:int` no se pudo ejecutar en esta sesión (Testcontainers no encuentra un entorno de contenedores), pendiente de ejecutar donde haya Docker
-- [ ] T032 Recorrer quickstart.md de principio a fin con `EXTRACTOR=fake`, incluidas las comprobaciones solo manuales de SC-001 y SC-005
+- [X] T032 Recorrer quickstart.md de principio a fin con `EXTRACTOR=fake`, incluidas las comprobaciones solo manuales de SC-001 y SC-005 **Hecho (2026-11-12) con `api-prueba` y `web-prueba` (extractor simulado, base en memoria):** pasos 2–7 comprobados en el navegador: el móvil envía 2 páginas y solo ve «Enviado al ordenador»; el aviso del PC y la carga desde el menú; la pregunta al sustituir un albarán leído y lo escrito a mano; las 2 páginas en el visor; el QR con enlace GS1 rellena código nacional, lote y caducidad; una web sin producto da el mensaje de QR_SIN_PRODUCTO
 
 ---
 
