@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import {
   albaranDocumento,
   appendAudit,
@@ -11,7 +12,7 @@ import {
   MAESTRA,
 } from '@mmx/db';
 import { sha256 } from '@mmx/reports';
-import type { LecturaAlbaran } from '@mmx/extraction';
+import { unirLecturas, type LecturaAlbaran } from '@mmx/extraction';
 import {
   acumularEscaneo,
   avisosEntrada,
@@ -24,11 +25,14 @@ import {
   totalesCompra,
   type LineaEntrada,
 } from '@mmx/domain';
-import { DomainError, normalizeText } from '@mmx/shared';
+import { DomainError, MAX_PAGINAS_DOCUMENTO, normalizeText } from '@mmx/shared';
 import { hoyDe, politica, type AppDeps } from '../deps';
 import { MedicamentosService } from './medicamentos';
 import { marcaPresente } from './identificacion';
 import type { ContextoPeticion } from './recetas';
+
+/** Tamaño máximo de todas las páginas de un albarán juntas: cada una se guarda en memoria al subirla. */
+export const MAX_BYTES_ALBARAN = 25 * 1024 * 1024;
 
 export interface NuevaLineaEntrada {
   tipo: 'medicamento' | 'producto';
@@ -309,19 +313,40 @@ export class RecepcionesService {
    * recepción del mismo albarán y distribuidor (o si este mismo fichero ya se registró). No crea la recepción:
    * la persona revisa la cabecera y la crea con `documentoId`.
    */
-  async leerAlbaran(doc: { bytes: Uint8Array; mime: string }, c: ContextoPeticion) {
+  async leerAlbaran(paginas: { bytes: Uint8Array; mime: string }[], c: ContextoPeticion) {
     if (!this.d.lectorAlbaranes)
       throw new DomainError(
         'EXTRACTOR_NO_CONFIGURADO',
         'La lectura de albaranes no está configurada (Document Intelligence): registra la recepción a mano',
       );
-    const hash = sha256(doc.bytes);
-    const [mismo] = await this.d.db
-      .select({ recepcionId: albaranDocumento.recepcionId })
+    if (paginas.length < 1 || paginas.length > MAX_PAGINAS_DOCUMENTO)
+      throw new DomainError('VALIDACION', `Un albarán admite de 1 a ${MAX_PAGINAS_DOCUMENTO} páginas`);
+    const total = paginas.reduce((n, p) => n + p.bytes.length, 0);
+    if (total > MAX_BYTES_ALBARAN)
+      throw new DomainError(
+        'VALIDACION',
+        `El albarán pesa demasiado: ${MAX_BYTES_ALBARAN / 1024 / 1024} MB como máximo entre todas las páginas`,
+      );
+    // Con una sola página es el hash del fichero, como antes; con varias, el de todas seguidas (sin copiarlas).
+    const h = createHash('sha256');
+    for (const p of paginas) h.update(p.bytes);
+    const hash = h.digest('hex');
+    // Envío repetido (doble pulsación, reintento de red): se devuelve la lectura que ya hay, sin leer otra vez.
+    const [repetida] = await this.d.db
+      .select({ id: albaranDocumento.id })
       .from(albaranDocumento)
-      .where(and(eq(albaranDocumento.sha256, hash), isNotNull(albaranDocumento.recepcionId)))
+      .where(
+        and(
+          eq(albaranDocumento.sha256, hash),
+          eq(albaranDocumento.creadoPor, c.usuario.id),
+          isNull(albaranDocumento.recepcionId),
+        ),
+      )
       .limit(1);
-    const lectura = await this.d.lectorAlbaranes.leer(doc.bytes, doc.mime);
+    if (repetida) return this.lectura(repetida.id);
+    const lectura = unirLecturas(
+      await Promise.all(paginas.map((p) => this.d.lectorAlbaranes!.leer(p.bytes, p.mime))),
+    );
     const guardada = {
       proveedor: lectura.proveedor,
       numero: lectura.numero,
@@ -331,13 +356,17 @@ export class RecepcionesService {
       simulada: this.d.lectorAlbaranes.simulado,
       lineas: await this.proponerLineas(lectura),
     };
-    const path = await this.guardarFichero(doc, `lecturas/${Date.now()}-${hash.slice(0, 12)}`);
+    const base = `lecturas/${Date.now()}-${hash.slice(0, 12)}`;
+    const ficheros: { path: string; mime: string }[] = [];
+    for (const [i, p] of paginas.entries())
+      ficheros.push({ path: await this.guardarFichero(p, `${base}-p${i + 1}`), mime: p.mime });
     const [fila] = await this.d.db
       .insert(albaranDocumento)
       .values({
         sha256: hash,
-        documentoPath: path,
-        mime: doc.mime,
+        documentoPath: ficheros[0]!.path,
+        mime: ficheros[0]!.mime,
+        paginas: ficheros,
         lectura: guardada,
         creadoPor: c.usuario.id,
       })
@@ -347,25 +376,64 @@ export class RecepcionesService {
       accion: 'albaran_leer',
       entidad: 'albaran_documento',
       entidadId: fila!.id,
-      despues: { lineas: guardada.lineas.length, modelo: lectura.modelo },
+      despues: { lineas: guardada.lineas.length, paginas: paginas.length, modelo: lectura.modelo },
       ip: c.ip,
       userAgent: c.userAgent,
     });
+    return this.lectura(fila!.id);
+  }
+
+  /**
+   * Lo leído de un albarán que aún no tiene recepción, con el distribuidor sugerido y los posibles duplicados
+   * (se calculan al consultar). Lo usan la subida desde el ordenador y la que llega desde el móvil.
+   */
+  async lectura(documentoId: string) {
+    const [fila] = await this.d.db
+      .select()
+      .from(albaranDocumento)
+      .where(eq(albaranDocumento.id, documentoId));
+    if (!fila) throw new DomainError('NO_ENCONTRADO');
+    if (fila.recepcionId)
+      throw new DomainError('VALIDACION', 'El documento leído no existe o ya pertenece a otra recepción', {
+        campo: 'documentoId',
+      });
+    const lectura = fila.lectura as { proveedor: string | null; numero: string | null };
+    const [mismo] = await this.d.db
+      .select({ recepcionId: albaranDocumento.recepcionId })
+      .from(albaranDocumento)
+      .where(and(eq(albaranDocumento.sha256, fila.sha256), isNotNull(albaranDocumento.recepcionId)))
+      .limit(1);
     const sugerido = await this.distribuidorSugerido(lectura.proveedor);
     return {
-      documentoId: fila!.id,
-      lectura: guardada,
+      documentoId: fila.id,
+      lectura: fila.lectura,
       distribuidorSugerido: sugerido?.nombre ?? null,
       duplicados: sugerido?.id && lectura.numero ? await this.duplicados(sugerido.id, lectura.numero) : [],
       mismoFichero: mismo?.recepcionId ? { recepcionId: mismo.recepcionId } : null,
     };
   }
 
+  /** Páginas guardadas del albarán de una recepción; nulo en los albaranes antiguos (una sola página). */
+  private async paginasDelDocumento(recepcionId: string) {
+    const [d] = await this.d.db
+      .select({ paginas: albaranDocumento.paginas })
+      .from(albaranDocumento)
+      .where(eq(albaranDocumento.recepcionId, recepcionId))
+      .limit(1);
+    return d?.paginas ?? null;
+  }
+
   /** Foto o PDF del albarán de una recepción. */
-  async documento(id: string) {
+  async documento(id: string, pagina = 1) {
     const [r] = await this.d.db.select().from(recepcion).where(eq(recepcion.id, id));
     if (!r?.documentoPath) throw new DomainError('NO_ENCONTRADO');
-    const b = await this.d.blob.get('albaranes', r.documentoPath.replace(/^albaranes\//, ''));
+    let path = r.documentoPath;
+    if (pagina > 1) {
+      const p = (await this.paginasDelDocumento(id))?.[pagina - 1];
+      if (!p) throw new DomainError('NO_ENCONTRADO');
+      path = p.path;
+    }
+    const b = await this.d.blob.get('albaranes', path.replace(/^albaranes\//, ''));
     if (!b) throw new DomainError('NO_ENCONTRADO');
     return b;
   }
@@ -636,7 +704,11 @@ export class RecepcionesService {
       correcciones: r.estado === 'ABIERTA' ? [] : await this.correcciones(id),
       lectura: r.lecturaDocumento ?? null,
       documento: r.documentoPath
-        ? { url: `/api/recepciones/${id}/documento`, pdf: r.documentoPath.endsWith('.pdf') }
+        ? {
+            url: `/api/recepciones/${id}/documento`,
+            pdf: r.documentoPath.endsWith('.pdf'),
+            paginas: (await this.paginasDelDocumento(id))?.length ?? 1,
+          }
         : null,
       fechaCorte: this.d.config.ENTRY_CUTOVER_DATE ?? null,
       escrituraStock: this.d.config.SIWEB_STOCK_WRITE_MODE,

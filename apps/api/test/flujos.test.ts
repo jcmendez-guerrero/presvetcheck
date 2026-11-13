@@ -1,7 +1,15 @@
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { auditEvent, discrepancia, dispensacion, propietario, receta, verifyAuditChain } from '@mmx/db';
+import {
+  albaranDocumento,
+  auditEvent,
+  discrepancia,
+  dispensacion,
+  propietario,
+  receta,
+  verifyAuditChain,
+} from '@mmx/db';
 import { api, confirmar, crearReceta, entorno, multipart, recetaCorrecta, type Entorno } from './entorno';
 
 let E: Entorno;
@@ -76,6 +84,23 @@ describe('sondas, autenticación y roles', () => {
     ]) {
       expect(o.paths).toHaveProperty(p);
     }
+  });
+
+  it('scan/parse lee el QR con enlace GS1 igual que el DataMatrix y rechaza una web sin producto (spec 013)', async () => {
+    const dm = await api(E.app, 'dev-empleado', 'POST', '/api/scan/parse', {
+      raw: '010847000570016817271130' + '10LOTE1',
+    });
+    const qr = await api(E.app, 'dev-empleado', 'POST', '/api/scan/parse', {
+      raw: 'https://id.gs1.org/01/08470005700168/10/LOTE1?17=271130',
+    });
+    expect(qr.json).toMatchObject({ ok: true, simbologia: 'qr' });
+    for (const k of ['gtin', 'cn', 'cnEnCimavet', 'lote', 'caducidad'])
+      expect(qr.json[k], k).toEqual(dm.json[k]);
+    const web = await api(E.app, 'dev-empleado', 'POST', '/api/scan/parse', {
+      raw: 'https://www.example.com/producto',
+    });
+    expect(web.json).toMatchObject({ ok: false, error: 'QR_SIN_PRODUCTO' });
+    expect(web.json.lote).toBeUndefined();
   });
 
   it('errores de validación sin eco de los datos enviados', async () => {
@@ -1787,6 +1812,71 @@ describe('recepción desde el albarán: lectura, foto, duplicados', () => {
         })
       ).status,
     ).toBe(400);
+  });
+
+  it('albarán de 2 páginas enviado desde el móvil: lectura pendiente, páginas del documento y albaranes antiguos de una página (spec 013)', async () => {
+    const [p1, p2] = [Buffer.from('pagina-uno-spec013'), Buffer.from('pagina-dos-spec013')];
+    const s = (await api(E.app, 'dev-empleado', 'POST', '/api/movil/sesiones')).json as {
+      id: string;
+      token: string;
+    };
+    const m = multipart({}, [
+      { nombre: '1.jpg', mime: 'image/jpeg', bytes: p1 },
+      { nombre: '2.png', mime: 'image/png', bytes: p2 },
+    ]);
+    const sub = await E.app.inject({
+      method: 'POST',
+      url: '/api/movil/m/albaranes',
+      headers: { ...m.headers, 'x-movil-token': s.token },
+      payload: m.payload,
+    });
+    expect(sub.statusCode).toBe(201);
+    const ev = (await api(E.app, 'dev-empleado', 'GET', `/api/movil/sesiones/${s.id}/eventos`)).json
+      .eventos as { documentoId?: string }[];
+    const documentoId = ev[1]!.documentoId as string;
+
+    // La lectura pendiente: 404 si no existe; con la recepción ya creada ya no se puede pedir.
+    expect(
+      (
+        await api(
+          E.app,
+          'dev-empleado',
+          'GET',
+          '/api/recepciones/albaranes/00000000-0000-4000-8000-000000000000',
+        )
+      ).status,
+    ).toBe(404);
+    const r = await api(E.app, 'dev-empleado', 'POST', '/api/recepciones', {
+      distribuidor: 'Distribuidora Veterinaria de Prueba S.L.',
+      albaran: 'PAG-2P-1',
+      fechaCompra: '2026-10-14',
+      documentoId,
+      confirmarDuplicado: true,
+    });
+    expect(r.status).toBe(201);
+    const yaUsada = await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/albaranes/${documentoId}`);
+    expect(yaUsada.status).toBe(400);
+    expect(yaUsada.json.error.detalles).toMatchObject({ campo: 'documentoId' });
+
+    // Las dos páginas se guardan y se sirven por separado.
+    const url = `/api/recepciones/${r.json.id}/documento`;
+    const pagina = (n: number) =>
+      E.app.inject({ method: 'GET', url: `${url}?pagina=${n}`, headers: { 'x-dev-user': 'dev-empleado' } });
+    expect(
+      (await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${r.json.id}`)).json.documento,
+    ).toMatchObject({ paginas: 2 });
+    const [a, b] = [await pagina(1), await pagina(2)];
+    expect(a.rawPayload.equals(p1) && a.headers['content-type'] === 'image/jpeg').toBe(true);
+    expect(b.rawPayload.equals(p2) && b.headers['content-type'] === 'image/png').toBe(true);
+    expect((await pagina(3)).statusCode).toBe(404);
+
+    // Un albarán antiguo (sin `paginas`) sigue sirviendo su única página.
+    await E.h.db.update(albaranDocumento).set({ paginas: null }).where(eq(albaranDocumento.id, documentoId));
+    expect(
+      (await api(E.app, 'dev-empleado', 'GET', `/api/recepciones/${r.json.id}`)).json.documento,
+    ).toMatchObject({ paginas: 1 });
+    expect((await pagina(1)).rawPayload.equals(p1)).toBe(true);
+    expect((await pagina(2)).statusCode).toBe(404);
   });
 });
 

@@ -171,3 +171,93 @@ describe('parseGs1 con lecturas patológicas: coste lineal (CodeQL js/polynomial
     expect(parseGs1('0108712345678906\r\n\n')).toEqual(parseGs1('0108712345678906'));
   });
 });
+
+describe('parseGs1 con enlace GS1 (GS1 Digital Link, spec 013)', () => {
+  const GTIN13 = EAN13;
+  const dm = (cadena: string) => ({ ...ok(parseGs1(cadena)) });
+  const comoQr = (r: Gs1Ok): Gs1Ok => ({ ...r, simbologia: 'qr' });
+
+  it.each([
+    {
+      caso: 'GTIN + lote + caducidad',
+      url: `https://id.gs1.org/01/${GTIN14}/10/LOTE1?17=280100`,
+      cadena: `01${GTIN14}10LOTE1${GS}17280100`,
+    },
+    {
+      caso: 'con número de serie',
+      url: `https://id.gs1.org/01/${GTIN14}/10/LOTE1/21/S-9?17=271231`,
+      cadena: `01${GTIN14}10LOTE1${GS}21S-9${GS}17271231`,
+    },
+    {
+      caso: 'dominio propio con prefijo de ruta',
+      url: `https://lab.example.com/vet/01/${GTIN14}/10/AB12?17=270600`,
+      cadena: `01${GTIN14}10AB12${GS}17270600`,
+    },
+    {
+      caso: 'GTIN-13 en la ruta (se completa a 14)',
+      url: `https://id.gs1.org/01/${GTIN13}/10/L1?17=271231`,
+      cadena: `01${GTIN14}10L1${GS}17271231`,
+    },
+    {
+      caso: 'solo GTIN',
+      url: `https://id.gs1.org/01/${GTIN14}`,
+      cadena: `01${GTIN14}`,
+    },
+    {
+      caso: 'claves de consulta desconocidas ignoradas',
+      url: `https://id.gs1.org/01/${GTIN14}/10/L1?17=271231&utm_source=qr&x=1`,
+      cadena: `01${GTIN14}10L1${GS}17271231`,
+    },
+  ])('$caso: igual que el DataMatrix equivalente', ({ url, cadena }) => {
+    expect(ok(parseGs1(url))).toEqual(comoQr(dm(cadena)));
+  });
+
+  it('caducidad con día 00 → último día del mes (como el DataMatrix)', () => {
+    const r = ok(parseGs1(`https://id.gs1.org/01/${GTIN14}/10/L1?17=280200`));
+    expect(r.caducidad).toBe('2028-02-29');
+    expect(r.simbologia).toBe('qr');
+  });
+
+  it('lote escapado en la dirección', () => {
+    expect(ok(parseGs1(`https://id.gs1.org/01/${GTIN14}/10/LO%2FTE?17=271231`)).lote).toBe('LO/TE');
+  });
+
+  it('712 en la consulta → CN por NHRN, como en el DataMatrix', () => {
+    const r = ok(parseGs1(`https://id.gs1.org/01/${GTIN14}/10/L1?17=271231&712=570016`));
+    expect(r.cn).toBe('570016');
+    expect(r.cnOrigen).toBe('nhrn_712');
+  });
+
+  it('el prefijo ]Q3 del QR seguido de una dirección también funciona', () => {
+    expect(ok(parseGs1(`]Q3https://id.gs1.org/01/${GTIN14}/10/L1?17=271231`)).lote).toBe('L1');
+  });
+
+  it('un carácter ~ de la dirección no se toma por el separador GS del lector', () => {
+    const r = ok(parseGs1(`https://id.gs1.org/01/${GTIN14}/10/A~B?17=271231`, { gsSubstitute: '~' }));
+    expect(r.lote).toBe('A~B');
+  });
+
+  it('un %1D escapado no puede colar un separador GS en un valor', () => {
+    const r = parseGs1(`https://id.gs1.org/01/${GTIN14}/10/A%1DB?17=271231`);
+    expect(r).toMatchObject({ ok: false, error: 'QR_SIN_PRODUCTO' });
+  });
+
+  it.each([
+    {
+      caso: 'dígito de control erróneo',
+      url: 'https://id.gs1.org/01/08470005700169/10/L1',
+      error: 'GTIN_CONTROL',
+    },
+    {
+      caso: 'mes no válido en 17',
+      url: `https://id.gs1.org/01/${GTIN14}/10/L1?17=271300`,
+      error: 'FECHA_INVALIDA',
+    },
+    { caso: 'web cualquiera', url: 'https://www.example.com/producto', error: 'QR_SIN_PRODUCTO' },
+    { caso: 'http sin 01', url: 'http://lab.example.com/', error: 'QR_SIN_PRODUCTO' },
+    { caso: '01 sin GTIN', url: 'https://id.gs1.org/01/abc/10/L1', error: 'QR_SIN_PRODUCTO' },
+    { caso: 'dirección mal formada', url: 'https://', error: 'QR_SIN_PRODUCTO' },
+  ])('$caso → $error', ({ url, error }) => {
+    expect(parseGs1(url)).toMatchObject({ ok: false, error });
+  });
+});

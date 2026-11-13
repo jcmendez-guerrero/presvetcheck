@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { albaranDesdeFactura, caducidadDeTexto, importeDeTexto } from '../src/albaran';
+import {
+  albaranDesdeFactura,
+  caducidadDeTexto,
+  importeDeTexto,
+  unirLecturas,
+  type LecturaAlbaran,
+  type LineaAlbaran,
+} from '../src/albaran';
 import type { AnalyzeResult } from '../src/azure/docintel';
 
 const real = JSON.parse(
@@ -186,4 +193,74 @@ describe('líneas de factura con textos patológicos: coste lineal (CodeQL js/po
   ])('%s: < 1 s con 100 000 caracteres', (_n, fila) =>
     expect(ms(() => albaranDesdeFactura(factura(fila) as never))).toBeLessThan(1000),
   );
+});
+
+describe('unirLecturas: albarán de varias páginas (spec 013)', () => {
+  const linea = (descripcion: string): LineaAlbaran => ({
+    descripcion,
+    codigo: null,
+    cn: null,
+    cantidad: 1,
+    precioUnitario: null,
+    descuentoPct: null,
+    lote: null,
+    caducidad: null,
+  });
+  const nulos = { base: null, impuestos: null, total: null };
+  const lectura = (o: Partial<LecturaAlbaran> = {}): LecturaAlbaran => ({
+    proveedor: null,
+    numero: null,
+    fecha: null,
+    totales: nulos,
+    lineas: [],
+    modelo: 'prebuilt-invoice',
+    ...o,
+  });
+  const totales = { base: '10.00', impuestos: '1.00', total: '11.00' };
+
+  it('una sola lectura se devuelve igual', () => {
+    const a = lectura({ proveedor: 'P', numero: 'N', fecha: '2026-10-15', totales, lineas: [linea('A')] });
+    expect(unirLecturas([a])).toEqual(a);
+  });
+
+  it.each([
+    {
+      caso: 'la cabecera repartida entre páginas toma el primer valor no nulo',
+      paginas: [
+        lectura({ proveedor: 'P1' }),
+        lectura({ proveedor: 'P2', numero: 'N2', fecha: '2026-10-16' }),
+      ],
+      esperado: { proveedor: 'P1', numero: 'N2', fecha: '2026-10-16' },
+    },
+    {
+      caso: 'las líneas se concatenan en orden de página',
+      paginas: [lectura({ lineas: [linea('A'), linea('B')] }), lectura({ lineas: [linea('C')] })],
+      esperado: { lineas: [linea('A'), linea('B'), linea('C')] },
+    },
+    {
+      caso: 'los totales salen de la última página que tiene alguno',
+      paginas: [
+        lectura({ totales: { base: '1.00', impuestos: null, total: '1.00' } }),
+        lectura({ totales }),
+        lectura(),
+      ],
+      esperado: { totales },
+    },
+    {
+      caso: 'ninguna página con totales → todos nulos',
+      paginas: [lectura(), lectura()],
+      esperado: { totales: nulos },
+    },
+    {
+      caso: 'el modelo es el de la primera lectura',
+      paginas: [lectura({ modelo: 'm1' }), lectura({ modelo: 'm2' })],
+      esperado: { modelo: 'm1' },
+    },
+  ])('$caso', ({ paginas, esperado }) => {
+    expect(unirLecturas(paginas)).toMatchObject(esperado);
+  });
+
+  it('sin ninguna lectura es un error (la API ya exige al menos una página)', () => {
+    expect(() => unirLecturas([])).toThrow();
+  });
 });

@@ -110,6 +110,8 @@ export const albaranDocumento = pgTable(
     /** Ruta dentro del contenedor `albaranes`. */
     documentoPath: text().notNull(),
     mime: text().notNull(),
+    /** Todas las páginas del albarán, en orden. Nulo en las filas antiguas: una sola página (`documentoPath`). */
+    paginas: jsonb().$type<{ path: string; mime: string }[] | null>(),
     lectura: jsonb().notNull(),
     recepcionId: uuid().references(() => recepcion.id),
     creadoPor: text().notNull(),

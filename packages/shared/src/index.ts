@@ -9,6 +9,7 @@ export * from './schemas/receta';
 export * from './schemas/extraccion';
 export * from './i18n';
 export * from './concurrencia';
+export * from './limites';
 export * from './schemas/asistente';
 export * from './schemas/conciliacion';
 export * from './schemas/stock-siweb';

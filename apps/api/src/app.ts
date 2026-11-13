@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import multipart from '@fastify/multipart';
+import { MAX_PAGINAS_DOCUMENTO } from '@mmx/shared';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
@@ -71,7 +72,9 @@ export async function buildApp({ deps, auth, logger }: BuildAppOptions): Promise
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registrarErrores(app);
-  await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 10, fields: 30 } });
+  await app.register(multipart, {
+    limits: { fileSize: 20 * 1024 * 1024, files: MAX_PAGINAS_DOCUMENTO, fields: 30 },
+  });
   await app.register(swagger, {
     openapi: {
       info: {
