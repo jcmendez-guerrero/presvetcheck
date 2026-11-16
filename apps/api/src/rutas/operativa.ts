@@ -24,6 +24,7 @@ import {
   EditarLineaEntradaDto,
   EditarRecepcionDto,
   CorregirRecepcionDto,
+  ListarRecepcionesQuery,
 } from '../schemas';
 import { ConciliacionService } from '../servicios/conciliacion';
 import { DispensacionesService } from '../servicios/dispensaciones';
@@ -205,8 +206,17 @@ export async function rutasOperativa(app: App, d: AppDeps) {
         .send(Buffer.from(b.bytes));
     },
   );
-  app.get('/api/recepciones', { preHandler: pre, schema: { tags: ['recepciones'] } }, async () =>
-    rec.listar(),
+  app.get(
+    '/api/recepciones',
+    {
+      preHandler: pre,
+      schema: {
+        tags: ['recepciones'],
+        summary: 'Lista filtrable y paginada de recepciones',
+        querystring: ListarRecepcionesQuery,
+      },
+    },
+    async (req) => rec.listar(req.query),
   );
   app.get(
     '/api/recepciones/:id',

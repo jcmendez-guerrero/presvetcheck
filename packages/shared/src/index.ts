@@ -15,3 +15,4 @@ export * from './schemas/conciliacion';
 export * from './schemas/stock-siweb';
 export * from './ayuda/preguntas-ejemplo';
 export * from './ayuda/secciones';
+export * from './recepciones';

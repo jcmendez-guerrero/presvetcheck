@@ -15,6 +15,7 @@ import { Dispensacion } from './paginas/dispensacion';
 import { Sustitucion } from './paginas/sustitucion';
 import { Venta } from './paginas/venta';
 import { RecepcionDetalle, Recepciones } from './paginas/recepciones';
+import { leerFiltros, type FiltrosRecepciones } from './lib/recepciones-filtros';
 import { PaginaPendientes } from './paginas/pendientes';
 import { Registros } from './paginas/registros';
 import { Admin } from './paginas/admin';
@@ -60,8 +61,11 @@ const r5 = createRoute({
   path: '/recepciones',
   component: Recepciones,
   // `albaran`: id de un albarán ya leído (llegado del móvil) que se abre en la nueva recepción.
-  validateSearch: (s: Record<string, unknown>): { albaran?: string } =>
-    typeof s.albaran === 'string' && /^[0-9a-f-]{36}$/i.test(s.albaran) ? { albaran: s.albaran } : {},
+  // El resto son los filtros, el orden y la página de la tabla (specs/014).
+  validateSearch: (s: Record<string, unknown>): { albaran?: string } & FiltrosRecepciones => ({
+    ...(typeof s.albaran === 'string' && /^[0-9a-f-]{36}$/i.test(s.albaran) ? { albaran: s.albaran } : {}),
+    ...leerFiltros(s),
+  }),
 });
 // Documento al lado de los datos: ocupa todo el ancho de la ventana para poder leerlo.
 const r6 = createRoute({
