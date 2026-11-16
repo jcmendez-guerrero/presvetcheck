@@ -145,7 +145,7 @@ export function TablaRecepciones() {
     <Tarjeta titulo="Recepciones">
       <form className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={(e) => e.preventDefault()}>
         <Campo
-          etiqueta="Nº de albarán o factura"
+          etiqueta="Buscar por número de albarán o factura"
           type="search"
           value={numero}
           maxLength={60}

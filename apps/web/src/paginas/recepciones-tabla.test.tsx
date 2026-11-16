@@ -51,11 +51,15 @@ const dosFilas: ListaRecepciones = {
 const vacia: ListaRecepciones = { filas: [], total: 0, pagina: 1, porPagina: 25, proveedores: [] };
 
 /** Texto visible sin etiquetas (para buscar frases que cruzan elementos). */
-const texto = (html: string) =>
-  html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&quot;/g, '"')
-    .replace(/<!-- -->/g, '');
+const texto = (html: string) => {
+  // Se repite hasta que no quede ninguna etiqueta (una sola pasada puede dejar restos; aviso de CodeQL).
+  let t = html;
+  for (let antes = ''; antes !== t;) {
+    antes = t;
+    t = t.replace(/<[^>]*>/g, '');
+  }
+  return t.replace(/&quot;/g, '"');
+};
 
 beforeEach(() => {
   mockSearch = {};
@@ -96,7 +100,7 @@ describe('Filtros (US2)', () => {
     const html = renderToString(<TablaRecepciones />);
     const t = texto(html);
     for (const e of [
-      'Nº de albarán o factura',
+      'Buscar por número de albarán o factura',
       'Proveedor',
       'Estado',
       'Fecha de recepción desde',
