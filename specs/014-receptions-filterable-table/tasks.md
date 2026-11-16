@@ -163,3 +163,8 @@ T003 apps/web/src/lib/recepciones-filtros.test.ts  →  T008→T009 (apps/web)
 2. **Lo pedido**: + US2 (T013–T015): la tabla se filtra. Es el mínimo para cerrar la petición del usuario.
 3. **Comodidad**: + US3 (T016–T018): orden y estado conservado al volver.
 4. **Cierre**: F6 (T019–T024). Un solo PR (bloque de recepción, SPEC §12.1).
+
+## Phase 7: Convergence
+
+- [X] T025 Al dejar un rango de fechas al revés en el formulario, dejar de aplicar también el rango anterior de ese par (quitarlo de la dirección) para que la tabla no siga filtrada por fechas que ya no se ven en los campos, con un caso en `apps/web/src/paginas/recepciones-tabla.test.tsx`, en `apps/web/src/paginas/recepciones-tabla.tsx` per FR-012 (partial) — Hecho sin tocar la dirección: el par al revés no se envía a la API (`consultaAplicable`); vaciarlo en la dirección borraría lo escrito y el aviso.
+- [X] T026 Ordenar por la columna Estado según el texto que se ve (Abierta, Descartada, Enviada, Error al enviar, Finalizada) y no por el código interno, con un caso en `apps/api/test/recepciones-lista.test.ts`, en `apps/api/src/servicios/recepciones.ts` per FR-008 (partial)

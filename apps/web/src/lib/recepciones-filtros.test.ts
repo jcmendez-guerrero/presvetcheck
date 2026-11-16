@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ESTADO_RECEPCION,
   aConsulta,
+  consultaAplicable,
   diaMadrid,
   hayFiltros,
   leerFiltros,
@@ -83,6 +84,20 @@ describe('rangoInvalido', () => {
     ],
   ] as const)('%j → %j', (f, campos) => {
     expect(rangoInvalido(f)).toEqual(campos);
+  });
+});
+
+describe('consultaAplicable', () => {
+  const aplicado = { numero: 'A', compraDesde: '2026-11-01', compraHasta: '2026-11-10' };
+  it.each([
+    // Borrador igual a la dirección: se aplica todo.
+    [aplicado, { compraDesde: '2026-11-01', compraHasta: '2026-11-10' }, aplicado],
+    // «hasta» cambiado a una fecha anterior a «desde»: no sigue aplicándose el rango anterior.
+    [aplicado, { compraDesde: '2026-11-01', compraHasta: '2026-10-01' }, { numero: 'A' }],
+    // Rango al revés en la dirección: tampoco se envía.
+    [{ recibidaDesde: '2026-11-10', recibidaHasta: '2026-11-01' }, {}, {}],
+  ] as const)('%j + borrador %j → %j', (f, borrador, esperado) => {
+    expect(consultaAplicable(f, borrador)).toEqual(esperado);
   });
 });
 

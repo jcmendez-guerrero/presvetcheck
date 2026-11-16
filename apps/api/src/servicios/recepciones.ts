@@ -479,7 +479,9 @@ export class RecepcionesService {
       recibida: r.fechaRecepcion,
       compra: r.fechaCompra,
       registrada: r.createdAt,
-      estado: r.estado,
+      // Por el texto que ve el usuario (apps/web/src/lib/recepciones-filtros.ts), no por el código interno.
+      estado: sql`case ${r.estado} when 'ABIERTA' then 1 when 'DESCARTADA' then 2 when 'SINCRONIZADA' then 3
+        when 'ERROR_SINCRONIZACION' then 4 when 'FINALIZADA' then 5 end`,
     }[q.orden];
     const sentido = q.dir === 'asc' ? sql`asc` : sql`desc`;
 

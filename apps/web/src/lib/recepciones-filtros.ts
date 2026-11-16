@@ -83,6 +83,22 @@ export function rangoInvalido(f: FiltrosRecepciones): CampoFecha[] {
   }).map(([, h]) => h);
 }
 
+/**
+ * Filtros que se envían a la API: sin los rangos al revés, ni de la dirección ni del formulario. Así la tabla no
+ * sigue filtrada por un rango anterior que ya no se ve en los campos (FR-012).
+ */
+export function consultaAplicable(f: FiltrosRecepciones, borrador: FiltrosRecepciones): FiltrosRecepciones {
+  const fuera = [...rangoInvalido(f), ...rangoInvalido(borrador)];
+  const q = { ...f };
+  for (const [d, h] of RANGOS) {
+    if (fuera.includes(h)) {
+      delete q[d];
+      delete q[h];
+    }
+  }
+  return q;
+}
+
 /** ¿Hay algún filtro (no cuentan el orden ni la página)? */
 export function hayFiltros(f: FiltrosRecepciones): boolean {
   return Boolean(f.numero || f.proveedor || f.estado || RANGOS.some(([d, h]) => f[d] || f[h]));

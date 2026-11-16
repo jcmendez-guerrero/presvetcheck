@@ -9,6 +9,7 @@ import {
   ESTADO_RECEPCION,
   RANGOS,
   aConsulta,
+  consultaAplicable,
   diaMadrid,
   hayFiltros,
   rangoInvalido,
@@ -100,14 +101,7 @@ export function TablaRecepciones() {
     }
   };
 
-  // Un rango al revés que llegue en la dirección no se envía (la API lo rechazaría).
-  const consulta: FiltrosRecepciones = { ...f };
-  for (const [d, h] of RANGOS) {
-    if (rangoInvalido(f).includes(h)) {
-      delete consulta[d];
-      delete consulta[h];
-    }
-  }
+  const consulta = consultaAplicable(f, fechas);
   const q = useQuery({
     queryKey: ['recepciones', consulta],
     queryFn: () => get<ListaRecepciones>(`/api/recepciones?${aConsulta(consulta).toString()}`),

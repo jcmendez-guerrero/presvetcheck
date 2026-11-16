@@ -264,13 +264,22 @@ describe('GET /api/recepciones: orden (US3)', () => {
     ['compra', 'desc', [1, 2, 0]],
     ['registrada', 'asc', [0, 1, 2]],
     ['registrada', 'desc', [2, 1, 0]],
-    ['estado', 'asc', [1, 0, 2]],
-    ['estado', 'desc', [2, 0, 1]],
+    // Estado: por el texto que se ve (Abierta, Enviada, Finalizada), no por el código interno.
+    ['estado', 'asc', [1, 2, 0]],
+    ['estado', 'desc', [0, 2, 1]],
   ] as const)('orden=%s dir=%s', async (orden, dir, esperado) => {
     const { ids, lista } = await conRecepciones(semillas, [...provs]);
     expect((await lista(`orden=${orden}&dir=${dir}`)).filas.map((f) => f.id)).toEqual(
       esperado.map((i) => ids[i]),
     );
+  });
+
+  it('estado: orden alfabético del texto visible con los cinco estados', async () => {
+    const estados = ['FINALIZADA', 'ERROR_SINCRONIZACION', 'SINCRONIZADA', 'DESCARTADA', 'ABIERTA'] as const;
+    const { ids, lista } = await conRecepciones(estados.map((estado) => ({ estado })));
+    const r = await lista(`orden=estado&dir=asc&estado=${estados.join(',')}`);
+    // Abierta, Descartada, Enviada, Error al enviar, Finalizada
+    expect(r.filas.map((f) => f.id)).toEqual([4, 3, 2, 1, 0].map((i) => ids[i]));
   });
 
   it.each(['asc', 'desc'])('sin fecha de recepción va al final (dir=%s)', async (dir) => {
