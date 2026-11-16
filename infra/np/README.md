@@ -34,6 +34,22 @@ CREAR_APPS=true IMAGEN=<servidor-acr>/mmx-recetas:<sha> ENTRA_CLIENT_ID=<appId> 
   az deployment group create -g <grupo> -n presvetcheck-apps -f infra/np/main.bicep -p infra/np/main.bicepparam
 ```
 
+## Despliegue continuo (CI, job `dev`)
+
+Cada push a `main` importa la imagen de GHCR al ACR como `mmx-recetas:<sha>`, lanza `azu-caj-db-migrate-np`, espera
+a que termine y actualiza la app y el resto de jobs. Los nombres reales se configuran como **variables** del entorno
+`dev` de GitHub (Settings › Environments › dev), con los valores de Confluence:
+
+| Variable | Valor |
+| --- | --- |
+| `AZURE_RESOURCE_GROUP` | Grupo del proyecto (app y jobs) |
+| `ACA_APP` | `azu-ca-<sufijo>-01` |
+| `ACR_NAME` / `ACR_SERVER` | Mismos valores que `acrNombre` / `acrServidor` |
+| `ACA_JOB_SUFFIX` | Opcional; por defecto `np` |
+
+La identidad federada de GitHub (`AZURE_CLIENT_ID`, sujeto `environment:dev`) necesita permiso para importar en el
+ACR (p. ej. `Container Registry Data Importer and Data Reader`) y `Contributor` sobre el grupo del proyecto.
+
 ## Preparación de PostgreSQL (una vez, como administrador de Entra)
 
 En `postgres`: `pgaadauth_create_principal` para las dos identidades. En `mmx`: `CREATE EXTENSION pg_trgm`,
