@@ -13,6 +13,7 @@ import { CampoEscaneo } from '../componentes/escaner';
 import { prepararPagina } from '../lib/imagen';
 import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda';
 import { Pagina } from '../componentes/layout';
+import { TablaRecepciones } from './recepciones-tabla';
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
 
 interface LineaRecepcion {
@@ -199,19 +200,6 @@ const TEXTO_SYNC: Record<string, string> = {
 export function Recepciones() {
   const nav = useNavigate();
   const { config } = useAuth();
-  const lista = useQuery({
-    queryKey: ['recepciones'],
-    queryFn: () =>
-      get<
-        Array<{
-          id: string;
-          estado: string;
-          fechaCompra: string;
-          fechaRecepcion: string | null;
-          albaran: string | null;
-        }>
-      >('/api/recepciones'),
-  });
   const prov = useQuery({
     queryKey: ['proveedores'],
     queryFn: () =>
@@ -506,19 +494,7 @@ export function Recepciones() {
           </div>
         )}
       </Tarjeta>
-      <Tarjeta titulo="Recepciones recientes">
-        <ul className="divide-y">
-          {lista.data?.map((r) => (
-            <li key={r.id} className="py-2">
-              <Link to="/recepciones/$id" params={{ id: r.id }} className="text-marca underline">
-                Compra {fecha(r.fechaCompra)}
-                {r.fechaRecepcion ? ` · recibida ${fecha(r.fechaRecepcion)}` : ''} ·{' '}
-                {r.albaran ?? 'sin albarán'} · {r.estado}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Tarjeta>
+      <TablaRecepciones />
     </Pagina>
   );
 }

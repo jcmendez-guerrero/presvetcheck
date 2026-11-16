@@ -188,6 +188,83 @@ export const EditarRecepcionDto = z.object({
   confirmarDuplicado: z.boolean().optional(),
 });
 
+export const ESTADOS_RECEPCION = [
+  'ABIERTA',
+  'FINALIZADA',
+  'SINCRONIZADA',
+  'ERROR_SINCRONIZACION',
+  'DESCARTADA',
+] as const;
+
+/** Día de calendario real (`IsoDate` solo comprueba el formato: 2026-13-01 no vale aquí). */
+const DiaQuery = IsoDate.refine((d) => {
+  const t = new Date(`${d}T00:00:00Z`);
+  return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d);
+}, 'Fecha no válida');
+
+const RANGOS_RECEPCION = [
+  ['recibidaDesde', 'recibidaHasta'],
+  ['compraDesde', 'compraHasta'],
+  ['registradaDesde', 'registradaHasta'],
+] as const;
+
+/** Lista filtrable de recepciones (specs/014). */
+export const ListarRecepcionesQuery = z
+  .object({
+    numero: z.string().trim().min(1).max(60).optional(),
+    distribuidorId: z.uuid().optional(),
+    estado: z
+      .string()
+      .transform((s) => s.split(','))
+      .pipe(z.array(z.enum(ESTADOS_RECEPCION)).min(1))
+      .optional(),
+    recibidaDesde: DiaQuery.optional(),
+    recibidaHasta: DiaQuery.optional(),
+    compraDesde: DiaQuery.optional(),
+    compraHasta: DiaQuery.optional(),
+    registradaDesde: DiaQuery.optional(),
+    registradaHasta: DiaQuery.optional(),
+    orden: z
+      .enum(['albaran', 'proveedor', 'recibida', 'compra', 'registrada', 'estado'])
+      .default('registrada'),
+    dir: z.enum(['asc', 'desc']).default('desc'),
+    pagina: z.coerce.number().int().min(1).default(1),
+    porPagina: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .superRefine((q, ctx) => {
+    for (const [desde, hasta] of RANGOS_RECEPCION) {
+      const d = q[desde];
+      const h = q[hasta];
+      if (d && h && d > h) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [hasta],
+          message: 'La fecha «hasta» no puede ser anterior a «desde»',
+        });
+      }
+    }
+  });
+export type ListarRecepcionesQuery = z.infer<typeof ListarRecepcionesQuery>;
+
+export const ListaRecepcionesDto = z.object({
+  filas: z.array(
+    z.object({
+      id: z.uuid(),
+      albaran: z.string().nullable(),
+      proveedor: z.string(),
+      fechaRecepcion: z.string().nullable(),
+      fechaCompra: z.string(),
+      registradaAt: z.string(),
+      estado: z.enum(ESTADOS_RECEPCION),
+    }),
+  ),
+  total: z.number().int(),
+  pagina: z.number().int(),
+  porPagina: z.number().int(),
+  proveedores: z.array(z.object({ id: z.uuid(), nombre: z.string() })),
+});
+export type ListaRecepcionesDto = z.infer<typeof ListaRecepcionesDto>;
+
 /** Corrección de la cabecera de una recepción finalizada: con motivo; el régimen y las líneas no cambian. */
 export const CorregirRecepcionDto = z.object({
   distribuidor: z.string().trim().min(2).max(120).optional(),

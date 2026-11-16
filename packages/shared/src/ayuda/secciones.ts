@@ -285,6 +285,12 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
           ],
         ],
       },
+      {
+        p: [
+          { b: 'Buscar una recepción' },
+          ': la tabla de recepciones se puede filtrar por nº de albarán o factura, proveedor, estado y fechas (recepción, compra y registro), y ordenar pulsando la cabecera de cada columna. Las descartadas solo salen si se marcan en «Estado». Al volver de una recepción, la tabla conserva los filtros.',
+        ],
+      },
     ],
   },
   {
