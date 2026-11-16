@@ -167,6 +167,16 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.imagen }}
 
+  # Despliegue sobre el entorno np (infra/np): app `azu-ca-<sufijo>-01` y jobs `azu-caj-<job>-np`, que solo
+  # descargan imágenes del ACR compartido con su identidad gestionada. La imagen de GHCR se importa al ACR como
+  # `mmx-recetas:<sha>`. Los nombres reales no se versionan (repositorio público): son variables del entorno de
+  # GitHub (Settings › Environments) con los valores de Confluence (PreVetCheck › Infraestructura np):
+  #   AZURE_RESOURCE_GROUP  grupo del proyecto (app y jobs)
+  #   ACA_APP               nombre de la Container App
+  #   ACR_NAME              nombre del ACR compartido
+  #   ACR_SERVER            servidor de inicio de sesión del ACR (<acr>-<hash>.azurecr.io)
+  #   ACA_JOB_SUFFIX        sufijo de los jobs (opcional; por defecto `np`)
+  # La identidad federada de GitHub necesita poder importar en el ACR y actualizar la app y los jobs del grupo.
   dev:
     name: Despliegue a dev
     needs: imagen
@@ -175,33 +185,59 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: read
+    env:
+      RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+      APP: ${{ vars.ACA_APP }}
+      ACR: ${{ vars.ACR_NAME }}
+      ACR_SERVER: ${{ vars.ACR_SERVER }}
+      JOB_SUFFIX: ${{ vars.ACA_JOB_SUFFIX || 'np' }}
+      SHA: ${{ github.sha }}
+      ORIGEN: ${{ needs.imagen.outputs.imagen }}
     steps:
+      - name: Comprobar la configuración del entorno
+        run: |
+          faltan=""
+          for v in RG APP ACR ACR_SERVER; do [ -n "${!v}" ] || faltan="$faltan $v"; done
+          if [ -n "$faltan" ]; then
+            echo "::error::Faltan variables del entorno 'dev' en GitHub:$faltan (ver comentario del job en ci.yml)"
+            exit 1
+          fi
       - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Importar la imagen al ACR
+        run: |
+          az acr import -n "$ACR" --source "$ORIGEN" --image "mmx-recetas:${SHA}" \
+            --username "${GITHUB_ACTOR}" --password "${GHCR_TOKEN}" --force
+          echo "IMAGEN=${ACR_SERVER}/mmx-recetas:${SHA}" >> "$GITHUB_ENV"
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Migraciones antes de activar la nueva revisión
         run: |
-          az containerapp job update -g rg-mmx-recetas-dev -n job-db-migrate --image "${NEEDS_IMAGEN_OUTPUTS_IMAGEN}"
-          az containerapp job start -g rg-mmx-recetas-dev -n job-db-migrate
+          job="azu-caj-db-migrate-${JOB_SUFFIX}"
+          az containerapp job update -g "$RG" -n "$job" --image "$IMAGEN" -o none
+          ejecucion=$(az containerapp job start -g "$RG" -n "$job" --query name -o tsv)
+          echo "Ejecución: $ejecucion"
           for i in $(seq 1 60); do
-            estado=$(az containerapp job execution list -g rg-mmx-recetas-dev -n job-db-migrate --query "[0].properties.status" -o tsv)
-            echo "Estado actual: $estado (Intento $i/60)"
-            [ "$estado" = "Succeeded" ] && break
-            [ "$estado" = "Failed" ] && exit 1
+            estado=$(az containerapp job execution show -g "$RG" -n "$job" --job-execution-name "$ejecucion" --query properties.status -o tsv)
+            echo "Estado actual: $estado (intento $i/60)"
+            case "$estado" in
+              Succeeded) exit 0 ;;
+              Failed|Stopped|Degraded) echo "::error::Las migraciones han terminado en $estado"; exit 1 ;;
+            esac
             sleep 10
           done
-        env:
-          NEEDS_IMAGEN_OUTPUTS_IMAGEN: ${{ needs.imagen.outputs.imagen }}
+          echo "::error::Las migraciones no han terminado en 10 minutos"
+          exit 1
       - name: Actualizar app y jobs
         run: |
-          az containerapp update -g rg-mmx-recetas-dev -n mmx-api --image "${NEEDS_IMAGEN_OUTPUTS_IMAGEN}"
-          for j in cimavet-delta cimavet-full outbox-dispatcher sales-reconciliation weekly-reports retention-sweep nomenclator-import; do
-            az containerapp job update -g rg-mmx-recetas-dev -n "job-$j" --image "${NEEDS_IMAGEN_OUTPUTS_IMAGEN}"
+          az containerapp update -g "$RG" -n "$APP" --image "$IMAGEN" -o none
+          for j in cimavet-delta cimavet-full outbox-dispatcher sales-reconciliation weekly-reports retention-sweep nomenclator-import procedimiento-cargar import-fix; do
+            az containerapp job update -g "$RG" -n "azu-caj-${j}-${JOB_SUFFIX}" --image "$IMAGEN" -o none
           done
-        env:
-          NEEDS_IMAGEN_OUTPUTS_IMAGEN: ${{ needs.imagen.outputs.imagen }}
 
   prod:
     name: Promoción a prod (aprobación manual)
