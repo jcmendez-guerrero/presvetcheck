@@ -1944,9 +1944,9 @@ describe('recepción como factura de compra: descuento, régimen, casillas y des
       ).status,
     ).toBe(204);
     expect(
-      ((await api(E.app, 'dev-empleado', 'GET', '/api/recepciones')).json as { id: string }[]).some(
-        (x) => x.id === r.id,
-      ),
+      (
+        (await api(E.app, 'dev-empleado', 'GET', '/api/recepciones')).json as { filas: { id: string }[] }
+      ).filas.some((x) => x.id === r.id),
     ).toBe(false);
     expect(
       (await api(E.app, 'dev-empleado', 'PUT', `/api/recepciones/${r.id}`, { albaran: 'X' })).json.error.code,

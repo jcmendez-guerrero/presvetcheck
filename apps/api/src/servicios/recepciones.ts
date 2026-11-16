@@ -1,5 +1,21 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import {
   albaranDocumento,
   appendAudit,
@@ -25,7 +41,8 @@ import {
   totalesCompra,
   type LineaEntrada,
 } from '@mmx/domain';
-import { DomainError, MAX_PAGINAS_DOCUMENTO, normalizeText } from '@mmx/shared';
+import { DomainError, MAX_PAGINAS_DOCUMENTO, normalizeText, rangoMadrid } from '@mmx/shared';
+import type { ListaRecepcionesDto, ListarRecepcionesQuery } from '../schemas';
 import { hoyDe, politica, type AppDeps } from '../deps';
 import { MedicamentosService } from './medicamentos';
 import { marcaPresente } from './identificacion';
@@ -438,13 +455,72 @@ export class RecepcionesService {
     return b;
   }
 
-  async listar(limite = 50) {
-    return this.d.db
-      .select()
-      .from(recepcion)
-      .where(ne(recepcion.estado, 'DESCARTADA'))
-      .orderBy(desc(recepcion.createdAt))
-      .limit(limite);
+  /**
+   * Lista filtrable, ordenable y paginada de recepciones (specs/014). Sin `estado`, oculta las descartadas.
+   * La fecha de registro se filtra por días de Europe/Madrid.
+   */
+  async listar(q: ListarRecepcionesQuery): Promise<ListaRecepcionesDto> {
+    const r = recepcion;
+    const conds: SQL[] = [q.estado ? inArray(r.estado, q.estado) : ne(r.estado, 'DESCARTADA')];
+    if (q.distribuidorId) conds.push(eq(r.distribuidorId, q.distribuidorId));
+    // Búsqueda literal: `\`, `%` y `_` escapados para que no actúen como comodines de LIKE.
+    if (q.numero) conds.push(ilike(r.albaran, `%${q.numero.replace(/[\\%_]/g, (c) => `\\${c}`)}%`));
+    if (q.recibidaDesde) conds.push(gte(r.fechaRecepcion, q.recibidaDesde));
+    if (q.recibidaHasta) conds.push(lte(r.fechaRecepcion, q.recibidaHasta));
+    if (q.compraDesde) conds.push(gte(r.fechaCompra, q.compraDesde));
+    if (q.compraHasta) conds.push(lte(r.fechaCompra, q.compraHasta));
+    if (q.registradaDesde) conds.push(gte(r.createdAt, rangoMadrid(q.registradaDesde, q.registradaDesde)[0]));
+    if (q.registradaHasta) conds.push(lt(r.createdAt, rangoMadrid(q.registradaHasta, q.registradaHasta)[1]));
+    const where = and(...conds);
+
+    const columna = {
+      albaran: r.albaran,
+      proveedor: distribuidor.nombre,
+      recibida: r.fechaRecepcion,
+      compra: r.fechaCompra,
+      registrada: r.createdAt,
+      estado: r.estado,
+    }[q.orden];
+    const sentido = q.dir === 'asc' ? sql`asc` : sql`desc`;
+
+    const [filas, [cuenta], proveedores] = await Promise.all([
+      this.d.db
+        .select({
+          id: r.id,
+          albaran: r.albaran,
+          proveedor: distribuidor.nombre,
+          fechaRecepcion: r.fechaRecepcion,
+          fechaCompra: r.fechaCompra,
+          registradaAt: r.createdAt,
+          estado: r.estado,
+        })
+        .from(r)
+        .innerJoin(distribuidor, eq(distribuidor.id, r.distribuidorId))
+        .where(where)
+        .orderBy(sql`${columna} ${sentido} nulls last`, desc(r.createdAt), asc(r.id))
+        .limit(q.porPagina)
+        .offset((q.pagina - 1) * q.porPagina),
+      this.d.db
+        .select({ n: count() })
+        .from(r)
+        .innerJoin(distribuidor, eq(distribuidor.id, r.distribuidorId))
+        .where(where),
+      this.d.db
+        .selectDistinct({ id: distribuidor.id, nombre: distribuidor.nombre })
+        .from(distribuidor)
+        .innerJoin(r, eq(r.distribuidorId, distribuidor.id)),
+    ]);
+    return {
+      filas: filas.map((f) => ({
+        ...f,
+        registradaAt: f.registradaAt.toISOString(),
+        estado: f.estado as ListaRecepcionesDto['filas'][number]['estado'],
+      })),
+      total: cuenta?.n ?? 0,
+      pagina: q.pagina,
+      porPagina: q.porPagina,
+      proveedores: proveedores.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    };
   }
 
   /**

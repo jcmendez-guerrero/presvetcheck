@@ -721,7 +721,7 @@ Todas bajo `/api`, JSON, autenticación Entra, autorización por rol (sección 9
 5. **Dispensación:** lote recomendado grande (lote, caducidad, ubicación), campo de escaneo con foco permanente, validación inmediata, botón "Confirmar dispensación". En sustitución, banda ámbar fija (4.4.3).
 6. **Asistente de sustitución:** pasos con registro de consentimiento, aviso al veterinario (con texto generado para copiar), estado de la autorización del garante en tiempo real, etiqueta de anotación imprimible.
 7. **Venta sin receta / Online:** escaneo → comprobación de no sujeto a prescripción → lote FEFO → datos de propietario si es online → confirmar.
-8. **Recepción:** cabecera (distribuidor, albarán, fecha) + lista de líneas; buscador con autocompletado; escaneo; panel de datos faltantes; resumen y "Finalizar".
+8. **Recepción:** cabecera (distribuidor, albarán, fecha) + lista de líneas; buscador con autocompletado; escaneo; panel de datos faltantes; resumen y "Finalizar". Las recepciones se consultan en una tabla filtrable (nº de albarán o factura, proveedor, estado, fechas de recepción, compra y registro), ordenable y paginada (specs/014).
 9. **Bandeja del garante:** pendientes por tipo, con aprobación/rechazo y comentario; MFA obligatorio.
 10. **Registros y reportes:** filtros por fechas, plantilla, exportación.
 10b. **Alta manual de receta** (solo veterinaria responsable, `specs/011`): motivo y dónde está el papel → revisión sin imagen con medicamento y especie de CIMAVet y «Fecha en que se entregó» → resultado (validez en esa fecha) → entrega retrospectiva con lote y caducidad, sin stock. En Registros, columna interna `ALTA MANUAL (S/N)` y filtro; hoja «8 Altas manuales» en el reporte semanal.
