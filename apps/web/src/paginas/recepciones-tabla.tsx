@@ -9,6 +9,10 @@ import {
   ESTADO_RECEPCION,
   RANGOS,
   aConsulta,
+  claveFechas,
+  fechasDe,
+  fechasVisibles,
+  type BorradorFechas,
   consultaAplicable,
   diaMadrid,
   hayFiltros,
@@ -62,9 +66,6 @@ type BusquedaRecepciones = FiltrosRecepciones & { albaran?: string };
 const sinVacios = (o: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== '')) as BusquedaRecepciones;
 
-const fechasDe = (f: FiltrosRecepciones) =>
-  Object.fromEntries(RANGOS.flat().map((c) => [c, f[c] ?? ''])) as Record<CampoFecha, string>;
-
 /** Tabla filtrable, ordenable y paginada de recepciones (specs/014). Filtros, orden y página viven en la dirección. */
 export function TablaRecepciones() {
   const { albaran: _documentoMovil, ...f }: BusquedaRecepciones = useSearch({ from: '/recepciones' });
@@ -86,15 +87,15 @@ export function TablaRecepciones() {
   }, [numero]);
 
   // Fechas: borrador local para avisar de un rango al revés sin aplicarlo.
-  const [fechas, setFechas] = useState(() => fechasDe(f));
-  const claveFechas = RANGOS.flat()
-    .map((c) => f[c] ?? '')
-    .join('|');
-  useEffect(() => setFechas(fechasDe(f)), [claveFechas]);
+  const [borrador, setBorrador] = useState<BorradorFechas>(() => ({
+    clave: claveFechas(f),
+    fechas: fechasDe(f),
+  }));
+  const fechas = fechasVisibles(borrador, f);
   const invalidos = rangoInvalido(fechas);
   const cambiarFecha = (campo: CampoFecha, valor: string) => {
     const nuevas = { ...fechas, [campo]: valor };
-    setFechas(nuevas);
+    setBorrador({ clave: claveFechas(f), fechas: nuevas });
     const par = RANGOS.find((p) => (p as readonly string[]).includes(campo))!;
     if (!rangoInvalido(nuevas).includes(par[1])) {
       filtrar({ [par[0]]: nuevas[par[0]] || undefined, [par[1]]: nuevas[par[1]] || undefined });

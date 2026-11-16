@@ -3,12 +3,15 @@
  * volver del detalle y poder compartirlos. Funciones puras, sin E/S.
  */
 
+import { TEXTO_ESTADO_RECEPCION } from '@mmx/shared';
+
+const T = TEXTO_ESTADO_RECEPCION;
 export const ESTADO_RECEPCION = {
-  ABIERTA: { texto: 'Abierta', atencion: true },
-  FINALIZADA: { texto: 'Finalizada', atencion: false },
-  SINCRONIZADA: { texto: 'Enviada', atencion: false },
-  ERROR_SINCRONIZACION: { texto: 'Error al enviar', atencion: true },
-  DESCARTADA: { texto: 'Descartada', atencion: false },
+  ABIERTA: { texto: T.ABIERTA, atencion: true },
+  FINALIZADA: { texto: T.FINALIZADA, atencion: false },
+  SINCRONIZADA: { texto: T.SINCRONIZADA, atencion: false },
+  ERROR_SINCRONIZACION: { texto: T.ERROR_SINCRONIZACION, atencion: true },
+  DESCARTADA: { texto: T.DESCARTADA, atencion: false },
 } as const;
 export type EstadoRecepcion = keyof typeof ESTADO_RECEPCION;
 
@@ -97,6 +100,24 @@ export function consultaAplicable(f: FiltrosRecepciones, borrador: FiltrosRecepc
     }
   }
   return q;
+}
+
+export const fechasDe = (f: FiltrosRecepciones) =>
+  Object.fromEntries(RANGOS.flat().map((c) => [c, f[c] ?? ''])) as Record<CampoFecha, string>;
+
+/** Fechas del formulario escritas sobre una dirección concreta (`clave`). */
+export type BorradorFechas = { clave: string; fechas: Record<CampoFecha, string> };
+export const claveFechas = (f: FiltrosRecepciones) =>
+  RANGOS.flat()
+    .map((c) => f[c] ?? '')
+    .join('|');
+
+/**
+ * Lo escrito vale mientras la dirección no cambie; si cambia (Atrás, Quitar filtros), mandan sus fechas. Se
+ * calcula en el mismo render, así nunca sale una petición con fechas viejas mezcladas con la dirección nueva.
+ */
+export function fechasVisibles(b: BorradorFechas, f: FiltrosRecepciones): Record<CampoFecha, string> {
+  return b.clave === claveFechas(f) ? b.fechas : fechasDe(f);
 }
 
 /** ¿Hay algún filtro (no cuentan el orden ni la página)? */

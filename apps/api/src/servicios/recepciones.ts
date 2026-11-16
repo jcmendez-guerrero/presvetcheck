@@ -41,7 +41,13 @@ import {
   totalesCompra,
   type LineaEntrada,
 } from '@mmx/domain';
-import { DomainError, MAX_PAGINAS_DOCUMENTO, normalizeText, rangoMadrid } from '@mmx/shared';
+import {
+  DomainError,
+  ESTADOS_RECEPCION_POR_TEXTO,
+  MAX_PAGINAS_DOCUMENTO,
+  normalizeText,
+  rangoMadrid,
+} from '@mmx/shared';
 import type { ListaRecepcionesDto, ListarRecepcionesQuery } from '../schemas';
 import { hoyDe, politica, type AppDeps } from '../deps';
 import { MedicamentosService } from './medicamentos';
@@ -479,9 +485,8 @@ export class RecepcionesService {
       recibida: r.fechaRecepcion,
       compra: r.fechaCompra,
       registrada: r.createdAt,
-      // Por el texto que ve el usuario (apps/web/src/lib/recepciones-filtros.ts), no por el código interno.
-      estado: sql`case ${r.estado} when 'ABIERTA' then 1 when 'DESCARTADA' then 2 when 'SINCRONIZADA' then 3
-        when 'ERROR_SINCRONIZACION' then 4 when 'FINALIZADA' then 5 end`,
+      // Por el texto que ve el usuario, no por el código interno. `sql.raw` solo con códigos fijos de @mmx/shared.
+      estado: sql`array_position(${sql.raw(`array[${ESTADOS_RECEPCION_POR_TEXTO.map((e) => `'${e}'`).join(',')}]`)}, ${r.estado})`,
     }[q.orden];
     const sentido = q.dir === 'asc' ? sql`asc` : sql`desc`;
 

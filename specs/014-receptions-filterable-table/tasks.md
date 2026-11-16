@@ -168,3 +168,8 @@ T003 apps/web/src/lib/recepciones-filtros.test.ts  →  T008→T009 (apps/web)
 
 - [X] T025 Al dejar un rango de fechas al revés en el formulario, dejar de aplicar también el rango anterior de ese par (quitarlo de la dirección) para que la tabla no siga filtrada por fechas que ya no se ven en los campos, con un caso en `apps/web/src/paginas/recepciones-tabla.test.tsx`, en `apps/web/src/paginas/recepciones-tabla.tsx` per FR-012 (partial) — Hecho sin tocar la dirección: el par al revés no se envía a la API (`consultaAplicable`); vaciarlo en la dirección borraría lo escrito y el aviso.
 - [X] T026 Ordenar por la columna Estado según el texto que se ve (Abierta, Descartada, Enviada, Error al enviar, Finalizada) y no por el código interno, con un caso en `apps/api/test/recepciones-lista.test.ts`, en `apps/api/src/servicios/recepciones.ts` per FR-008 (partial)
+
+## Phase 8: Convergence
+
+- [X] T027 Rellenar el borrador de fechas desde la dirección durante el render (guardando la clave anterior) y no en un `useEffect`, para que al volver atrás con un rango al revés en el formulario no salga una petición con filtros mezclados, con un caso en `apps/web/src/paginas/recepciones-tabla.test.tsx`, en `apps/web/src/paginas/recepciones-tabla.tsx` per FR-010 (partial) — El caso está en `apps/web/src/lib/recepciones-filtros.test.ts` (`fechasVisibles`): los tests de la web renderizan sin DOM y no pueden simular Atrás.
+- [X] T028 Dejar el orden de los estados en un solo sitio: exportar el orden alfabético de los textos de estado desde `packages/shared` (junto a los textos de `ESTADO_RECEPCION`), usarlo para construir el `case` de `apps/api/src/servicios/recepciones.ts` y en la web, con un test que falle si un texto cambia y el orden no, per FR-008 (partial)

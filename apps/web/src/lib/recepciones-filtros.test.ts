@@ -2,13 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   ESTADO_RECEPCION,
   aConsulta,
+  claveFechas,
   consultaAplicable,
+  fechasVisibles,
   diaMadrid,
   hayFiltros,
   leerFiltros,
   rangoInvalido,
 } from './recepciones-filtros';
 
+const vaciasFechas = () => ({
+  recibidaDesde: '',
+  recibidaHasta: '',
+  compraDesde: '',
+  compraHasta: '',
+  registradaDesde: '',
+  registradaHasta: '',
+});
 const UUID = '0b6f2c1e-1111-4222-8333-944455556666';
 
 describe('leerFiltros', () => {
@@ -98,6 +108,23 @@ describe('consultaAplicable', () => {
     [{ recibidaDesde: '2026-11-10', recibidaHasta: '2026-11-01' }, {}, {}],
   ] as const)('%j + borrador %j → %j', (f, borrador, esperado) => {
     expect(consultaAplicable(f, borrador)).toEqual(esperado);
+  });
+});
+
+describe('fechasVisibles', () => {
+  const antes = { compraDesde: '2026-11-01', compraHasta: '2026-11-10' };
+  const alReves = {
+    clave: claveFechas(antes),
+    fechas: { ...vaciasFechas(), compraDesde: '2026-11-01', compraHasta: '2026-10-01' },
+  };
+  it('mientras la dirección no cambia, se ve lo escrito', () => {
+    expect(fechasVisibles(alReves, antes)).toEqual(alReves.fechas);
+  });
+  it('al cambiar la dirección (Atrás) mandan sus fechas y la consulta usa el rango nuevo', () => {
+    const nueva = { compraDesde: '2026-09-01', compraHasta: '2026-09-30' };
+    const fechas = fechasVisibles(alReves, nueva);
+    expect(fechas).toMatchObject(nueva);
+    expect(consultaAplicable(nueva, fechas)).toEqual(nueva);
   });
 });
 
