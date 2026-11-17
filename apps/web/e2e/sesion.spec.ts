@@ -136,7 +136,10 @@ test('la plataforma rechaza la configuración: va a Microsoft, no a «Conectando
 });
 
 // spec 015 — la plataforma responde 403 (no 401) con el token caducado
-test('403 de la plataforma en la configuración: va a Microsoft, no a «Conectando…»', async ({ page, context }) => {
+test('403 de la plataforma en la configuración: va a Microsoft, no a «Conectando…»', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { config: ['prohibido-plataforma'] });
   await page.goto('/recepciones');
   await expect
@@ -170,7 +173,10 @@ test('403 de la plataforma con una redirección reciente: página de acceso, sin
   expect(reg.login).toEqual([]);
 });
 
-test('la configuración da un error del servidor y luego responde: se reintenta', async ({ page, context }) => {
+test('la configuración da un error del servidor y luego responde: se reintenta', async ({
+  page,
+  context,
+}) => {
   const { reg } = await modoEntra(context, { config: [503, 'real'] });
   await page.goto('/recepciones');
   await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({
@@ -354,7 +360,10 @@ test('403 de la plataforma durante el uso con renovación correcta: sin aviso', 
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
 });
 
-test('403 de la plataforma durante el uso sin renovación: aviso de sesión caducada', async ({ page, context }) => {
+test('403 de la plataforma durante el uso sin renovación: aviso de sesión caducada', async ({
+  page,
+  context,
+}) => {
   const { estado, reg } = await modoEntra(context);
   await page.goto('/registros');
   await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();

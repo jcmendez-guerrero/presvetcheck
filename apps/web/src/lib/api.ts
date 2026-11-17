@@ -76,7 +76,9 @@ const rechazada = async (r: Response) => {
   if (r.type === 'opaqueredirect' || r.status === 401) return true;
   if (r.status !== 403) return false;
   const tipo = r.headers.get('content-type') ?? '';
-  const cuerpo: unknown = await (tipo.includes('json') ? r.clone().json() : r.clone().text()).catch(() => null);
+  const cuerpo: unknown = await (tipo.includes('json') ? r.clone().json() : r.clone().text()).catch(
+    () => null,
+  );
   return esRechazoDePlataforma(r.status, cuerpo);
 };
 
