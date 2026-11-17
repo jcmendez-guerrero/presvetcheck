@@ -100,8 +100,9 @@ const irALogin = () => {
  * llega a redirigir), /.auth/me puede entregar un id_token ya caducado (la API responde 401) y, sin la cabecera
  * X-Requested-With, la plataforma respondería con un 302 a Microsoft en vez de 401. Un 401 se intenta resolver
  * renovando la sesión una vez; si no, se redirige a Microsoft (como mucho una vez por minuto) o se muestra la página
- * de acceso. Un fallo de red, un 5xx o la falta de respuesta significan «servidor no disponible», nunca «sin sesión».
- * Ver specs/009-fix-session-expiry-sso/research.md.
+ * de acceso. Con el token caducado la plataforma también puede responder 403; api.ts lo convierte en 401. Un fallo de
+ * red, un 5xx o la falta de respuesta significan «servidor no disponible», nunca «sin sesión».
+ * Ver specs/009-fix-session-expiry-sso/research.md y specs/015-fix-expired-token-403/research.md.
  */
 export function ProveedorAuth({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<ConfigPublica | null>(null);
@@ -164,7 +165,8 @@ export function ProveedorAuth({ children }: { children: ReactNode }) {
         })
         .catch((e: unknown) => {
           if (!activo) return;
-          // La ruta es pública en la API: un 401 solo puede venir de la autenticación de la plataforma (modo entra).
+          // La ruta es pública en la API: un 401 solo puede venir de la autenticación de la plataforma (modo entra),
+          // también cuando esta respondió 403 con el token caducado (api.ts lo convierte en 401).
           if (e instanceof ApiError && e.status === 401) return sesionPerdida(true);
           sinServidor();
         });

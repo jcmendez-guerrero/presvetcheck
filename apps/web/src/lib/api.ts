@@ -1,4 +1,5 @@
 import { textoError, type CodigoError } from '@mmx/shared';
+import { esRechazoDePlataforma } from './sesion';
 
 /** Nombres legibles de los campos que devuelve la validación de la API (`/precioNetoCompra` → «Precio neto»). */
 const NOMBRES_CAMPO: Record<string, string> = {
@@ -60,7 +61,7 @@ export function configurarCabeceras(f: () => Promise<Record<string, string>>) {
 }
 
 /**
- * Se llama ante un 401: renueva la sesión y responde si merece la pena repetir la petición. Con `reintento` la
+ * Se llama ante un rechazo de la plataforma (401, o 403 sin código de la API): renueva la sesión y responde si merece la pena repetir la petición. Con `reintento` la
  * petición ya se repitió tras renovar y sigue rechazada: la sesión no tiene arreglo.
  */
 type NoAutorizado = (reintento: boolean) => Promise<boolean>;
@@ -69,8 +70,17 @@ export function configurarNoAutorizado(f: NoAutorizado | null) {
   alNoAutorizado = f;
 }
 
-// La API nunca redirige: una redirección es la plataforma mandando a Microsoft (sesión perdida).
-const rechazada = (r: Response) => r.status === 401 || r.type === 'opaqueredirect';
+// La API nunca redirige: una redirección es la plataforma mandando a Microsoft (sesión perdida). Con el token
+// caducado la plataforma puede responder 403 en vez de 401; se distingue del 403 de la API por su cuerpo (spec 015).
+const rechazada = async (r: Response) => {
+  if (r.type === 'opaqueredirect' || r.status === 401) return true;
+  if (r.status !== 403) return false;
+  const tipo = r.headers.get('content-type') ?? '';
+  const cuerpo: unknown = await (tipo.includes('json') ? r.clone().json() : r.clone().text()).catch(
+    () => null,
+  );
+  return esRechazoDePlataforma(r.status, cuerpo);
+};
 
 export async function api<T = unknown>(
   metodo: string,
@@ -94,12 +104,13 @@ export async function api<T = unknown>(
       redirect: 'manual',
     });
   let res = await pedir();
-  // Repetir es seguro también en escrituras: la API rechaza un 401 antes de hacer nada.
-  if (rechazada(res) && alNoAutorizado && (await alNoAutorizado(false))) {
+  // Repetir es seguro también en escrituras: tanto la plataforma como la API rechazan antes de hacer nada.
+  if ((await rechazada(res)) && alNoAutorizado && (await alNoAutorizado(false))) {
     res = await pedir();
-    if (rechazada(res)) await alNoAutorizado(true);
+    if (await rechazada(res)) await alNoAutorizado(true);
   }
-  if (res.type === 'opaqueredirect') throw new ApiError(401, 'NO_AUTORIZADO', null, null);
+  // Redirección o 403 de la plataforma: el resto de la aplicación solo conoce el 401 (sesión perdida).
+  if (res.status !== 401 && (await rechazada(res))) throw new ApiError(401, 'NO_AUTORIZADO', null, null);
   if (res.status === 204) return undefined as T;
   const tipo = res.headers.get('content-type') ?? '';
   const datos = tipo.includes('json') ? await res.json() : await res.blob();
