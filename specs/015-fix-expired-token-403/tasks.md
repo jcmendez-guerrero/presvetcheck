@@ -165,3 +165,13 @@ refresh 401 the session-expired notice appears.
 2. Add US3 guards (T007–T009) in the same PR: US1 without them risks permission loops going unnoticed.
 3. Add US2 tests (T010–T011) and polish (T012–T015).
 4. One PR, Conventional Commit `fix(web): un 403 de la plataforma por token caducado vuelve al inicio de sesión`.
+
+---
+
+## Phase 7: Convergence
+
+- [X] T016 In `apps/web/e2e/sesion.spec.ts`, extend the test «403 de la propia API: es un permiso denegado, no una
+  sesión caducada» to assert that the receptions screen shows its error message («No se han podido cargar las
+  recepciones.», from `apps/web/src/paginas/recepciones-tabla.tsx`), proving the API's 403 surfaces as an ordinary
+  error to the user; today the test only checks that no notice, renewal or sign-in happens, per FR-003 / SC-003 /
+  US3/AC1 (partial)

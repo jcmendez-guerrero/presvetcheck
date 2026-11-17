@@ -334,7 +334,8 @@ test('403 de la propia API: es un permiso denegado, no una sesión caducada', as
   estado.restoRespuesta = 'prohibido-api';
   await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
-  await expect.poll(() => estado.resto).toBeLessThan(1_000);
+  // El usuario ve un error normal de la pantalla, no el aviso de sesión caducada (FR-003).
+  await expect(page.getByText('No se han podido cargar las recepciones.')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   expect(reg.refresh).toBe(0);
   expect(reg.login).toEqual([]);
