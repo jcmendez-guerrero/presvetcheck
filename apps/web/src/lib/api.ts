@@ -73,8 +73,8 @@ export function configurarNoAutorizado(f: NoAutorizado | null) {
 // La API nunca redirige: una redirección es la plataforma mandando a Microsoft (sesión perdida). Con el token
 // caducado la plataforma puede responder 403 en vez de 401; se distingue del 403 de la API por su cuerpo (spec 015).
 const rechazada = async (r: Response) => {
-  if (r.type === 'opaqueredirect') return true;
-  if (r.status !== 401 && r.status !== 403) return false;
+  if (r.type === 'opaqueredirect' || r.status === 401) return true;
+  if (r.status !== 403) return false;
   const tipo = r.headers.get('content-type') ?? '';
   const cuerpo: unknown = await (tipo.includes('json') ? r.clone().json() : r.clone().text()).catch(() => null);
   return esRechazoDePlataforma(r.status, cuerpo);
