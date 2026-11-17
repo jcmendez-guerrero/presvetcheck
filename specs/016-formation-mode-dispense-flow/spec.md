@@ -14,11 +14,12 @@ Spec 004 introduced the **formation mode** ("Modo formación (retrospectivo)"): 
 whose products were **already sold** at the till (POS) on a past date, and the dispensing is validated against the
 stock movements of that date and linked to the ticket that was already issued.
 
-**Observed defect**: the mode is only offered on the final "Confirmar dispensación" screen. Before that, the
-prescription review screen (the "initial check") judges every line against the **current** stock. Because the
-product already left the shelf, the line is judged "out of stock" and the screen offers **"Añadir a lista de
-pedido"** (reorder the product) with no "Dispensar" button. The operator therefore never reaches the dispensing
-screen where formation mode and the already-issued ticket can be used, and the exercise cannot continue.
+**Observed defect**: the operator ticks formation mode and the original date on the prescription review screen
+(they are saved with the prescription). The next step, the result screen (the "initial check"), still judges every
+line against the **current** stock. Because the product already left the shelf, the line is judged "out of stock"
+and the screen offers **"Añadir a lista de pedido"** (reorder the product) with no "Dispensar" button. The
+operator therefore never reaches the dispensing screen where the already-issued ticket can be linked, and the
+exercise cannot continue. (Confirmed in code during planning: the evaluation ignores the saved formation mode.)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -36,8 +37,8 @@ past date, and confirm the review screen offers "Dispensar" (not only "Añadir a
 
 **Acceptance Scenarios**:
 
-1. **Given** a prescription line whose product has no current stock and formation mode is available, **When** the
-   operator marks the prescription as a formation case with its original date, **Then** the line is judged against
+1. **Given** a prescription line whose product has no current stock, saved as a formation case with its original
+   date, **When** the operator opens the result screen, **Then** the line is judged against
    the stock movements of that date and the screen offers **Dispensar**.
 2. **Given** the same case, **When** the operator continues, **Then** the dispensing screen opens with formation
    mode and the original date already selected, so they do not have to enter them again.
@@ -106,8 +107,8 @@ unchanged.
 
 ### Functional Requirements
 
-- **FR-001**: The prescription review screen MUST let the operator mark a prescription as a formation case and
-  enter its original date **before** continuing to dispensing, when formation mode is enabled for the pharmacy.
+- **FR-001**: The formation choice and original date already captured on the prescription review screen MUST be
+  honoured by the result screen's judgement; the operator MUST NOT have to repeat them.
 - **FR-002**: In a formation case, the stock part of the line judgement MUST use the stock movements of the
   original date instead of current stock; all other rules (validity, species, prescription expiry, substitution
   limits, controlled-substance rules) MUST be evaluated exactly as in live mode.
@@ -155,7 +156,7 @@ unchanged.
   `RETROSPECTIVE_DISPENSATION_MODE` (default `disabled`).
 - The ticket is not created here: it already exists in Siweb360; this feature only links to it (spec 004 rules).
 - The movement-history check and its soft-block/override behaviour from spec 004 are reused unchanged.
-- The choice of formation mode is made by the operator on the review screen; it is not inferred automatically
-  from stock being zero.
+- The choice of formation mode is made by the operator on the existing review screen; it is not inferred
+  automatically from stock being zero.
 - Legal and regulatory rules stay in the domain and rule configuration, not in screens or prompts.
 - Out of scope: changing the live flow, creating tickets, writing stock to Siweb360, and training content.
