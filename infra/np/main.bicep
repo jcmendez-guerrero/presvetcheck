@@ -52,6 +52,13 @@ param asistenteEndpoint string = ''
 param asistenteDespliegue string = ''
 param asistenteLimiteTokens int = 3000000
 
+// Escritura de entradas de stock en Siweb360 (specs/011-siweb-stock-entries-enable): 'entries_only' exige la fecha de
+// corte (si no, la app no arranca) y una prueba de escritura superada en los últimos 30 días para que el outbox envíe.
+@allowed(['off', 'entries_only'])
+param escrituraStock string = 'off'
+@description('ENTRY_CUTOVER_DATE (AAAA-MM-DD): desde este día no se dan entradas de medicamentos a mano en Siweb360.')
+param fechaCorteEntradas string = ''
+
 // Job azu-caj-import-fix-np (worker `importaciones-corregir`, ADR-14): sin esto solo informa de qué cambiaría; con
 // true crea las importaciones corregidas con CIMAVet y anula las originales. Los argumentos no se pueden cambiar al
 // lanzarlo (`az containerapp job start --args` sustituye el contenedor y se pierden las variables de entorno).
@@ -215,7 +222,7 @@ var envBase = [
   { name: 'ASSISTANT_DEPLOYMENT', value: asistenteDespliegue }
   { name: 'ASSISTANT_MONTHLY_TOKEN_LIMIT', value: string(asistenteLimiteTokens) }
   { name: 'RETROSPECTIVE_DISPENSATION_MODE', value: 'enabled' }
-  { name: 'SIWEB_STOCK_WRITE_MODE', value: 'off' }
+  { name: 'SIWEB_STOCK_WRITE_MODE', value: escrituraStock }
   { name: 'SUBSTITUTION_APPROVAL_MODE', value: 'POST' }
   { name: 'SUBSTITUTION_SIGN_MAX_DAYS', value: '35' } // firma del farmacéutico garante en su visita mensual
   // Sin correo por ahora: los reportes se descargan desde la app (SMTP en una segunda fase).
@@ -223,11 +230,12 @@ var envBase = [
   { name: 'WEB_DIST_DIR', value: '/app/web' }
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
 ]
-var envApp = concat(envBase, [
+var envStock = empty(fechaCorteEntradas) ? [] : [{ name: 'ENTRY_CUTOVER_DATE', value: fechaCorteEntradas }]
+var envApp = concat(envBase, envStock, [
   { name: 'AZURE_CLIENT_ID', value: idApp.properties.clientId }
   { name: 'DATABASE_URL', value: 'postgres://${identidadAppNombre}@${postgresFqdn}:5432/${baseDatos}?sslmode=require' }
 ])
-var envMigr = concat(envBase, [
+var envMigr = concat(envBase, envStock, [
   { name: 'AZURE_CLIENT_ID', value: idMigr.properties.clientId }
   { name: 'DATABASE_URL', value: 'postgres://${idMigr.name}@${postgresFqdn}:5432/${baseDatos}?sslmode=require' }
 ])

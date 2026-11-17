@@ -85,3 +85,15 @@ Correo: `MAILER=console` (los reportes se descargan desde la app); SMTP en una s
 `azure` (`ASISTENTE_ENDPOINT=https://<recurso>.openai.azure.com ASISTENTE_DESPLIEGUE=<despliegue>`) u `off`. El
 límite mensual de tokens es `asistenteLimiteTokens` (3.000.000 por defecto). Con un modelo externo, usar solo datos de
 prueba hasta que el RAT recoja ese encargado (estado en Confluence; DUDA-29). El aviso del 80 % usa `REPORT_RECIPIENTS`.
+
+## Escritura de entradas de stock en Siweb360 (specs/011)
+
+Por defecto `escrituraStock = off`: la app no escribe nada en Siweb360. Para encenderla:
+
+1. Administración › Prueba de escritura con una variante `TEST-…` creada a mano en Siweb360. Debe salir `ok`,
+   `coherente` e `historialOk`; sin una prueba superada en los últimos 30 días el outbox no envía nada.
+2. Desplegar la fase 2 con `ESCRITURA_STOCK=entries_only FECHA_CORTE_ENTRADAS=AAAA-MM-DD`. Sin fecha de corte la app
+   no arranca.
+3. Avisar al personal: desde la fecha de corte no se dan entradas de medicamentos a mano en Siweb360.
+
+Marcha atrás: desplegar con `ESCRITURA_STOCK=off`; los envíos pendientes se conservan.
