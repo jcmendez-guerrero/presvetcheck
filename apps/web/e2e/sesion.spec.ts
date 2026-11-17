@@ -6,7 +6,14 @@ import { expect, test, type BrowserContext, type Page, type Route } from '@playw
  * (AUTH_MODE=dev) como la empleada, o se responde 401 para simular una sesión caducada.
  * Ver specs/009-fix-session-expiry-sso/quickstart.md.
  */
-type Respuesta = number | 'abort' | 'pendiente' | 'redireccion' | Record<string, unknown>;
+type Respuesta =
+  | number
+  | 'abort'
+  | 'pendiente'
+  | 'redireccion'
+  | 'prohibido-plataforma'
+  | 'prohibido-api'
+  | Record<string, unknown>;
 
 const USUARIO = { id: 'u1', nombre: 'Empleada', roles: ['empleado'], mfa: false };
 const NO_AUTORIZADO = { error: { code: 'NO_AUTORIZADO' } };
@@ -18,8 +25,9 @@ async function modoEntra(
   const estado = {
     me: opciones.me ?? [USUARIO],
     refresh: opciones.refresh ?? 401,
-    /** Peticiones a /api (salvo /api/me y la config) que responderán 401 antes de volver a funcionar. */
-    resto401: 0,
+    /** Peticiones a /api (salvo /api/me y la config) que recibirán `restoRespuesta` antes de volver a funcionar. */
+    resto: 0,
+    restoRespuesta: 401 as Respuesta,
   };
   const reg = {
     login: [] as string[],
@@ -38,6 +46,15 @@ async function modoEntra(
     // La plataforma sin X-Requested-With: 302 al inicio de sesión de Microsoft.
     if (r === 'redireccion')
       return route.fulfill({ status: 302, headers: { location: 'https://login.example.test/' } });
+    // La autenticación de la plataforma con el token caducado: 403 sin el código de error de la API (spec 015).
+    if (r === 'prohibido-plataforma')
+      return route.fulfill({ status: 403, contentType: 'text/html', body: '<p>Forbidden</p>' });
+    // La propia API negando el permiso: 403 con su código.
+    if (r === 'prohibido-api')
+      return route.fulfill({
+        status: 403,
+        json: { error: { code: 'PROHIBIDO', mensaje: 'Tu usuario no tiene permiso para esta acción.' } },
+      });
     if (typeof r === 'number')
       return route.fulfill({ status: r, json: r === 401 ? NO_AUTORIZADO : { error: {} } });
     return route.fulfill({ json: r });
@@ -71,9 +88,9 @@ async function modoEntra(
         return responder(route, r);
       }
       // Solo peticiones del cliente de la API (no imágenes ni flujos de eventos, que no renuevan la sesión).
-      if (estado.resto401 > 0 && route.request().headers()['x-requested-with']) {
-        estado.resto401--;
-        return route.fulfill({ status: 401, json: NO_AUTORIZADO });
+      if (estado.resto > 0 && route.request().headers()['x-requested-with']) {
+        estado.resto--;
+        return responder(route, estado.restoRespuesta);
       }
       return route.continue({ headers: { ...route.request().headers(), 'x-dev-user': 'dev-empleado' } });
     },
@@ -116,6 +133,56 @@ test('la plataforma rechaza la configuración: va a Microsoft, no a «Conectando
   await page.goto('/recepciones');
   await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
   await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
+});
+
+// spec 015 — la plataforma responde 403 (no 401) con el token caducado
+test('403 de la plataforma en la configuración: va a Microsoft, no a «Conectando…»', async ({
+  page,
+  context,
+}) => {
+  const { reg } = await modoEntra(context, { config: ['prohibido-plataforma'] });
+  await page.goto('/recepciones');
+  await expect
+    .poll(() => reg.login[0], { timeout: 10_000 })
+    .toContain('post_login_redirect_uri=%2Frecepciones');
+  await expect(page.getByText('Conectando con el servidor…')).toHaveCount(0);
+});
+
+test('403 de la plataforma al comprobar la sesión: va a Microsoft', async ({ page, context }) => {
+  const { reg } = await modoEntra(context, { me: ['prohibido-plataforma'], refresh: 401 });
+  await page.goto('/recepciones');
+  await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
+});
+
+test('403 de la plataforma tras cerrar sesión: página de acceso sin redirigir', async ({ page, context }) => {
+  const { reg } = await modoEntra(context, { config: ['prohibido-plataforma'] });
+  await context.addInitScript(() => localStorage.setItem('mmx.sesionCerrada', '1'));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Tu sesión ha terminado' })).toBeVisible();
+  expect(reg.login).toEqual([]);
+});
+
+test('403 de la plataforma con una redirección reciente: página de acceso, sin bucle', async ({
+  page,
+  context,
+}) => {
+  const { reg } = await modoEntra(context, { config: ['prohibido-plataforma'] });
+  await page.addInitScript(() => localStorage.setItem('mmx.reintentoLogin', String(Date.now())));
+  await page.goto('/registros');
+  await expect(page.getByRole('heading', { name: 'Tu sesión ha terminado' })).toBeVisible();
+  expect(reg.login).toEqual([]);
+});
+
+test('la configuración da un error del servidor y luego responde: se reintenta', async ({
+  page,
+  context,
+}) => {
+  const { reg } = await modoEntra(context, { config: [503, 'real'] });
+  await page.goto('/recepciones');
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible({
+    timeout: 15_000,
+  });
+  expect(reg.login).toEqual([]);
 });
 
 test('la configuración falla una vez y luego responde: se reintenta y abre la pantalla', async ({
@@ -215,7 +282,7 @@ test('caducidad durante el uso: aviso bloqueante y vuelta a la pantalla', async 
   const { estado, reg } = await modoEntra(context);
   await page.goto('/registros');
   await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
-  estado.resto401 = 1_000;
+  estado.resto = 1_000;
   estado.refresh = 401;
   // Recepciones carga su lista al abrirse: esa petición recibe el 401. Se envía el clic al enlace directamente
   // porque una consulta periódica puede abrir el aviso antes y taparlo.
@@ -234,7 +301,7 @@ test('caducidad durante el uso con renovación correcta: sin aviso', async ({ pa
   const { estado, reg } = await modoEntra(context);
   await page.goto('/registros');
   await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
-  estado.resto401 = 1;
+  estado.resto = 1;
   estado.refresh = 200;
   await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
@@ -249,7 +316,7 @@ test('caducidad durante el uso: renovada pero sigue rechazada, muestra el aviso'
   const { estado } = await modoEntra(context);
   await page.goto('/registros');
   await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
-  estado.resto401 = 1_000;
+  estado.resto = 1_000;
   estado.refresh = 200;
   await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).dispatchEvent('click');
   await expect(page.getByRole('alertdialog')).toContainText('Tu sesión ha caducado');
@@ -262,4 +329,61 @@ test('/movil no llama a la autenticación de la plataforma', async ({ page, cont
   await page.waitForLoadState('networkidle');
   expect(reg.auth).toEqual([]);
   await expect(page.getByText('Iniciando sesión…')).toHaveCount(0);
+});
+
+// spec 015 — 403 durante el uso
+test('403 de la propia API: es un permiso denegado, no una sesión caducada', async ({ page, context }) => {
+  const { estado, reg } = await modoEntra(context);
+  await page.goto('/registros');
+  await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
+  estado.resto = 1_000;
+  estado.restoRespuesta = 'prohibido-api';
+  await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
+  // El usuario ve un error normal de la pantalla, no el aviso de sesión caducada (FR-003).
+  await expect(page.getByText('No se han podido cargar las recepciones.')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  expect(reg.refresh).toBe(0);
+  expect(reg.login).toEqual([]);
+});
+
+test('403 de la plataforma durante el uso con renovación correcta: sin aviso', async ({ page, context }) => {
+  const { estado, reg } = await modoEntra(context);
+  await page.goto('/registros');
+  await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
+  estado.resto = 1;
+  estado.restoRespuesta = 'prohibido-plataforma';
+  estado.refresh = 200;
+  await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
+  await expect.poll(() => reg.refresh).toBeGreaterThan(0);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+});
+
+test('403 de la plataforma durante el uso sin renovación: aviso de sesión caducada', async ({
+  page,
+  context,
+}) => {
+  const { estado, reg } = await modoEntra(context);
+  await page.goto('/registros');
+  await expect(page.getByRole('heading', { name: 'Registros y reportes' })).toBeVisible();
+  estado.resto = 1_000;
+  estado.restoRespuesta = 'prohibido-plataforma';
+  estado.refresh = 401;
+  await navegacion(page).getByRole('link', { name: 'Recepciones', exact: true }).dispatchEvent('click');
+  const aviso = page.getByRole('alertdialog');
+  await expect(aviso).toContainText('Tu sesión ha caducado');
+  await expect(aviso).toContainText('Los cambios sin guardar');
+  await aviso.getByRole('button', { name: 'Volver a iniciar sesión' }).click();
+  await expect.poll(() => reg.login[0]).toContain('post_login_redirect_uri=%2Frecepciones');
+});
+
+test('/movil sigue funcionando si la plataforma rechaza la configuración', async ({ page, context }) => {
+  await modoEntra(context, { config: ['prohibido-plataforma'] });
+  const errores: Error[] = [];
+  page.on('pageerror', (e) => errores.push(e));
+  await page.goto('/movil');
+  await expect(page.getByText('Móvil', { exact: true })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(errores).toEqual([]);
 });

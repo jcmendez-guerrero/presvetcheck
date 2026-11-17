@@ -39,6 +39,17 @@ export function puedeRedirigir(
   return ultimoIntento === null || ahora - ultimoIntento > VENTANA_REINTENTO_MS;
 }
 
+/**
+ * Rechazo de la autenticación de la plataforma (sesión caducada): 401, o 403 sin el `{ error: { code } }` con el que
+ * la API responde siempre sus propios errores (apps/api/src/plugins/errores.ts). Ver specs/015-fix-expired-token-403.
+ */
+export function esRechazoDePlataforma(status: number, cuerpo: unknown): boolean {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  const code = (cuerpo as { error?: { code?: unknown } } | null)?.error?.code;
+  return typeof code !== 'string' || code === '';
+}
+
 export const urlLogin = (retorno: string) =>
   `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(retorno)}`;
 

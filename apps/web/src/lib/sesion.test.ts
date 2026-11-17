@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { puedeRedirigir, rutaRetorno, urlLogin, urlLogout } from './sesion';
+import { esRechazoDePlataforma, puedeRedirigir, rutaRetorno, urlLogin, urlLogout } from './sesion';
 
 describe('rutaRetorno', () => {
   it.each([
@@ -34,5 +34,24 @@ describe('urls', () => {
   });
   it('cierra sesión volviendo al inicio', () => {
     expect(urlLogout().endsWith('post_logout_redirect_uri=%2F')).toBe(true);
+  });
+});
+
+describe('esRechazoDePlataforma', () => {
+  it.each([
+    [401, { error: { code: 'NO_AUTORIZADO' } }, true],
+    [401, null, true],
+    [403, null, true],
+    [403, '<html>Forbidden</html>', true],
+    [403, '', true],
+    [403, {}, true],
+    [403, { error: {} }, true],
+    [403, { error: { code: '' } }, true],
+    [403, { error: { code: 'PROHIBIDO' } }, false],
+    [200, null, false],
+    [404, { error: { code: 'NO_ENCONTRADO' } }, false],
+    [500, '<html>Error</html>', false],
+  ])('%i %j → %s', (status, cuerpo, esperado) => {
+    expect(esRechazoDePlataforma(status, cuerpo)).toBe(esperado);
   });
 });
