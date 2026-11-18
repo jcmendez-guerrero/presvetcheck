@@ -7,11 +7,10 @@ Sin cambios de esquema ni migraciones.
 - **Receta confirmada** (`confirmacion`): `modo` (`en_vivo` | `retrospectivo`) y `fechaOriginal` (fecha ISO o
   `null`). Fuente de verdad del caso de formación; la evaluación pasa a leerlos.
 - **Evaluación de línea** (`LineaEvaluada.resultado`): `{ decision, motivos[], evidencias, reglaVersion }`.
-  En formación, `evidencias` incluye el resultado del chequeo de movimientos (estado `OK | MOVIMIENTO_PARCIAL |
-  SIN_MOVIMIENTO`, `cn`, `fechaOriginal`, unidades encontradas/requeridas).
+  En formación, el resultado del chequeo de movimientos viaja en las incidencias de la línea (`SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` con `cn`, `fecha`, `encontradas`, `requeridas` en `params`; `AVISO_FECHA_RETROSPECTIVA_ANTIGUA`). Con venta suficiente no hay incidencia. La evidencia completa (estado, movimientos consultados) se guarda al dispensar en `evidencia_stock_retrospectiva`, como hasta ahora.
 - **Incidencias**: `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` (forzable con motivo, auditada), 
   `AVISO_FECHA_RETROSPECTIVA_ANTIGUA` (aviso), `SIWEB_NO_DISPONIBLE`.
-- **Auditoría**: la evaluación persistida (`persistirEvaluacion`) conserva el resultado del chequeo en `evidencias`; el forzado de `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` queda en el registro de auditoría al dispensar, como hoy.
+- **Auditoría**: la evaluación persistida (`persistirEvaluacion`) conserva las incidencias del chequeo; el forzado de `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` queda en el registro de auditoría al dispensar, como hoy.
 - **Dispensación** (append-only): sin cambios; ya guarda `modo` y `fecha_original`.
 
 ## Reglas de validación

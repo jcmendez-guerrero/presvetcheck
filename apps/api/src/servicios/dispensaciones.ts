@@ -11,13 +11,11 @@ import {
   receta,
   recepcionLinea,
   recetaLinea,
-  siwebVariantMap,
   sustitucion,
   MAESTRA,
   type DbOrTx,
 } from '@mmx/db';
 import {
-  evaluarMovimientosRetrospectivos,
   incidencia,
   puedeDispensarSustitucion,
   transicionSustitucion,
@@ -51,6 +49,7 @@ import {
 } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
 import { RecetasService, exigirAltaManual, type ContextoPeticion } from './recetas';
+import { RetrospectivoService } from './retrospectivo';
 import { estadoSustitucion } from './sustituciones';
 
 export interface EnvaseDispensado {
@@ -120,8 +119,10 @@ const codigos = (incs: Incidencia[], sev: Incidencia['severidad']) => [
 
 export class DispensacionesService {
   private readonly recetas: RecetasService;
+  private readonly retrospectivo: RetrospectivoService;
   constructor(private readonly d: AppDeps) {
     this.recetas = new RecetasService(d);
+    this.retrospectivo = new RetrospectivoService(d);
   }
 
   /** Lo ya entregado en la línea (sin anuladas): envases y unidades de dosificación en fracciones. */
@@ -263,6 +264,19 @@ export class DispensacionesService {
     if (!s.envases.length) throw new DomainError('VALIDACION', 'Indica al menos un envase');
     const manual = await this.prepararManual(s, c);
     const fechaRef = manual ? (s.fechaOriginal ?? null) : null;
+    if (!manual && s.modo !== 'retrospectivo') {
+      // La evaluación de la receta ya juzga con lo guardado en la revisión (specs/016): se adopta el mismo modo
+      // para que evaluar y dispensar no discrepen.
+      const [guardada] = await this.d.db
+        .select({ confirmacion: receta.confirmacion })
+        .from(receta)
+        .where(eq(receta.id, s.recetaId));
+      const c0 = guardada?.confirmacion as { modo?: string; fechaOriginal?: string | null } | null;
+      if (c0?.modo === 'retrospectivo') {
+        s.modo = 'retrospectivo';
+        s.fechaOriginal = s.fechaOriginal ?? c0.fechaOriginal ?? null;
+      }
+    }
     if (s.modo === 'retrospectivo' && !manual) {
       if (this.d.config.RETROSPECTIVE_DISPENSATION_MODE !== 'enabled') {
         throw new DomainError('MODO_RETROSPECTIVO_DESHABILITADO');
@@ -271,8 +285,9 @@ export class DispensacionesService {
         throw new DomainError('VALIDACION', 'Indica la fecha original en modo retrospectivo');
       }
     }
+    const formacionPedida = !manual && s.modo === 'retrospectivo' ? (s.fechaOriginal ?? null) : null;
     // 1. Evaluación sin forzado para conocer los defectos de la línea; con forzado si procede.
-    const ev0 = await this.recetas.evaluar(s.recetaId, c, {}, false, fechaRef);
+    const ev0 = await this.recetas.evaluar(s.recetaId, c, {}, false, fechaRef, formacionPedida);
     const l0 = ev0.lineas.find((x) => x.orden === s.lineaOrden);
     if (!l0) throw new DomainError('NO_ENCONTRADO', 'Línea de receta no encontrada');
     // Pedir forzar con un bloqueo duro presente se rechaza explícitamente (nunca se fuerza un BLOQUEANTE_DURO).
@@ -292,6 +307,7 @@ export class DispensacionesService {
             },
             false,
             fechaRef,
+            formacionPedida,
           )
         : ev0;
     const linea = ev.lineas.find((x) => x.orden === s.lineaOrden)!;
@@ -420,7 +436,8 @@ export class DispensacionesService {
       cn: cnPermitido,
       envases: s.envases,
       // Alta manual: el lote es el que se entregó; no hay lote recomendado que seguir.
-      loteRecomendado: manual ? null : loteRecomendado,
+      // Formación: el stock de hoy no cuenta, así que tampoco hay lote recomendado que seguir.
+      loteRecomendado: manual || s.modo === 'retrospectivo' ? null : loteRecomendado,
       motivo: s.motivoLoteDistinto,
       yaDispensadas: ya,
       max,
@@ -913,65 +930,7 @@ export class DispensacionesService {
     };
   }
 
-  /**
-   * Ventas del día original en Siweb360 frente a las unidades a dispensar (D-14). Lo usan la consulta y el
-   * guardado: la evidencia y el bloqueo salen siempre de esta comprobación, nunca de lo que diga el cliente.
-   */
-  private async revisarRetrospectivo(body: ConsultaStockRetrospectivoBody) {
-    const [mapa] = await this.d.db
-      .select({ variantId: siwebVariantMap.variantId })
-      .from(siwebVariantMap)
-      .where(eq(siwebVariantMap.cn, body.cn))
-      .limit(1);
-
-    const variantId = mapa?.variantId ?? null;
-    let movimientosRaw: Array<{
-      id: number;
-      variant_id: number;
-      quantity: number;
-      reason: string;
-      reference_number?: string | null;
-    }> = [];
-
-    if (this.d.siweb?.client && variantId) {
-      try {
-        const res = await this.d.siweb.client.movements({
-          variant_id: variantId,
-          date_from: body.fechaOriginal,
-          date_to: body.fechaOriginal,
-          reason: 'sale_shipment',
-        });
-        movimientosRaw = res.map((m) => ({
-          id: m.id,
-          variant_id: m.variant_id,
-          quantity: m.quantity,
-          reason: m.reason,
-          reference_number: m.reference_number ?? m.reference_id,
-        }));
-      } catch {
-        // Sin respuesta no se sabe si hubo venta: no se presenta como «sin movimientos».
-        throw new DomainError('SIWEB_NO_DISPONIBLE');
-      }
-    }
-
-    const simple = movimientosRaw.map((m) => ({
-      id: m.id,
-      variantId: m.variant_id,
-      quantity: m.quantity,
-      reason: m.reason,
-      date: body.fechaOriginal,
-    }));
-
-    const resEvaluacion = evaluarMovimientosRetrospectivos({
-      cn: body.cn,
-      fechaOriginal: body.fechaOriginal,
-      hoy: hoyDe(this.d),
-      maxAgeDays: this.d.config.RETROSPECTIVE_MAX_AGE_DAYS,
-      unidadesRequeridas: body.unidadesRequeridas,
-      movimientos: simple,
-      pol: politica(this.d),
-    });
-
-    return { ...resEvaluacion, variantId, movimientos: movimientosRaw };
+  private revisarRetrospectivo(body: ConsultaStockRetrospectivoBody) {
+    return this.retrospectivo.revisar(body);
   }
 }

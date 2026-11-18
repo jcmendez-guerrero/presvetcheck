@@ -28,7 +28,14 @@ export function Resultado() {
   const qReceta = useQuery({
     queryKey: ['receta', id],
     queryFn: () =>
-      get<{ confirmacion?: { especie?: { texto?: string | null }; indicacion?: string | null } }>(
+      get<{
+        confirmacion?: {
+          especie?: { texto?: string | null };
+          indicacion?: string | null;
+          modo?: 'en_vivo' | 'retrospectivo';
+          fechaOriginal?: string | null;
+        };
+      }>(
         `/api/recetas/${id}`,
       ),
     refetchOnWindowFocus: false,
@@ -58,6 +65,11 @@ export function Resultado() {
             todas={e.lineas}
             especieTexto={qReceta.data?.confirmacion?.especie?.texto ?? undefined}
             indicacionTexto={qReceta.data?.confirmacion?.indicacion ?? undefined}
+            formacionFecha={
+              qReceta.data?.confirmacion?.modo === 'retrospectivo'
+                ? (qReceta.data.confirmacion.fechaOriginal ?? null)
+                : null
+            }
           />
         ))}
       </ConReceta>
@@ -71,12 +83,15 @@ function TarjetaLinea({
   todas,
   especieTexto,
   indicacionTexto,
+  formacionFecha = null,
 }: {
   l: LineaEvaluada;
   recetaId: string;
   todas: LineaEvaluada[];
   especieTexto?: string | undefined;
   indicacionTexto?: string | undefined;
+  /** Modo formación (specs/016): fecha original de la venta; con ella no se propone pedir el producto. */
+  formacionFecha?: string | null | undefined;
 }) {
   const nav = useNavigate();
   const qc = useQueryClient();
@@ -170,35 +185,17 @@ function TarjetaLinea({
           ))}
         </div>
       )}
-      {decision === 'PEDIR' && ev.pedido && (
-        <div className="mt-3 rounded-xl bg-pedir-bg p-3">
-          <p>
-            Pedir {ev.pedido.nombre} ({CN} {ev.pedido.cn}, {ev.pedido.labtitular ?? '—'})
-            {ev.pedido.psum && ' · con problemas de suministro'}
-          </p>
-          {ev.pedido.equivalentes.length > 0 && (
-            <p className="mt-1 text-sm">
-              Equivalentes sin stock:{' '}
-              {ev.pedido.equivalentes
-                .map((x) => `${x.nombre} (${x.cn})${x.psum ? ' · problemas de suministro' : ''}`)
-                .join(', ')}
-            </p>
-          )}
-          {ev.sustitucionBloqueada.length > 0 && (
-            <p className="mt-1 text-sm">No se puede sustituir (ver motivos).</p>
-          )}
-          <Boton
-            className="mt-2"
-            variante="secundario"
-            onClick={() =>
-              void post('/api/pedidos', { cn: ev.pedido!.cn, unidades: 1 }).then(() =>
-                setMsg({ t: 'ok', m: 'Añadido a la lista de pedido' }),
-              )
-            }
-          >
-            Añadir a lista de pedido
-          </Boton>
-        </div>
+      {formacionFecha && <AvisoFormacion fecha={formacionFecha} />}
+      {mostrarPedido(decision, ev.pedido, formacionFecha) && ev.pedido && (
+        <BloquePedido
+          pedido={ev.pedido}
+          sustitucionBloqueada={ev.sustitucionBloqueada.length > 0}
+          onAnadir={() =>
+            void post('/api/pedidos', { cn: ev.pedido!.cn, unidades: 1 }).then(() =>
+              setMsg({ t: 'ok', m: 'Añadido a la lista de pedido' }),
+            )
+          }
+        />
       )}
       <BuscadorSustitutoLinea
         recetaId={recetaId}
@@ -287,6 +284,61 @@ function TarjetaLinea({
         />
       )}
     </Tarjeta>
+  );
+}
+
+type PedidoSugerido = NonNullable<LineaEvaluada['resultado']['evidencias']['pedido']>;
+
+/** «Añadir a lista de pedido» solo se propone en vivo: en formación el producto ya se vendió (specs/016). */
+export function mostrarPedido(
+  decision: string,
+  pedido: unknown,
+  formacionFecha: string | null | undefined,
+): boolean {
+  return decision === 'PEDIR' && !!pedido && !formacionFecha;
+}
+
+/** Aviso del modo formación: el stock de hoy no cuenta, se comprobó la venta del día original (specs/016). */
+export function AvisoFormacion({ fecha: f }: { fecha: string }) {
+  return (
+    <div className="mt-3 rounded-xl bg-slate-100 p-3" data-testid="aviso-formacion">
+      <p>
+        Modo formación: se ha comprobado la venta del {fecha(f)}. El stock de hoy no se tiene en cuenta ni se
+        propone pedir el producto.
+      </p>
+    </div>
+  );
+}
+
+/** Propuesta de pedir un producto sin stock (solo en dispensación en vivo). */
+export function BloquePedido({
+  pedido,
+  sustitucionBloqueada,
+  onAnadir,
+}: {
+  pedido: PedidoSugerido;
+  sustitucionBloqueada: boolean;
+  onAnadir: () => void;
+}) {
+  return (
+    <div className="mt-3 rounded-xl bg-pedir-bg p-3">
+      <p>
+        Pedir {pedido.nombre} ({CN} {pedido.cn}, {pedido.labtitular ?? '—'})
+        {pedido.psum && ' · con problemas de suministro'}
+      </p>
+      {pedido.equivalentes.length > 0 && (
+        <p className="mt-1 text-sm">
+          Equivalentes sin stock:{' '}
+          {pedido.equivalentes
+            .map((x) => `${x.nombre} (${x.cn})${x.psum ? ' · problemas de suministro' : ''}`)
+            .join(', ')}
+        </p>
+      )}
+      {sustitucionBloqueada && <p className="mt-1 text-sm">No se puede sustituir (ver motivos).</p>}
+      <Boton className="mt-2" variante="secundario" onClick={onAnadir}>
+        Añadir a lista de pedido
+      </Boton>
+    </div>
   );
 }
 

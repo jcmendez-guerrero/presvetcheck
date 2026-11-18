@@ -48,6 +48,7 @@ import {
   type RecetaConfirmadaInput,
 } from '@mmx/shared';
 import { ahoraDe, hoyDe, politica, type AppDeps } from '../deps';
+import { RetrospectivoService } from './retrospectivo';
 import { sha256 } from '@mmx/reports';
 import type { Usuario } from '../plugins/auth';
 import { MedicamentosService } from './medicamentos';
@@ -128,8 +129,10 @@ export interface EvaluacionReceta {
 
 export class RecetasService {
   readonly med: MedicamentosService;
+  private readonly retrospectivo: RetrospectivoService;
   constructor(private readonly d: AppDeps) {
     this.med = new MedicamentosService(d);
+    this.retrospectivo = new RetrospectivoService(d);
   }
 
   // ── Alta y extracción ────────────────────────────────────────────────────────
@@ -850,12 +853,24 @@ export class RecetasService {
     forzados: Record<number, SolicitudForzado> = {},
     persistir = true,
     fechaReferencia: string | null = null,
+    /** Fecha original pedida al dispensar en modo formación (si no, se usa lo guardado en la revisión). */
+    formacionPedida: string | null = null,
   ): Promise<EvaluacionReceta> {
     const { r, conf, pol, especieId, receta2, lineas, ev } = await this.evaluacionDocumental(
       id,
       fechaReferencia,
     );
     const manual = r.origen === 'manual';
+    // Modo formación (specs/016): la venta ya ocurrió y el TPV descontó el stock; se juzga con las ventas del
+    // día original, no con el stock de hoy. El alta manual conserva su propio camino (specs/011).
+    const formacion = !manual && (formacionPedida !== null || conf.modo === 'retrospectivo');
+    const fechaFormacion = formacionPedida ?? conf.fechaOriginal;
+    if (formacion) {
+      if (this.d.config.RETROSPECTIVE_DISPENSATION_MODE !== 'enabled')
+        throw new DomainError('MODO_RETROSPECTIVO_DESHABILITADO');
+      if (!fechaFormacion) throw new DomainError('VALIDACION', 'Indica la fecha original en modo retrospectivo');
+      if (fechaFormacion > hoyDe(this.d)) throw new DomainError('FECHA_ORIGINAL_INVALIDA');
+    }
 
     const resultado: LineaEvaluada[] = [];
     const idsLinea = new Map(
@@ -868,7 +883,15 @@ export class RecetasService {
     );
     for (const l of conf.lineas) {
       const ctxL = lineas.find((x) => x.orden === l.orden)!;
-      const incs = ev.porLinea[l.orden] ?? [];
+      const incs = [...(ev.porLinea[l.orden] ?? [])];
+      if (formacion && ctxL.presentacion) {
+        const retro = await this.retrospectivo.revisar({
+          cn: ctxL.presentacion.cn,
+          fechaOriginal: fechaFormacion!,
+          unidadesRequeridas: l.cantidadEnvases ?? 1,
+        });
+        incs.push(...retro.incidencias);
+      }
       let forzado: ForzadoAceptado | null = null;
       const sol = forzados[l.orden];
       if (sol) {
@@ -879,8 +902,8 @@ export class RecetasService {
       let res: ResultadoDecision;
       if (ctxL.medicamento && ctxL.presentacion) {
         const candidatos = await this.med.candidatos(ctxL.medicamento.nregistro, ctxL.presentacion.cn);
-        // Alta manual: la entrega ya ocurrió y el TPV ya descontó el stock; el stock de hoy no cuenta.
-        const stock = manual
+        // Alta manual y modo formación: la entrega ya ocurrió y el TPV ya descontó el stock; el de hoy no cuenta.
+        const stock = manual || formacion
           ? {
               stock: {
                 [ctxL.presentacion.cn]: [

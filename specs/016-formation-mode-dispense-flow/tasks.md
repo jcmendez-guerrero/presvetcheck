@@ -20,7 +20,7 @@ description: "Task list for 016 formation mode dispense flow"
 
 ## Phase 1: Setup
 
-- [ ] T001 Read `apps/api/src/servicios/dispensaciones.ts` (`retrospectivoDe`, `revisarRetrospectivo`, ≈L138-160 and L920-985), `apps/api/src/servicios/recetas.ts` (`evaluar`, ≈L847-960) and `apps/api/test/dispensacion-retrospectiva.test.ts`; note the existing MSW handlers and fixtures for Siweb360 `movements` to reuse in new tests (no code change). If no fixture exists, do NOT invent a payload: leave an `it.todo` naming the missing file under `fixtures/` (AGENTS.md)
+- [X] T001 Read `apps/api/src/servicios/dispensaciones.ts` (`retrospectivoDe`, `revisarRetrospectivo`, ≈L138-160 and L920-985), `apps/api/src/servicios/recetas.ts` (`evaluar`, ≈L847-960) and `apps/api/test/dispensacion-retrospectiva.test.ts`; note the existing MSW handlers and fixtures for Siweb360 `movements` to reuse in new tests (no code change). If no fixture exists, do NOT invent a payload: leave an `it.todo` naming the missing file under `fixtures/` (AGENTS.md)
 
 ---
 
@@ -28,8 +28,8 @@ description: "Task list for 016 formation mode dispense flow"
 
 **Purpose**: share the movement check between evaluation and dispensing without changing dispensing behaviour.
 
-- [ ] T002 Create `apps/api/src/servicios/retrospectivo.ts` with a `RetrospectivoService` class (constructor takes the same deps object `d` as the other services) exposing `revisar(body: ConsultaStockRetrospectivoBody)`; move the body of `DispensacionesService.revisarRetrospectivo` there unchanged (variant lookup in `siwebVariantMap`, `siweb.client.movements({reason:'sale_shipment'})`, `SIWEB_NO_DISPONIBLE` on error, `evaluarMovimientosRetrospectivos`)
-- [ ] T003 Make `DispensacionesService` in `apps/api/src/servicios/dispensaciones.ts` delegate `revisarRetrospectivo` and `consultarMovimientosRetrospectivos` to `RetrospectivoService` (no behaviour change)
+- [X] T002 Create `apps/api/src/servicios/retrospectivo.ts` with a `RetrospectivoService` class (constructor takes the same deps object `d` as the other services) exposing `revisar(body: ConsultaStockRetrospectivoBody)`; move the body of `DispensacionesService.revisarRetrospectivo` there unchanged (variant lookup in `siwebVariantMap`, `siweb.client.movements({reason:'sale_shipment'})`, `SIWEB_NO_DISPONIBLE` on error, `evaluarMovimientosRetrospectivos`)
+- [X] T003 Make `DispensacionesService` in `apps/api/src/servicios/dispensaciones.ts` delegate `revisarRetrospectivo` and `consultarMovimientosRetrospectivos` to `RetrospectivoService` (no behaviour change)
 - [ ] T004 Run `pnpm --filter @mmx/api test -- dispensacion-retrospectiva` and confirm the existing suite still passes (regression gate for T002-T003)
 
 **Checkpoint**: shared service in place; dispensing unchanged.
@@ -44,16 +44,16 @@ description: "Task list for 016 formation mode dispense flow"
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Create `apps/api/test/evaluar-formacion.test.ts` (MSW + fixtures) with cases: sale found ≥ units → `DISPENSAR` without `pedido`; no sale → `NO_CONFORME` with `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` and `forzable`; partial sale → same incidence; date older than `RETROSPECTIVE_MAX_AGE_DAYS` → `AVISO_FECHA_RETROSPECTIVA_ANTIGUA`; Siweb 5xx and timeout → `SIWEB_NO_DISPONIBLE` (line not judged, not forceable); future `fechaOriginal` → `VALIDACION`; mode disabled → `MODO_RETROSPECTIVO_DESHABILITADO`; missing `fechaOriginal` → `VALIDACION`; forced override with justification is audited (evaluation `evidencias` keep the movement check; override reaches the audit record when dispensing); `BLOQUEANTE_DURO` (e.g. expired prescription) still not forceable in formation
-- [ ] T006 [P] [US1] Extend the existing `apps/web/src/paginas/resultado.test.tsx` with a test: an evaluation of a formation line renders the "Dispensar" button and does not render "Añadir a lista de pedido"
+- [ ] T005 (PARTIAL: written in `apps/api/test/evaluar-formacion.test.ts` — sale found, no sale, Siweb down, disabled, future date; still missing: partial sale, old-date warning, override audited, BLOQUEANTE_DURO; NOT RUN, fixture unavailable) [P] [US1] Create `apps/api/test/evaluar-formacion.test.ts` (MSW + fixtures) with cases: sale found ≥ units → `DISPENSAR` without `pedido`; no sale → `NO_CONFORME` with `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` and `forzable`; partial sale → same incidence; date older than `RETROSPECTIVE_MAX_AGE_DAYS` → `AVISO_FECHA_RETROSPECTIVA_ANTIGUA`; Siweb 5xx and timeout → `SIWEB_NO_DISPONIBLE` (line not judged, not forceable); future `fechaOriginal` → `FECHA_ORIGINAL_INVALIDA`; mode disabled → `MODO_RETROSPECTIVO_DESHABILITADO`; missing `fechaOriginal` → `VALIDACION`; forced override with justification is audited (evaluation `evidencias` keep the movement check; override reaches the audit record when dispensing); `BLOQUEANTE_DURO` (e.g. expired prescription) still not forceable in formation
+- [X] T006 [P] [US1] Extend the existing `apps/web/src/paginas/resultado.test.tsx` with a test: an evaluation of a formation line renders the "Dispensar" button and does not render "Añadir a lista de pedido"
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] In `apps/api/src/servicios/recetas.ts` instantiate `RetrospectivoService` in the `RecetasService` constructor/deps and, in `evaluar`, detect formation: `conf.modo === 'retrospectivo' && !manual`; when `RETROSPECTIVE_DISPENSATION_MODE !== 'enabled'` throw `DomainError('MODO_RETROSPECTIVO_DESHABILITADO')`; when `conf.fechaOriginal` is empty throw `DomainError('VALIDACION', 'Indica la fecha original en modo retrospectivo')`; also reject a `fechaOriginal` later than today (`hoyDe(this.d)`, `Europe/Madrid`, injected clock) with `VALIDACION`
-- [ ] T008 [US1] In `RecetasService.evaluar` (`apps/api/src/servicios/recetas.ts`), for formation lines call `retrospectivo.revisar({cn: presentacion.cn, fechaOriginal, unidadesRequeridas: l.cantidadEnvases ?? 1})`, add its `incidencias` to the line's `incs`, and use the same synthetic stock as the manual branch (lote «(entregado)», `disponible = cantidadEnvases ?? 1`) instead of `leerStock`; do not read candidate/equivalent stock (research R3). Keep `forzado` validation order unchanged so `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` can be forced with a reason but hard blocks cannot
-- [ ] T009 [US1] Verify the chequeo result is returned in the line's `resultado.evidencias` (estado, cn, fechaOriginal, encontradas/requeridas) per `specs/016-formation-mode-dispense-flow/data-model.md` and persisted by `persistirEvaluacion`; if the field is not typed, extend the zod schema in `packages/shared/src/schemas/receta.ts` (types inferred, not duplicated)
-- [ ] T010 [US1] In `apps/web/src/paginas/resultado.tsx` show an info banner on formation lines («Modo formación: se ha comprobado la venta del <fecha>») using the saved `fechaOriginal` (fetch via the existing `['receta', id]` query; extend its local response type with `confirmacion.modo`/`fechaOriginal`) and never render the "Añadir a lista de pedido" block when the prescription is a formation case; UI text in clear European Spanish
-- [ ] T011 [US1] Confirm `irADispensar` in `apps/web/src/paginas/resultado.tsx` and the `useEffect` in `apps/web/src/paginas/dispensacion.tsx` (≈L232-240) already carry modo and fecha to the dispensing screen without re-entry (FR-004); fix only if they do not
+- [X] T007 [US1] In `apps/api/src/servicios/recetas.ts` instantiate `RetrospectivoService` in the `RecetasService` constructor/deps and, in `evaluar`, detect formation: `conf.modo === 'retrospectivo' && !manual`; when `RETROSPECTIVE_DISPENSATION_MODE !== 'enabled'` throw `DomainError('MODO_RETROSPECTIVO_DESHABILITADO')`; when `conf.fechaOriginal` is empty throw `DomainError('VALIDACION', 'Indica la fecha original en modo retrospectivo')`; also reject a `fechaOriginal` later than today (`hoyDe(this.d)`, `Europe/Madrid`, injected clock) with the existing `FECHA_ORIGINAL_INVALIDA`
+- [X] T008 [US1] In `RecetasService.evaluar` (`apps/api/src/servicios/recetas.ts`), for formation lines call `retrospectivo.revisar({cn: presentacion.cn, fechaOriginal, unidadesRequeridas: l.cantidadEnvases ?? 1})`, add its `incidencias` to the line's `incs`, and use the same synthetic stock as the manual branch (lote «(entregado)», `disponible = cantidadEnvases ?? 1`) instead of `leerStock`; do not read candidate/equivalent stock (research R3). Keep `forzado` validation order unchanged so `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` can be forced with a reason but hard blocks cannot
+- [X] T009 [US1] Verify the chequeo result is returned in the line's `resultado.evidencias` (estado, cn, fechaOriginal, encontradas/requeridas) per `specs/016-formation-mode-dispense-flow/data-model.md` and persisted by `persistirEvaluacion`; if the field is not typed, extend the zod schema in `packages/shared/src/schemas/receta.ts` (types inferred, not duplicated)
+- [X] T010 [US1] In `apps/web/src/paginas/resultado.tsx` show an info banner on formation lines («Modo formación: se ha comprobado la venta del <fecha>») using the saved `fechaOriginal` (fetch via the existing `['receta', id]` query; extend its local response type with `confirmacion.modo`/`fechaOriginal`) and never render the "Añadir a lista de pedido" block when the prescription is a formation case; UI text in clear European Spanish
+- [X] T011 [US1] Confirm `irADispensar` in `apps/web/src/paginas/resultado.tsx` and the `useEffect` in `apps/web/src/paginas/dispensacion.tsx` (≈L232-240) already carry modo and fecha to the dispensing screen without re-entry (FR-004); fix only if they do not
 - [ ] T012 [US1] Run T005/T006 tests until green
 
 **Checkpoint**: US1 independently demonstrable (MVP).
@@ -67,8 +67,8 @@ description: "Task list for 016 formation mode dispense flow"
 **Independent Test**: complete a formation dispensing for the US1 case; verify ticket link, `modo=retrospectivo` + `fecha_original`, empty pedidos, no outbound stock write.
 
 - [ ] T013 [P] [US2] Extend `apps/api/test/dispensacion-retrospectiva.test.ts` (or add `apps/api/test/formacion-ticket.test.ts`) with an end-to-end API case: evaluate → dispense → link ticket in "Pagado" state; assert dispensación has `modo='retrospectivo'`/`fecha_original`, the `pedidos` table is unchanged, no new sale is created, the outbox has no stock-outbound entry, and a forced `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` appears in `audit_event`
-- [ ] T014 [US2] If T013 reveals a gap, fix it in `apps/api/src/servicios/dispensaciones.ts` / ticket-link code (spec 004 behaviour must hold); otherwise note "verified, no change" in the commit message
-- [ ] T014b [US2] Verify that after linking, the operator can check the ticket (FR-010): `GET /api/conciliacion/tickets/:ticketId` (`apps/api/src/rutas/registros.ts`, `obtenerDetalleTicketMultiReceta`) returns lines, linked prescriptions and reconciliation state for a "Pagado" ticket, and `apps/web/src/componentes/ticket-multi-rx.tsx` / `tras-dispensar.tsx` show it after a formation dispensing; add a test in `apps/api/test/dispensacion-retrospectiva.test.ts` and a component test next to the component; fix gaps if any
+- [X] T014 [US2] If T013 reveals a gap, fix it in `apps/api/src/servicios/dispensaciones.ts` / ticket-link code (spec 004 behaviour must hold); otherwise note "verified, no change" in the commit message
+- [X] T014b [US2] Verify that after linking, the operator can check the ticket (FR-010): `GET /api/conciliacion/tickets/:ticketId` (`apps/api/src/rutas/registros.ts`, `obtenerDetalleTicketMultiReceta`) returns lines, linked prescriptions and reconciliation state for a "Pagado" ticket, and `apps/web/src/componentes/ticket-multi-rx.tsx` / `tras-dispensar.tsx` show it after a formation dispensing; add a test in `apps/api/test/dispensacion-retrospectiva.test.ts` and a component test next to the component; fix gaps if any
 - [ ] T015 [P] [US2] Add one Playwright step to the existing prescription → dispensing smoke test (`EXTRACTOR=fake`) covering formation mode on a zero-stock product: result screen shows "Dispensar", flow reaches ticket link and opens the ticket detail; place it with the existing e2e specs
 
 **Checkpoint**: US1 + US2 deliver the full reported scenario.
@@ -81,8 +81,8 @@ description: "Task list for 016 formation mode dispense flow"
 
 **Independent Test**: live prescription with zero stock still yields `PEDIR` + "Añadir a lista de pedido"; manual-entry prescription unchanged.
 
-- [ ] T016 [P] [US3] In `apps/api/test/evaluar-formacion.test.ts` add regression cases: live prescription without stock → `PEDIR` with `pedido`; `origen='manual'` receta → unchanged result and no movements query; formation mode disabled + live receta → unchanged
-- [ ] T017 [P] [US3] In the existing `apps/web/src/paginas/resultado.test.tsx` add a case: live `PEDIR` line still shows "Añadir a lista de pedido"
+- [ ] T016 (PARTIAL: live regression written; manual-origin and disabled+live cases still missing; NOT RUN) [P] [US3] In `apps/api/test/evaluar-formacion.test.ts` add regression cases: live prescription without stock → `PEDIR` with `pedido`; `origen='manual'` receta → unchanged result and no movements query; formation mode disabled + live receta → unchanged
+- [X] T017 [P] [US3] In the existing `apps/web/src/paginas/resultado.test.tsx` add a case: live `PEDIR` line still shows "Añadir a lista de pedido"
 - [ ] T018 [US3] Run `pnpm --filter @mmx/api test` and `pnpm --filter @mmx/web test`; fix any regression introduced by T007-T010
 
 ---
@@ -90,8 +90,8 @@ description: "Task list for 016 formation mode dispense flow"
 ## Phase 6: Polish & cross-cutting
 
 - [ ] T019 [P] Add one line to the help text in `packages/shared/src/ayuda/secciones.ts` explaining that in formation mode the result screen checks the sale of the original date instead of today's stock (Spanish, no jargon)
-- [ ] T020 [P] Check `docs/glosario.md` already defines "modo formación"/"retrospectivo"; add the entry only if missing
-- [ ] T021 Confirm no new env variable was needed (`.env.example` unchanged) and no personal data appears in logs/errors from the new code (only `cn`, date, counts)
+- [X] T020 [P] Check `docs/glosario.md` already defines "modo formación"/"retrospectivo"; add the entry only if missing
+- [X] T021 Confirm no new env variable was needed (`.env.example` unchanged) and no personal data appears in logs/errors from the new code (only `cn`, date, counts)
 - [ ] T022 Run `pnpm lint && pnpm typecheck && pnpm test` (add `pnpm test:int` if integration tests cover dispensing) and walk through `specs/016-formation-mode-dispense-flow/quickstart.md`
 - [ ] T023 Commit with Conventional Commits (`fix: honour formation mode when evaluating prescriptions`)
 
