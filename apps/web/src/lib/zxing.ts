@@ -1,11 +1,23 @@
 /** zxing-wasm (ya usado por el escáner de cámara) cargado bajo demanda: lectura de códigos y QR del móvil. */
 export const FORMATOS_ENVASE = ['DataMatrix', 'QRCode', 'EAN-13', 'Code128'] as const;
 
-export async function lector() {
+async function cargarLector() {
   const z = await import('zxing-wasm/reader');
   const wasm = (await import('zxing-wasm/reader/zxing_reader.wasm?url')).default;
   z.prepareZXingModule({ overrides: { locateFile: (p: string, pref: string) => (p.endsWith('.wasm') ? wasm : pref + p) } });
   return z.readBarcodes;
+}
+
+let lectorCargado: ReturnType<typeof cargarLector> | undefined;
+
+/** Se carga una sola vez: preparar el módulo de nuevo vuelve a pedir el wasm y fallaría sin red. */
+export function lector() {
+  const p = (lectorCargado ??= cargarLector());
+  // Un fallo de carga no se guarda: la siguiente lectura lo intenta otra vez.
+  p.catch(() => {
+    if (lectorCargado === p) lectorCargado = undefined;
+  });
+  return p;
 }
 
 /** Lee el código de un envase en una foto (para móviles sin cámara en vivo, p. ej. web sin HTTPS). */

@@ -393,6 +393,8 @@ function EnviarCodigo({ token }: { token: string }) {
       const raw = await leerCodigoDeFoto(f);
       if (raw) enviar(raw);
       else setError('No se ha encontrado ningún código en la foto: acércate más y enfoca el código');
+    } catch {
+      setError('No se ha podido leer el código de la foto: comprueba la conexión del móvil e inténtalo de nuevo');
     } finally {
       setLeyendo(false);
     }
