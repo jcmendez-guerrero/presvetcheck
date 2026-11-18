@@ -1,9 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Camera, Check, Image as ImageIcon, Loader2, ScanLine, Send } from 'lucide-react';
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  Image as ImageIcon,
+  Loader2,
+  RotateCw,
+  ScanLine,
+  Send,
+} from 'lucide-react';
 import { MAX_PAGINAS_DOCUMENTO, textoError, type CodigoError } from '@mmx/shared';
 import { EscanerCamara } from '../componentes/escaner';
 import { Boton, Mensaje, Tarjeta } from '../componentes/ui';
+import {
+  cargarLecturas,
+  enviarCodigo,
+  guardarLecturas,
+  nuevoId,
+  sePuedeReintentar,
+  type Lectura,
+} from '../lib/envio-codigo';
 import { prepararPagina, type PaginaPreparada } from '../lib/imagen';
+import { pitido } from '../lib/sonido';
 import { leerCodigoDeFoto } from '../lib/zxing';
 
 /**
@@ -321,35 +339,50 @@ function EnviarPaginas({
   );
 }
 
+const horaDe = (iso: string) =>
+  new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+/**
+ * Código del envase (spec 016). Cada lectura tiene su estado: «Enviado» solo cuando el sistema la ha aceptado; si
+ * falla, un aviso grande con el motivo, vibración y sonido de error y, si tiene sentido, «Reintentar» con el mismo
+ * código (sin volver a escanear). El estado se guarda en la pestaña: sobrevive a bloquear la pantalla.
+ */
 function EnviarCodigo({ token }: { token: string }) {
   const [camara, setCamara] = useState(false);
-  const [enviados, setEnviados] = useState<{ raw: string; hora: string }[]>([]);
+  const [lecturas, setLecturas] = useState<Lectura[]>(cargarLecturas);
   const [error, setError] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   // La cámara en vivo exige HTTPS; sin él (p. ej. en local por la red) se lee el código de una foto.
   const enVivo = window.isSecureContext && !!navigator.mediaDevices?.getUserMedia;
 
-  const enviar = async (raw: string) => {
-    setError(null);
-    try {
-      await llamar(token, 'POST', '/api/movil/m/codigos', { raw });
-      setEnviados((x) =>
-        [
-          {
-            raw,
-            hora: new Date().toLocaleTimeString('es-ES', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            }),
-          },
-          ...x,
-        ].slice(0, 5),
-      );
+  useEffect(() => guardarLecturas(lecturas), [lecturas]);
+  const cambiar = (id: string, c: Partial<Lectura>) =>
+    setLecturas((ls) => ls.map((l) => (l.id === id ? { ...l, ...c } : l)));
+
+  const lanzar = async (l: Lectura) => {
+    cambiar(l.id, { estado: 'enviando', motivo: null });
+    const r = await enviarCodigo(token, l);
+    cambiar(l.id, r);
+    // Éxito y fallo suenan y vibran distinto: la persona mira el ordenador, no el móvil.
+    if (r.estado === 'enviada') {
       navigator.vibrate?.(80);
-    } catch (e) {
-      setError((e as Error).message);
+      pitido(true);
+    } else {
+      navigator.vibrate?.([200, 100, 200]);
+      pitido(false);
     }
+  };
+  const enviar = (raw: string) => {
+    setError(null);
+    const l: Lectura = {
+      id: nuevoId(),
+      raw,
+      leidoAt: new Date().toISOString(),
+      estado: 'enviando',
+      motivo: null,
+    };
+    setLecturas((ls) => [l, ...ls]);
+    void lanzar(l);
   };
   const deFoto = async (files: FileList | null) => {
     const f = files?.[0];
@@ -358,7 +391,7 @@ function EnviarCodigo({ token }: { token: string }) {
     setError(null);
     try {
       const raw = await leerCodigoDeFoto(f);
-      if (raw) await enviar(raw);
+      if (raw) enviar(raw);
       else setError('No se ha encontrado ningún código en la foto: acércate más y enfoca el código');
     } finally {
       setLeyendo(false);
@@ -391,22 +424,57 @@ function EnviarCodigo({ token }: { token: string }) {
         </label>
       </div>
       {error && <Mensaje tipo="error">{error}</Mensaje>}
-      {enviados.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-1 text-sm">
-          {enviados.map((e, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <Check aria-hidden className="h-4 w-4 text-green-700" />{' '}
-              <span className="font-mono">{e.raw.slice(0, 32)}</span>{' '}
-              <span className="text-slate-500">{e.hora}</span>
-            </li>
-          ))}
+      {lecturas.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2">
+          {lecturas.map((l) =>
+            l.estado === 'enviada' || l.estado === 'enviando' ? (
+              <li key={l.id} className="flex items-center gap-2 text-base">
+                {l.estado === 'enviada' ? (
+                  <Check aria-hidden className="h-5 w-5 text-green-700" />
+                ) : (
+                  <Loader2 aria-hidden className="h-5 w-5 animate-spin text-pedir" />
+                )}
+                <span className="font-semibold">{l.estado === 'enviada' ? 'Enviado' : 'Enviando…'}</span>
+                <span className="font-mono text-sm">{l.raw.slice(0, 24)}</span>
+                <span className="text-sm text-slate-500">{horaDe(l.leidoAt)}</span>
+              </li>
+            ) : (
+              <li
+                key={l.id}
+                role="alert"
+                className="rounded-xl bg-noconforme-bg p-4 text-noconforme ring-2 ring-noconforme dark:bg-noconforme-bg/30"
+              >
+                <p className="flex items-center gap-2 text-xl font-bold">
+                  <AlertTriangle aria-hidden className="h-6 w-6" /> No se ha enviado
+                </p>
+                <p className="mt-1 font-semibold">{l.motivo}</p>
+                <p className="mt-1 font-mono text-sm">
+                  {l.raw.slice(0, 32)} · {horaDe(l.leidoAt)}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  {sePuedeReintentar(l) && (
+                    <Boton className="flex-1" onClick={() => void lanzar(l)}>
+                      <RotateCw aria-hidden className="h-5 w-5" /> Reintentar
+                    </Boton>
+                  )}
+                  <button
+                    type="button"
+                    className="rounded-xl border-2 border-current px-4 py-3 font-semibold"
+                    onClick={() => setLecturas((ls) => ls.filter((x) => x.id !== l.id))}
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </li>
+            ),
+          )}
         </ul>
       )}
       {camara && (
         <EscanerCamara
           onLectura={(raw) => {
             setCamara(false);
-            void enviar(raw);
+            enviar(raw);
           }}
           onCerrar={() => setCamara(false)}
         />

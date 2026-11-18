@@ -95,6 +95,84 @@ describe('emparejamiento del móvil con el PC', () => {
     expect((await delMovil(token, 'POST', '/api/movil/m/codigos', { raw: '123' })).statusCode).toBe(401);
   });
 
+  describe('envío del código del envase (spec 016)', () => {
+    const abrir = async () =>
+      (await api(E.app, 'dev-empleado', 'POST', '/api/movil/sesiones')).json as { id: string; token: string };
+    const codigos = async (id: string) =>
+      (
+        (await api(E.app, 'dev-empleado', 'GET', `/api/movil/sesiones/${id}/eventos`)).json as {
+          eventos: { tipo: string; raw?: string; id?: string }[];
+        }
+      ).eventos.filter((e) => e.tipo === 'codigo');
+    const enviar = (token: string, body: unknown) =>
+      delMovil(token, 'POST', '/api/movil/m/codigos', body).then((r) => r.statusCode);
+    const ID = '3f0c2c7e-8d5e-4b53-9d7a-5b1f3c2a9e10';
+
+    it('reenviar el mismo id responde 204 las dos veces y publica una sola vez; el id no llega al PC', async () => {
+      const { id, token } = await abrir();
+      expect(await enviar(token, { raw: '(01)08470000570016', id: ID })).toBe(204);
+      expect(await enviar(token, { raw: '(01)08470000570016', id: ID })).toBe(204);
+      const c = await codigos(id);
+      expect(c).toHaveLength(1);
+      expect(c[0]).not.toHaveProperty('id');
+    });
+
+    it('sin id se publica como siempre (sin deduplicar); con ids distintos llegan los dos, en orden', async () => {
+      const { id, token } = await abrir();
+      expect(await enviar(token, { raw: 'A' })).toBe(204);
+      expect(await enviar(token, { raw: 'A' })).toBe(204);
+      expect(await enviar(token, { raw: 'B', id: ID })).toBe(204);
+      expect(await enviar(token, { raw: 'C', id: '3f0c2c7e-8d5e-4b53-9d7a-5b1f3c2a9e11' })).toBe(204);
+      expect((await codigos(id)).map((e) => e.raw)).toEqual(['A', 'A', 'B', 'C']);
+    });
+
+    it('límites: 512 caracteres valen; 513, vacío o id mal formado dan 400 sin publicar', async () => {
+      const { id, token } = await abrir();
+      expect(await enviar(token, { raw: 'x'.repeat(512) })).toBe(204);
+      expect(await enviar(token, { raw: 'x'.repeat(513) })).toBe(400);
+      expect(await enviar(token, { raw: '' })).toBe(400);
+      expect(await enviar(token, { raw: 'ok', id: 'no-es-uuid' })).toBe(400);
+      expect(await codigos(id)).toHaveLength(1);
+    });
+
+    it('el separador de grupo GS1 (U+001D) llega íntegro', async () => {
+      const { id, token } = await abrir();
+      const raw = '0108470000570016\u001d10ABC123\u001d17261130';
+      expect(await enviar(token, { raw })).toBe(204);
+      expect((await codigos(id))[0]!.raw).toBe(raw);
+    });
+
+    it('el cursor no salta ni repite: tras una pausa, cada consulta trae solo lo nuevo y en orden', async () => {
+      const { id, token } = await abrir();
+      const desde = async (n: number) =>
+        (
+          (await api(E.app, 'dev-empleado', 'GET', `/api/movil/sesiones/${id}/eventos?desde=${n}`)).json as {
+            eventos: { seq: number; raw?: string }[];
+          }
+        ).eventos;
+      await enviar(token, { raw: 'A' });
+      const primera = await desde(0);
+      await enviar(token, { raw: 'B' });
+      await enviar(token, { raw: 'C' });
+      const segunda = await desde(primera.at(-1)!.seq);
+      expect(primera.map((e) => e.raw)).toEqual(['A']);
+      expect(segunda.map((e) => e.raw)).toEqual(['B', 'C']);
+      expect(await desde(segunda.at(-1)!.seq)).toEqual([]);
+    });
+
+    it('con la sesión cerrada responde 401 y el evento solo lo ve quien abrió el emparejamiento', async () => {
+      const { id, token } = await abrir();
+      expect(await enviar(token, { raw: 'ok', id: ID })).toBe(204);
+      const [s] = await E.h.db.select().from(sesionMovil).where(eq(sesionMovil.id, id));
+      expect(s!.usuarioId).toBe('dev-empleado');
+      expect((await api(E.app, 'dev-veterinaria', 'GET', `/api/movil/sesiones/${id}/eventos`)).status).toBe(
+        404,
+      );
+      await api(E.app, 'dev-empleado', 'POST', `/api/movil/sesiones/${id}/cerrar`);
+      expect(await enviar(token, { raw: 'tarde', id: '3f0c2c7e-8d5e-4b53-9d7a-5b1f3c2a9e12' })).toBe(401);
+    });
+  });
+
   it('URL del QR: la pública si está configurada; en local, la IP de la red en lugar de localhost', () => {
     expect(urlBaseMovil('https://recetas.example.org/', 'http://localhost:5173', false)).toBe(
       'https://recetas.example.org',

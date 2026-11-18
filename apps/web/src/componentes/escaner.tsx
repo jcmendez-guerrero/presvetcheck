@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Flashlight, Keyboard } from 'lucide-react';
+import { Camera, Flashlight, Keyboard, Smartphone } from 'lucide-react';
 import { esRafagaLector } from '@mmx/gs1';
-import { useCodigosMovil } from '../lib/movil';
+import type { Instantanea } from '../lib/codigos-pendientes';
+import { useCodigosMovil, useMovil } from '../lib/movil';
 import { FORMATOS_ENVASE, lector } from '../lib/zxing';
 import { Boton } from './ui';
 
@@ -20,6 +21,7 @@ export function CampoEscaneo({ onLectura, etiqueta = 'Escanea el envase', autoFo
   }, [autoFoco, camara]);
   // Lecturas hechas con el móvil emparejado (llegan como lecturas de cámara).
   useCodigosMovil((raw) => onLectura(raw, 'camara'));
+  const movil = useMovil();
 
   const enviar = () => {
     const raw = valor;
@@ -65,6 +67,15 @@ export function CampoEscaneo({ onLectura, etiqueta = 'Escanea el envase', autoFo
           <Camera aria-hidden className="h-5 w-5" /> Cámara
         </Boton>
       </div>
+      {movil && (
+        <CodigoRecibido
+          codigos={movil.codigosPendientes}
+          onUsar={() => {
+            const raw = movil.usarPendiente();
+            if (raw) onLectura(raw, 'camara');
+          }}
+        />
+      )}
       {camara && (
         <EscanerCamara
           onLectura={(raw) => {
@@ -76,6 +87,27 @@ export function CampoEscaneo({ onLectura, etiqueta = 'Escanea el envase', autoFo
       )}
     </div>
   );
+}
+
+/**
+ * Código leído con el móvil mientras no había campo de escaneo abierto (spec 016). Nunca se aplica solo: lo usa la
+ * persona con el botón, y se entrega una sola vez (el más antiguo si hay varios).
+ */
+export function CodigoRecibido({ codigos, onUsar }: { codigos: Instantanea; onUsar: () => void }) {
+  const n = codigos.pendientes.length;
+  if (n > 0)
+    return (
+      <Boton data-testid="usar-codigo-recibido" variante="secundario" onClick={onUsar}>
+        <Smartphone aria-hidden className="h-5 w-5" /> Usar el código recibido{n > 1 ? ` (${n} en espera)` : ''}
+      </Boton>
+    );
+  if (codigos.aviso === 'caducado')
+    return (
+      <p role="status" className="text-sm font-semibold text-sustituir">
+        El código recibido ha caducado: vuelve a leer el envase
+      </p>
+    );
+  return null;
 }
 
 export function EscanerCamara({ onLectura, onCerrar }: { onLectura: (raw: string) => void; onCerrar: () => void }) {

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useNavigate } from '@tanstack/react-router';
 import { ApiError, get, post } from './api';
 import { BuzonAlbaranes } from './albaran-movil';
+import { CodigosPendientes, type Instantanea } from './codigos-pendientes';
 
 /**
  * Lado del PC del emparejamiento con el móvil. Se guarda la sesión de esta pestaña (sessionStorage) y se
@@ -26,8 +27,14 @@ interface Ctx {
   sesion: SesionMovil | null;
   conectado: boolean;
   leyendo: boolean;
-  /** Código recibido sin ningún campo de escaneo abierto. */
-  codigoSinDestino: string | null;
+  /** Códigos recibidos sin ningún campo de escaneo abierto (hasta 5, caducan a los 5 min) y aviso de descarte. */
+  codigosPendientes: Instantanea;
+  /** Entrega el código pendiente más antiguo (solo lo pide la persona con «Usar el código recibido»). */
+  usarPendiente: () => string | null;
+  descartarAvisoCodigo: () => void;
+  /** Por qué terminó el emparejamiento (caducó o lo cerraron); nulo si no terminó o se desconectó a propósito. */
+  motivoFin: string | null;
+  descartarMotivoFin: () => void;
   /** Albarán recibido del móvil sin la pantalla de nueva recepción abierta (id de la lectura). */
   albaranSinDestino: string | null;
   /** El último albarán enviado desde el móvil no se pudo leer. */
@@ -40,6 +47,7 @@ interface Ctx {
 }
 const MovilCtx = createContext<Ctx | null>(null);
 const CLAVE = 'mmx.movil';
+const MOTIVO_FIN = 'El emparejamiento con el móvil ha caducado o se ha cerrado: vuelve a leer el código QR.';
 
 const leerSesion = (): SesionMovil | null => {
   try {
@@ -68,7 +76,11 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<SesionMovil | null>(leerSesion);
   const [conectado, setConectado] = useState(false);
   const [leyendo, setLeyendo] = useState(false);
-  const [codigoSinDestino, setCodigoSinDestino] = useState<string | null>(null);
+  // Códigos del móvil sin campo de escaneo abierto: nunca se aplican solos (`usarPendiente`).
+  const [cola] = useState(() => new CodigosPendientes());
+  const [codigosPendientes, setCodigosPendientes] = useState<Instantanea>(() => cola.instantanea());
+  const refrescarCola = useCallback(() => setCodigosPendientes(cola.instantanea()), [cola]);
+  const [motivoFin, setMotivoFin] = useState<string | null>(null);
   const [albaranSinDestino, setAlbaranSinDestino] = useState<string | null>(null);
   // Reparte los albaranes del móvil; guarda el pendiente para la primera pantalla de recepción que se abra.
   const [buzon] = useState(() => new BuzonAlbaranes());
@@ -87,9 +99,11 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
         if (!r.activa) {
           guardarSesion(null);
           setSesion(null);
+          setMotivoFin(MOTIVO_FIN);
           return;
         }
         setConectado(r.movilConectado);
+        if (r.movilConectado) setMotivoFin(null); // ya hay un móvil emparejado de nuevo
         for (const e of r.eventos) {
           cursor.current = e.seq;
           if (e.tipo === 'leyendo') setLeyendo(true);
@@ -101,13 +115,19 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
             if (!e.documentoId) setErrorAlbaran(true);
             else if (buzon.recibir(e.documentoId) === 'pendiente') setAlbaranSinDestino(e.documentoId);
           } else if (oyentes.current.size) oyentes.current.forEach((f) => f(e.raw));
-          else setCodigoSinDestino(e.raw);
+          else {
+            cola.recibir(e.raw);
+            refrescarCola();
+          }
         }
       } catch (e) {
         // La sesión ya no existe (caducada, cerrada o la API se reinició): se olvida en lugar de reintentar.
         if (e instanceof ApiError && (e.status === 404 || e.status === 401 || e.status === 403)) {
           guardarSesion(null);
-          if (activo) setSesion(null);
+          if (activo) {
+            setSesion(null);
+            setMotivoFin(MOTIVO_FIN);
+          }
           return;
         }
         /* sin conexión: se reintenta */
@@ -138,9 +158,25 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
   }, [sesion]);
   const suscribir = useCallback((fn: (raw: string) => void) => {
     oyentes.current.add(fn);
-    setCodigoSinDestino(null);
     return () => void oyentes.current.delete(fn);
   }, []);
+  const usarPendiente = useCallback(() => {
+    const raw = cola.usar();
+    refrescarCola();
+    return raw;
+  }, [cola, refrescarCola]);
+  const descartarAvisoCodigo = useCallback(() => {
+    cola.descartarAviso();
+    refrescarCola();
+  }, [cola, refrescarCola]);
+  const descartarMotivoFin = useCallback(() => setMotivoFin(null), []);
+  // Cuenta atrás y caducidad de los códigos pendientes: se refresca cada segundo mientras haya alguno.
+  const hayPendientes = codigosPendientes.pendientes.length > 0;
+  useEffect(() => {
+    if (!hayPendientes) return;
+    const t = setInterval(refrescarCola, 1000);
+    return () => clearInterval(t);
+  }, [hayPendientes, refrescarCola]);
 
   const suscribirAlbaran = useCallback((fn: (documentoId: string) => void) => {
     // Si había un albarán esperando, el buzón se lo entrega a esta pantalla (no se pierde si la persona llega
@@ -157,7 +193,7 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
 
   return (
     <MovilCtx.Provider
-      value={{ sesion, conectado, leyendo, codigoSinDestino, albaranSinDestino, errorAlbaran, descartarAvisoAlbaran, abrir, cerrar, suscribir, suscribirAlbaran }}
+      value={{ sesion, conectado, leyendo, codigosPendientes, usarPendiente, descartarAvisoCodigo, motivoFin, descartarMotivoFin, albaranSinDestino, errorAlbaran, descartarAvisoAlbaran, abrir, cerrar, suscribir, suscribirAlbaran }}
     >
       {children}
     </MovilCtx.Provider>

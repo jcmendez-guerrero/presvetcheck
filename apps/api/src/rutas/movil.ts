@@ -3,7 +3,7 @@ import type { FastifyRequest } from 'fastify';
 import type { AppDeps } from '../deps';
 import { ROLES, requiereRol } from '../plugins/auth';
 import { IdParam } from '../schemas';
-import { DomainError } from '@mmx/shared';
+import { CodigoMovilBody, DomainError } from '@mmx/shared';
 import { MovilService, urlBaseMovil } from '../servicios/movil';
 import { MAX_BYTES_ALBARAN, RecepcionesService } from '../servicios/recepciones';
 import { RecetasService } from '../servicios/recetas';
@@ -146,12 +146,16 @@ export async function rutasMovil(app: App, d: AppDeps) {
       schema: {
         tags: ['movil'],
         summary: 'Envía al PC la lectura de un código del envase',
-        body: z.object({ raw: z.string().min(1).max(512) }),
+        body: CodigoMovilBody,
       },
     },
     async (req, reply) => {
       const m = await delMovil(req);
-      await svc.publicar(m.sesionId, { tipo: 'codigo', raw: req.body.raw });
+      await svc.publicar(m.sesionId, {
+        tipo: 'codigo',
+        raw: req.body.raw,
+        ...(req.body.id ? { id: req.body.id } : {}),
+      });
       return reply.status(204).send();
     },
   );

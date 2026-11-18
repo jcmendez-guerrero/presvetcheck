@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
-import { and, asc, eq, gt, isNull } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { appendAudit, sesionMovil, sesionMovilEvento } from '@mmx/db';
-import { DomainError, Rol } from '@mmx/shared';
+import { DomainError, MAX_CODIGO_MOVIL, Rol } from '@mmx/shared';
 import { ahoraDe, type AppDeps } from '../deps';
 import type { Usuario } from '../plugins/auth';
 import type { ContextoPeticion } from './recetas';
@@ -16,14 +16,14 @@ import type { ContextoPeticion } from './recetas';
 export type EventoMovil =
   | { tipo: 'leyendo' }
   | { tipo: 'receta'; recetaId: string; aviso: string | null }
-  | { tipo: 'codigo'; raw: string }
+  /** `id`: identificador de la lectura (reintento seguro). Solo sirve en el servidor: no se devuelve al PC. */
+  | { tipo: 'codigo'; raw: string; id?: string }
   /** Albarán o factura leído; solo lleva el id (lo leído lo pide el PC con sesión). Nulo = la lectura falló. */
   | { tipo: 'albaran'; documentoId: string | null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
-const MAX_CODIGO = 512;
 
 export class MovilService {
   constructor(private readonly d: AppDeps) {}
@@ -71,7 +71,10 @@ export class MovilService {
       activa: !s.cerradaAt && s.expiraAt > ahoraDe(this.d),
       movilConectado: s.movilVistoAt !== null,
       expiraAt: s.expiraAt.toISOString(),
-      eventos: ev.map((e) => ({ seq: e.seq, ...(e.datos as EventoMovil) })),
+      eventos: ev.map((e) => {
+        const { id: _id, ...datos } = e.datos as EventoMovil & { id?: string };
+        return { seq: e.seq, ...datos };
+      }),
     };
   }
 
@@ -130,8 +133,25 @@ export class MovilService {
   }
 
   async publicar(sesionId: string, e: EventoMovil) {
-    if (e.tipo === 'codigo' && (!e.raw.trim() || e.raw.length > MAX_CODIGO))
-      throw new DomainError('VALIDACION', 'Código no válido');
+    if (e.tipo === 'codigo') {
+      if (!e.raw.trim() || e.raw.length > MAX_CODIGO_MOVIL)
+        throw new DomainError('VALIDACION', 'Código no válido');
+      if (e.id) {
+        // Reintento: si esta lectura ya está publicada en la sesión, no se publica otra (respuesta igual).
+        const [ya] = await this.d.db
+          .select({ seq: sesionMovilEvento.seq })
+          .from(sesionMovilEvento)
+          .where(
+            and(
+              eq(sesionMovilEvento.sesionId, sesionId),
+              eq(sesionMovilEvento.tipo, 'codigo'),
+              sql`${sesionMovilEvento.datos}->>'id' = ${e.id}`,
+            ),
+          )
+          .limit(1);
+        if (ya) return;
+      }
+    }
     if (e.tipo === 'albaran' && e.documentoId !== null && !UUID.test(e.documentoId))
       throw new DomainError('VALIDACION', 'Documento no válido');
     await this.d.db.insert(sesionMovilEvento).values({ sesionId, tipo: e.tipo, datos: e });

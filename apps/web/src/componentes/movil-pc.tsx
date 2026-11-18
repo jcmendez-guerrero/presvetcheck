@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from '@tanstack/react-router';
 import { Smartphone } from 'lucide-react';
+import { segundosRestantes } from '../lib/codigos-pendientes';
 import { enlaceMovil, useMovil } from '../lib/movil';
 import { qrSvg } from '../lib/zxing';
 import { useFocusTrap } from '../lib/a11y';
@@ -11,7 +12,12 @@ import { Boton, Mensaje } from './ui';
 export function BotonMovil() {
   const m = useMovil();
   const [abierto, setAbierto] = useState(false);
-  const cerrar = useCallback(() => setAbierto(false), []);
+  // Al cerrar el diálogo, el motivo del fin del emparejamiento anterior ya se ha visto.
+  const descartarMotivo = m?.descartarMotivoFin;
+  const cerrar = useCallback(() => {
+    setAbierto(false);
+    descartarMotivo?.();
+  }, [descartarMotivo]);
   if (!m) return null;
   return (
     <>
@@ -69,6 +75,7 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
         <h2 tabIndex={-1} data-autofocus className="text-2xl font-bold outline-none">
           Usar el móvil
         </h2>
+        {m.motivoFin && <Mensaje tipo="aviso">{m.motivoFin}</Mensaje>}
         <p className="text-slate-700">Lee este código con la cámara del móvil. Desde el móvil podrás fotografiar recetas y leer los códigos de los envases; todo llega a esta pantalla.</p>
         {svg && sesion ? (
           <>
@@ -99,6 +106,9 @@ function DialogoMovil({ onCerrar }: { onCerrar: () => void }) {
     </div>
   );
 }
+
+const horaCorta = (ms: number) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+const cuentaAtras = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /** Avisos en el PC de lo que llega del móvil. */
 export function AvisosMovil() {
@@ -132,9 +142,31 @@ export function AvisosMovil() {
           </button>
         </p>
       )}
-      {m.codigoSinDestino && (
-        <p className="bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">
-          Código recibido del móvil ({m.codigoSinDestino.slice(0, 30)}): abre una dispensación o una recepción para usarlo
+      {m.motivoFin && (
+        <p role="alert" className="bg-red-100 px-4 py-1 text-center text-sm font-semibold text-red-900">
+          {m.motivoFin}{' '}
+          <button type="button" className="underline" onClick={m.descartarMotivoFin}>
+            Cerrar
+          </button>
+        </p>
+      )}
+      {m.codigosPendientes.pendientes[0] && (
+        <p role="status" data-testid="aviso-codigo-pendiente" className="bg-acento px-4 py-2 text-center text-sm font-semibold text-texto">
+          Código recibido del móvil a las {horaCorta(m.codigosPendientes.pendientes[0].recibidoAt)} (
+          {m.codigosPendientes.pendientes[0].raw.slice(0, 30)})
+          {m.codigosPendientes.pendientes.length > 1 ? `, y ${m.codigosPendientes.pendientes.length - 1} más en espera` : ''}:
+          abre una dispensación o una recepción y pulsa «Usar el código recibido». Caduca en{' '}
+          {cuentaAtras(segundosRestantes(m.codigosPendientes.pendientes[0], Date.now()))}.
+        </p>
+      )}
+      {m.codigosPendientes.aviso && (
+        <p role="status" className="bg-acento px-4 py-1 text-center text-sm font-semibold text-texto">
+          {m.codigosPendientes.aviso === 'exceso'
+            ? 'Se ha descartado el código más antiguo: solo se guardan 5'
+            : 'El código recibido ha caducado: vuelve a leer el envase'}{' '}
+          <button type="button" className="underline" onClick={m.descartarAvisoCodigo}>
+            Cerrar
+          </button>
         </p>
       )}
     </>
