@@ -168,3 +168,8 @@ T020 resolver-proveedor.test.ts   |  T021 outbox needs_supplier test  |  T022 ad
 - [X] T042 [P] Test de `reencolarPendientesAlta` con la recepción en `ESCRITURA_DESACTIVADA` (enviada a mano sin precios): no debe encolar el coste de proveedor, en `packages/siweb/test/coste-proveedor.test.ts` per FR-010 (partial)
 - [X] T043 [P] Hacer que la etiqueta de la casilla (`'Actualizar precio de coste'`, `'Precio'` en modo compacto) en `apps/web/src/paginas/recepciones.tsx` y su `title` no sugieran que desmarcarla evita el coste del proveedor (p. ej. «Actualizar coste de la variante») y ajustar los textos/tests que la citan per FR-013 (partial)
 - [ ] T044 [P] Crear la tarea hija de KAN-1 en Jira para la decisión D-15 (etiqueta `dudas`) y, si procede, su fila en `docs/dudas.md` con el enlace, como exige el propio documento per Constitution IV (partial)
+
+## Phase 9: Convergence
+
+- [ ] T045 Actualizar `SPEC.md` §5.2.5 (línea de `status ∈ {…}` de la tabla `outbox`) para incluir `needs_supplier` (y `resolved_manually`, que ya existe en el código), de modo que no contradiga el párrafo del coste de proveedor ni `packages/db/src/schema/infra.ts` per plan: Documentación / Constitution IV (partial)
+- [ ] T046 [P] Resolver la diferencia entre el reintento a los 30 minutos cuando Siweb360 no responde al identificar al proveedor (`REINTENTO_PROVEEDOR_RED_MS` en `packages/siweb/src/outbox.ts`) y el «reintento diario» que dicen FR-007 y `research.md` D5: recogerlo en la spec/plan (y en `data-model.md`) o alinear el código, con su test per FR-007 (unrequested)
