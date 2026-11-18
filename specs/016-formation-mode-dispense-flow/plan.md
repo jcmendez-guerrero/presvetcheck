@@ -27,7 +27,7 @@ cambia (la pantalla de resultado ya muestra «Dispensar» según la decisión). 
 
 **Project Type**: web-service + web-app (monorepo pnpm)
 
-**Performance Goals**: una consulta de movimientos por línea de receta; sin impacto perceptible (límite Siweb 1.000 req/h)
+**Performance Goals**: una consulta de movimientos por línea de receta y por evaluación (la pantalla de resultado evalúa una vez al abrirse, sin sondeo automático; recargar o previsualizar un forzado repite la consulta). Con recetas de 1-3 líneas y uso de formación puntual queda muy por debajo del límite de Siweb (1.000 req/h); sin caché adicional
 
 **Constraints**: dominio puro con `Clock` inyectado; sin datos personales en logs; no escribir stock saliente en Siweb360; formación sujeta a `RETROSPECTIVE_DISPENSATION_MODE`
 

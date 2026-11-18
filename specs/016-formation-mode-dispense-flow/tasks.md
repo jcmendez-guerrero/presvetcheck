@@ -52,7 +52,7 @@ description: "Task list for 016 formation mode dispense flow"
 - [ ] T007 [US1] In `apps/api/src/servicios/recetas.ts` instantiate `RetrospectivoService` in the `RecetasService` constructor/deps and, in `evaluar`, detect formation: `conf.modo === 'retrospectivo' && !manual`; when `RETROSPECTIVE_DISPENSATION_MODE !== 'enabled'` throw `DomainError('MODO_RETROSPECTIVO_DESHABILITADO')`; when `conf.fechaOriginal` is empty throw `DomainError('VALIDACION', 'Indica la fecha original en modo retrospectivo')`; also reject a `fechaOriginal` later than today (`hoyDe(this.d)`, `Europe/Madrid`, injected clock) with `VALIDACION`
 - [ ] T008 [US1] In `RecetasService.evaluar` (`apps/api/src/servicios/recetas.ts`), for formation lines call `retrospectivo.revisar({cn: presentacion.cn, fechaOriginal, unidadesRequeridas: l.cantidadEnvases ?? 1})`, add its `incidencias` to the line's `incs`, and use the same synthetic stock as the manual branch (lote «(entregado)», `disponible = cantidadEnvases ?? 1`) instead of `leerStock`; do not read candidate/equivalent stock (research R3). Keep `forzado` validation order unchanged so `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` can be forced with a reason but hard blocks cannot
 - [ ] T009 [US1] Verify the chequeo result is returned in the line's `resultado.evidencias` (estado, cn, fechaOriginal, encontradas/requeridas) per `specs/016-formation-mode-dispense-flow/data-model.md` and persisted by `persistirEvaluacion`; if the field is not typed, extend the zod schema in `packages/shared/src/schemas/receta.ts` (types inferred, not duplicated)
-- [ ] T010 [US1] In `apps/web/src/paginas/resultado.tsx` show an info banner on formation lines («Modo formación: se ha comprobado la venta del <fecha>») using the saved `fechaOriginal` (fetch via the existing `['receta', id]` query) and never render the "Añadir a lista de pedido" block when the prescription is a formation case; UI text in clear European Spanish
+- [ ] T010 [US1] In `apps/web/src/paginas/resultado.tsx` show an info banner on formation lines («Modo formación: se ha comprobado la venta del <fecha>») using the saved `fechaOriginal` (fetch via the existing `['receta', id]` query; extend its local response type with `confirmacion.modo`/`fechaOriginal`) and never render the "Añadir a lista de pedido" block when the prescription is a formation case; UI text in clear European Spanish
 - [ ] T011 [US1] Confirm `irADispensar` in `apps/web/src/paginas/resultado.tsx` and the `useEffect` in `apps/web/src/paginas/dispensacion.tsx` (≈L232-240) already carry modo and fecha to the dispensing screen without re-entry (FR-004); fix only if they do not
 - [ ] T012 [US1] Run T005/T006 tests until green
 
@@ -67,8 +67,9 @@ description: "Task list for 016 formation mode dispense flow"
 **Independent Test**: complete a formation dispensing for the US1 case; verify ticket link, `modo=retrospectivo` + `fecha_original`, empty pedidos, no outbound stock write.
 
 - [ ] T013 [P] [US2] Extend `apps/api/test/dispensacion-retrospectiva.test.ts` (or add `apps/api/test/formacion-ticket.test.ts`) with an end-to-end API case: evaluate → dispense → link ticket in "Pagado" state; assert dispensación has `modo='retrospectivo'`/`fecha_original`, the `pedidos` table is unchanged, no new sale is created, the outbox has no stock-outbound entry, and a forced `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` appears in `audit_event`
-- [ ] T014 [US2] If T013 reveals a gap, fix it in `apps/api/src/servicios/dispensaciones.ts` / ticket-link code (spec 004 behaviour must hold); otherwise record "verified, no change" in the PR description
-- [ ] T015 [P] [US2] Add one Playwright step to the existing prescription → dispensing smoke test (`EXTRACTOR=fake`) covering formation mode on a zero-stock product: result screen shows "Dispensar", flow reaches ticket link; place it with the existing e2e specs
+- [ ] T014 [US2] If T013 reveals a gap, fix it in `apps/api/src/servicios/dispensaciones.ts` / ticket-link code (spec 004 behaviour must hold); otherwise note "verified, no change" in the commit message
+- [ ] T014b [US2] Verify that after linking, the operator can check the ticket (FR-010): `GET /api/conciliacion/tickets/:ticketId` (`apps/api/src/rutas/registros.ts`, `obtenerDetalleTicketMultiReceta`) returns lines, linked prescriptions and reconciliation state for a "Pagado" ticket, and `apps/web/src/componentes/ticket-multi-rx.tsx` / `tras-dispensar.tsx` show it after a formation dispensing; add a test in `apps/api/test/dispensacion-retrospectiva.test.ts` and a component test next to the component; fix gaps if any
+- [ ] T015 [P] [US2] Add one Playwright step to the existing prescription → dispensing smoke test (`EXTRACTOR=fake`) covering formation mode on a zero-stock product: result screen shows "Dispensar", flow reaches ticket link and opens the ticket detail; place it with the existing e2e specs
 
 **Checkpoint**: US1 + US2 deliver the full reported scenario.
 
@@ -100,7 +101,7 @@ description: "Task list for 016 formation mode dispense flow"
 
 - Phase 1 → Phase 2 (T002 → T003 → T004) → user stories.
 - US1 (T005-T012) first; T005 and T006 are parallel and written before T007-T010; T007 → T008 → T009 (same file/flow), T010-T011 follow once the API returns the new shape.
-- US2 depends on US1 (needs the evaluation to reach "Dispensar"); T013 and T015 are parallel.
+- US2 depends on US1 (needs the evaluation to reach "Dispensar"); T013, T014b and T015 are parallel.
 - US3 tests (T016, T017) can be written in parallel with US1 but only run green after T008; T018 closes it.
 - Polish after all stories.
 
@@ -108,7 +109,7 @@ description: "Task list for 016 formation mode dispense flow"
 
 ```text
 After Phase 2:  T005 (API tests)  ||  T006 (UI test)
-After US1:      T013 (ticket e2e API)  ||  T015 (Playwright)  ||  T016 + T017 (regressions)
+After US1:      T013 (ticket e2e API)  ||  T014b  ||  T015 (Playwright)  ||  T016 + T017 (regressions)
 Polish:         T019  ||  T020
 ```
 

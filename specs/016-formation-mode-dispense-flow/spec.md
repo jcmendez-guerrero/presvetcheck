@@ -67,7 +67,9 @@ order, reorder list entry or new sale is created.
    issued (including one already in "Pagado" state), **Then** the dispensing is linked to that ticket.
 2. **Given** a formation dispensing, **When** it is completed, **Then** no entry is added to the order list and no
    stock is deducted again (the till ticket already did).
-3. **Given** a formation dispensing is flagged as formation with its original date, **When** it is viewed later,
+3. **Given** a formation dispensing is linked to the ticket, **When** the operator opens that ticket, **Then** they
+   can check it: ticket number, its lines, the prescriptions linked to it and the reconciliation result.
+4. **Given** a formation dispensing is flagged as formation with its original date, **When** it is viewed later,
    **Then** it is distinguishable from live dispensings.
 
 ---
@@ -127,6 +129,8 @@ unchanged.
   004 dispensing). Hard blocks (`BLOQUEANTE_DURO`) MUST never be overridable.
 - **FR-008**: Live (non-formation) reviews MUST behave exactly as today, including the "Añadir a lista de pedido"
   suggestion for genuinely out-of-stock products.
+- **FR-010**: Once a formation dispensing is linked to a ticket, the operator MUST be able to open and check that
+  ticket (lines, linked prescriptions, reconciliation state), including a ticket in "Pagado" state.
 - **FR-009**: Formation dispensings MUST remain flagged with the mode and original date, and the audit trail MUST
   record the original-date check and any override. No personal data in logs or errors.
 
