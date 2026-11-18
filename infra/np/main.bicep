@@ -230,7 +230,12 @@ var envBase = [
   { name: 'WEB_DIST_DIR', value: '/app/web' }
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
 ]
-var envStock = empty(fechaCorteEntradas) ? [] : [{ name: 'ENTRY_CUTOVER_DATE', value: fechaCorteEntradas }]
+// Sin fecha de corte la app no arranca con entries_only (FR-010): mejor que falle el despliegue.
+var envStock = !empty(fechaCorteEntradas)
+  ? [{ name: 'ENTRY_CUTOVER_DATE', value: fechaCorteEntradas }]
+  : escrituraStock == 'entries_only'
+      ? fail('Falta fechaCorteEntradas (FECHA_CORTE_ENTRADAS) para escrituraStock=entries_only')
+      : []
 var envApp = concat(envBase, envStock, [
   { name: 'AZURE_CLIENT_ID', value: idApp.properties.clientId }
   { name: 'DATABASE_URL', value: 'postgres://${identidadAppNombre}@${postgresFqdn}:5432/${baseDatos}?sslmode=require' }
