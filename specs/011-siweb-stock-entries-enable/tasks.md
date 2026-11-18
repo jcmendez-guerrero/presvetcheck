@@ -224,3 +224,7 @@ Task: "T036 tests de bajas en packages/reports/test/exportaciones.test.ts"
 
 - [X] T054 Mostrar en español claro el envío en revisión de la bandeja de administración (`apps/web/src/paginas/admin.tsx`): estado traducido en lugar de `o.status` (`needs_reconciliation`…) y «Stock que tiene ahora Siweb360: N» en lugar de `<pre>{JSON.stringify(o.stockActual)}</pre>`, como ya hace `pendientes.tsx` per FR-007, Constitution V (partial)
 - [X] T055 Acción de administración para enviar a Siweb360 una recepción finalizada con la escritura apagada (`syncEstado = ESCRITURA_DESACTIVADA`), solo a petición expresa, auditada y con la puerta de la prueba de escritura; sin reenvío automático per Edge Cases «Recepción finalizada justo antes de encender la escritura», FR-013 (missing)
+
+## Phase 9: Convergence
+
+- [X] T056 Hacer fallar el despliegue de np con `fail()` en `infra/np/main.bicep` (en `envStock`) cuando `escrituraStock = 'entries_only'` y `fechaCorteEntradas` está vacía, para que el error salga en `az deployment` y no en una revisión que no arranca; la comprobación de la app al arrancar se mantiene como segunda barrera per FR-010 (partial)

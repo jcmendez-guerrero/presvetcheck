@@ -12,6 +12,9 @@ param correosAlertas = ['<buzon-de-alertas>@<dominio>']
 param asistente = readEnvironmentVariable('ASISTENTE', 'off')
 param asistenteEndpoint = readEnvironmentVariable('ASISTENTE_ENDPOINT', '')
 param asistenteDespliegue = readEnvironmentVariable('ASISTENTE_DESPLIEGUE', '')
+// Escritura de stock en Siweb360 (specs/011): 'entries_only' con ESCRITURA_STOCK y FECHA_CORTE_ENTRADAS=AAAA-MM-DD.
+param escrituraStock = readEnvironmentVariable('ESCRITURA_STOCK', 'off')
+param fechaCorteEntradas = readEnvironmentVariable('FECHA_CORTE_ENTRADAS', '')
 // Job azu-caj-import-fix-np: 'true' para aplicar la corrección con CIMAVet (por defecto solo informa).
 param importFixApply = bool(readEnvironmentVariable('IMPORT_FIX_APPLY', 'false'))
 
