@@ -130,7 +130,7 @@ supplier's cost in Siweb360 is always updated, and describe only what the tick s
 - **Supplier cost update fails or times out**: existing delivery rules apply (no automatic retry after an uncertain
   outcome, manual reconciliation); the receipt and its stock entries are not rolled back.
 - **Same line processed twice** (retry, re-queue): the cost is applied once per receipt line.
-- **Receipts finalised before this change**: not touched retroactively.
+- **Receipts finalised before this change**: not touched retroactively (no re-queueing, no backfill).
 - **New cost lower or higher than the current one**: always applied; the latest receipt wins, no confirmation asked.
 - **Remembered supplier no longer exists in Siweb360**: treated like an unresolved supplier (update left pending and
   visible), never silently dropped.
@@ -155,8 +155,9 @@ supplier's cost in Siweb360 is always updated, and describe only what the tick s
 - **FR-006**: If the supplier cannot be identified (no tax ID, no match, several matches, or a remembered supplier
   that no longer exists), the system MUST NOT guess or create a supplier; it MUST leave the update pending, finish
   the receipt and its stock entries normally, and make the pending update and its cause visible to staff.
-- **FR-007**: A pending update MUST be sent once, with the receipt's own cost, as soon as the supplier can be
-  identified, without staff re-entering the receipt.
+- **FR-007**: A pending update MUST be sent once, with the receipt's own cost, without staff re-entering the
+  receipt: immediately when an administrator links the supplier, and otherwise on the next daily automatic retry
+  of the supplier lookup.
 - **FR-008**: Lines not yet linked to a Siweb360 product MUST get their supplier-cost update queued when they are
   linked, regardless of the tick.
 - **FR-009**: A given receipt line MUST result in at most one supplier-cost update, even if finalisation, the
@@ -164,8 +165,9 @@ supplier's cost in Siweb360 is always updated, and describe only what the tick s
 - **FR-010**: Existing safeguards MUST be preserved: no writes when Siweb360 writing is off or the write test is not
   valid, none for receipts finalised "without prices", and no outbound stock movements ever.
 - **FR-011**: The supplier-cost update MUST be independent of the line's "update stock" decision.
-- **FR-012**: The outcome of each update (sent, failed, needs reconciliation, pending supplier) MUST be visible and
-  auditable like existing Siweb360 operations, with no personal data added to logs or telemetry.
+- **FR-012**: The outcome of each update (sent, failed, needs reconciliation, pending supplier) MUST be auditable
+  like existing Siweb360 operations and visible to administration; a pending-supplier update MUST also show a
+  notice on the receipt for any staff member viewing it. No personal data is added to logs or telemetry.
 - **FR-013**: The tick's label and help text MUST state that the supplier cost in Siweb360 is always updated and
   describe what the tick still controls (in plain European Spanish, no jargon).
 - **FR-014**: Behaviour for receipts finalised before this change MUST NOT change.
@@ -207,8 +209,9 @@ supplier's cost in Siweb360 is always updated, and describe only what the tick s
   supplier contact; Siweb360 links the supplier to the product if not yet linked.
 - Looking up a supplier by tax ID uses the contact search Siweb360 already offers; a match is a contact of type
   supplier with the same normalised tax ID.
-- The value sent as supplier cost is the same as for the variant cost today; whether the supplier cost should be the
-  net purchase price instead is not decided here and can be revisited in planning without changing this scope.
+- The value sent as supplier cost is the same as for the variant cost today (cost price, else net purchase price).
+  Whether it should be the net purchase price instead is an open decision (D-15) implemented as configuration with
+  that default, so it can change without changing this scope.
 - The tick is neither removed nor renamed; it keeps governing the variant's general cost and the app's reference
   cost used in the weekly cost report.
 - "Without prices" finalisation and the write-mode / write-test safeguards are intentional and stay as they are.

@@ -56,7 +56,7 @@ vigente; sin datos personales en logs; sin `UPDATE`/`DELETE` de líneas finaliza
 | II. Pruebas sin servicios reales | ✅ | MSW + fixtures; casos de error: 4xx, 5xx, timeout, campos en otra capitalización, campos nuevos, 0/1/varias coincidencias de CIF, proveedor recordado inexistente. Timeout → `needs_reconciliation`, nunca reintento automático. |
 | III. Datos personales | ✅ | Solo se guardan identificadores de empresa (`contact_id`, CIF de empresa ya existente). Sin datos del dueño de la mascota; logs sin nombres ni importes identificables. |
 | III. Append-only | ✅ | No se modifica `recepcion_linea` finalizada ni `audit_event`; se añade una fila de outbox por línea. |
-| IV. Mantenibilidad | ✅ | Sin variables de entorno nuevas. Decisión abierta (valor enviado: precio de coste o neto) como configuración en `precios.v1.yaml` con `TODO(decision D-xx)` y valor por defecto. Glosario actualizado (`proveedor de Siweb360`). Un PR. |
+| IV. Mantenibilidad | ✅ | Sin variables de entorno nuevas. Decisión abierta (valor enviado: precio de coste o neto) como configuración en `precios.v1.yaml` con `TODO(decision D-15)` y valor por defecto. Glosario actualizado (`proveedor de Siweb360`). Un PR. |
 | V. Idioma | ✅ | Ayuda y mensajes en español claro («Coste de proveedor pendiente: falta vincular el proveedor en Siweb360»); identificadores en inglés salvo términos de dominio (`distribuidor`, `recepcion`). |
 | Regulatorio / outbox | ✅ | Toda escritura a Siweb360 va por el outbox, respeta `SIWEB_STOCK_WRITE_MODE` (`off` no encola) y la prueba de escritura; nunca salidas de stock. |
 
@@ -93,7 +93,7 @@ packages/
 │   ├── src/outbox.ts                   # OPERACION_ACTUALIZAR_COSTE_PROVEEDOR, clave MMX-PRV-…, encolado y envío, needs_supplier
 │   └── test/                           # outbox + cliente con MSW
 ├── shared/                             # tipos/esquemas de la acción de vincular proveedor
-config/rules/precios.v1.yaml            # coste_proveedor_base: precio_coste (TODO(decision D-xx))
+config/rules/precios.v1.yaml            # coste_proveedor_base: precio_coste (TODO(decision D-15))
 fixtures/siweb/                         # doc-product-suppliers.json, doc-supplier-update.json, doc-contact-detail.json
 apps/
 ├── api/src/rutas/admin.ts              # POST /api/admin/distribuidores/:id/proveedor-siweb (vincular + reencolar)

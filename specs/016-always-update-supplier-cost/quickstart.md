@@ -6,7 +6,7 @@ Prerrequisitos: `pnpm i`; para la integración, Docker (Testcontainers). Nada ll
 ```bash
 pnpm --filter @mmx/domain test      # coste del proveedor (it.each) y normalización de CIF
 pnpm --filter @mmx/siweb test       # cliente + outbox con MSW (4xx, 5xx, timeout, 0/1/varias coincidencias)
-pnpm test:int                        # encolado al finalizar, reanudación tras vincular proveedor
+pnpm --filter @mmx/api test        # encolado al finalizar, envío y reanudación tras vincular proveedor
 pnpm lint && pnpm typecheck && pnpm test
 ```
 
