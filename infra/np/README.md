@@ -91,7 +91,7 @@ prueba hasta que el RAT recoja ese encargado (estado en Confluence; DUDA-29). El
 Por defecto `escrituraStock = off`: la app no escribe nada en Siweb360. Para encenderla:
 
 1. Administración › Prueba de escritura con una variante `TEST-…` creada a mano en Siweb360. Debe salir `ok`, `coherente` e `historialOk`; sin una prueba superada en los últimos 30 días el outbox no envía nada.
-2. Desplegar la fase 2 con `ESCRITURA_STOCK=entries_only FECHA_CORTE_ENTRADAS=AAAA-MM-DD`. Sin fecha de corte la app no arranca.
+2. Desplegar la fase 2 con `ESCRITURA_STOCK=entries_only FECHA_CORTE_ENTRADAS=AAAA-MM-DD`. Si falta la fecha de corte o no tiene ese formato, el despliegue falla.
 3. Avisar al personal: desde la fecha de corte no se dan entradas de medicamentos a mano en Siweb360.
 
 Marcha atrás: desplegar con `ESCRITURA_STOCK=off`; los envíos pendientes se conservan.

@@ -230,9 +230,17 @@ var envBase = [
   { name: 'WEB_DIST_DIR', value: '/app/web' }
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
 ]
-// Sin fecha de corte la app no arranca con entries_only (FR-010): mejor que falle el despliegue.
+// Sin fecha de corte, o con una mal escrita, la app no arranca (FR-010): mejor que falle el despliegue.
+// dateTimeAdd da error si la fecha no es válida; length descarta formatos como 2026-1-5.
 var envStock = !empty(fechaCorteEntradas)
-  ? [{ name: 'ENTRY_CUTOVER_DATE', value: fechaCorteEntradas }]
+  ? [
+      {
+        name: 'ENTRY_CUTOVER_DATE'
+        value: length(fechaCorteEntradas) == 10 && !empty(dateTimeAdd('${fechaCorteEntradas}T00:00:00Z', 'P0D'))
+          ? fechaCorteEntradas
+          : fail('fechaCorteEntradas (FECHA_CORTE_ENTRADAS) debe ser AAAA-MM-DD')
+      }
+    ]
   : escrituraStock == 'entries_only'
       ? fail('Falta fechaCorteEntradas (FECHA_CORTE_ENTRADAS) para escrituraStock=entries_only')
       : []
