@@ -32,3 +32,41 @@ test('un código del móvil sin campo de escaneo abierto aparece como aviso visi
   await expect(aviso).toContainText('(01)08470000570016');
   await expect(aviso).not.toContainText('en espera');
 });
+
+// Spec 016, US3: sin campo abierto el código espera; al abrir uno se ofrece «Usar el código recibido» (nunca se aplica
+// solo) y se entrega una sola vez. Con un campo ya abierto, el código siguiente se entrega directamente.
+test('el código recibido se usa solo cuando la persona lo decide y con el campo abierto llega directo', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByTestId('boton-movil').click();
+  await expect(page.getByTestId('qr-movil')).toBeVisible();
+  const token = await page.evaluate(
+    () => (JSON.parse(sessionStorage.getItem('mmx.movil') ?? 'null') as { token: string } | null)?.token,
+  );
+  expect(token).toBeTruthy();
+  await page.getByRole('dialog', { name: 'Usar el móvil' }).getByRole('button', { name: 'Cerrar' }).click();
+
+  const enviar = (raw: string) =>
+    page.request.post('/api/movil/m/codigos', { headers: { 'x-movil-token': token! }, data: { raw } });
+  expect((await enviar('01084700057001681726113010CLV-2611')).status()).toBe(204);
+  await expect(page.getByTestId('aviso-codigo-pendiente')).toBeVisible({ timeout: 10_000 });
+
+  // Navegación dentro de la app (el código pendiente vive en la memoria de la pestaña).
+  await page.getByRole('link', { name: 'Venta Mostrador' }).first().click();
+  const usar = page.getByTestId('usar-codigo-recibido');
+  await expect(usar).toBeVisible();
+  // No se ha aplicado solo.
+  await expect(page.getByRole('textbox', { name: 'Código nacional', exact: true })).toHaveValue('');
+  await usar.click();
+  await expect(page.getByRole('textbox', { name: 'Código nacional', exact: true })).toHaveValue('570016');
+  // Se entrega una sola vez: ni el botón ni el aviso siguen.
+  await expect(usar).toBeHidden();
+  await expect(page.getByTestId('aviso-codigo-pendiente')).toBeHidden();
+
+  // Con el campo abierto, el código siguiente llega directo: no pasa por pendientes.
+  expect((await enviar('01084700057001681726113010CLV-2611')).status()).toBe(204);
+  await page.waitForTimeout(3500); // dos consultas del PC (cada 1,5 s)
+  await expect(usar).toBeHidden();
+  await expect(page.getByTestId('aviso-codigo-pendiente')).toBeHidden();
+});

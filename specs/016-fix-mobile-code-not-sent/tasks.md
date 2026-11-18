@@ -181,3 +181,12 @@ después T016 → T017 y T018 (archivos distintos, ambos dependen de T016)
 - **T015/T016 (deviation)**: the pending-code logic is a pure class, `lib/codigos-pendientes.ts` (injected clock, tested in `lib/codigos-pendientes.test.ts`), following the `BuzonAlbaranes` pattern, instead of a `lib/movil.test.tsx` that would need a DOM. The cursor-without-gaps case is covered in `apps/api/test/movil.test.ts` (server side of the poll).
 - **T018**: the notice shows the oldest valid code (the one «Usar el código recibido» delivers) with its countdown, and the count of the rest.
 - **T013** was done inside `paginas/movil.tsx` together with T012 (same function).
+
+## Phase 7: Convergence
+
+- [X] T024 Ampliar `apps/web/e2e/movil-codigo.spec.ts`: con el móvil emparejado, abrir una pantalla con `CampoEscaneo` (dispensación o recepción) y comprobar que (a) un código recibido antes aparece con «Usar el código recibido» y no se aplica solo, (b) al pulsarlo se entrega una sola vez, y (c) con el campo ya abierto un código nuevo se entrega directamente per US3/AC1, US3/AC2 (partial)
+- [X] T025 Extraer a una función pura de `apps/web/src/lib/movil.tsx` la regla de fin de emparejamiento (`activa: false`, 401, 403 y 404 dejan `motivoFin`; otros errores no) y probarla en `apps/web/src/lib/movil.test.ts` per T015, FR-010 (partial)
+- [X] T026 Alinear `specs/016-fix-mobile-code-not-sent/data-model.md` con lo implementado: `motivoFin` se borra al cerrar el diálogo o al reconectarse un móvil, no al abrir un emparejamiento nuevo per plan: data-model "Fin del emparejamiento" (partial)
+- [X] T027 Decidir y documentar en `spec.md`/`data-model.md` el botón «Descartar» de un envío fallido y el estado `rechazada` del móvil, o quitarlos de `apps/web/src/paginas/movil.tsx` per spec: sin referencia (unrequested)
+
+- T024 covers both the notice and the «Usar el código recibido» delivery on the `Venta Mostrador` scan field; T025 added `emparejamientoTerminado` (`lib/movil.tsx`, tested in `lib/movil.test.ts`); T026/T027 are documentation in `data-model.md` and `spec.md` FR-005.

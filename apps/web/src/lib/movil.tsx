@@ -49,6 +49,15 @@ const MovilCtx = createContext<Ctx | null>(null);
 const CLAVE = 'mmx.movil';
 const MOTIVO_FIN = 'El emparejamiento con el móvil ha caducado o se ha cerrado: vuelve a leer el código QR.';
 
+/**
+ * ¿Ha terminado el emparejamiento? Sí si la API responde `activa: false` o un 401, 403 o 404 (caducado, cerrado o
+ * desconocido); cualquier otro fallo (sin red, 5xx) es temporal y se vuelve a consultar.
+ */
+export function emparejamientoTerminado(r: unknown): boolean {
+  if (r instanceof ApiError) return r.status === 401 || r.status === 403 || r.status === 404;
+  return typeof r === 'object' && r !== null && (r as { activa?: unknown }).activa === false;
+}
+
 const leerSesion = (): SesionMovil | null => {
   try {
     const s = JSON.parse(sessionStorage.getItem(CLAVE) ?? 'null') as SesionMovil | null;
@@ -96,7 +105,7 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
       try {
         const r = await get<{ activa: boolean; movilConectado: boolean; eventos: Evento[] }>(`/api/movil/sesiones/${sesion.id}/eventos?desde=${cursor.current}`);
         if (!activo) return;
-        if (!r.activa) {
+        if (emparejamientoTerminado(r)) {
           guardarSesion(null);
           setSesion(null);
           setMotivoFin(MOTIVO_FIN);
@@ -122,7 +131,7 @@ export function ProveedorMovil({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         // La sesión ya no existe (caducada, cerrada o la API se reinició): se olvida en lugar de reintentar.
-        if (e instanceof ApiError && (e.status === 404 || e.status === 401 || e.status === 403)) {
+        if (emparejamientoTerminado(e)) {
           guardarSesion(null);
           if (activo) {
             setSesion(null);

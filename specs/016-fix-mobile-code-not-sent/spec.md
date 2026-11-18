@@ -153,7 +153,9 @@ recepción y comprobar que el código se ofrece o se aplica.
   lenguaje claro, con aviso sonoro o vibración distinto al del éxito.
 - **FR-005**: Tras un fallo recuperable (sin conexión, error temporal del servidor), el móvil DEBE conservar el código
   y ofrecer «Reintentar» sin volver a escanear. Tras un fallo no recuperable (emparejamiento caducado o cerrado) NO
-  DEBE ofrecer reintentar y DEBE explicar cómo volver a emparejar.
+  DEBE ofrecer reintentar y DEBE explicar cómo volver a emparejar. Un código rechazado por no ser válido (vacío o
+  demasiado largo) tampoco se reintenta: se explica. La persona puede descartar cualquier envío fallido que no vaya a
+  reintentar («Descartar»).
 - **FR-006**: El móvil DEBE seguir mostrando el estado de la última lectura (enviada o por reintentar) al volver a la
   página tras bloquear la pantalla o cambiar de aplicación.
 

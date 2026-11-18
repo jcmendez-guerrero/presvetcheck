@@ -24,7 +24,9 @@ Sin cambios de esquema de base de datos ni migraciones. Se reutiliza `sesion_mov
 | `estado` | `enviando` \| `enviada` \| `por-reintentar` \| `sin-emparejamiento` \| `rechazada` | ver transiciones |
 | `motivo` | texto o nulo | texto en español claro del último fallo |
 
-Solo se guarda la última lectura no enviada y las 5 últimas enviadas (igual que la lista actual).
+Se guardan todas las lecturas no enviadas (nunca se pierde un código sin que la persona lo decida) y las 5 últimas
+enviadas. Una lectura no enviada solo sale de la lista cuando se envía o cuando la persona pulsa «Descartar»; así un
+aviso que no se puede reintentar (`sin-emparejamiento`, `rechazada`) no se queda para siempre.
 
 ### Transiciones
 
@@ -57,4 +59,8 @@ Cola ordenada de códigos pendientes; cada uno:
 
 ## Fin del emparejamiento (PC)
 
-`motivoFin`: texto o nulo (p. ej. «El emparejamiento ha caducado»). Se borra al abrir un emparejamiento nuevo.
+`motivoFin`: texto o nulo (p. ej. «El emparejamiento con el móvil ha caducado o se ha cerrado…»). Termina el
+emparejamiento cuando la API responde `activa: false` o un 401, 403 o 404 (`emparejamientoTerminado`); otros fallos
+(sin red, 5xx) son temporales. No se borra al abrir el emparejamiento nuevo, para que el diálogo explique por qué hay
+un QR nuevo: se borra al cerrar el diálogo, al cerrar el aviso o cuando un móvil se vuelve a conectar. Una
+desconexión voluntaria («Desconectar el móvil») no deja motivo.
