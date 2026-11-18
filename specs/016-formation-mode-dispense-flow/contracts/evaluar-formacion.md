@@ -8,7 +8,7 @@ comportamiento cuando la receta guardada tiene `confirmacion.modo = 'retrospecti
 | Modo desactivado en configuración | Error `MODO_RETROSPECTIVO_DESHABILITADO` (HTTP 403, mapeo existente en `apps/api/src/plugins/errores.ts`) |
 | Falta `fechaOriginal` | `VALIDACION` |
 | `fechaOriginal` futura | `FECHA_ORIGINAL_INVALIDA` (422, código existente) |
-| Venta del día encontrada (≥ unidades) | Línea `DISPENSAR` (o `DISPENSAR_CON_AVISO` si fecha antigua); sin `pedido` |
+| Venta del día encontrada (≥ unidades) | Línea `DISPENSAR`, con la incidencia `AVISO_FECHA_RETROSPECTIVA_ANTIGUA` si la fecha supera el plazo; sin `pedido` |
 | Sin venta o parcial | Incidencia `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` → `NO_CONFORME`, `forzable: true` con motivo |
 | Siweb360 no responde | Error `SIWEB_NO_DISPONIBLE`: la línea no se juzga, se pide reintentar (nunca se interpreta como «sin movimientos» ni se puede forzar) |
 | Receta en vivo | Idéntico a hoy (stock actual, `PEDIR` si no hay) |

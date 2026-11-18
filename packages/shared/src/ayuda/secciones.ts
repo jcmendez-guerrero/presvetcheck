@@ -146,6 +146,11 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
         ],
       },
       { p: ['Si CIMAVet indica problemas de suministro, se avisa en el medicamento y en sus equivalentes.'] },
+      {
+        p: [
+          'En «Modo formación», el resultado no mira el stock de hoy: comprueba que el producto se vendió en la fecha original, y por eso no te propone añadirlo a la lista de pedido.',
+        ],
+      },
     ],
   },
   {
