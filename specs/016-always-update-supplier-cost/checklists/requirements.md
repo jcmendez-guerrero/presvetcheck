@@ -31,4 +31,5 @@
 
 ## Notes
 
-- Config names (`SIWEB_STOCK_WRITE_MODE`) appear only to identify an existing safeguard, not to prescribe design.
+- Config names (`SIWEB_STOCK_WRITE_MODE`) and the Siweb360 contract version appear only to identify existing safeguards and sources, not to prescribe design.
+- Re-validated after clarification session 2026-11-18: scope changed from variant cost to per-supplier cost; all items still pass.
