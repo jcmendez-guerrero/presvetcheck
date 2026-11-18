@@ -518,7 +518,7 @@ export async function rutasAdmin(app: App, d: AppDeps) {
       const s = siweb();
       const client = s.client;
       if (!client) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado (modo demo)');
-      return conSiweb(() =>
+      const r = await conSiweb(() =>
         vincularProveedorSiweb(
           {
             db: d.db,
@@ -535,6 +535,9 @@ export async function rutasAdmin(app: App, d: AppDeps) {
           },
         ),
       );
+      // El coste pendiente se envía ya, sin esperar a la siguiente pasada del job (specs/016, FR-007).
+      if (r.reactivadas > 0) void s.outbox.despachar().catch(() => {});
+      return r;
     },
   );
 

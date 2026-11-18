@@ -276,7 +276,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
             ': al finalizar, da entrada de esas unidades (con lote y caducidad) en Siweb360, si la escritura de stock está activada. Desmárcala si la línea no debe sumar stock.',
           ],
           [
-            { b: 'Actualizar precio' },
+            { b: 'Actualizar coste de la variante' },
             ': ese precio pasa a ser el coste de la variante en Siweb360 y el precio de coste de referencia en la app (informe de precios de coste). El coste del proveedor en Siweb360 se actualiza siempre, esté marcada o no.',
           ],
           [

@@ -15,6 +15,7 @@ import { EstadoBusqueda, ListaResultados } from '../componentes/estado-busqueda'
 import { Pagina } from '../componentes/layout';
 import { TablaRecepciones } from './recepciones-tabla';
 import { Boton, Campo, Cargando, Etiqueta, Info, Mensaje, Tarjeta } from '../componentes/ui';
+import { AvisoCosteProveedor } from './aviso-coste-proveedor';
 
 interface LineaRecepcion {
   id: string;
@@ -938,7 +939,7 @@ function Casillas({
           checked={precio}
           onChange={(e) => onCambio({ stock, precio: e.target.checked })}
         />
-        {compacto ? 'Precio' : 'Actualizar precio de coste'}
+        {compacto ? 'Coste variante' : 'Actualizar coste de la variante'}
         {!compacto && <Info texto={AY.actualizarPrecio} />}
       </label>
     </div>
@@ -1431,13 +1432,7 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
           </div>
         </dl>
         {r.correcciones.length > 0 && <HistorialCorrecciones correcciones={r.correcciones} />}
-        {(r.costeProveedorPendiente ?? 0) > 0 && (
-          <Mensaje tipo="info">
-            Coste de proveedor pendiente: falta vincular a este distribuidor con su proveedor en Siweb360. El
-            stock no se ve afectado. Pide a administración que lo vincule (Administración → Outbox) y el coste
-            se enviará solo.
-          </Mensaje>
-        )}
+        <AvisoCosteProveedor pendientes={r.costeProveedorPendiente ?? 0} />
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
         {enviable && (
           <div className="mt-3">

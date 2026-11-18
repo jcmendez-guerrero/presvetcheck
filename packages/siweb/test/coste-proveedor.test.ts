@@ -277,6 +277,27 @@ describe('envío con el proveedor ya recordado (US1)', () => {
     ]);
   });
 
+  it('con 12 líneas del mismo producto se envían en orden de línea (L2 antes que L10): gana la última', async () => {
+    const recibidos: Array<{ product: string; contact: string; body: unknown }> = [];
+    putProveedor(recibidos);
+    await recordar(41);
+    const variantes = Array.from({ length: 12 }, (_, i) => 9101 + i);
+    for (const v of variantes) await mapa(v, 3120);
+    const id = await recepcionFinalizada(
+      variantes.map((v, i) => ({ variant: v, actualizarPrecio: false, neto: String(i + 1), coste: String(i + 1) })),
+    );
+    await encolar(id);
+    // Mismas horas de creación (como en una sola transacción) y filas guardadas en orden inverso.
+    const filasId = await filas(id);
+    expect(filasId).toHaveLength(12);
+    await h.db.delete(outbox).where(like(outbox.idempotencyKey, `MMX-PRV-${id}-%`));
+    await h.db.insert(outbox).values(filasId.reverse().map((f) => ({ ...f, createdAt: filasId[0]!.createdAt })));
+    expect(await svc().despachar(50)).toMatchObject({ sent: 12 });
+    expect(recibidos.map((r) => (r.body as { purchase_cost_cents: number }).purchase_cost_cents)).toEqual(
+      Array.from({ length: 12 }, (_, i) => (i + 1) * 100),
+    );
+  });
+
   it('un 4xx → failed, sin reintento', async () => {
     let n = 0;
     server.use(
@@ -582,6 +603,34 @@ describe('alta posterior del producto (US3)', () => {
     expect(prv).toHaveLength(1);
     expect(prv[0]!.payload as PayloadCosteProveedor).toMatchObject({ variant_id: 9100, cost_cents: 1014 });
     expect(await filas(id, 'MMX-PRC')).toHaveLength(0);
+  });
+
+  it('línea sin variante y con «Actualizar stock» desmarcado: al enlazarla se encola el coste y no se mueve stock (FR-008)', async () => {
+    const id = await recepcionFinalizada([{ variant: null, actualizarPrecio: false, actualizarStock: false }]);
+    await encolar(id);
+    const [antes] = await h.db.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
+    expect(antes!.estado).toBe('SIN_ACTUALIZAR_STOCK');
+    expect(await svc().reencolarPendientesAlta(antes!.cn!, 9100)).toBe(1);
+    expect(await svc().reencolarPendientesAlta(antes!.cn!, 9100)).toBe(0);
+    const [despues] = await h.db.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
+    expect(despues).toMatchObject({ siwebVariantId: 9100, estado: 'SIN_ACTUALIZAR_STOCK' });
+    expect(await filas(id)).toHaveLength(1);
+    expect(await filas(id, 'MMX-REC')).toHaveLength(0);
+    expect(await filas(id, 'MMX-PRC')).toHaveLength(0);
+  });
+
+  it('recepción enviada a mano con la escritura apagada (sin precios): al enlazar no se encola el coste (FR-010)', async () => {
+    const id = await recepcionFinalizada([{ variant: null, actualizarPrecio: false, actualizarStock: true }]);
+    await encolar(id, {}, svc('off'));
+    const [rec] = await h.db.select().from(recepcion).where(eq(recepcion.id, id));
+    expect(rec!.syncEstado).toBe('ESCRITURA_DESACTIVADA');
+    const [linea] = await h.db.select().from(recepcionLinea).where(eq(recepcionLinea.recepcionId, id));
+    await h.db
+      .update(recepcionLinea)
+      .set({ estado: 'PENDIENTE_ALTA_SIWEB' })
+      .where(eq(recepcionLinea.id, linea!.id));
+    expect(await svc().reencolarPendientesAlta(linea!.cn!, 9100)).toBe(1);
+    expect(await filas(id)).toHaveLength(0);
   });
 
   it('con la escritura apagada no encola nada', async () => {

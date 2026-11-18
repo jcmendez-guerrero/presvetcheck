@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 import {
   appendAudit,
@@ -274,15 +274,31 @@ export class OutboxService {
     if (this.cfg.modo === 'off') return 0;
     const almacen = await this.cfg.almacenId();
     return this.db.transaction(async (tx) => {
+      // Líneas esperando el alta (con entrada de stock) y, para el coste del proveedor, también las que no daban
+      // entrada de stock y aún no tienen variante (specs/016, FR-008): se enlazan, pero no mueven stock.
       const lineas = await tx
         .select()
         .from(recepcionLinea)
-        .where(and(eq(recepcionLinea.cn, cn), eq(recepcionLinea.estado, 'PENDIENTE_ALTA_SIWEB')));
+        .where(
+          and(
+            eq(recepcionLinea.cn, cn),
+            or(
+              eq(recepcionLinea.estado, 'PENDIENTE_ALTA_SIWEB'),
+              and(
+                eq(recepcionLinea.estado, 'SIN_ACTUALIZAR_STOCK'),
+                eq(recepcionLinea.tipo, 'medicamento'),
+                isNull(recepcionLinea.siwebVariantId),
+              ),
+            ),
+          ),
+        );
       for (const l of lineas) {
         await tx.update(recepcionLinea).set({ siwebVariantId: variantId }).where(eq(recepcionLinea.id, l.id));
-        await this.encolarLinea(tx, { ...l, siwebVariantId: variantId }, almacen);
-        if (l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
-          await this.encolarActualizarPrecio(tx, { ...l, siwebVariantId: variantId });
+        if (l.estado === 'PENDIENTE_ALTA_SIWEB') {
+          await this.encolarLinea(tx, { ...l, siwebVariantId: variantId }, almacen);
+          if (l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
+            await this.encolarActualizarPrecio(tx, { ...l, siwebVariantId: variantId });
+          }
         }
         // Coste del proveedor: siempre, salvo en recepciones enviadas a mano con la escritura apagada, que no
         // mandan precios (un precio antiguo podría pisar uno más reciente; ver `enviarRecepcionDesactivada`).
@@ -326,7 +342,13 @@ export class OutboxService {
       .select()
       .from(outbox)
       .where(and(eq(outbox.status, 'pending'), isNull(outbox.lockedAt)))
-      .orderBy(asc(outbox.createdAt))
+      .orderBy(
+        asc(outbox.createdAt),
+        // Las filas de una finalización comparten la hora de la transacción: a igualdad, por clave y con el número de
+        // línea en orden numérico (`…-L2` antes que `…-L10`), para que «gana la última línea» sea cierto.
+        asc(sql`length(${outbox.idempotencyKey})`),
+        asc(outbox.idempotencyKey),
+      )
       .limit(limite);
     for (const f of filas) {
       // Toma la fila (evita que dos dispatchers envíen la misma operación).

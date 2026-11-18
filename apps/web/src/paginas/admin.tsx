@@ -549,7 +549,7 @@ function VincularProveedor({ distribuidorId }: { distribuidorId: string }) {
   );
 }
 
-function Outbox() {
+export function Outbox() {
   const q = useQuery({
     queryKey: ['outbox'],
     queryFn: () =>

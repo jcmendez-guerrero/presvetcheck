@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { auditEvent, distribuidor, outbox } from '@mmx/db';
+import { auditEvent, distribuidor, outbox, siwebVariantMap } from '@mmx/db';
 import { OPERACION_ACTUALIZAR_COSTE_PROVEEDOR, OutboxService, SiwebClient } from '@mmx/siweb';
 import { api, entorno, type Entorno } from './entorno';
 
@@ -66,14 +66,25 @@ describe('POST /api/admin/distribuidores/:id/proveedor-siweb (specs/016)', () =>
     expect(r.status).toBe(403);
   });
 
-  it('vincula, guarda el contacto, reactiva los costes pendientes y audita', async () => {
+  it('vincula, guarda el contacto, audita y envía enseguida los costes pendientes (una vez)', async () => {
     const e = await conSiweb();
     const id = await nuevoDistribuidor(e);
     contacto(41, 'b-12.345.678');
+    await e.h.db
+      .insert(siwebVariantMap)
+      .values({ cn: `ADM${id.slice(0, 8)}`, variantId: 9001, productId: 3120, metodo: 'manual' });
+    const puts: unknown[] = [];
+    server.use(
+      http.put(`${BASE}inventory/products/3120/suppliers/41`, async ({ request }) => {
+        puts.push(await request.json());
+        return HttpResponse.json(fx('doc-supplier-update.json'));
+      }),
+    );
+    const clave = `MMX-PRV-test-${id}`;
     await e.h.db.insert(outbox).values({
       operation: OPERACION_ACTUALIZAR_COSTE_PROVEEDOR,
       payload: { variant_id: 9001, distribuidor_id: id, cost_cents: 1014 } as never,
-      idempotencyKey: `MMX-PRV-test-${id}`,
+      idempotencyKey: clave,
       status: 'needs_supplier',
       lastError: 'SIN_COINCIDENCIA',
     });
@@ -82,11 +93,12 @@ describe('POST /api/admin/distribuidores/:id/proveedor-siweb (specs/016)', () =>
     expect(r.json).toEqual({ reactivadas: 1 });
     const [d] = await e.h.db.select().from(distribuidor).where(eq(distribuidor.id, id));
     expect(d!.siwebContactId).toBe(41);
-    const [f] = await e.h.db
-      .select()
-      .from(outbox)
-      .where(eq(outbox.idempotencyKey, `MMX-PRV-test-${id}`));
-    expect(f!.status).toBe('pending');
+    await expect
+      .poll(async () => (await e.h.db.select().from(outbox).where(eq(outbox.idempotencyKey, clave)))[0]!.status, {
+        timeout: 3000,
+      })
+      .toBe('sent');
+    expect(puts).toEqual([{ purchase_cost_cents: 1014 }]);
     const audit = await e.h.db.select().from(auditEvent).where(eq(auditEvent.entidadId, id));
     expect(audit.map((a) => a.accion)).toContain('distribuidor_vincular_siweb');
   });
