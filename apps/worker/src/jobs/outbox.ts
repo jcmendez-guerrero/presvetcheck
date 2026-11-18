@@ -10,6 +10,8 @@ export async function outboxDispatcher(ctx: Contexto) {
   if (ctx.config.SIWEB_STOCK_WRITE_MODE === 'off') return { inactivo: 'SIWEB_STOCK_WRITE_MODE=off' };
   // Primero se comprueban los envíos dudosos contra el historial de Siweb360 (solo lectura, specs/011).
   const verificacion = await ctx.siweb.outbox.verificarDudosos();
+  // Costes de proveedor sin proveedor identificado cuyo reintento ha vencido (specs/016): vuelven a la cola.
+  const proveedoresReactivados = await ctx.siweb.outbox.reintentarProveedoresPendientes();
   const total = { sent: 0, failed: 0, needs_reconciliation: 0 };
   for (let i = 0; i < 20; i++) {
     const r = await ctx.siweb.outbox.despachar(20);
@@ -21,5 +23,5 @@ export async function outboxDispatcher(ctx: Contexto) {
   // Alerta (SPEC §11): needs_reconciliation > 0.
   if (total.needs_reconciliation)
     ctx.log('ALERTA: operaciones del outbox en reconciliación', { n: total.needs_reconciliation });
-  return { ...total, verificacion };
+  return { ...total, verificacion, proveedoresReactivados };
 }

@@ -5,7 +5,7 @@ El registro completo (qué dice la spec, qué se ha implementado y quién debe c
 `DUDA-xx` del código, las reglas y las ADR sigan siendo trazables.
 
 **Regla aplicada:** ante la duda, la opción más conservadora desde el punto de vista regulatorio, documentada y
-configurable cuando es posible. Las decisiones pendientes de `SPEC.md` §13 (D-02b, D-04b, D-05c, D-06b, D-10b)
+configurable cuando es posible. Las decisiones pendientes de `SPEC.md` §13 (D-02b, D-04b, D-05c, D-06b, D-10b, D-15)
 siguen como configuración + `TODO(decision)`.
 
 **Criterio general:** el farmacéutico garante no usa la app; las confirmaciones expresas son siempre de la persona

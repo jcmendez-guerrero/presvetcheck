@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "id": 77,
+    "product_id": 3120,
+    "contact_id": 41,
+    "supplier_name": "Distribuidora Veterinaria de Prueba S.L.",
+    "supplier_cif": "B12345678",
+    "supplier_reference": "DVP-0001",
+    "purchase_cost_cents": 1014,
+    "currency": "EUR",
+    "lead_time_days": 2,
+    "min_order_qty": 1,
+    "is_preferred": true
+  }
+}

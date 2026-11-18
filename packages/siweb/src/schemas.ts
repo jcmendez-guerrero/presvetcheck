@@ -234,3 +234,32 @@ export function leerNivel(l: Level): {
     l.available === null || l.available === undefined || Number.isNaN(l.available) ? null : l.available;
   return { lote, disponible, caducidad: l.expiry_date ? l.expiry_date.slice(0, 10) : null };
 }
+
+/** Proveedor vinculado a un producto (`GET inventory/products/{id}/suppliers`, API 1.3.0; specs/016). */
+export const ProveedorProductoSchema = z.looseObject({
+  id: numN,
+  product_id: numN,
+  contact_id: num,
+  supplier_name: z.string().nullish(),
+  supplier_cif: z.string().nullish(),
+  supplier_reference: z.string().nullish(),
+  purchase_cost_cents: numN,
+  currency: z.string().nullish(),
+  is_preferred: z.boolean().nullish(),
+});
+export type ProveedorProducto = z.output<typeof ProveedorProductoSchema>;
+
+/** Cuerpo de `PUT inventory/products/{id}/suppliers/{contact_id}`: solo el coste; nunca `null` (borraría el coste). */
+export const ActualizarCosteProveedorRequestSchema = z.object({
+  purchase_cost_cents: z.number().nonnegative().finite(),
+});
+export type ActualizarCosteProveedorRequest = z.infer<typeof ActualizarCosteProveedorRequestSchema>;
+
+/** Detalle de un contacto (`GET contacts/{id}`): es el único que devuelve el CIF. */
+export const ContactDetailSchema = z.looseObject({
+  id: num,
+  nombre_empresa: z.string().nullish(),
+  cif: z.string().nullish(),
+  tipo_relacion: z.string().nullish(),
+});
+export type ContactDetail = z.output<typeof ContactDetailSchema>;

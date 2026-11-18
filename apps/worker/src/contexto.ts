@@ -86,6 +86,7 @@ export async function crearContexto(
           modo: config.SIWEB_STOCK_WRITE_MODE,
           almacenId,
           pruebaVigente: () => ultimaPruebaEscritura(handle.db),
+          costeProveedorBase: loadRules().bundle.precios.coste_proveedor_base,
         },
         { log: (m, d) => log(m, d) },
       ),

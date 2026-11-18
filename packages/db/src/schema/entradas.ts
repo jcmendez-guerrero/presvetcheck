@@ -76,7 +76,7 @@ export const recepcionLinea = pgTable(
     siwebVariantId: integer(),
     /** Al finalizar, dar entrada de stock en Siweb360 (si la escritura está activada). */
     actualizarStock: boolean().notNull().default(true),
-    /** Este precio pasa a ser el precio de coste de referencia (solo en la app: Siweb360 no permite cambiarlo). */
+    /** Este precio pasa a ser el coste de la variante en Siweb360 y el de referencia en la app (el coste del proveedor se envía siempre; specs/016). */
     actualizarPrecio: boolean().notNull().default(true),
     estado: text().notNull().default('OK'),
     empleado: text().notNull(),

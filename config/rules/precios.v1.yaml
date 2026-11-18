@@ -8,3 +8,7 @@ recargo_equivalencia:
   "4": 0.5
 decimales_almacen: 4
 decimales_pantalla: 2
+# Valor que se envía a Siweb360 como coste de compra del proveedor al recibir mercancía (specs/016):
+#   precio_coste = neto + recargo de equivalencia (igual que el coste de la variante); precio_neto = solo el neto.
+# TODO(decision D-15): confirmar con la farmacia cuál usar.
+coste_proveedor_base: precio_coste

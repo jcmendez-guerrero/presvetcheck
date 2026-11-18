@@ -127,6 +127,8 @@ export const PreciosRulesSchema = z.object({
   recargo_equivalencia: z.record(z.string(), z.number()),
   decimales_almacen: z.number().int().default(4),
   decimales_pantalla: z.number().int().default(2),
+  /** TODO(decision D-15): valor enviado como coste de compra del proveedor en Siweb360 (specs/016). */
+  coste_proveedor_base: z.enum(['precio_coste', 'precio_neto']).default('precio_coste'),
 });
 export type PreciosRules = z.infer<typeof PreciosRulesSchema>;
 

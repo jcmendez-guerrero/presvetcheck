@@ -100,3 +100,42 @@ export function totalesCompra(
     total: r(base).plus(r(iva)).plus(r(re)).toFixed(2),
   };
 }
+
+/** Datos de una línea de recepción necesarios para el coste del proveedor (columnas `numeric` llegan como texto). */
+export interface CosteLinea {
+  precioCoste: Decimal.Value | null;
+  precioNetoCompra: Decimal.Value | null;
+}
+
+/**
+ * Coste de compra que se envía a Siweb360 para el proveedor de la recepción (specs/016), en céntimos como
+ * `cost_cents` de la variante. Por defecto el precio de coste (con RE) y, si no existe, el neto; con
+ * `coste_proveedor_base: precio_neto` primero el neto. `null` si no hay un coste positivo: nunca se envía 0 ni
+ * se borra un coste existente. TODO(decision D-15).
+ */
+export function costeProveedorCents(
+  linea: CosteLinea,
+  rules: Pick<PreciosRules, 'coste_proveedor_base'>,
+): number | null {
+  const orden =
+    rules.coste_proveedor_base === 'precio_neto'
+      ? [linea.precioNetoCompra, linea.precioCoste]
+      : [linea.precioCoste, linea.precioNetoCompra];
+  for (const v of orden) {
+    if (v === null || v === undefined || v === '') continue;
+    const d = new Decimal(v);
+    if (d.isFinite() && d.gt(0)) return d.times(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+  }
+  return null;
+}
+
+/**
+ * CIF/NIF comparable: mayúsculas, sin espacios, guiones ni puntos y sin el prefijo `ES` del IVA
+ * intracomunitario. `null` si queda vacío.
+ */
+export function normalizarCif(cif: string | null | undefined): string | null {
+  if (!cif) return null;
+  let c = cif.toUpperCase().replace(/[\s.\-_/]/g, '');
+  if (/^ES[A-Z0-9]{9}$/.test(c)) c = c.slice(2);
+  return c === '' ? null : c;
+}

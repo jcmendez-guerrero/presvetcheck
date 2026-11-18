@@ -1,12 +1,23 @@
 import { and, asc, eq, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
-import { appendAudit, outbox, recepcion, recepcionLinea, type Db, type DbOrTx } from '@mmx/db';
+import {
+  appendAudit,
+  distribuidor,
+  outbox,
+  recepcion,
+  recepcionLinea,
+  siwebVariantMap,
+  type Db,
+  type DbOrTx,
+} from '@mmx/db';
+import { costeProveedorCents } from '@mmx/domain';
 import { DomainError, diaMadrid } from '@mmx/shared';
 import { HttpError } from '@mmx/shared/node';
 import type { SiwebClient } from './client';
 import { SiwebValidationError } from './client';
 import type { AdjustmentRequest } from './schemas';
 import { esPruebaVigente } from './prueba-escritura';
+import { resolverProveedor, type MotivoProveedor } from './proveedor';
 
 /**
  * Outbox de escrituras en Siweb360 (ADR-08, SPEC §5.2.4–5.2.5).
@@ -23,6 +34,31 @@ import { esPruebaVigente } from './prueba-escritura';
 export type ModoEscritura = 'off' | 'entries_only';
 export const OPERACION_ENTRADA = 'stock_adjustment_entry';
 export const OPERACION_ACTUALIZAR_PRECIO = 'siweb_actualizar_precio';
+/** Coste de compra del proveedor de la recepción para el producto (specs/016). Siempre, sin depender de la casilla. */
+export const OPERACION_ACTUALIZAR_COSTE_PROVEEDOR = 'siweb_actualizar_coste_proveedor';
+/**
+ * Estado de una fila del outbox cuyo proveedor de Siweb360 no se ha podido identificar (specs/016): no se ha enviado
+ * nada y se reintenta sola al vincular el proveedor o en el siguiente barrido. No es un `ResultadoEnvio`.
+ */
+export const ESTADO_SIN_PROVEEDOR = 'needs_supplier';
+/** Reintento de la resolución del proveedor: diario (spec FR-007) y a la media hora si Siweb360 no respondió. */
+export const REINTENTO_PROVEEDOR_MS = 24 * 3_600_000;
+export const REINTENTO_PROVEEDOR_RED_MS = 30 * 60_000;
+/** `last_error` cuando no se pudo consultar Siweb360 para identificar al proveedor (la UI lo traduce). */
+export const ERROR_PROVEEDOR_SIN_RESPUESTA = 'SIWEB_NO_DISPONIBLE';
+
+/** Carga útil de `siweb_actualizar_coste_proveedor`. `product_id` y `contact_id` se completan al resolver el envío. */
+export interface PayloadCosteProveedor {
+  variant_id: number;
+  distribuidor_id: string;
+  cost_cents: number;
+  product_id?: number;
+  contact_id?: number;
+}
+
+export function claveCosteProveedor(recepcionId: string, numeroLinea: number): string {
+  return `MMX-PRV-${recepcionId}-L${numeroLinea}`;
+}
 
 export function claveEntrada(recepcionId: string, numeroLinea: number): string {
   return `MMX-REC-${recepcionId}-L${numeroLinea}`;
@@ -72,6 +108,8 @@ export class OutboxService {
       almacenId: () => Promise<number>;
       /** Fecha de la última prueba de escritura superada (o null). */
       pruebaVigente: () => Promise<Date | null>;
+      /** `coste_proveedor_base` de `config/rules/precios.v1.yaml` (TODO(decision D-15)); por defecto `precio_coste`. */
+      costeProveedorBase?: 'precio_coste' | 'precio_neto';
     },
     private readonly opts: { now?: () => Date; log?: (m: string, d?: Record<string, unknown>) => void } = {},
   ) {}
@@ -103,9 +141,16 @@ export class OutboxService {
       return { encoladas: 0, pendientesAlta: 0, escrituraDesactivada: true };
     }
     const almacen = await this.cfg.almacenId();
+    const [rec] = await tx
+      .select({ distribuidorId: recepcion.distribuidorId })
+      .from(recepcion)
+      .where(eq(recepcion.id, recepcionId));
     let encoladas = 0;
     let pendientesAlta = 0;
     for (const l of meds) {
+      // Coste del proveedor: siempre, esté o no marcada «actualizar precio» (specs/016).
+      if (!o.sinPrecios && l.siwebVariantId !== null && rec)
+        await this.encolarCosteProveedor(tx, l, rec.distribuidorId);
       if (
         !o.sinPrecios &&
         l.siwebVariantId !== null &&
@@ -190,6 +235,38 @@ export class OutboxService {
   }
 
   /**
+   * Encola el coste de compra del proveedor de la recepción para el producto de la variante (specs/016). Solo si la
+   * línea tiene un coste positivo y está enlazada a una variante; una por línea (clave idempotente). Nunca borra
+   * el coste existente. La resolución del proveedor y del producto se hace al enviar, no aquí.
+   */
+  private async encolarCosteProveedor(
+    tx: DbOrTx,
+    l: typeof recepcionLinea.$inferSelect,
+    distribuidorId: string,
+  ) {
+    if (l.siwebVariantId === null) return;
+    const cents = costeProveedorCents(l, {
+      coste_proveedor_base: this.cfg.costeProveedorBase ?? 'precio_coste',
+    });
+    if (cents === null) return;
+    const payload: PayloadCosteProveedor = {
+      variant_id: l.siwebVariantId,
+      distribuidor_id: distribuidorId,
+      cost_cents: cents,
+    };
+    await tx
+      .insert(outbox)
+      .values({
+        operation: OPERACION_ACTUALIZAR_COSTE_PROVEEDOR,
+        payload: payload as never,
+        idempotencyKey: claveCosteProveedor(l.recepcionId, l.numero),
+        entidad: 'recepcion_linea',
+        entidadId: l.id,
+      })
+      .onConflictDoNothing({ target: outbox.idempotencyKey });
+  }
+
+  /**
    * Cuando se completa el alta en Siweb360 de un CN, se mapean sus líneas PENDIENTE_ALTA_SIWEB y se
    * encola el ajuste pendiente (SPEC §5.2.2).
    */
@@ -207,6 +284,14 @@ export class OutboxService {
         if (l.actualizarPrecio && (l.precioCoste || l.precioNetoCompra)) {
           await this.encolarActualizarPrecio(tx, { ...l, siwebVariantId: variantId });
         }
+        // Coste del proveedor: siempre, salvo en recepciones enviadas a mano con la escritura apagada, que no
+        // mandan precios (un precio antiguo podría pisar uno más reciente; ver `enviarRecepcionDesactivada`).
+        const [rec] = await tx
+          .select({ distribuidorId: recepcion.distribuidorId, syncEstado: recepcion.syncEstado })
+          .from(recepcion)
+          .where(eq(recepcion.id, l.recepcionId));
+        if (rec && rec.syncEstado !== 'ESCRITURA_DESACTIVADA')
+          await this.encolarCosteProveedor(tx, { ...l, siwebVariantId: variantId }, rec.distribuidorId);
       }
       return lineas.length;
     });
@@ -252,12 +337,12 @@ export class OutboxService {
         .returning({ id: outbox.id });
       if (!tomadas.length) continue;
       const r = await this.enviar(f);
-      cuenta[r]++;
+      if (r !== ESTADO_SIN_PROVEEDOR) cuenta[r]++;
     }
     return cuenta;
   }
 
-  private async enviar(f: typeof outbox.$inferSelect): Promise<ResultadoEnvio> {
+  private async enviar(f: typeof outbox.$inferSelect): Promise<ResultadoEnvio | typeof ESTADO_SIN_PROVEEDOR> {
     let status: ResultadoEnvio;
     let error: string | null = null;
     let response: unknown = null;
@@ -276,6 +361,11 @@ export class OutboxService {
         });
         status = 'sent';
         response = r;
+      } else if (f.operation === OPERACION_ACTUALIZAR_COSTE_PROVEEDOR) {
+        const r = await this.enviarCosteProveedor(f);
+        if (r.sinProveedor) return r.sinProveedor;
+        status = 'sent';
+        response = r.response;
       } else {
         throw new DomainError('SIWEB_SALIDAS_PROHIBIDAS', `Operación no admitida: ${f.operation}`);
       }
@@ -304,6 +394,163 @@ export class OutboxService {
     await this.registrar(f, status, error, response, true);
     if (status !== 'sent') this.opts.log?.('outbox: operación no enviada', { id: f.id, status });
     return status;
+  }
+
+  /**
+   * Envío del coste del proveedor (specs/016): obtiene el producto de la variante, identifica el proveedor de
+   * Siweb360 del distribuidor y fija su coste con `PUT …/suppliers/{contact_id}`. Si no se puede identificar al
+   * proveedor (o Siweb360 no responde a las consultas previas, que son de solo lectura) no se envía nada y la fila
+   * queda en `needs_supplier`. Un 404 del `PUT` (contacto o producto inexistente) también.
+   */
+  private async enviarCosteProveedor(
+    f: typeof outbox.$inferSelect,
+  ): Promise<
+    { response: unknown; sinProveedor?: undefined } | { sinProveedor: typeof ESTADO_SIN_PROVEEDOR }
+  > {
+    const p = f.payload as PayloadCosteProveedor;
+    let productId: number;
+    let contactId: number;
+    let eraRecordado: boolean;
+    try {
+      productId = await this.productoDe(p.variant_id);
+      const r = await resolverProveedor({ db: this.db, client: this.client }, p.distribuidor_id, productId);
+      if ('motivo' in r) {
+        await this.marcarSinProveedor(f, r.motivo, REINTENTO_PROVEEDOR_MS);
+        return { sinProveedor: ESTADO_SIN_PROVEEDOR };
+      }
+      contactId = r.contactId;
+      eraRecordado = r.origen === 'recordado';
+    } catch (e) {
+      if (e instanceof HttpError || e instanceof SiwebValidationError) {
+        // Solo se ha leído: no se sabe nada del proveedor, pero tampoco se ha escrito nada. Se reintenta pronto.
+        await this.marcarSinProveedor(f, ERROR_PROVEEDOR_SIN_RESPUESTA, REINTENTO_PROVEEDOR_RED_MS);
+        return { sinProveedor: ESTADO_SIN_PROVEEDOR };
+      }
+      throw e;
+    }
+    await this.db
+      .update(outbox)
+      .set({ payload: { ...p, product_id: productId, contact_id: contactId } as never })
+      .where(eq(outbox.id, f.id));
+    try {
+      const r = await this.client.actualizarCosteProveedor(productId, contactId, p.cost_cents);
+      return { response: r };
+    } catch (e) {
+      if (e instanceof HttpError && e.kind === 'HTTP' && e.status === 404) {
+        // El contacto recordado ya no existe (o el producto): se olvida para volver a buscarlo por CIF.
+        if (eraRecordado)
+          await this.db
+            .update(distribuidor)
+            .set({ siwebContactId: null })
+            .where(eq(distribuidor.id, p.distribuidor_id));
+        await this.marcarSinProveedor(f, 'PROVEEDOR_INEXISTENTE', REINTENTO_PROVEEDOR_MS);
+        return { sinProveedor: ESTADO_SIN_PROVEEDOR };
+      }
+      throw e;
+    }
+  }
+
+  /** `product_id` de una variante: del mapa CN↔variante si lo tiene; si no, de Siweb360 (y se guarda en el mapa). */
+  private async productoDe(variantId: number): Promise<number> {
+    const [m] = await this.db
+      .select()
+      .from(siwebVariantMap)
+      .where(eq(siwebVariantMap.variantId, variantId))
+      .limit(1);
+    if (m?.productId != null) return m.productId;
+    const v = await this.client.variant(variantId);
+    if (v.product_id == null)
+      throw new SiwebValidationError(`inventory/variants/${variantId}`, [
+        'product_id: Siweb360 no lo indica',
+      ]);
+    if (m)
+      await this.db
+        .update(siwebVariantMap)
+        .set({ productId: v.product_id })
+        .where(eq(siwebVariantMap.id, m.id));
+    return v.product_id;
+  }
+
+  private async marcarSinProveedor(
+    f: typeof outbox.$inferSelect,
+    motivo: MotivoProveedor | string,
+    enMs: number,
+  ) {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(outbox)
+        .set({
+          status: ESTADO_SIN_PROVEEDOR,
+          lastError: motivo,
+          lockedAt: null,
+          nextAttemptAt: new Date(this.now().getTime() + enMs),
+        })
+        .where(eq(outbox.id, f.id));
+      await appendAudit(tx, {
+        actor: 'outbox-dispatcher',
+        accion: 'outbox_needs_supplier',
+        entidad: 'outbox',
+        entidadId: f.id,
+        despues: { idempotencyKey: f.idempotencyKey, motivo },
+      });
+    });
+    this.opts.log?.('outbox: coste de proveedor pendiente de proveedor en Siweb360', { id: f.id, motivo });
+  }
+
+  /**
+   * Barrido de los costes de proveedor pendientes cuyo reintento ha vencido: vuelven a `pending` para que
+   * `despachar` intente de nuevo identificar al proveedor. Devuelve cuántos reactivó.
+   */
+  async reintentarProveedoresPendientes(): Promise<number> {
+    const r = await this.db
+      .update(outbox)
+      .set({ status: 'pending', lockedAt: null, nextAttemptAt: null })
+      .where(
+        and(
+          eq(outbox.status, ESTADO_SIN_PROVEEDOR),
+          eq(outbox.operation, OPERACION_ACTUALIZAR_COSTE_PROVEEDOR),
+          lte(outbox.nextAttemptAt, this.now()),
+        ),
+      )
+      .returning({ id: outbox.id });
+    return r.length;
+  }
+
+  /**
+   * Reactiva de inmediato los costes de proveedor pendientes de un distribuidor (al vincular su proveedor de Siweb360
+   * en administración). Se envían una sola vez con el coste de su propia recepción.
+   */
+  async reactivarCosteProveedor(distribuidorId: string, actor: string): Promise<number> {
+    return this.db.transaction(async (tx) => {
+      const filas = await tx
+        .select({ id: outbox.id })
+        .from(outbox)
+        .where(
+          and(
+            eq(outbox.status, ESTADO_SIN_PROVEEDOR),
+            eq(outbox.operation, OPERACION_ACTUALIZAR_COSTE_PROVEEDOR),
+            sql`${outbox.payload}->>'distribuidor_id' = ${distribuidorId}`,
+          ),
+        );
+      if (!filas.length) return 0;
+      await tx
+        .update(outbox)
+        .set({ status: 'pending', lockedAt: null, nextAttemptAt: null })
+        .where(
+          inArray(
+            outbox.id,
+            filas.map((x) => x.id),
+          ),
+        );
+      await appendAudit(tx, {
+        actor,
+        accion: 'outbox_reactivar_coste_proveedor',
+        entidad: 'distribuidor',
+        entidadId: distribuidorId,
+        despues: { reactivadas: filas.length },
+      });
+      return filas.length;
+    });
   }
 
   /** Guarda el resultado de un envío: fila del outbox (si `guardarFila`), estado de la recepción y auditoría. */

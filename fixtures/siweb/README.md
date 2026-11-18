@@ -14,6 +14,9 @@ de prueba.
 | `doc-warehouses.json`, `doc-low-stock.json` | almacenes y bajo mínimo |
 | `doc-adjustment.json`, `doc-transfer.json` | `POST inventory/stock/adjustments` / `transfers` |
 | `doc-contacts-proveedores.json` | `GET contacts?tipo=Proveedor` (mismos campos que el ejemplo de la especificación) |
+| `doc-contact-detail.json` | `GET contacts/{id}` (es el único que devuelve `cif`; la lista no lo trae). Valores de prueba |
+| `doc-product-suppliers.json` | `GET inventory/products/{id}/suppliers` (proveedores del **producto**, con `supplier_cif` y `purchase_cost_cents`). Valores de prueba (specs/016) |
+| `doc-supplier-update.json` | `PUT inventory/products/{id}/suppliers/{contact_id}` (coste de compra de un proveedor; specs/016) |
 | `doc-movements.json` | `GET inventory/movements` (ejemplo literal de la especificación 1.3.0; `reference_id` es cadena y `created_at` no lleva zona horaria) |
 | `movements-conciliacion.json` | **Derivado** de `doc-movements.json` (no es una respuesta real) para la conciliación de movimientos (specs/011): entrada con `MMX-REC-…`, venta del ticket 7001, rotura, entrada manual sin nota, variante no mapeada y movimiento anterior al corte (2026-11-01) |
 | `doc-tickets.json`, `doc-ticket-700x.json` | `GET tickets` y `GET tickets/{id}` (líneas con `nombre` y `cantidad`; sin variante ni lote) |

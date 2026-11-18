@@ -67,6 +67,8 @@ interface Recepcion {
   regimen: 'recargo_equivalencia' | 'nacional';
   totales: Totales;
   syncEstado: string | null;
+  /** Costes de proveedor que esperan a que se vincule el proveedor en Siweb360 (specs/016). */
+  costeProveedorPendiente?: number;
   fechaCorte: string | null;
   escrituraStock: string;
   lectura: {
@@ -1429,6 +1431,13 @@ function CabeceraRecepcion({ r, onCambio }: { r: Recepcion; onCambio: () => void
           </div>
         </dl>
         {r.correcciones.length > 0 && <HistorialCorrecciones correcciones={r.correcciones} />}
+        {(r.costeProveedorPendiente ?? 0) > 0 && (
+          <Mensaje tipo="info">
+            Coste de proveedor pendiente: falta vincular a este distribuidor con su proveedor en Siweb360. El
+            stock no se ve afectado. Pide a administración que lo vincule (Administración → Outbox) y el coste
+            se enviará solo.
+          </Mensaje>
+        )}
         {msg && <Mensaje tipo="error">{msg}</Mensaje>}
         {enviable && (
           <div className="mt-3">

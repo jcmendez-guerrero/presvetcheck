@@ -481,8 +481,73 @@ const TEXTO_ENVIO: Record<string, string> = {
   sent: 'Enviado',
   failed: 'Fallido',
   needs_reconciliation: 'En revisión: no se sabe si llegó',
+  needs_supplier: 'Falta vincular el proveedor en Siweb360',
   resolved_manually: 'Resuelto a mano en Siweb360',
 };
+
+/** Por qué no se pudo identificar al proveedor de Siweb360 (specs/016); el código viaja en `lastError`. */
+const MOTIVO_PROVEEDOR: Record<string, string> = {
+  SIN_CIF: 'El distribuidor no tiene CIF, así que no se puede buscar su proveedor.',
+  SIN_COINCIDENCIA: 'No se ha encontrado en Siweb360 ningún proveedor con el CIF de este distribuidor.',
+  VARIAS_COINCIDENCIAS: 'Hay varios proveedores en Siweb360 con ese CIF: elige el correcto.',
+  PROVEEDOR_INEXISTENTE: 'El proveedor que estaba vinculado ya no existe en Siweb360.',
+  SIWEB_NO_DISPONIBLE: 'Siweb360 no respondió. Se volverá a intentar solo.',
+};
+
+/** Vincula el proveedor de Siweb360 de un distribuidor y reactiva sus costes pendientes (specs/016). */
+function VincularProveedor({ distribuidorId }: { distribuidorId: string }) {
+  const lista = useQuery({
+    queryKey: ['siweb-proveedores'],
+    queryFn: () => get<Array<{ id: number; nombre: string }>>('/api/admin/siweb/proveedores'),
+    retry: false,
+  });
+  const [contactId, setContactId] = useState('');
+  const [pideConfirmar, setPideConfirmar] = useState(false);
+  const { run, aviso } = useAccion();
+  const vincular = (confirmarCifDistinto: boolean) =>
+    run(async () => {
+      try {
+        await post(`/api/admin/distribuidores/${distribuidorId}/proveedor-siweb`, {
+          contactId: Number(contactId),
+          ...(confirmarCifDistinto ? { confirmarCifDistinto: true } : {}),
+        });
+        setPideConfirmar(false);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'SIWEB_PROVEEDOR_CIF_DISTINTO') setPideConfirmar(true);
+        throw e;
+      }
+    }, 'Proveedor vinculado: el coste se enviará en unos minutos.');
+  if (lista.error) return <Mensaje tipo="info">{(lista.error as Error).message}</Mensaje>;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <select
+        aria-label="Proveedor de Siweb360"
+        className="min-h-11 rounded-xl border-2 border-marca px-2"
+        value={contactId}
+        onChange={(e) => {
+          setContactId(e.target.value);
+          setPideConfirmar(false);
+        }}
+      >
+        <option value="">Elige el proveedor en Siweb360…</option>
+        {lista.data?.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.nombre}
+          </option>
+        ))}
+      </select>
+      <Boton disabled={!contactId} onClick={() => void vincular(false)}>
+        Vincular proveedor
+      </Boton>
+      {pideConfirmar && (
+        <Boton variante="secundario" onClick={() => void vincular(true)}>
+          El CIF no coincide: vincular de todos modos
+        </Boton>
+      )}
+      {aviso}
+    </div>
+  );
+}
 
 function Outbox() {
   const q = useQuery({
@@ -494,6 +559,8 @@ function Outbox() {
           idempotencyKey: string;
           status: string;
           lastError: string | null;
+          operation: string;
+          distribuidor: { id: string; nombre: string; cif: string | null } | null;
           stockActual: { total_on_hand?: number } | null;
           proximaComprobacion: string | null;
         }>
@@ -509,8 +576,18 @@ function Outbox() {
           <li key={o.id} className="py-2">
             <p>
               {o.idempotencyKey} · <strong>{TEXTO_ENVIO[o.status] ?? o.status}</strong>{' '}
-              {o.lastError && `· ${o.lastError}`}
+              {o.lastError && o.status !== 'needs_supplier' && `· ${o.lastError}`}
             </p>
+            {o.status === 'needs_supplier' && o.distribuidor && (
+              <>
+                <p className="text-sm">
+                  Distribuidor: <strong>{o.distribuidor.nombre}</strong>
+                  {o.distribuidor.cif ? ` (CIF ${o.distribuidor.cif})` : ' (sin CIF)'}.{' '}
+                  {MOTIVO_PROVEEDOR[o.lastError ?? ''] ?? ''}
+                </p>
+                <VincularProveedor distribuidorId={o.distribuidor.id} />
+              </>
+            )}
             {o.status === 'needs_reconciliation' && (
               <>
                 <p className="text-sm text-texto-muted">
@@ -519,9 +596,11 @@ function Outbox() {
                     : 'Ya no se comprueba solo: decide tú.'}
                 </p>
                 <p className="text-sm">
-                  {typeof o.stockActual?.total_on_hand === 'number'
-                    ? `Stock que tiene ahora Siweb360: ${o.stockActual.total_on_hand}`
-                    : 'No se ha podido leer el stock actual en Siweb360.'}
+                  {o.operation === 'siweb_actualizar_coste_proveedor'
+                    ? 'Comprueba en Siweb360 el coste de este proveedor para el producto.'
+                    : typeof o.stockActual?.total_on_hand === 'number'
+                      ? `Stock que tiene ahora Siweb360: ${o.stockActual.total_on_hand}`
+                      : 'No se ha podido leer el stock actual en Siweb360.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Boton

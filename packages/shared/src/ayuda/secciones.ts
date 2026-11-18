@@ -277,7 +277,7 @@ export const SECCIONES_AYUDA: SeccionAyuda[] = [
           ],
           [
             { b: 'Actualizar precio' },
-            ': ese precio pasa a ser el precio de coste de referencia en la app (informe de precios de coste). El precio de Siweb360 se cambia allí: su API no lo permite.',
+            ': ese precio pasa a ser el coste de la variante en Siweb360 y el precio de coste de referencia en la app (informe de precios de coste). El coste del proveedor en Siweb360 se actualiza siempre, esté marcada o no.',
           ],
           [
             { b: 'Modificar o descartar' },

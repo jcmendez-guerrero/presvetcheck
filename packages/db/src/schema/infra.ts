@@ -23,7 +23,7 @@ export const outbox = pgTable(
     payload: jsonb().notNull(),
     /** `MMX-{entidad}-{id}-{n}`; viaja en `notes` del ajuste. */
     idempotencyKey: text().notNull(),
-    status: text().notNull().default('pending'), // pending | sent | failed | needs_reconciliation | resolved_manually
+    status: text().notNull().default('pending'), // pending | sent | failed | needs_reconciliation | needs_supplier (specs/016) | resolved_manually
     attempts: integer().notNull().default(0),
     /** Comprobaciones contra el historial de Siweb360 de un envío dudoso (specs/011). */
     verificaciones: integer().notNull().default(0),

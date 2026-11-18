@@ -24,6 +24,11 @@ import {
   type VariantPricingResponse,
   StockMovementSchema,
   type StockMovement,
+  ProveedorProductoSchema,
+  ActualizarCosteProveedorRequestSchema,
+  ContactDetailSchema,
+  type ProveedorProducto,
+  type ContactDetail,
 } from './schemas';
 
 export class SiwebValidationError extends Error {
@@ -226,6 +231,46 @@ export class SiwebClient {
       false,
     );
     return this.parse(VariantPricingResponseSchema, json, `inventory/variants/${variantId}/pricing`);
+  }
+
+  /** `GET inventory/products/{id}/suppliers`: proveedores vinculados al producto (común a sus variantes). */
+  proveedoresDeProducto(productId: number): Promise<ProveedorProducto[]> {
+    return this.get(ProveedorProductoSchema.array(), `inventory/products/${productId}/suppliers`);
+  }
+
+  /**
+   * `PUT inventory/products/{id}/suppliers/{contact_id}` (specs/016). Fija el coste de compra de un proveedor para un
+   * producto (si el proveedor no estaba vinculado, Siweb360 lo vincula). Sin reintentos. Solo envía el coste:
+   * nunca `null` (borraría el existente) ni referencia/preferente.
+   */
+  async actualizarCosteProveedor(
+    productId: number,
+    contactId: number,
+    purchaseCostCents: number,
+  ): Promise<ProveedorProducto> {
+    const body = ActualizarCosteProveedorRequestSchema.parse({ purchase_cost_cents: purchaseCostCents });
+    const path = `inventory/products/${productId}/suppliers/${contactId}`;
+    const { json } = await this.http.request(
+      this.url(path),
+      { method: 'PUT', headers: await this.headers(), body: JSON.stringify(body) },
+      false,
+    );
+    return this.parse(ProveedorProductoSchema, json, path);
+  }
+
+  /** `GET contacts/{id}`: el detalle incluye el CIF (la lista no). */
+  contacto(id: number): Promise<ContactDetail> {
+    return this.get(ContactDetailSchema, `contacts/${id}`);
+  }
+
+  /** Proveedores activos cuyo nombre contiene `nombre` (`GET contacts?tipo=Proveedor&search=`), máximo `limite`. */
+  buscarProveedoresPorNombre(nombre: string, limite = 10): Promise<Contact[]> {
+    return this.get(ContactSchema.array(), 'contacts', {
+      tipo: 'Proveedor',
+      activo: true,
+      search: nombre,
+      limit: limite,
+    });
   }
 
   /**

@@ -10,3 +10,4 @@ export * from './ventas';
 export * from './conciliacion';
 export * from './prueba-escritura';
 export * from './conciliacion-movimientos';
+export * from './proveedor';

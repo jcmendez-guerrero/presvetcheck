@@ -109,6 +109,7 @@ export async function crearDeps(
         modo: config.SIWEB_STOCK_WRITE_MODE,
         almacenId,
         pruebaVigente: () => ultimaPruebaEscritura(db),
+        costeProveedorBase: rules.bundle.precios.coste_proveedor_base,
       }),
       stockActual: (id) => sc.stock(id),
       proveedores: async () =>

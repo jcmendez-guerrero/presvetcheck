@@ -67,6 +67,11 @@ export const distribuidor = pgTable('distribuidor', {
   id: pk(),
   nombre: text().notNull(),
   cif: text(),
+  /**
+   * Contacto proveedor de Siweb360 que corresponde a este distribuidor (specs/016). Se rellena al resolverlo por CIF
+   * o al vincularlo en administración; es un identificador de empresa, sin datos personales.
+   */
+  siwebContactId: integer(),
   activo: boolean().notNull().default(true),
   ...timestamps,
 });

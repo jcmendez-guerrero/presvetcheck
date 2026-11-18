@@ -21,6 +21,7 @@ import {
   appendAudit,
   auditEvent,
   distribuidor,
+  outbox,
   pedidoPendiente,
   recepcion,
   recepcionLinea,
@@ -780,9 +781,26 @@ export class RecepcionesService {
         rePct: l.rePct,
       })),
     );
+    // Costes de proveedor que esperan a que se vincule el proveedor en Siweb360 (specs/016).
+    const lineaIds = lineas.map((l) => l.id);
+    const costeProveedorPendiente = lineaIds.length
+      ? (
+          await this.d.db
+            .select({ id: outbox.id })
+            .from(outbox)
+            .where(
+              and(
+                inArray(outbox.entidadId, lineaIds),
+                eq(outbox.operation, 'siweb_actualizar_coste_proveedor'),
+                eq(outbox.status, 'needs_supplier'),
+              ),
+            )
+        ).length
+      : 0;
     return {
       ...r,
       totales,
+      costeProveedorPendiente,
       distribuidor: dist?.nombre ?? null,
       correcciones: r.estado === 'ABIERTA' ? [] : await this.correcciones(id),
       lectura: r.lecturaDocumento ?? null,

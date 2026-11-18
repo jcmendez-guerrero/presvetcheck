@@ -58,7 +58,7 @@ proveedores ya vinculados a ese producto.
 - **Decisión**: por defecto el mismo que la variante hoy: `precio_coste ?? precio_neto_compra`, en céntimos. Se
   expone como configuración `coste_proveedor_base` en `config/rules/precios.v1.yaml` (`precio_coste` | `precio_neto`)
   con `TODO(decision D-15)`, porque el coste de compra de un proveedor suele ser el neto (sin RE).
-- **Razón**: la spec lo deja abierto (Assumptions); cambiarlo no requiere código. **Pendiente de decisión del dueño (D-15, a registrar en `SPEC.md` §13).**
+- **Razón**: la spec lo deja abierto (Assumptions); cambiarlo no requiere código. **Pendiente de decisión del dueño (D-15, registrada en `SPEC.md` §13 y `docs/dudas.md`).**
 
 ## D8. Idempotencia y reintentos
 - 4xx → `failed` (p. ej. 404 de contacto/producto, 400); timeout, red, 5xx o respuesta no interpretable →

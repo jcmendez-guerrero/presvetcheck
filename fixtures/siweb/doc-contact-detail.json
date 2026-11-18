@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "id": 41,
+    "nombre_empresa": "Distribuidora Veterinaria de Prueba S.L.",
+    "cif": "B12345678",
+    "email_general": "pedidos@example.org",
+    "telefono_principal": "+34 910 000 000",
+    "tipo_relacion": "Proveedor",
+    "ciudad": "Madrid",
+    "provincia": "Madrid"
+  }
+}

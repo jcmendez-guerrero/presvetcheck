@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 77,
+      "product_id": 3120,
+      "contact_id": 41,
+      "supplier_name": "Distribuidora Veterinaria de Prueba S.L.",
+      "supplier_cif": "B12345678",
+      "supplier_reference": "DVP-0001",
+      "purchase_cost_cents": 650.25,
+      "currency": "EUR",
+      "lead_time_days": 2,
+      "min_order_qty": 1,
+      "is_preferred": true
+    },
+    {
+      "id": 78,
+      "product_id": 3120,
+      "contact_id": 42,
+      "supplier_name": "Cooperativa de Prueba",
+      "supplier_cif": "F87654321",
+      "supplier_reference": "COOP-0001",
+      "purchase_cost_cents": 700,
+      "currency": "EUR",
+      "lead_time_days": 5,
+      "min_order_qty": 6,
+      "is_preferred": false
+    }
+  ]
+}

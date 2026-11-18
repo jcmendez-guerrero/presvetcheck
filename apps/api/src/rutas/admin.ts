@@ -15,8 +15,10 @@ import {
   ACCION_PRUEBA_ESCRITURA,
   ejecutarSpike,
   esPruebaVigente,
+  OPERACION_ACTUALIZAR_COSTE_PROVEEDOR,
   movimientosSinJustificar,
   ultimaPruebaEscritura,
+  vincularProveedorSiweb,
 } from '@mmx/siweb';
 import { ahoraDe, type AppDeps } from '../deps';
 import { ROLES, exigirMfa, requiereRol } from '../plugins/auth';
@@ -435,13 +437,24 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     async (req) => {
       const s = siweb();
       const filas = await s.outbox.listar(req.query.estado ? req.query.estado.split(',') : undefined);
+      // Costes de proveedor (specs/016): se muestra a qué distribuidor hay que vincular su proveedor de Siweb360.
+      const distribuidores = new Map(
+        (await d.db.select().from(distribuidor)).map((x) => [
+          x.id,
+          { id: x.id, nombre: x.nombre, cif: x.cif },
+        ]),
+      );
       return Promise.all(
         filas.map(async (f) => ({
           ...f,
           // Para decidir una reconciliación, la persona ve el stock actual de la variante.
           stockActual:
-            f.status === 'needs_reconciliation'
+            f.status === 'needs_reconciliation' && f.operation !== OPERACION_ACTUALIZAR_COSTE_PROVEEDOR
               ? await s.stockActual((f.payload as { variant_id: number }).variant_id).catch(() => null)
+              : null,
+          distribuidor:
+            f.operation === OPERACION_ACTUALIZAR_COSTE_PROVEEDOR
+              ? (distribuidores.get((f.payload as { distribuidor_id: string }).distribuidor_id) ?? null)
               : null,
           proximaComprobacion: f.nextAttemptAt,
           evidencia: f.status === 'needs_reconciliation' ? f.lastError : null,
@@ -465,6 +478,63 @@ export async function rutasAdmin(app: App, d: AppDeps) {
     async (req) => {
       await siweb().outbox.resolver(req.params.id, req.body.accion, ctx(req).usuario.id, req.body.nota);
       return { ok: true };
+    },
+  );
+
+  app.get(
+    '/api/admin/siweb/proveedores',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['admin'],
+        summary: 'Proveedores dados de alta en Siweb360 (para vincular un distribuidor)',
+      },
+    },
+    async () => {
+      const client = siweb().client;
+      if (!client) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado (modo demo)');
+      const lista = await conSiweb(() => client.proveedores());
+      return lista
+        .map((c) => ({ id: c.id, nombre: c.nombre_empresa?.trim() ?? `Proveedor ${c.id}` }))
+        .sort((x, y) => x.nombre.localeCompare(y.nombre, 'es'));
+    },
+  );
+  app.post(
+    '/api/admin/distribuidores/:id/proveedor-siweb',
+    {
+      preHandler: admin,
+      schema: {
+        tags: ['admin'],
+        summary:
+          'Vincula el proveedor de Siweb360 de un distribuidor y reactiva sus costes de proveedor pendientes (specs/016)',
+        params: IdParam,
+        body: z.object({
+          contactId: z.number().int().positive(),
+          confirmarCifDistinto: z.boolean().optional(),
+        }),
+      },
+    },
+    async (req) => {
+      const s = siweb();
+      const client = s.client;
+      if (!client) throw new DomainError('SIWEB_NO_DISPONIBLE', 'Siweb360 no está configurado (modo demo)');
+      return conSiweb(() =>
+        vincularProveedorSiweb(
+          {
+            db: d.db,
+            client,
+            reactivar: (id, actor) => s.outbox.reactivarCosteProveedor(id, actor),
+          },
+          {
+            distribuidorId: req.params.id,
+            contactId: req.body.contactId,
+            ...(req.body.confirmarCifDistinto !== undefined
+              ? { confirmarCifDistinto: req.body.confirmarCifDistinto }
+              : {}),
+            actor: ctx(req).usuario.id,
+          },
+        ),
+      );
     },
   );
 
