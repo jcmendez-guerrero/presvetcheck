@@ -29,8 +29,8 @@ reintenta sola cuando el proveedor se vincula. Se añade una columna al distribu
 texto en `outbox.status` (`needs_supplier`; la columna ya es `text`, sin cambio de esquema).
 
 **Testing**: Vitest. `packages/siweb` con MSW y fixtures nuevas (lista de proveedores del producto, actualización de
-proveedor, detalle de contacto con CIF). `it.each` para el cálculo del coste y la normalización del CIF. Test de
-integración del outbox (Testcontainers) para el encolado y la reanudación.
+proveedor, detalle de contacto con CIF). `it.each` para el cálculo del coste y la normalización del CIF. Tests del
+outbox con el arnés de la API (`apps/api/test/entorno`) para el encolado, el envío y la reanudación.
 
 **Target Platform**: API en Azure Container Apps + job `outbox-dispatcher`; web de escritorio de la farmacia.
 
