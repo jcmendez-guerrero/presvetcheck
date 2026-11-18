@@ -96,10 +96,11 @@ unchanged.
 - A prescription with several lines where only some products are out of stock: each line is judged on its own; the
   formation date applies to the whole prescription.
 - The operator switches formation mode off after switching it on: lines are judged against current stock again.
-- Original date missing or in the future: the operator cannot continue until a valid past date is entered.
+- Original date missing or in the future: the operator cannot continue until a valid date that is not in the
+  future is entered.
 - Date older than the recommended range: warning only, as in spec 004 (FR-012).
-- Movement history unavailable (service down): operator is told the check could not be completed and may continue
-  only with a recorded justification; nothing is silently accepted.
+- Movement history unavailable (service down): operator is told the check could not be completed and to try
+  again; the line is not judged and nothing is silently accepted.
 - Hard blocks unrelated to stock (expired prescription, wrong species, etc.) still apply in formation mode.
 - A formation case must never deduct stock or send any stock movement to Siweb360.
 
@@ -120,9 +121,10 @@ unchanged.
   MUST NOT create an order, a reorder-list entry or a new sale.
 - **FR-006**: The check MUST be enforced by the server, not only by the screen. A formation request while the mode
   is disabled MUST be rejected (`MODO_RETROSPECTIVO_DESHABILITADO`).
-- **FR-007**: If no sale of the product is found on the original date, or the history cannot be read, the
-  operator MUST be warned and MAY continue only with a recorded justification (soft block, audit-trailed). Hard
-  blocks (`BLOQUEANTE_DURO`) MUST never be overridable.
+- **FR-007**: If no sale of the product is found on the original date, the operator MUST be warned and MAY
+  continue only with a recorded justification (soft block, audit-trailed). If the movement history cannot be read,
+  the system MUST stop with a clear "try again" message and MUST NOT treat it as "no sale found" (same as spec
+  004 dispensing). Hard blocks (`BLOQUEANTE_DURO`) MUST never be overridable.
 - **FR-008**: Live (non-formation) reviews MUST behave exactly as today, including the "Añadir a lista de pedido"
   suggestion for genuinely out-of-stock products.
 - **FR-009**: Formation dispensings MUST remain flagged with the mode and original date, and the audit trail MUST

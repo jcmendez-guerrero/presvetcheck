@@ -11,12 +11,13 @@ Sin cambios de esquema ni migraciones.
   SIN_MOVIMIENTO`, `cn`, `fechaOriginal`, unidades encontradas/requeridas).
 - **Incidencias**: `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` (forzable con motivo, auditada), 
   `AVISO_FECHA_RETROSPECTIVA_ANTIGUA` (aviso), `SIWEB_NO_DISPONIBLE`.
+- **Auditoría**: la evaluación persistida (`persistirEvaluacion`) conserva el resultado del chequeo en `evidencias`; el forzado de `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` queda en el registro de auditoría al dispensar, como hoy.
 - **Dispensación** (append-only): sin cambios; ya guarda `modo` y `fecha_original`.
 
 ## Reglas de validación
 
 - Formación solo con `RETROSPECTIVE_DISPENSATION_MODE=enabled` (salvo alta manual).
-- `fechaOriginal` obligatoria, válida y no futura; si falta → `VALIDACION`.
+- `fechaOriginal` obligatoria, válida y no futura (comparada con la fecha de hoy en `Europe/Madrid` del `Clock` inyectado); si falta o es futura → `VALIDACION`.
 - Un `BLOQUEANTE_DURO` nunca se fuerza, en formación tampoco.
 
 ## Estados

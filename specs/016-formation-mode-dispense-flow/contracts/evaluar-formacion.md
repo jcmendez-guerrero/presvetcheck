@@ -5,11 +5,11 @@ comportamiento cuando la receta guardada tiene `confirmacion.modo = 'retrospecti
 
 | Caso | Resultado |
 |---|---|
-| Modo desactivado en configuración | Error `MODO_RETROSPECTIVO_DESHABILITADO` (409/422 según mapeo existente de `DomainError`) |
-| Falta `fechaOriginal` | `VALIDACION` |
+| Modo desactivado en configuración | Error `MODO_RETROSPECTIVO_DESHABILITADO` (HTTP 403, mapeo existente en `apps/api/src/plugins/errores.ts`) |
+| Falta `fechaOriginal` o es futura | `VALIDACION` |
 | Venta del día encontrada (≥ unidades) | Línea `DISPENSAR` (o `DISPENSAR_CON_AVISO` si fecha antigua); sin `pedido` |
 | Sin venta o parcial | Incidencia `SIN_MOVIMIENTO_STOCK_RETROSPECTIVO` → `NO_CONFORME`, `forzable: true` con motivo |
-| Siweb360 no responde | `SIWEB_NO_DISPONIBLE` (nunca se interpreta como «sin movimientos») |
+| Siweb360 no responde | Error `SIWEB_NO_DISPONIBLE`: la línea no se juzga, se pide reintentar (nunca se interpreta como «sin movimientos» ni se puede forzar) |
 | Receta en vivo | Idéntico a hoy (stock actual, `PEDIR` si no hay) |
 | `origen = 'manual'` | Idéntico a hoy (spec 011) |
 
