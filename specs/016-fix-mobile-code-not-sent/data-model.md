@@ -16,6 +16,10 @@ Sin cambios de esquema de base de datos ni migraciones. Se reutiliza `sesion_mov
 
 ## Lectura del móvil (solo en el móvil, `sessionStorage`)
 
+Antes de que exista una lectura hay que leer el código de la foto con el lector de `zxing-wasm`
+(`apps/web/src/lib/zxing.ts`), que se carga una sola vez; si la lectura falla (p. ej. no se pudo cargar el lector sin
+red) no se crea ninguna lectura: el móvil muestra un aviso y la persona vuelve a hacer la foto.
+
 | Campo | Tipo | Nota |
 |-------|------|------|
 | `id` | UUID | identifica la lectura en los reintentos |

@@ -133,7 +133,8 @@ recepción y comprobar que el código se ofrece o se aplica.
 - Dos pestañas del ordenador emparejadas con el mismo móvil: cada pestaña consulta por su cuenta, así que ambas reciben
   el código. Entregarlo a una sola pestaña queda fuera de este arreglo (ver Assumptions).
 - Móvil emparejado pero cámara denegada o no disponible: se ofrece la lectura por foto (ya existente) y, si tampoco
-  es posible, la entrada a mano; nunca se queda la persona sin salida.
+  es posible, la entrada a mano; nunca se queda la persona sin salida. Si el lector de la foto no se puede cargar
+  (sin red), se avisa y se puede intentar de nuevo; el lector se carga una sola vez y se reutiliza.
 - El emparejamiento caduca mientras el ordenador espera códigos: el ordenador lo avisa en el diálogo «Usar el móvil»
   en lugar de seguir como si estuviera conectado.
 
@@ -144,7 +145,9 @@ recepción y comprobar que el código se ofrece o se aplica.
 **Envío desde el móvil**
 
 - **FR-001**: Todo código de envase leído con el móvil (DataMatrix, QR, EAN-13, Code 128, en vivo o por foto) DEBE
-  enviarse al sistema y llegar al ordenador emparejado.
+  enviarse al sistema y llegar al ordenador emparejado. Si la lectura de la foto falla (por ejemplo sin red al cargar
+  el lector), el móvil lo avisa en español claro («No se ha podido leer el código de la foto: comprueba la conexión
+  del móvil e inténtalo de nuevo») en lugar de no mostrar nada.
 - **FR-002**: El código DEBE llegar íntegro, incluidos los separadores de grupo GS1 y otros caracteres de control, tal
   y como lo leyó el móvil.
 - **FR-003**: El móvil SOLO DEBE mostrar «enviado» cuando el sistema haya aceptado el código; mientras tanto DEBE

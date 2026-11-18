@@ -191,3 +191,7 @@ después T016 → T017 y T018 (archivos distintos, ambos dependen de T016)
 
 - T024 covers both the notice and the «Usar el código recibido» delivery on the `Venta Mostrador` scan field; T025 added `emparejamientoTerminado` (`lib/movil.tsx`, tested in `lib/movil.test.ts`); T026/T027 are documentation in `data-model.md` and `spec.md` FR-005.
 - T023 (partial automation): `apps/web/e2e/movil-telefono.spec.ts` emulates a phone (Pixel 7 profile) that opens the real `/movil` page and reads a generated DataMatrix from a photo; it covers quickstart scenarios 1-5 and 8 (send, failed send + «Reintentar», returning to the page, closed pairing). Still manual on a real device: the live camera and anything that depends on the deployed platform (T001).
+
+## Phase 8: Convergence
+
+- [X] T028 Documentar en `spec.md` (FR-001 y el caso límite de cámara no disponible) y en `data-model.md` que, si la lectura de la foto del código falla (p. ej. sin red al cargar el lector), el móvil lo avisa en español claro («No se ha podido leer el código de la foto: comprueba la conexión del móvil e inténtalo de nuevo») y que el lector de `apps/web/src/lib/zxing.ts` se carga una sola vez, o quitar ese aviso de `apps/web/src/paginas/movil.tsx` per FR-001, spec: caso límite «cámara denegada o no disponible» (unrequested)
