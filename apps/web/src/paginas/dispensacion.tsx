@@ -246,7 +246,7 @@ export function Dispensacion() {
 
   const l = ev.data?.lineas.find((x) => x.orden === orden);
   const evd = l?.resultado.evidencias;
-  const objetivo = useMemo(() => {
+  const objetivoBase = useMemo(() => {
     if (!l || !evd) return null;
     if (s.sustitucion && sust.data)
       return {
@@ -270,6 +270,11 @@ export function Dispensacion() {
       caducidad: evd.lotes?.recomendado?.caducidad ?? null,
     };
   }, [l, evd, s.sustitucion, sust.data]);
+  // Formación (specs/016): el stock de hoy no cuenta, así que no hay lote recomendado que mostrar ni seguir.
+  const objetivo = useMemo(
+    () => (objetivoBase && modoRetrospectivo ? { ...objetivoBase, lote: null, caducidad: null } : objetivoBase),
+    [objetivoBase, modoRetrospectivo],
+  );
   const pendientes = (s.pendientes ?? '').split(',').filter(Boolean).map(Number);
 
   if (ev.isLoading) return <Cargando />;
@@ -401,7 +406,7 @@ export function Dispensacion() {
             <BotonPreguntarLinea recetaLineaId={l.lineaId} etiqueta={`el medicamento ${orden}`} />
           )}
           {/* Alta manual: el lote es el que se entregó; no hay lote recomendado que seguir. */}
-          {!manual && (
+          {!manual && !modoRetrospectivo && (
             <Tarjeta
               titulo="Lote recomendado FEFO (caduca antes)"
               destacada={!!objetivo.lote}
