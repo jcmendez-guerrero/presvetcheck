@@ -93,7 +93,7 @@ description: "Task list for 016 formation mode dispense flow"
 - [X] T020 [P] Check `docs/glosario.md` already defines "modo formación"/"retrospectivo"; add the entry only if missing
 - [X] T021 Confirm no new env variable was needed (`.env.example` unchanged) and no personal data appears in logs/errors from the new code (only `cn`, date, counts)
 - [X] T022 Run `pnpm lint && pnpm typecheck && pnpm test` (add `pnpm test:int` if integration tests cover dispensing) and walk through `specs/016-formation-mode-dispense-flow/quickstart.md`
-- [ ] T023 Commit with Conventional Commits (`fix: honour formation mode when evaluating prescriptions`)
+- [X] T023 Commit with Conventional Commits (`fix: honour formation mode when evaluating prescriptions`)
 
 ---
 
@@ -119,3 +119,12 @@ Polish:         T019  ||  T020
 - **Increment 2**: US2 verifies ticket association and no order/stock side effects.
 - **Increment 3**: US3 locks in no regression; then Polish and the full gate.
 - One PR, one block; if `decidirLinea` turns out to need a domain flag (plan, open point), add it in `packages/domain/src/decision.ts` with `it.each` tables as an extra task before T008.
+
+## Phase 7: Convergence
+
+- [ ] T024 (BLOCKED: setting `SIWEB_TOKEN` switches the whole API to the real Siweb360 client (stock, catalog index, tickets), so a stub needs many endpoints and would change the existing smoke flow; do it as a separate Playwright project) Complete T015: add a Siweb360 stub (variant mapping + `sale_shipment` movement) to the e2e web servers in `apps/web/playwright.config.ts`, enable `RETROSPECTIVE_DISPENSATION_MODE`, and add the formation step to `apps/web/e2e/humo.spec.ts` ending with the ticket detail open per SC-001/SC-002 (partial)
+- [X] T025 Add an API test with a multi-line prescription in formation mode where only some lines have a sale on the original date, asserting each line is judged on its own per Edge Cases (missing)
+- [X] T026 Add a test that switching formation mode off (saved `modo='en_vivo'`) judges the line against current stock again per Edge Cases / FR-008 (missing)
+- [X] T027 Record the original-date check result (estado, encontradas/requeridas) in the `audit_event` of the formation dispensing, not only in `evidencia_stock_retrospectiva`, per FR-009 (partial)
+- [ ] T028 (PARTIAL: quickstart steps 1 and 4 verified by the suites; step 2-3 manual UI walk and `pnpm test:int` not run, no container runtime) Walk through `specs/016-formation-mode-dispense-flow/quickstart.md` and run `pnpm test:int` where a container runtime exists; record the result per T022 (partial)
+- [X] T029 Mark T023 once the Conventional Commit for the fix is confirmed in history (`f8c0252`) (partial)

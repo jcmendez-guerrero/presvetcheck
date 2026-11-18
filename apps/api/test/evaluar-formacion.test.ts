@@ -179,6 +179,48 @@ describe('Casos límite de la evaluación en formación (specs/016)', () => {
   });
 });
 
+describe('Líneas independientes y vuelta al modo en vivo (specs/016)', () => {
+  it('cada línea se juzga por su cuenta: la venta cubre una y no la otra', async () => {
+    const { app } = await conSiweb({ RETROSPECTIVE_DISPENSATION_MODE: 'enabled' }, async () => [venta(1)]);
+    const id = await crearReceta(app);
+    await confirmar(app, id, (base) => {
+      const r = recetaCorrecta('R-DOS-LINEAS')(base);
+      const l = r.lineas[0]!;
+      return {
+        ...r,
+        modo: 'retrospectivo',
+        fechaOriginal: FECHA,
+        lineas: [
+          { ...l, orden: 1, cantidadEnvases: 1 },
+          { ...l, orden: 2, cantidadEnvases: 2 },
+        ],
+      };
+    });
+    const r = await api(app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(r.status).toBe(200);
+    const dec = (o: number) => r.json.lineas.find((x: { orden: number }) => x.orden === o).resultado.decision;
+    expect(dec(1)).toBe('DISPENSAR');
+    expect(dec(2)).toBe('NO_CONFORME');
+    await app.close();
+  });
+
+  it('si se desmarca el modo formación, la línea vuelve a juzgarse con el stock de hoy', async () => {
+    const movements = vi.fn(async () => [venta(1)]);
+    const { app } = await conSiweb({ RETROSPECTIVE_DISPENSATION_MODE: 'enabled' }, movements);
+    const id = await crearReceta(app);
+    await confirmar(app, id, (base) => ({
+      ...recetaCorrecta('R-VUELVE-VIVO')(base),
+      modo: 'en_vivo',
+      fechaOriginal: null,
+    }));
+    const r = await api(app, 'dev-empleado', 'POST', `/api/recetas/${id}/evaluar`, {});
+    expect(r.status).toBe(200);
+    expect(r.json.lineas[0].resultado.decision).not.toBe('DISPENSAR'); // sin stock hoy
+    expect(movements).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
 describe('Regresión: recetas que no son de formación (specs/016, US3)', () => {
   it('el alta manual conserva su camino: no consulta movimientos de Siweb360', async () => {
     const movements = vi.fn(async () => []);
@@ -270,6 +312,13 @@ describe('Ticket ya emitido en formación (specs/016, FR-005 y FR-010)', () => {
     expect(await h.db.select().from(outbox)).toHaveLength(antes.salidas);
     const auditoria = await h.db.select().from(auditEvent).where(eq(auditEvent.accion, 'dispensar'));
     expect(JSON.stringify(auditoria.map((a) => a.despues))).toContain(SIN_VENTA);
+    // La comprobación de la venta del día original también queda en la auditoría (FR-009).
+    expect(auditoria.map((a) => (a.despues as { retrospectivo?: unknown }).retrospectivo)).toContainEqual({
+      fechaOriginal: FECHA,
+      resultado: 'SIN_MOVIMIENTO',
+      encontradas: 0,
+      requeridas: 1,
+    });
     await app.close();
   });
 });

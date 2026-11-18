@@ -653,6 +653,17 @@ export class DispensacionesService {
           decision: r.decision,
           forzado: forzados,
           lotes: s.envases.map((e) => e.lote),
+          // Comprobación de la venta del día original (formación): solo cn, fecha y recuentos, sin datos personales.
+          ...(retro && s.fechaOriginal
+            ? {
+                retrospectivo: {
+                  fechaOriginal: s.fechaOriginal,
+                  resultado: retro.estado,
+                  encontradas: retro.unidadesEncontradas,
+                  requeridas: retro.unidadesRequeridas,
+                },
+              }
+            : {}),
         },
         ip: c.ip,
         userAgent: c.userAgent,
